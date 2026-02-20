@@ -1,0 +1,21 @@
+[package]
+name = "radroots-app-ffi-swift"
+version.workspace = true
+edition.workspace = true
+authors = ["Radroots Authors"]
+rust-version.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "bin/uniffi-bindgen.rs"
+
+[build-dependencies]
+uniffi_build = { workspace = true }
+
+[dependencies]
+radroots-app-core = { workspace = true }
+uniffi = { workspace = true, features = ["cli"] }
