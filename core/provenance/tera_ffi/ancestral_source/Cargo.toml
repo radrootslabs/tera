@@ -5,6 +5,7 @@ edition.workspace = true
 authors = ["Radroots Authors"]
 rust-version.workspace = true
 license.workspace = true
+publish = false
 
 [lib]
 crate-type = ["staticlib", "cdylib"]
