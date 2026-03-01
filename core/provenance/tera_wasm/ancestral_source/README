@@ -1,0 +1,14 @@
+# radroots-app-wasm
+
+Wasm application runtime bindings for Rad Roots app surfaces.
+
+## Goals
+
+- expose app runtime build and info interfaces for wasm targets
+- keep wasm runtime behavior deterministic across supported browser environments
+- provide a stable wasm entry surface backed by radroots-app-core primitives
+- support reusable wasm integration points for higher-level Rad Roots crates
+
+## License
+
+Licensed under AGPL-3.0. See LICENSE.
