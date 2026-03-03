@@ -1,11 +1,14 @@
 [package]
 name = "radroots_app_core"
-description = "Application core runtime for Radroots apps"
 version = "0.1.0-alpha.1"
 edition.workspace = true
 authors = ["Radroots Authors"]
 rust-version.workspace = true
 license.workspace = true
+description = "Application core runtime for Radroots apps"
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
 
 [lib]
 crate-type = ["rlib"]
