@@ -46,7 +46,6 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 uniffi = { workspace = true }
 tokio = { workspace = true }
-reqwest = { workspace = true, features = ["blocking", "json", "rustls-tls"] }
 
 [dev-dependencies]
 tracing-subscriber = { workspace = true }
