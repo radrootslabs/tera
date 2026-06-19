@@ -11,7 +11,7 @@ use radroots_net_core::config::NetConfig;
 
 fn expect_disabled<T>(result: Result<T, RadrootsAppError>) {
     match result {
-        Err(RadrootsAppError::Msg(message)) => assert_eq!(message, "nostr disabled"),
+        Err(RadrootsAppError::Unsupported(message)) => assert_eq!(message, "nostr disabled"),
         _ => panic!("expected nostr disabled error"),
     }
 }
@@ -87,7 +87,7 @@ fn runtime_builder_and_logging_paths_are_exercised() {
     drop(default_handle);
 
     let err = logging::init_logging(Some("/dev/null/file.log".to_string()), None, Some(false));
-    assert!(matches!(err, Err(RadrootsAppError::Msg(_))));
+    assert!(matches!(err, Err(RadrootsAppError::Initialization(_))));
     let _ = logging::init_logging(None, None, None);
     let _ = logging::init_logging(None, Some("app.log".to_string()), Some(false));
     let _ = logging::init_logging_stdout();

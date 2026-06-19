@@ -15,7 +15,7 @@ pub fn init_logging(
     };
     match radroots_log::init_logging(opts) {
         Ok(()) => Ok(()),
-        Err(err) => Err(crate::RadrootsAppError::Msg(format!("{err}"))),
+        Err(err) => Err(crate::RadrootsAppError::initialization(format!("{err}"))),
     }
 }
 
@@ -23,7 +23,7 @@ pub fn init_logging(
 pub fn init_logging_stdout() -> Result<(), crate::RadrootsAppError> {
     match radroots_log::init_stdout() {
         Ok(()) => Ok(()),
-        Err(err) => Err(crate::RadrootsAppError::Msg(format!("{err}"))),
+        Err(err) => Err(crate::RadrootsAppError::initialization(format!("{err}"))),
     }
 }
 

@@ -49,7 +49,11 @@ impl RadrootsRuntime {
         #[cfg(feature = "rt")]
         let handle = match NetBuilder::new().config(cfg).manage_runtime(true).build() {
             Ok(handle) => handle,
-            Err(err) => return Err(RadrootsAppError::Msg(format!("net build failed: {err}"))),
+            Err(err) => {
+                return Err(RadrootsAppError::initialization(format!(
+                    "net build failed: {err}"
+                )));
+            }
         };
         #[cfg(not(feature = "rt"))]
         let handle = NetBuilder::new()

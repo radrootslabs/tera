@@ -35,14 +35,14 @@ fn account_record(
     let selected_identity_id = net
         .accounts
         .default_account_id()
-        .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+        .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
     let account = net
         .accounts
         .list_accounts()
-        .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?
+        .map_err(|e| RadrootsAppError::identity(format!("{e}")))?
         .into_iter()
         .find(|account| &account.account_id == account_id)
-        .ok_or_else(|| RadrootsAppError::Msg(format!("identity not found: {account_id}")))?;
+        .ok_or_else(|| RadrootsAppError::identity(format!("identity not found: {account_id}")))?;
     let is_selected = selected_identity_id
         .as_ref()
         .map(|selected| selected == &account.account_id)
@@ -66,7 +66,7 @@ fn invalidate_nostr_runtime(net: &mut radroots_net_core::Net) {
 #[cfg(feature = "nostr-client")]
 fn identity_from_secret(secret_key: &str) -> Result<RadrootsIdentity, RadrootsAppError> {
     RadrootsIdentity::from_secret_key_str(secret_key)
-        .map_err(|e| RadrootsAppError::Msg(format!("{e}")))
+        .map_err(|e| RadrootsAppError::identity(format!("{e}")))
 }
 
 #[cfg(feature = "nostr-client")]
@@ -92,7 +92,7 @@ fn restore_host_custody_identity(
     let account_id = net
         .accounts
         .upsert_identity(identity, label, make_selected)
-        .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+        .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
     invalidate_nostr_runtime(net);
     account_record(net, &account_id)
 }
@@ -148,16 +148,16 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let selected_identity_id = guard
                 .accounts
                 .default_account_id()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             let accounts = guard
                 .accounts
                 .list_accounts()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             return Ok(accounts
                 .into_iter()
                 .map(|account| {
@@ -177,7 +177,7 @@ impl RadrootsRuntime {
         }
         #[cfg(not(feature = "nostr-client"))]
         {
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -194,16 +194,16 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let selected_identity_id = guard
                 .accounts
                 .default_account_id()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             let selected_npub = guard
                 .accounts
                 .default_public_identity()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?
                 .map(|identity| identity.public_key_npub);
             let has_selected_signing_identity = guard
                 .accounts
@@ -214,7 +214,7 @@ impl RadrootsRuntime {
             let identities = guard
                 .accounts
                 .list_accounts()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?
                 .into_iter()
                 .map(|account| {
                     let is_selected = selected_identity_id
@@ -239,7 +239,7 @@ impl RadrootsRuntime {
         }
         #[cfg(not(feature = "nostr-client"))]
         {
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -255,7 +255,7 @@ impl RadrootsRuntime {
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = secret_key;
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -269,7 +269,7 @@ impl RadrootsRuntime {
         {
             let mut guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let (identity, _) = host_custody_identity_from_secret(secret_key.as_str())?;
             return restore_host_custody_identity(&mut guard, &identity, label, make_selected);
@@ -277,7 +277,7 @@ impl RadrootsRuntime {
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = (secret_key, label, make_selected);
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -286,21 +286,21 @@ impl RadrootsRuntime {
         {
             let mut guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let account_id = RadrootsIdentityId::parse(identity_id.as_str())
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             guard
                 .accounts
                 .set_default_account(&account_id)
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             invalidate_nostr_runtime(&mut guard);
             Ok(())
         }
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = identity_id;
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -309,21 +309,21 @@ impl RadrootsRuntime {
         {
             let mut guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let account_id = RadrootsIdentityId::parse(identity_id.as_str())
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             guard
                 .accounts
                 .remove_account(&account_id)
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             invalidate_nostr_runtime(&mut guard);
             Ok(())
         }
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = identity_id;
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -332,22 +332,22 @@ impl RadrootsRuntime {
         {
             let mut guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let accounts = guard
                 .accounts
                 .list_accounts()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             for account in accounts {
                 guard
                     .accounts
                     .remove_account(&account.account_id)
-                    .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                    .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             }
             guard
                 .accounts
                 .clear_default_account()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))?;
+                .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
             invalidate_nostr_runtime(&mut guard);
             if let Ok(mut rx_guard) = self.post_events_rx.lock() {
                 *rx_guard = None;
@@ -356,7 +356,7 @@ impl RadrootsRuntime {
         }
         #[cfg(not(feature = "nostr-client"))]
         {
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 

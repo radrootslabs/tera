@@ -115,10 +115,11 @@ impl RadrootsRuntime {
         draft: TradeListingDraft,
     ) -> Result<TradeListingEventParts, RadrootsAppError> {
         let listing = listing_from_draft(&draft)?;
-        let parts = listing_to_wire_parts(&listing)
-            .map_err(|error| RadrootsAppError::Msg(format!("listing encode failed: {error}")))?;
+        let parts = listing_to_wire_parts(&listing).map_err(|error| {
+            RadrootsAppError::runtime(format!("listing encode failed: {error}"))
+        })?;
         let tags_json = serde_json::to_string(&parts.tags).map_err(|error| {
-            RadrootsAppError::Msg(format!("listing tags encode failed: {error}"))
+            RadrootsAppError::runtime(format!("listing tags encode failed: {error}"))
         })?;
         Ok(TradeListingEventParts {
             kind: parts.kind,
@@ -136,28 +137,28 @@ impl RadrootsRuntime {
             let guard = self
                 .net
                 .lock()
-                .map_err(|error| RadrootsAppError::Msg(format!("{error}")))?;
+                .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             let listing = listing_from_draft(&draft)?;
             let current_pubkey = current_pubkey_hex(self)?;
             if listing.farm.pubkey != current_pubkey {
-                return Err(RadrootsAppError::Msg(
-                    "farm_pubkey must match the default account public key".into(),
+                return Err(RadrootsAppError::runtime(
+                    "farm_pubkey must match the default account public key",
                 ));
             }
             let parts = listing_to_wire_parts(&listing).map_err(|error| {
-                RadrootsAppError::Msg(format!("listing encode failed: {error}"))
+                RadrootsAppError::runtime(format!("listing encode failed: {error}"))
             })?;
             mgr.send_custom_event_blocking(parts.kind, parts.content, parts.tags)
-                .map_err(|error| RadrootsAppError::Msg(error.to_string()))
+                .map_err(|error| RadrootsAppError::relay(error.to_string()))
         }
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = draft;
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -171,11 +172,11 @@ impl RadrootsRuntime {
             let guard = self
                 .net
                 .lock()
-                .map_err(|error| RadrootsAppError::Msg(format!("{error}")))?;
+                .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             let mut filter =
                 RadrootsNostrFilter::new().kind(RadrootsNostrKind::Custom(KIND_LISTING as u16));
             filter = filter.limit(limit.into());
@@ -185,7 +186,7 @@ impl RadrootsRuntime {
 
             let events = mgr
                 .fetch_events_blocking(filter, core::time::Duration::from_secs(10))
-                .map_err(|error| RadrootsAppError::Msg(error.to_string()))?;
+                .map_err(|error| RadrootsAppError::relay(error.to_string()))?;
             let mut out = Vec::new();
             for event in events {
                 let event = radroots_event_from_nostr(&event);
@@ -199,7 +200,7 @@ impl RadrootsRuntime {
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = (limit, since_unix);
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -216,8 +217,8 @@ impl RadrootsRuntime {
             listing_id,
             recipient_pubkey,
         );
-        Err(RadrootsAppError::Msg(
-            "legacy listing validation requests are retired".into(),
+        Err(RadrootsAppError::unsupported(
+            "legacy listing validation requests are retired",
         ))
     }
 
@@ -226,8 +227,8 @@ impl RadrootsRuntime {
         draft: TradeOrderDraft,
     ) -> Result<TradeOrderSendResult, RadrootsAppError> {
         let _ = draft;
-        Err(RadrootsAppError::Msg(
-            "legacy listing order requests are retired; use active trade order APIs".into(),
+        Err(RadrootsAppError::unsupported(
+            "legacy listing order requests are retired; use active trade order APIs",
         ))
     }
 
@@ -238,7 +239,9 @@ impl RadrootsRuntime {
         since_unix: Option<u64>,
     ) -> Result<Vec<TradeListingMessageSummary>, RadrootsAppError> {
         let _ = (listing_addr, limit, since_unix);
-        Ok(Vec::new())
+        Err(RadrootsAppError::unsupported(
+            "legacy listing message fetch is retired",
+        ))
     }
 }
 
@@ -260,9 +263,9 @@ fn listing_from_draft(draft: &TradeListingDraft) -> Result<RadrootsListing, Radr
         "bin_id",
     )?;
     let listing_id = RadrootsDTag::parse(listing_id)
-        .map_err(|error| RadrootsAppError::Msg(format!("invalid listing_id: {error}")))?;
+        .map_err(|error| RadrootsAppError::runtime(format!("invalid listing_id: {error}")))?;
     let bin_id = RadrootsInventoryBinId::parse(bin_id)
-        .map_err(|error| RadrootsAppError::Msg(format!("invalid bin_id: {error}")))?;
+        .map_err(|error| RadrootsAppError::runtime(format!("invalid bin_id: {error}")))?;
     let amount = parse_decimal(&draft.bin_display_amount, "bin_display_amount")?;
     let unit = parse_unit(&draft.bin_display_unit)?;
     let canonical_unit = unit.canonical_unit();
@@ -367,19 +370,19 @@ fn current_pubkey_hex(runtime: &RadrootsRuntime) -> Result<String, RadrootsAppEr
     let guard = runtime
         .net
         .lock()
-        .map_err(|error| RadrootsAppError::Msg(format!("{error}")))?;
+        .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
     let identity = guard
         .accounts
         .default_public_identity()
-        .map_err(|error| RadrootsAppError::Msg(format!("{error}")))?
-        .ok_or_else(|| RadrootsAppError::Msg("default account is not configured".into()))?;
+        .map_err(|error| RadrootsAppError::identity(format!("{error}")))?
+        .ok_or_else(|| RadrootsAppError::identity("default account is not configured"))?;
     Ok(identity.public_key_hex)
 }
 
 fn non_empty(value: String, field: &str) -> Result<String, RadrootsAppError> {
     let value = value.trim().to_string();
     if value.is_empty() {
-        return Err(RadrootsAppError::Msg(format!("{field} is required")));
+        return Err(RadrootsAppError::runtime(format!("{field} is required")));
     }
     Ok(value)
 }
@@ -392,17 +395,17 @@ fn blank_to_none(value: Option<String>) -> Option<String> {
 
 fn parse_decimal(value: &str, field: &str) -> Result<RadrootsCoreDecimal, RadrootsAppError> {
     RadrootsCoreDecimal::from_str(value.trim())
-        .map_err(|error| RadrootsAppError::Msg(format!("{field} is invalid: {error}")))
+        .map_err(|error| RadrootsAppError::runtime(format!("{field} is invalid: {error}")))
 }
 
 fn parse_currency(value: &str) -> Result<RadrootsCoreCurrency, RadrootsAppError> {
     RadrootsCoreCurrency::from_str(value.trim())
-        .map_err(|error| RadrootsAppError::Msg(format!("currency is invalid: {error}")))
+        .map_err(|error| RadrootsAppError::runtime(format!("currency is invalid: {error}")))
 }
 
 fn parse_unit(value: &str) -> Result<RadrootsCoreUnit, RadrootsAppError> {
     RadrootsCoreUnit::from_str(value.trim())
-        .map_err(|error| RadrootsAppError::Msg(format!("unit is invalid: {error}")))
+        .map_err(|error| RadrootsAppError::runtime(format!("unit is invalid: {error}")))
 }
 
 fn parse_delivery_method(value: &str) -> RadrootsListingDeliveryMethod {

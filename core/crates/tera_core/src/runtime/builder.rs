@@ -36,7 +36,9 @@ impl RuntimeBuilder {
                 .build()
             {
                 Ok(handle) => Ok(handle),
-                Err(err) => Err(RadrootsAppError::Msg(format!("net build failed: {err}"))),
+                Err(err) => Err(RadrootsAppError::initialization(format!(
+                    "net build failed: {err}"
+                ))),
             }
         }
 

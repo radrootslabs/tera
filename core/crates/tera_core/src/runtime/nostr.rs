@@ -83,16 +83,16 @@ impl RadrootsRuntime {
         {
             let mut guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             guard
                 .nostr_set_default_relays(&relays)
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))
+                .map_err(|e| RadrootsAppError::relay(format!("{e}")))
         }
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = relays;
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -101,15 +101,15 @@ impl RadrootsRuntime {
         {
             let mut guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             guard
                 .nostr_connect_if_key_present()
-                .map_err(|e| RadrootsAppError::Msg(format!("{e}")))
+                .map_err(|e| RadrootsAppError::relay(format!("{e}")))
         }
         #[cfg(not(feature = "nostr-client"))]
         {
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -194,19 +194,19 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             mgr.publish_profile_event_blocking(name, display_name, nip05, about)
-                .map_err(|e| RadrootsAppError::Msg(e.to_string()))
+                .map_err(|e| RadrootsAppError::relay(e.to_string()))
         }
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = (name, display_name, nip05, about);
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -215,19 +215,19 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             mgr.publish_post_event_blocking(content)
-                .map_err(|e| RadrootsAppError::Msg(e.to_string()))
+                .map_err(|e| RadrootsAppError::relay(e.to_string()))
         }
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = content;
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -240,21 +240,21 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             let items = mgr
                 .fetch_post_events_blocking(limit, since_unix)
-                .map_err(|e| RadrootsAppError::Msg(e.to_string()))?;
+                .map_err(|e| RadrootsAppError::relay(e.to_string()))?;
             Ok(items.into_iter().map(map_post_event_metadata).collect())
         }
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = (limit, since_unix);
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -269,19 +269,19 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             mgr.publish_post_reply_event_blocking(
                 parent_event_id_hex,
                 parent_author_hex,
                 content,
                 root_event_id_hex,
             )
-            .map_err(|e| RadrootsAppError::Msg(e.to_string()))
+            .map_err(|e| RadrootsAppError::relay(e.to_string()))
         }
         #[cfg(not(feature = "nostr-client"))]
         {
@@ -291,7 +291,7 @@ impl RadrootsRuntime {
                 content,
                 root_event_id_hex,
             );
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -303,12 +303,12 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             mgr.start_post_event_stream(since_unix);
             if let Ok(mut rx_guard) = self.post_events_rx.lock() {
                 if rx_guard.is_none() {
@@ -320,7 +320,7 @@ impl RadrootsRuntime {
         #[cfg(not(feature = "nostr-client"))]
         {
             let _ = since_unix;
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -350,12 +350,12 @@ impl RadrootsRuntime {
         {
             let guard = match self.net.lock() {
                 Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::Msg(format!("{err}"))),
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let mgr = guard
                 .nostr
                 .as_ref()
-                .ok_or_else(|| RadrootsAppError::Msg("nostr not initialized".into()))?;
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             mgr.stop_post_event_stream();
             if let Ok(mut rx_guard) = self.post_events_rx.lock() {
                 *rx_guard = None;
@@ -364,7 +364,7 @@ impl RadrootsRuntime {
         }
         #[cfg(not(feature = "nostr-client"))]
         {
-            Err(RadrootsAppError::Msg("nostr disabled".into()))
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 }
