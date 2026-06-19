@@ -78,36 +78,6 @@ pub struct TradeListingEventParts {
     pub tags_json: String,
 }
 
-#[derive(uniffi::Record, Debug, Clone)]
-pub struct TradeOrderDraft {
-    pub listing_addr: String,
-    pub seller_pubkey: String,
-    pub bin_id: String,
-    pub bin_count: String,
-    pub notes: Option<String>,
-    pub order_id: Option<String>,
-    pub recipient_pubkey: String,
-}
-
-#[derive(uniffi::Record, Debug, Clone)]
-pub struct TradeOrderSendResult {
-    pub event_id: String,
-    pub order_id: String,
-}
-
-#[derive(uniffi::Record, Debug, Clone)]
-pub struct TradeListingMessageSummary {
-    pub event_id: String,
-    pub author: String,
-    pub published_at: u64,
-    pub kind: u32,
-    pub message_type: String,
-    pub listing_addr: String,
-    pub order_id: Option<String>,
-    pub summary: String,
-    pub payload_json: String,
-}
-
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn trade_listing_build_event_parts(
@@ -202,46 +172,6 @@ impl RadrootsRuntime {
             let _ = (limit, since_unix);
             Err(RadrootsAppError::unsupported("nostr disabled"))
         }
-    }
-
-    pub fn trade_listing_send_validation_request(
-        &self,
-        listing_event_id: String,
-        seller_pubkey: String,
-        listing_id: String,
-        recipient_pubkey: String,
-    ) -> Result<String, RadrootsAppError> {
-        let _ = (
-            listing_event_id,
-            seller_pubkey,
-            listing_id,
-            recipient_pubkey,
-        );
-        Err(RadrootsAppError::unsupported(
-            "legacy listing validation requests are retired",
-        ))
-    }
-
-    pub fn trade_listing_send_order_request(
-        &self,
-        draft: TradeOrderDraft,
-    ) -> Result<TradeOrderSendResult, RadrootsAppError> {
-        let _ = draft;
-        Err(RadrootsAppError::unsupported(
-            "legacy listing order requests are retired; use active trade order APIs",
-        ))
-    }
-
-    pub fn trade_listing_fetch_messages(
-        &self,
-        listing_addr: String,
-        limit: u16,
-        since_unix: Option<u64>,
-    ) -> Result<Vec<TradeListingMessageSummary>, RadrootsAppError> {
-        let _ = (listing_addr, limit, since_unix);
-        Err(RadrootsAppError::unsupported(
-            "legacy listing message fetch is retired",
-        ))
     }
 }
 

@@ -70,23 +70,3 @@ fn post_stream_read_without_started_stream_returns_no_data() {
 
     assert!(event.is_none());
 }
-
-#[test]
-fn retired_trade_operations_map_to_unsupported_error() {
-    let runtime = RadrootsRuntime::new().expect("runtime");
-
-    let validation_err = runtime
-        .trade_listing_send_validation_request(
-            "event".to_string(),
-            "seller".to_string(),
-            "listing".to_string(),
-            "recipient".to_string(),
-        )
-        .expect_err("retired validation request should fail");
-    let messages_err = runtime
-        .trade_listing_fetch_messages("listing".to_string(), 10, None)
-        .expect_err("retired message fetch should fail");
-
-    assert!(matches!(validation_err, RadrootsAppError::Unsupported(_)));
-    assert!(matches!(messages_err, RadrootsAppError::Unsupported(_)));
-}
