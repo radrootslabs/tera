@@ -76,6 +76,31 @@ fn map_post_event_metadata(
     }
 }
 
+#[cfg(feature = "nostr-client")]
+fn map_profile_event_metadata(
+    event: radroots_events_codec::parsed::RadrootsParsedData<
+        radroots_events_codec::profile::RadrootsProfileData,
+    >,
+) -> NostrProfileEventMetadata {
+    NostrProfileEventMetadata {
+        id: event.id,
+        author: event.author,
+        published_at: event.published_at as u64,
+        profile: NostrProfile {
+            name: event.data.profile.name.into(),
+            display_name: event.data.profile.display_name.into(),
+            nip05: event.data.profile.nip05.into(),
+            about: event.data.profile.about.into(),
+            website: event.data.profile.website,
+            picture: event.data.profile.picture,
+            banner: event.data.profile.banner,
+            lud06: event.data.profile.lud06,
+            lud16: event.data.profile.lud16,
+            bot: event.data.profile.bot,
+        },
+    }
+}
+
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn nostr_set_default_relays(&self, relays: Vec<String>) -> Result<(), RadrootsAppError> {
@@ -151,35 +176,31 @@ impl RadrootsRuntime {
         }
     }
 
-    pub fn nostr_profile_for_self(&self) -> Option<NostrProfileEventMetadata> {
+    pub fn nostr_profile_for_self(
+        &self,
+    ) -> Result<Option<NostrProfileEventMetadata>, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = self.net.lock().ok()?;
-            let keys = guard.selected_nostr_keys()?;
+            let guard = match self.net.lock() {
+                Ok(guard) => guard,
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
+            };
+            let keys = guard.selected_nostr_keys().ok_or_else(|| {
+                RadrootsAppError::identity("selected signing identity is not configured")
+            })?;
             let pk = keys.public_key();
-            let mgr = guard.nostr.as_ref()?;
-            let out = mgr.fetch_profile_event_blocking(pk).ok()?;
-            return out.map(|m| NostrProfileEventMetadata {
-                id: m.id,
-                author: m.author,
-                published_at: m.published_at as u64,
-                profile: NostrProfile {
-                    name: m.data.profile.name.into(),
-                    display_name: m.data.profile.display_name.into(),
-                    nip05: m.data.profile.nip05.into(),
-                    about: m.data.profile.about.into(),
-                    website: m.data.profile.website,
-                    picture: m.data.profile.picture,
-                    banner: m.data.profile.banner,
-                    lud06: m.data.profile.lud06,
-                    lud16: m.data.profile.lud16,
-                    bot: m.data.profile.bot,
-                },
-            });
+            let mgr = guard
+                .nostr
+                .as_ref()
+                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let out = mgr
+                .fetch_profile_event_blocking(pk)
+                .map_err(|error| RadrootsAppError::relay(error.to_string()))?;
+            Ok(out.map(map_profile_event_metadata))
         }
         #[cfg(not(feature = "nostr-client"))]
         {
-            None
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 
@@ -324,24 +345,33 @@ impl RadrootsRuntime {
         }
     }
 
-    pub fn nostr_next_post_event(&self) -> Option<NostrPostEventMetadata> {
+    pub fn nostr_next_post_event(
+        &self,
+    ) -> Result<Option<NostrPostEventMetadata>, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let mut rx_guard = self.post_events_rx.lock().ok()?;
-            let rx = rx_guard.as_mut()?;
+            let mut rx_guard = match self.post_events_rx.lock() {
+                Ok(guard) => guard,
+                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
+            };
+            let Some(rx) = rx_guard.as_mut() else {
+                return Ok(None);
+            };
             match rx.try_recv() {
-                Ok(event) => Some(map_post_event_metadata(event)),
-                Err(TryRecvError::Empty) => None,
-                Err(TryRecvError::Lagged(_)) => None,
+                Ok(event) => Ok(Some(map_post_event_metadata(event))),
+                Err(TryRecvError::Empty) => Ok(None),
+                Err(TryRecvError::Lagged(count)) => Err(RadrootsAppError::relay(format!(
+                    "post event stream lagged by {count} events"
+                ))),
                 Err(TryRecvError::Closed) => {
                     *rx_guard = None;
-                    None
+                    Err(RadrootsAppError::relay("post event stream closed"))
                 }
             }
         }
         #[cfg(not(feature = "nostr-client"))]
         {
-            None
+            Err(RadrootsAppError::unsupported("nostr disabled"))
         }
     }
 

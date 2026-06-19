@@ -55,9 +55,8 @@ fn nostr_disabled_paths_are_exercised() {
     assert_eq!(status.connecting, 0);
     assert!(status.last_error.is_none());
 
-    assert!(runtime.nostr_profile_for_self().is_none());
-    assert!(runtime.nostr_next_post_event().is_none());
-
+    expect_disabled(runtime.nostr_profile_for_self());
+    expect_disabled(runtime.nostr_next_post_event());
     expect_disabled(runtime.nostr_set_default_relays(vec!["wss://relay.example.com".to_string()]));
     expect_disabled(runtime.nostr_connect_if_key_present());
     expect_disabled(runtime.nostr_post_profile(None, None, None, None));
