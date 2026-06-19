@@ -1,0 +1,26 @@
+[package]
+name = "radroots_app_ffi"
+description = "Native FFI bindings for Radroots mobile apps"
+version.workspace = true
+edition.workspace = true
+authors = ["Radroots Authors"]
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+
+[[bin]]
+name = "uniffi-bindgen"
+path = "bin/uniffi-bindgen.rs"
+
+[build-dependencies]
+uniffi_build = { workspace = true }
+
+[dependencies]
+radroots_app_core = { workspace = true }
+uniffi = { workspace = true, features = ["cli"] }
