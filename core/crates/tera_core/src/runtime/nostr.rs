@@ -3,6 +3,20 @@ use crate::RadrootsAppError;
 #[cfg(feature = "nostr-client")]
 use tokio::sync::broadcast::error::TryRecvError;
 
+#[cfg(feature = "nostr-client")]
+fn nostr_manager(
+    runtime: &RadrootsRuntime,
+) -> Result<radroots_net_core::nostr_client::NostrClientManager, RadrootsAppError> {
+    let guard = runtime
+        .net
+        .lock()
+        .map_err(|err| RadrootsAppError::runtime(format!("{err}")))?;
+    guard
+        .nostr
+        .clone()
+        .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))
+}
+
 #[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NostrLight {
     Red,
@@ -181,18 +195,21 @@ impl RadrootsRuntime {
     ) -> Result<Option<NostrProfileEventMetadata>, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = match self.net.lock() {
-                Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
+            let (pk, mgr) = {
+                let guard = self
+                    .net
+                    .lock()
+                    .map_err(|err| RadrootsAppError::runtime(format!("{err}")))?;
+                let keys = guard.selected_nostr_keys().ok_or_else(|| {
+                    RadrootsAppError::identity("selected signing identity is not configured")
+                })?;
+                let pk = keys.public_key();
+                let mgr = guard
+                    .nostr
+                    .clone()
+                    .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+                (pk, mgr)
             };
-            let keys = guard.selected_nostr_keys().ok_or_else(|| {
-                RadrootsAppError::identity("selected signing identity is not configured")
-            })?;
-            let pk = keys.public_key();
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
             let out = mgr
                 .fetch_profile_event_blocking(pk)
                 .map_err(|error| RadrootsAppError::relay(error.to_string()))?;
@@ -213,14 +230,7 @@ impl RadrootsRuntime {
     ) -> Result<String, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = match self.net.lock() {
-                Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
-            };
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let mgr = nostr_manager(self)?;
             mgr.publish_profile_event_blocking(name, display_name, nip05, about)
                 .map_err(|e| RadrootsAppError::relay(e.to_string()))
         }
@@ -234,14 +244,7 @@ impl RadrootsRuntime {
     pub fn nostr_post_text_note(&self, content: String) -> Result<String, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = match self.net.lock() {
-                Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
-            };
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let mgr = nostr_manager(self)?;
             mgr.publish_post_event_blocking(content)
                 .map_err(|e| RadrootsAppError::relay(e.to_string()))
         }
@@ -259,14 +262,7 @@ impl RadrootsRuntime {
     ) -> Result<Vec<NostrPostEventMetadata>, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = match self.net.lock() {
-                Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
-            };
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let mgr = nostr_manager(self)?;
             let items = mgr
                 .fetch_post_events_blocking(limit, since_unix)
                 .map_err(|e| RadrootsAppError::relay(e.to_string()))?;
@@ -288,14 +284,7 @@ impl RadrootsRuntime {
     ) -> Result<String, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = match self.net.lock() {
-                Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
-            };
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let mgr = nostr_manager(self)?;
             mgr.publish_post_reply_event_blocking(
                 parent_event_id_hex,
                 parent_author_hex,
@@ -322,14 +311,7 @@ impl RadrootsRuntime {
     ) -> Result<(), RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = match self.net.lock() {
-                Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
-            };
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let mgr = nostr_manager(self)?;
             mgr.start_post_event_stream(since_unix);
             if let Ok(mut rx_guard) = self.post_events_rx.lock() {
                 if rx_guard.is_none() {
@@ -378,14 +360,7 @@ impl RadrootsRuntime {
     pub fn nostr_stop_post_event_stream(&self) -> Result<(), RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = match self.net.lock() {
-                Ok(guard) => guard,
-                Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
-            };
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let mgr = nostr_manager(self)?;
             mgr.stop_post_event_stream();
             if let Ok(mut rx_guard) = self.post_events_rx.lock() {
                 *rx_guard = None;

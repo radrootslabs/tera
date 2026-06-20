@@ -104,16 +104,24 @@ impl RadrootsRuntime {
     ) -> Result<String, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = self
-                .net
-                .lock()
-                .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let (current_pubkey, mgr) = {
+                let guard = self
+                    .net
+                    .lock()
+                    .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
+                let current_pubkey = guard
+                    .accounts
+                    .default_public_identity()
+                    .map_err(|error| RadrootsAppError::identity(format!("{error}")))?
+                    .ok_or_else(|| RadrootsAppError::identity("default account is not configured"))?
+                    .public_key_hex;
+                let mgr = guard
+                    .nostr
+                    .clone()
+                    .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+                (current_pubkey, mgr)
+            };
             let listing = listing_from_draft(&draft)?;
-            let current_pubkey = current_pubkey_hex(self)?;
             if listing.farm.pubkey != current_pubkey {
                 return Err(RadrootsAppError::runtime(
                     "farm_pubkey must match the default account public key",
@@ -139,14 +147,16 @@ impl RadrootsRuntime {
     ) -> Result<Vec<TradeListingSummary>, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            let guard = self
-                .net
-                .lock()
-                .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
-            let mgr = guard
-                .nostr
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?;
+            let mgr = {
+                let guard = self
+                    .net
+                    .lock()
+                    .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
+                guard
+                    .nostr
+                    .clone()
+                    .ok_or_else(|| RadrootsAppError::relay("nostr not initialized"))?
+            };
             let mut filter =
                 RadrootsNostrFilter::new().kind(RadrootsNostrKind::Custom(KIND_LISTING as u16));
             filter = filter.limit(limit.into());
@@ -293,20 +303,6 @@ fn listing_summary_from_trade(
         location: location_label(&listing.location),
         delivery_method: delivery_method_label(&listing.delivery_method),
     }
-}
-
-#[cfg(feature = "nostr-client")]
-fn current_pubkey_hex(runtime: &RadrootsRuntime) -> Result<String, RadrootsAppError> {
-    let guard = runtime
-        .net
-        .lock()
-        .map_err(|error| RadrootsAppError::runtime(format!("{error}")))?;
-    let identity = guard
-        .accounts
-        .default_public_identity()
-        .map_err(|error| RadrootsAppError::identity(format!("{error}")))?
-        .ok_or_else(|| RadrootsAppError::identity("default account is not configured"))?;
-    Ok(identity.public_key_hex)
 }
 
 fn non_empty(value: String, field: &str) -> Result<String, RadrootsAppError> {
