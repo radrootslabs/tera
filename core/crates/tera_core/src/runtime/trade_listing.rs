@@ -6,18 +6,18 @@ use radroots_core::{
     RadrootsCoreCurrency, RadrootsCoreDecimal, RadrootsCoreMoney, RadrootsCoreQuantity,
     RadrootsCoreQuantityPrice, RadrootsCoreUnit,
 };
-use radroots_events::{
-    RadrootsNostrEvent,
+use radroots_event::{
+    RadrootsEventEnvelope,
     farm::RadrootsFarmRef,
     ids::{RadrootsDTag, RadrootsInventoryBinId},
     kinds::KIND_LISTING,
     listing::{
         RadrootsListing, RadrootsListingAvailability, RadrootsListingBin,
-        RadrootsListingDeliveryMethod, RadrootsListingLocation, RadrootsListingProduct,
+        RadrootsListingDeliveryMethod, RadrootsListingProduct, RadrootsListingPublicLocation,
         RadrootsListingStatus,
     },
 };
-use radroots_events_codec::listing::encode::to_wire_parts as listing_to_wire_parts;
+use radroots_event_codec::listing::encode::to_wire_parts as listing_to_wire_parts;
 use radroots_nostr::prelude::{
     RadrootsNostrFilter, RadrootsNostrKind, RadrootsNostrTimestamp, radroots_event_from_nostr,
 };
@@ -46,6 +46,7 @@ pub struct TradeListingDraft {
     pub location_city: Option<String>,
     pub location_region: Option<String>,
     pub location_country: Option<String>,
+    pub location_geohash: String,
 }
 
 #[derive(uniffi::Record, Debug, Clone)]
@@ -213,6 +214,7 @@ fn listing_from_draft(draft: &TradeListingDraft) -> Result<RadrootsListing, Radr
     let unit_price = parse_decimal(&draft.unit_price, "unit_price")?;
     let inventory = parse_decimal(&draft.inventory, "inventory")?;
     let location_primary = non_empty(draft.location_primary.clone(), "location_primary")?;
+    let location_geohash = non_empty(draft.location_geohash.clone(), "location_geohash")?;
 
     Ok(RadrootsListing {
         d_tag: listing_id,
@@ -254,14 +256,12 @@ fn listing_from_draft(draft: &TradeListingDraft) -> Result<RadrootsListing, Radr
             status: RadrootsListingStatus::Active,
         }),
         delivery_method: Some(parse_delivery_method(&draft.delivery_method)),
-        location: Some(RadrootsListingLocation {
+        location: Some(RadrootsListingPublicLocation {
             primary: location_primary,
             city: blank_to_none(draft.location_city.clone()),
             region: blank_to_none(draft.location_region.clone()),
             country: blank_to_none(draft.location_country.clone()),
-            lat: None,
-            lng: None,
-            geohash: None,
+            geohash: location_geohash,
         }),
         images: None,
     })
@@ -269,7 +269,7 @@ fn listing_from_draft(draft: &TradeListingDraft) -> Result<RadrootsListing, Radr
 
 fn listing_summary_from_trade(
     listing: radroots_trade::listing::validation::RadrootsTradeListing,
-    event: &RadrootsNostrEvent,
+    event: &RadrootsEventEnvelope,
 ) -> TradeListingSummary {
     let primary_bin = listing
         .listing
@@ -367,7 +367,7 @@ fn delivery_method_label(value: &RadrootsListingDeliveryMethod) -> String {
     }
 }
 
-fn location_label(value: &RadrootsListingLocation) -> String {
+fn location_label(value: &RadrootsListingPublicLocation) -> String {
     [
         Some(value.primary.as_str()),
         value.city.as_deref(),

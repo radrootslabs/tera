@@ -78,7 +78,7 @@ pub struct NostrPostEventMetadata {
 
 #[cfg(feature = "nostr-client")]
 fn map_post_event_metadata(
-    event: radroots_events_codec::parsed::RadrootsParsedData<radroots_events::post::RadrootsPost>,
+    event: radroots_event_codec::parsed::RadrootsParsedData<radroots_event::post::RadrootsPost>,
 ) -> NostrPostEventMetadata {
     NostrPostEventMetadata {
         id: event.id,
@@ -92,8 +92,8 @@ fn map_post_event_metadata(
 
 #[cfg(feature = "nostr-client")]
 fn map_profile_event_metadata(
-    event: radroots_events_codec::parsed::RadrootsParsedData<
-        radroots_events_codec::profile::RadrootsProfileData,
+    event: radroots_event_codec::parsed::RadrootsParsedData<
+        radroots_event_codec::profile::RadrootsProfileData,
     >,
 ) -> NostrProfileEventMetadata {
     NostrProfileEventMetadata {

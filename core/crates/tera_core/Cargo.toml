@@ -22,7 +22,7 @@ rt = ["radroots_net_core/rt"]
 nostr-client = [
     "radroots_net_core/nostr-client",
     "dep:radroots_core",
-    "dep:radroots_events_codec",
+    "dep:radroots_event_codec",
     "dep:radroots_trade",
     "dep:radroots_identity",
     "dep:radroots_nostr",
@@ -32,11 +32,11 @@ fs-persistence = ["radroots_net_core/fs-persistence"]
 
 [dependencies]
 radroots_log = { workspace = true }
-radroots_events = { workspace = true }
+radroots_event = { workspace = true }
 radroots_net_core = { workspace = true, features = ["std"] }
 radroots_core = { workspace = true, optional = true }
 radroots_identity = { workspace = true, optional = true, default-features = false, features = ["std"] }
-radroots_events_codec = { workspace = true, features = ["serde_json"], optional = true }
+radroots_event_codec = { workspace = true, features = ["serde_json"], optional = true }
 radroots_trade = { workspace = true, features = ["std", "serde", "serde_json"], optional = true }
 radroots_nostr = { workspace = true, features = ["events"], optional = true }
 chrono = { workspace = true }

@@ -105,9 +105,10 @@ fn trade_listing_publish_with_initialized_nostr_does_not_relock_runtime() {
         inventory: "10".to_string(),
         delivery_method: "pickup".to_string(),
         location_primary: "farm stand".to_string(),
-        location_city: None,
+        location_city: Some("Asheville".to_string()),
         location_region: None,
         location_country: None,
+        location_geohash: "9q8yy".to_string(),
     };
     let (tx, rx) = mpsc::channel();
     std::thread::spawn(move || {
