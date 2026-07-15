@@ -277,9 +277,9 @@ fn listing_summary_from_trade(
         .iter()
         .find(|bin| bin.bin_id == listing.primary_bin_id);
     TradeListingSummary {
-        event_id: event.id.clone(),
+        event_id: event.id_str().to_owned(),
         seller_pubkey: listing.seller_pubkey,
-        published_at: event.created_at as u64,
+        published_at: event.created_at_u64(),
         listing_id: listing.listing_id,
         listing_addr: listing.listing_addr,
         title: listing.title,

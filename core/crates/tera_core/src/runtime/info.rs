@@ -93,7 +93,7 @@ mod tests {
         let source = net::BuildInfo {
             crate_name: "radroots-net-core",
             crate_version: "1.2.3",
-            rustc: Some("rustc 1.92.0"),
+            rustc: Some("rustc 1.97.0"),
             profile: Some("debug"),
             git_sha: Some("abc123"),
             build_time_unix: Some(1_700_000_000),
@@ -102,7 +102,7 @@ mod tests {
         let out = NetBuildInfo::from(&source);
         assert_eq!(out.crate_name, "radroots-net-core");
         assert_eq!(out.crate_version, "1.2.3");
-        assert_eq!(out.rustc.as_deref(), Some("rustc 1.92.0"));
+        assert_eq!(out.rustc.as_deref(), Some("rustc 1.97.0"));
         assert_eq!(out.profile.as_deref(), Some("debug"));
         assert_eq!(out.git_sha.as_deref(), Some("abc123"));
         assert_eq!(out.build_time_unix, Some(1_700_000_000));
