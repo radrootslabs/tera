@@ -226,6 +226,25 @@ pub enum PrototypePathKind {
 
 #[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
+pub enum RouteExecutionFlowKind {
+    RoutePartnerAssignedStops,
+    BuyerReceiptConfirmation,
+    ExceptionRecovery,
+}
+
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum RouteExecutionStepKind {
+    AssignedRoute,
+    PickupConfirmation,
+    DropoffConfirmation,
+    ReceiptConfirmation,
+    ExceptionReport,
+    RecoveryAction,
+}
+
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub enum OutboxState {
     NotQueued,
     Draft,
@@ -439,6 +458,38 @@ pub struct PrototypePath {
     pub steps: Vec<PrototypePathStep>,
 }
 
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteExecutionStep {
+    pub id: String,
+    pub kind: RouteExecutionStepKind,
+    pub label: String,
+    pub actor: WorkflowActor,
+    pub context: ActiveContext,
+    pub route_ref: ObjectRef,
+    pub object_ref: Option<ObjectRef>,
+    pub required_authority: AuthorityGate,
+    pub visibility: VisibilityClass,
+    pub supports_offline: bool,
+    pub supports_partial_receipt: bool,
+    pub uses_receipt_token: bool,
+    pub outbox_state: OutboxState,
+    pub sync_state: SyncState,
+    pub detail_lines: Vec<String>,
+}
+
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RouteExecutionFlow {
+    pub id: String,
+    pub kind: RouteExecutionFlowKind,
+    pub title: String,
+    pub actor: WorkflowActor,
+    pub context: ActiveContext,
+    pub route_ref: ObjectRef,
+    pub steps: Vec<RouteExecutionStep>,
+}
+
 pub const CANONICAL_CONTEXT_TYPES: [ContextType; 10] = [
     ContextType::Regional,
     ContextType::Network,
@@ -597,6 +648,21 @@ pub const CANONICAL_SYNC_STATES: [SyncState; 7] = [
     SyncState::Synced,
     SyncState::Stale,
     SyncState::Failed,
+];
+
+pub const CANONICAL_ROUTE_EXECUTION_FLOW_KINDS: [RouteExecutionFlowKind; 3] = [
+    RouteExecutionFlowKind::RoutePartnerAssignedStops,
+    RouteExecutionFlowKind::BuyerReceiptConfirmation,
+    RouteExecutionFlowKind::ExceptionRecovery,
+];
+
+pub const CANONICAL_ROUTE_EXECUTION_STEP_KINDS: [RouteExecutionStepKind; 6] = [
+    RouteExecutionStepKind::AssignedRoute,
+    RouteExecutionStepKind::PickupConfirmation,
+    RouteExecutionStepKind::DropoffConfirmation,
+    RouteExecutionStepKind::ReceiptConfirmation,
+    RouteExecutionStepKind::ExceptionReport,
+    RouteExecutionStepKind::RecoveryAction,
 ];
 
 fn object_ref(
@@ -1413,6 +1479,337 @@ pub fn fixture_prototype_paths() -> Vec<PrototypePath> {
     ]
 }
 
+struct RouteExecutionStepFixture {
+    id: &'static str,
+    kind: RouteExecutionStepKind,
+    label: &'static str,
+    actor: WorkflowActor,
+    context: ActiveContext,
+    object_ref: Option<ObjectRef>,
+    domain: AuthorityDomain,
+    action: AuthorityAction,
+    visibility: VisibilityClass,
+    supports_offline: bool,
+    supports_partial_receipt: bool,
+    uses_receipt_token: bool,
+    outbox_state: OutboxState,
+    sync_state: SyncState,
+    detail_lines: Vec<&'static str>,
+}
+
+fn route_execution_step(
+    route_ref: ObjectRef,
+    fixture: RouteExecutionStepFixture,
+) -> RouteExecutionStep {
+    RouteExecutionStep {
+        id: fixture.id.to_string(),
+        kind: fixture.kind,
+        label: fixture.label.to_string(),
+        actor: fixture.actor,
+        context: fixture.context.clone(),
+        route_ref,
+        object_ref: fixture.object_ref,
+        required_authority: fixture_authority_gate(
+            fixture.actor,
+            fixture.context,
+            fixture.domain,
+            fixture.action,
+        ),
+        visibility: fixture.visibility,
+        supports_offline: fixture.supports_offline,
+        supports_partial_receipt: fixture.supports_partial_receipt,
+        uses_receipt_token: fixture.uses_receipt_token,
+        outbox_state: fixture.outbox_state,
+        sync_state: fixture.sync_state,
+        detail_lines: fixture
+            .detail_lines
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+    }
+}
+
+fn all_route_execution_flows() -> Vec<RouteExecutionFlow> {
+    let route = context_for_type(ContextType::Route);
+    let route_partner = context_for_type(ContextType::RoutePartner);
+    let buyer_receiver = ActiveContext {
+        context_type: ContextType::Buyer,
+        context_ref: object_ref(
+            ObjectKind::BuyerWorkspace,
+            "buyer_receiver_workspace_001",
+            "Kitchen receiving workspace",
+        ),
+        actor: WorkflowActor::BuyerReceiver,
+        display_label: "Kitchen receiving workspace".to_string(),
+        visibility_scope: VisibilityClass::BuyerScoped,
+    };
+    let route_ref = object_ref(
+        ObjectKind::Route,
+        "route_thursday_001",
+        "Thursday network loop",
+    );
+    let stop_pickup_ref = object_ref(
+        ObjectKind::RouteStop,
+        "route_stop_pickup_001",
+        "Floripa Farm pickup",
+    );
+    let stop_dropoff_ref = object_ref(
+        ObjectKind::RouteStop,
+        "route_stop_dropoff_001",
+        "Kitchen drop-off",
+    );
+    let pickup_proof_ref = object_ref(
+        ObjectKind::Proof,
+        "proof_pickup_001",
+        "Pickup confirmation proof",
+    );
+    let dropoff_proof_ref = object_ref(
+        ObjectKind::Proof,
+        "proof_dropoff_001",
+        "Drop-off confirmation proof",
+    );
+    let receipt_ref = object_ref(
+        ObjectKind::Proof,
+        "receipt_kitchen_001",
+        "Kitchen receipt confirmation",
+    );
+    let exception_ref = object_ref(
+        ObjectKind::Exception,
+        "exception_short_case_001",
+        "Short case divergence",
+    );
+
+    vec![
+        RouteExecutionFlow {
+            id: "route_partner_assigned_stops".to_string(),
+            kind: RouteExecutionFlowKind::RoutePartnerAssignedStops,
+            title: "Assigned route stops".to_string(),
+            actor: WorkflowActor::RoutePartner,
+            context: route_partner.clone(),
+            route_ref: route_ref.clone(),
+            steps: vec![
+                route_execution_step(
+                    route_ref.clone(),
+                    RouteExecutionStepFixture {
+                        id: "assigned_route",
+                        kind: RouteExecutionStepKind::AssignedRoute,
+                        label: "Assigned route",
+                        actor: WorkflowActor::RoutePartner,
+                        context: route_partner.clone(),
+                        object_ref: Some(route_ref.clone()),
+                        domain: AuthorityDomain::RouteExecution,
+                        action: AuthorityAction::Search,
+                        visibility: VisibilityClass::RouteScoped,
+                        supports_offline: true,
+                        supports_partial_receipt: false,
+                        uses_receipt_token: false,
+                        outbox_state: OutboxState::NotQueued,
+                        sync_state: SyncState::Online,
+                        detail_lines: vec![
+                            "RoutePartner sees the assigned route and assigned stops only.",
+                            "Buyer packet and private buyer workspace data are not exposed.",
+                        ],
+                    },
+                ),
+                route_execution_step(
+                    route_ref.clone(),
+                    RouteExecutionStepFixture {
+                        id: "pickup_confirmation",
+                        kind: RouteExecutionStepKind::PickupConfirmation,
+                        label: "Confirm pickup",
+                        actor: WorkflowActor::RoutePartner,
+                        context: route_partner.clone(),
+                        object_ref: Some(pickup_proof_ref),
+                        domain: AuthorityDomain::RouteExecution,
+                        action: AuthorityAction::Submit,
+                        visibility: VisibilityClass::RouteScoped,
+                        supports_offline: true,
+                        supports_partial_receipt: false,
+                        uses_receipt_token: false,
+                        outbox_state: OutboxState::Queued,
+                        sync_state: SyncState::Offline,
+                        detail_lines: vec![
+                            "Photo, note, scan, or signature proof can queue offline.",
+                            "The stop remains scoped to the assigned route.",
+                        ],
+                    },
+                ),
+                route_execution_step(
+                    route_ref.clone(),
+                    RouteExecutionStepFixture {
+                        id: "dropoff_confirmation",
+                        kind: RouteExecutionStepKind::DropoffConfirmation,
+                        label: "Confirm drop-off",
+                        actor: WorkflowActor::RoutePartner,
+                        context: route_partner,
+                        object_ref: Some(dropoff_proof_ref),
+                        domain: AuthorityDomain::RouteExecution,
+                        action: AuthorityAction::Submit,
+                        visibility: VisibilityClass::RouteScoped,
+                        supports_offline: true,
+                        supports_partial_receipt: false,
+                        uses_receipt_token: false,
+                        outbox_state: OutboxState::Syncing,
+                        sync_state: SyncState::Syncing,
+                        detail_lines: vec![
+                            "Drop-off proof syncs when relay connectivity returns.",
+                            "Receipt confirmation remains separate from route execution.",
+                        ],
+                    },
+                ),
+                route_execution_step(
+                    route_ref.clone(),
+                    RouteExecutionStepFixture {
+                        id: "assigned_pickup_stop",
+                        kind: RouteExecutionStepKind::AssignedRoute,
+                        label: "Pickup stop",
+                        actor: WorkflowActor::RoutePartner,
+                        context: context_for_type(ContextType::RoutePartner),
+                        object_ref: Some(stop_pickup_ref),
+                        domain: AuthorityDomain::RouteExecution,
+                        action: AuthorityAction::NavigateRelatedObject,
+                        visibility: VisibilityClass::RouteScoped,
+                        supports_offline: true,
+                        supports_partial_receipt: false,
+                        uses_receipt_token: false,
+                        outbox_state: OutboxState::NotQueued,
+                        sync_state: SyncState::Synced,
+                        detail_lines: vec!["Assigned stop detail is available offline."],
+                    },
+                ),
+                route_execution_step(
+                    route_ref.clone(),
+                    RouteExecutionStepFixture {
+                        id: "assigned_dropoff_stop",
+                        kind: RouteExecutionStepKind::AssignedRoute,
+                        label: "Drop-off stop",
+                        actor: WorkflowActor::RoutePartner,
+                        context: context_for_type(ContextType::RoutePartner),
+                        object_ref: Some(stop_dropoff_ref),
+                        domain: AuthorityDomain::RouteExecution,
+                        action: AuthorityAction::NavigateRelatedObject,
+                        visibility: VisibilityClass::RouteScoped,
+                        supports_offline: true,
+                        supports_partial_receipt: false,
+                        uses_receipt_token: false,
+                        outbox_state: OutboxState::NotQueued,
+                        sync_state: SyncState::Synced,
+                        detail_lines: vec!["Assigned stop detail is available offline."],
+                    },
+                ),
+            ],
+        },
+        RouteExecutionFlow {
+            id: "buyer_receipt_confirmation".to_string(),
+            kind: RouteExecutionFlowKind::BuyerReceiptConfirmation,
+            title: "Buyer receipt confirmation".to_string(),
+            actor: WorkflowActor::BuyerReceiver,
+            context: buyer_receiver.clone(),
+            route_ref: route_ref.clone(),
+            steps: vec![route_execution_step(
+                route_ref.clone(),
+                RouteExecutionStepFixture {
+                    id: "receiver_receipt",
+                    kind: RouteExecutionStepKind::ReceiptConfirmation,
+                    label: "Confirm full or partial receipt",
+                    actor: WorkflowActor::BuyerReceiver,
+                    context: buyer_receiver,
+                    object_ref: Some(receipt_ref),
+                    domain: AuthorityDomain::Receipt,
+                    action: AuthorityAction::Submit,
+                    visibility: VisibilityClass::BuyerScoped,
+                    supports_offline: true,
+                    supports_partial_receipt: true,
+                    uses_receipt_token: true,
+                    outbox_state: OutboxState::Queued,
+                    sync_state: SyncState::Offline,
+                    detail_lines: vec![
+                        "BuyerReceiver can confirm full or partial receipt.",
+                        "A scoped receipt token can be used without exposing buyer workspace data.",
+                    ],
+                },
+            )],
+        },
+        RouteExecutionFlow {
+            id: "route_exception_recovery".to_string(),
+            kind: RouteExecutionFlowKind::ExceptionRecovery,
+            title: "Exception recovery".to_string(),
+            actor: WorkflowActor::RoutePartner,
+            context: context_for_type(ContextType::RoutePartner),
+            route_ref: route_ref.clone(),
+            steps: vec![
+                route_execution_step(
+                    route_ref.clone(),
+                    RouteExecutionStepFixture {
+                        id: "report_exception",
+                        kind: RouteExecutionStepKind::ExceptionReport,
+                        label: "Report divergence",
+                        actor: WorkflowActor::RoutePartner,
+                        context: context_for_type(ContextType::RoutePartner),
+                        object_ref: Some(exception_ref.clone()),
+                        domain: AuthorityDomain::RouteExecution,
+                        action: AuthorityAction::Submit,
+                        visibility: VisibilityClass::RouteScoped,
+                        supports_offline: true,
+                        supports_partial_receipt: false,
+                        uses_receipt_token: false,
+                        outbox_state: OutboxState::Conflict,
+                        sync_state: SyncState::Failed,
+                        detail_lines: vec![
+                            "Short, damaged, late, or missing-item divergence becomes an exception card.",
+                            "The exception stays route-scoped until resolved or escalated.",
+                        ],
+                    },
+                ),
+                route_execution_step(
+                    route_ref,
+                    RouteExecutionStepFixture {
+                        id: "resolve_exception",
+                        kind: RouteExecutionStepKind::RecoveryAction,
+                        label: "Resolve recovery path",
+                        actor: WorkflowActor::RouteCoordinator,
+                        context: route,
+                        object_ref: Some(exception_ref),
+                        domain: AuthorityDomain::RouteCoordination,
+                        action: AuthorityAction::Close,
+                        visibility: VisibilityClass::RouteScoped,
+                        supports_offline: false,
+                        supports_partial_receipt: true,
+                        uses_receipt_token: false,
+                        outbox_state: OutboxState::AwaitingAuthority,
+                        sync_state: SyncState::Online,
+                        detail_lines: vec![
+                            "RouteCoordinator chooses correction, partial receipt, replacement, or closure.",
+                            "Recovery keeps route execution, receipt, and buyer data boundaries separate.",
+                        ],
+                    },
+                ),
+            ],
+        },
+    ]
+}
+
+pub fn fixture_route_execution_flows(context_id: Option<String>) -> Vec<RouteExecutionFlow> {
+    let Some(context_id) = context_id else {
+        return all_route_execution_flows();
+    };
+    let matching: Vec<RouteExecutionFlow> = all_route_execution_flows()
+        .into_iter()
+        .filter(|flow| {
+            flow.context.context_ref.object_id == context_id
+                || flow
+                    .steps
+                    .iter()
+                    .any(|step| step.context.context_ref.object_id == context_id)
+        })
+        .collect();
+    if matching.is_empty() {
+        all_route_execution_flows()
+    } else {
+        matching
+    }
+}
+
 pub fn fixture_outbox_items() -> Vec<OutboxItem> {
     let context = context_for_type(ContextType::Farm);
     CANONICAL_OUTBOX_STATES
@@ -1543,6 +1940,14 @@ impl RadrootsRuntime {
         fixture_prototype_paths()
     }
 
+    pub fn phase1_route_execution_flows(
+        &self,
+        context_id: Option<String>,
+    ) -> Vec<RouteExecutionFlow> {
+        let _ = self;
+        fixture_route_execution_flows(context_id)
+    }
+
     pub fn phase1_outbox_retry_decision(&self, item: OutboxItem) -> OutboxRetryDecision {
         let _ = self;
         fixture_outbox_retry_decision(item)
@@ -1607,6 +2012,8 @@ mod tests {
         assert_eq!(CANONICAL_OBJECT_PAGE_FAMILIES.len(), 13);
         assert_eq!(CANONICAL_OUTBOX_STATES.len(), 10);
         assert_eq!(CANONICAL_SYNC_STATES.len(), 7);
+        assert_eq!(CANONICAL_ROUTE_EXECUTION_FLOW_KINDS.len(), 3);
+        assert_eq!(CANONICAL_ROUTE_EXECUTION_STEP_KINDS.len(), 6);
     }
 
     #[test]
@@ -1645,6 +2052,10 @@ mod tests {
             CANONICAL_OBJECT_PAGE_FAMILIES.len()
         );
         assert_eq!(fixture_outbox_items().len(), CANONICAL_OUTBOX_STATES.len());
+        assert_eq!(
+            fixture_route_execution_flows(None).len(),
+            CANONICAL_ROUTE_EXECUTION_FLOW_KINDS.len()
+        );
     }
 
     #[test]
@@ -1819,6 +2230,145 @@ mod tests {
                 .iter()
                 .all(|step| step.visibility != VisibilityClass::SecretNeverShared)
         );
+    }
+
+    #[test]
+    fn route_execution_flows_cover_partner_receipt_and_exception_paths() {
+        let flows = fixture_route_execution_flows(None);
+        assert_eq!(flows.len(), 3);
+
+        for kind in CANONICAL_ROUTE_EXECUTION_FLOW_KINDS {
+            assert!(
+                flows.iter().any(|flow| flow.kind == kind),
+                "missing {kind:?}"
+            );
+        }
+
+        let steps: Vec<&RouteExecutionStep> =
+            flows.iter().flat_map(|flow| flow.steps.iter()).collect();
+        for kind in CANONICAL_ROUTE_EXECUTION_STEP_KINDS {
+            assert!(
+                steps.iter().any(|step| step.kind == kind),
+                "missing {kind:?}"
+            );
+        }
+
+        assert!(steps.iter().any(|step| {
+            step.kind == RouteExecutionStepKind::PickupConfirmation
+                && step.supports_offline
+                && step
+                    .object_ref
+                    .as_ref()
+                    .is_some_and(|object_ref| object_ref.object_type == ObjectKind::Proof)
+        }));
+        assert!(steps.iter().any(|step| {
+            step.kind == RouteExecutionStepKind::DropoffConfirmation
+                && step.supports_offline
+                && step
+                    .object_ref
+                    .as_ref()
+                    .is_some_and(|object_ref| object_ref.object_type == ObjectKind::Proof)
+        }));
+        assert!(
+            steps
+                .iter()
+                .any(|step| step.kind == RouteExecutionStepKind::ExceptionReport
+                    && step.outbox_state == OutboxState::Conflict)
+        );
+        assert!(
+            fixture_today_cards(None)
+                .iter()
+                .any(|card| card.card_type == TodayCardType::Exception)
+        );
+    }
+
+    #[test]
+    fn route_partner_execution_flow_is_assigned_route_scoped_only() {
+        let flow = fixture_route_execution_flows(None)
+            .into_iter()
+            .find(|flow| flow.kind == RouteExecutionFlowKind::RoutePartnerAssignedStops)
+            .expect("route partner flow");
+        assert_eq!(flow.actor, WorkflowActor::RoutePartner);
+        assert_eq!(flow.context.actor, WorkflowActor::RoutePartner);
+
+        for step in &flow.steps {
+            assert_eq!(step.actor, WorkflowActor::RoutePartner);
+            assert_eq!(step.visibility, VisibilityClass::RouteScoped);
+            assert_eq!(
+                step.required_authority.domain,
+                AuthorityDomain::RouteExecution
+            );
+            assert!(step.required_authority.is_allowed);
+            assert_ne!(step.required_authority.domain, AuthorityDomain::Receipt);
+            assert_ne!(
+                step.required_authority.domain,
+                AuthorityDomain::BuyerWorkspace
+            );
+            assert!(matches!(
+                step.object_ref
+                    .as_ref()
+                    .map(|object_ref| object_ref.object_type),
+                Some(ObjectKind::Route | ObjectKind::RouteStop | ObjectKind::Proof)
+            ));
+        }
+    }
+
+    #[test]
+    fn buyer_receipt_flow_supports_partial_receipt_token_without_route_execution() {
+        let flow = fixture_route_execution_flows(None)
+            .into_iter()
+            .find(|flow| flow.kind == RouteExecutionFlowKind::BuyerReceiptConfirmation)
+            .expect("buyer receipt flow");
+        assert_eq!(flow.actor, WorkflowActor::BuyerReceiver);
+        assert_eq!(flow.context.actor, WorkflowActor::BuyerReceiver);
+        assert_eq!(flow.steps.len(), 1);
+
+        let receipt = &flow.steps[0];
+        assert_eq!(receipt.kind, RouteExecutionStepKind::ReceiptConfirmation);
+        assert_eq!(receipt.required_authority.domain, AuthorityDomain::Receipt);
+        assert_eq!(receipt.required_authority.action, AuthorityAction::Submit);
+        assert!(receipt.required_authority.is_allowed);
+        assert!(receipt.supports_partial_receipt);
+        assert!(receipt.uses_receipt_token);
+        assert_ne!(
+            receipt.required_authority.domain,
+            AuthorityDomain::RouteExecution
+        );
+        assert_eq!(receipt.visibility, VisibilityClass::BuyerScoped);
+    }
+
+    #[test]
+    fn route_exception_recovery_separates_reporting_from_coordination() {
+        let flow = fixture_route_execution_flows(None)
+            .into_iter()
+            .find(|flow| flow.kind == RouteExecutionFlowKind::ExceptionRecovery)
+            .expect("exception recovery flow");
+        let report = flow
+            .steps
+            .iter()
+            .find(|step| step.kind == RouteExecutionStepKind::ExceptionReport)
+            .expect("report step");
+        let recovery = flow
+            .steps
+            .iter()
+            .find(|step| step.kind == RouteExecutionStepKind::RecoveryAction)
+            .expect("recovery step");
+
+        assert_eq!(report.actor, WorkflowActor::RoutePartner);
+        assert_eq!(
+            report.required_authority.domain,
+            AuthorityDomain::RouteExecution
+        );
+        assert_eq!(report.outbox_state, OutboxState::Conflict);
+        assert!(report.supports_offline);
+        assert_eq!(recovery.actor, WorkflowActor::RouteCoordinator);
+        assert_eq!(
+            recovery.required_authority.domain,
+            AuthorityDomain::RouteCoordination
+        );
+        assert_eq!(recovery.required_authority.action, AuthorityAction::Close);
+        assert!(recovery.supports_partial_receipt);
+        assert!(recovery.required_authority.is_allowed);
     }
 
     #[test]
