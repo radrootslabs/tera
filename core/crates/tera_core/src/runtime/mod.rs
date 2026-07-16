@@ -3,6 +3,7 @@ pub mod builder;
 pub mod info;
 pub mod key_management;
 pub mod nostr;
+pub mod product_surface;
 #[cfg(feature = "nostr-client")]
 pub mod trade_listing;
 
