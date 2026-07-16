@@ -7,6 +7,8 @@
 
 use serde::{Deserialize, Serialize};
 
+use super::RadrootsRuntime;
+
 /// Phase 1 workflow actors are product authority roles. Low-level protocol
 /// roles such as Farmer, Buyer, Seller, and Service are compatibility roles and
 /// are not sufficient authority for Phase 1 workflows.
@@ -503,6 +505,541 @@ pub const CANONICAL_OBJECT_PAGE_FAMILIES: [ObjectPageFamily; 13] = [
     ObjectPageFamily::Exception,
 ];
 
+pub const CANONICAL_OUTBOX_STATES: [OutboxState; 10] = [
+    OutboxState::NotQueued,
+    OutboxState::Draft,
+    OutboxState::Queued,
+    OutboxState::Syncing,
+    OutboxState::AwaitingAuthority,
+    OutboxState::Published,
+    OutboxState::Shared,
+    OutboxState::Failed,
+    OutboxState::Conflict,
+    OutboxState::Discarded,
+];
+
+pub const CANONICAL_SYNC_STATES: [SyncState; 7] = [
+    SyncState::Unknown,
+    SyncState::Online,
+    SyncState::Offline,
+    SyncState::Syncing,
+    SyncState::Synced,
+    SyncState::Stale,
+    SyncState::Failed,
+];
+
+fn object_ref(
+    object_type: ObjectKind,
+    object_id: impl Into<String>,
+    label: impl Into<String>,
+) -> ObjectRef {
+    ObjectRef {
+        object_type,
+        object_id: object_id.into(),
+        display_label: label.into(),
+    }
+}
+
+fn context_fixture_parts(
+    context_type: ContextType,
+) -> (
+    ObjectKind,
+    &'static str,
+    &'static str,
+    WorkflowActor,
+    VisibilityClass,
+) {
+    match context_type {
+        ContextType::Regional => (
+            ObjectKind::Region,
+            "region_floripa",
+            "Floripa regional food network",
+            WorkflowActor::NetworkMember,
+            VisibilityClass::PublicCommunity,
+        ),
+        ContextType::Network => (
+            ObjectKind::Network,
+            "network_floripa",
+            "Floripa local food network",
+            WorkflowActor::NetworkMember,
+            VisibilityClass::NetworkVisible,
+        ),
+        ContextType::Farm => (
+            ObjectKind::Farm,
+            "farm_floripa_001",
+            "Floripa Farm",
+            WorkflowActor::ProducerAdmin,
+            VisibilityClass::FarmPrivate,
+        ),
+        ContextType::Buyer => (
+            ObjectKind::BuyerWorkspace,
+            "buyer_workspace_001",
+            "Kitchen buyer workspace",
+            WorkflowActor::BuyerSourcingLead,
+            VisibilityClass::BuyerScoped,
+        ),
+        ContextType::Route => (
+            ObjectKind::Route,
+            "route_thursday_001",
+            "Thursday network loop",
+            WorkflowActor::RouteCoordinator,
+            VisibilityClass::RouteScoped,
+        ),
+        ContextType::RoutePartner => (
+            ObjectKind::RoutePartner,
+            "route_partner_001",
+            "Assigned route partner",
+            WorkflowActor::RoutePartner,
+            VisibilityClass::RouteScoped,
+        ),
+        ContextType::PickupPoint => (
+            ObjectKind::PickupPoint,
+            "pickup_point_001",
+            "Neighborhood pickup point",
+            WorkflowActor::PickupPointCoordinator,
+            VisibilityClass::NetworkVisible,
+        ),
+        ContextType::TraceRecords => (
+            ObjectKind::Proof,
+            "trace_records_001",
+            "Trace and records",
+            WorkflowActor::TraceLead,
+            VisibilityClass::WorkspacePrivate,
+        ),
+        ContextType::Hub => (
+            ObjectKind::Hub,
+            "hub_001",
+            "Floripa hub",
+            WorkflowActor::HubOperator,
+            VisibilityClass::WorkspacePrivate,
+        ),
+        ContextType::NetworkSteward => (
+            ObjectKind::AccessMembership,
+            "network_stewardship_001",
+            "Network stewardship",
+            WorkflowActor::NetworkSteward,
+            VisibilityClass::WorkspacePrivate,
+        ),
+    }
+}
+
+fn context_for_type(context_type: ContextType) -> ActiveContext {
+    let (object_type, object_id, label, actor, visibility_scope) =
+        context_fixture_parts(context_type);
+    ActiveContext {
+        context_type,
+        context_ref: object_ref(object_type, object_id, label),
+        actor,
+        display_label: label.to_string(),
+        visibility_scope,
+    }
+}
+
+fn authority_allowed(actor: WorkflowActor, domain: AuthorityDomain) -> bool {
+    matches!(
+        (actor, domain),
+        (
+            WorkflowActor::NetworkMember,
+            AuthorityDomain::RelayGroupAccess
+        ) | (
+            WorkflowActor::ProducerAdmin,
+            AuthorityDomain::FarmWorkspaceOperations
+        ) | (
+            WorkflowActor::ProducerAdmin,
+            AuthorityDomain::PublicPublishing
+        ) | (
+            WorkflowActor::FarmTeamMember,
+            AuthorityDomain::FarmWorkspaceOperations
+        ) | (
+            WorkflowActor::HubOperator,
+            AuthorityDomain::FarmWorkspaceOperations
+        ) | (WorkflowActor::HubOperator, AuthorityDomain::RouteExecution)
+            | (WorkflowActor::TraceLead, AuthorityDomain::TraceProof)
+            | (
+                WorkflowActor::BuyerSourcingLead,
+                AuthorityDomain::BuyerWorkspace
+            )
+            | (WorkflowActor::BuyerReceiver, AuthorityDomain::Receipt)
+            | (
+                WorkflowActor::PickupPointCoordinator,
+                AuthorityDomain::Receipt
+            )
+            | (
+                WorkflowActor::PickupPointCoordinator,
+                AuthorityDomain::RouteExecution
+            )
+            | (
+                WorkflowActor::RouteCoordinator,
+                AuthorityDomain::RouteCoordination
+            )
+            | (WorkflowActor::RoutePartner, AuthorityDomain::RouteExecution)
+            | (
+                WorkflowActor::NetworkSteward,
+                AuthorityDomain::RelayGroupAccess
+            )
+            | (
+                WorkflowActor::NetworkSteward,
+                AuthorityDomain::PublicPublishing
+            )
+            | (
+                WorkflowActor::NetworkSteward,
+                AuthorityDomain::NetworkStewardship
+            )
+    )
+}
+
+pub fn fixture_authority_gate(
+    actor: WorkflowActor,
+    context: ActiveContext,
+    domain: AuthorityDomain,
+    action: AuthorityAction,
+) -> AuthorityGate {
+    let is_allowed = authority_allowed(actor, domain);
+    AuthorityGate {
+        domain,
+        action,
+        actor,
+        context,
+        is_required: true,
+        is_allowed,
+        reason: if is_allowed {
+            None
+        } else {
+            Some("fixture authority denies this actor/domain pair".to_string())
+        },
+    }
+}
+
+pub fn fixture_active_contexts() -> Vec<ActiveContext> {
+    CANONICAL_CONTEXT_TYPES
+        .into_iter()
+        .map(context_for_type)
+        .collect()
+}
+
+fn context_by_object_id(context_id: Option<String>) -> Option<ActiveContext> {
+    let context_id = context_id?;
+    fixture_active_contexts()
+        .into_iter()
+        .find(|context| context.context_ref.object_id == context_id)
+}
+
+fn card_action_for(card_type: TodayCardType) -> Option<AddActionType> {
+    match card_type {
+        TodayCardType::Route => Some(AddActionType::RouteStop),
+        TodayCardType::Food => Some(AddActionType::Food),
+        TodayCardType::Ask => Some(AddActionType::Ask),
+        TodayCardType::Event => Some(AddActionType::PickupEvent),
+        TodayCardType::Place => Some(AddActionType::Place),
+        TodayCardType::Task => Some(AddActionType::Note),
+        TodayCardType::Proof => Some(AddActionType::Proof),
+        TodayCardType::Exception => Some(AddActionType::Exception),
+        TodayCardType::Provenance => Some(AddActionType::Provenance),
+        TodayCardType::Update => Some(AddActionType::PublicUpdate),
+        TodayCardType::AccessMembership => Some(AddActionType::MemberInvite),
+        TodayCardType::SyncOutbox => None,
+    }
+}
+
+fn object_kind_for_card(card_type: TodayCardType) -> ObjectKind {
+    match card_type {
+        TodayCardType::Route => ObjectKind::Route,
+        TodayCardType::Food => ObjectKind::Food,
+        TodayCardType::Ask => ObjectKind::Ask,
+        TodayCardType::Event => ObjectKind::Event,
+        TodayCardType::Place => ObjectKind::Place,
+        TodayCardType::Task => ObjectKind::Task,
+        TodayCardType::Proof => ObjectKind::Proof,
+        TodayCardType::Exception => ObjectKind::Exception,
+        TodayCardType::Provenance => ObjectKind::Provenance,
+        TodayCardType::Update => ObjectKind::Update,
+        TodayCardType::AccessMembership => ObjectKind::AccessMembership,
+        TodayCardType::SyncOutbox => ObjectKind::OutboxItem,
+    }
+}
+
+pub fn fixture_today_cards(context_id: Option<String>) -> Vec<TodayCard> {
+    let contexts = fixture_active_contexts();
+    let filter_context = context_by_object_id(context_id);
+    CANONICAL_TODAY_CARD_TYPES
+        .into_iter()
+        .enumerate()
+        .filter_map(|(index, card_type)| {
+            let context = filter_context
+                .clone()
+                .unwrap_or_else(|| contexts[index % contexts.len()].clone());
+            let object_kind = object_kind_for_card(card_type);
+            let object_id = format!("phase1_{:?}_001", object_kind).to_lowercase();
+            let object = object_ref(object_kind, object_id, format!("{:?} fixture", card_type));
+            let action_type = card_action_for(card_type);
+            Some(TodayCard {
+                id: format!("today_{:?}_001", card_type).to_lowercase(),
+                card_type,
+                source_object_refs: vec![object.clone()],
+                source_event_refs: Vec::new(),
+                primary_context: context.clone(),
+                actor: context.actor,
+                visibility: context.visibility_scope,
+                visibility_label: format!("{:?}", context.visibility_scope),
+                title: format!("{:?} fixture card", card_type),
+                status_line: "fixture-backed projection".to_string(),
+                detail_lines: vec!["deterministic Phase 1 fixture".to_string()],
+                pills: vec![format!("{:?}", card_type)],
+                primary_action: TodayCardAction {
+                    id: format!("primary_{:?}", card_type).to_lowercase(),
+                    label: action_type
+                        .map(|action| format!("{:?}", action))
+                        .unwrap_or_else(|| "Review".to_string()),
+                    action_type,
+                    target_object: Some(object),
+                },
+                secondary_action: None,
+                ranking_reason: "fixture ranking".to_string(),
+                ranking_features: vec!["fixture".to_string()],
+                sync_state: SyncState::Online,
+                outbox_state: OutboxState::NotQueued,
+                is_stale: false,
+                is_offline: false,
+            })
+        })
+        .collect()
+}
+
+fn add_action_object_kind(action_type: AddActionType) -> ObjectKind {
+    match action_type {
+        AddActionType::Photo | AddActionType::Note | AddActionType::PublicUpdate => {
+            ObjectKind::Update
+        }
+        AddActionType::Ask | AddActionType::BuyerRequest | AddActionType::RouteNeed => {
+            ObjectKind::Ask
+        }
+        AddActionType::Scan | AddActionType::Proof => ObjectKind::Proof,
+        AddActionType::Food | AddActionType::Harvest | AddActionType::BuyerCommitment => {
+            ObjectKind::Food
+        }
+        AddActionType::RouteStop | AddActionType::PickupEvent => ObjectKind::RouteStop,
+        AddActionType::Place => ObjectKind::Place,
+        AddActionType::Exception => ObjectKind::Exception,
+        AddActionType::Provenance => ObjectKind::Provenance,
+        AddActionType::MemberInvite => ObjectKind::AccessMembership,
+        AddActionType::Correction => ObjectKind::Correction,
+    }
+}
+
+fn add_action_authority(action_type: AddActionType) -> (AuthorityDomain, AuthorityAction) {
+    match action_type {
+        AddActionType::PublicUpdate | AddActionType::Provenance => {
+            (AuthorityDomain::PublicPublishing, AuthorityAction::Publish)
+        }
+        AddActionType::BuyerRequest | AddActionType::BuyerCommitment => {
+            (AuthorityDomain::BuyerWorkspace, AuthorityAction::Submit)
+        }
+        AddActionType::RouteNeed | AddActionType::RouteStop | AddActionType::PickupEvent => {
+            (AuthorityDomain::RouteCoordination, AuthorityAction::Submit)
+        }
+        AddActionType::Proof | AddActionType::Scan => {
+            (AuthorityDomain::TraceProof, AuthorityAction::Submit)
+        }
+        AddActionType::MemberInvite => (AuthorityDomain::RelayGroupAccess, AuthorityAction::Share),
+        AddActionType::Correction => (AuthorityDomain::TraceProof, AuthorityAction::Correct),
+        _ => (
+            AuthorityDomain::FarmWorkspaceOperations,
+            AuthorityAction::Submit,
+        ),
+    }
+}
+
+fn default_visibility_for_action(action_type: AddActionType) -> VisibilityClass {
+    match action_type {
+        AddActionType::PublicUpdate => VisibilityClass::PublicCommunity,
+        AddActionType::Provenance => VisibilityClass::PublicProvenance,
+        AddActionType::BuyerRequest | AddActionType::BuyerCommitment => {
+            VisibilityClass::BuyerScoped
+        }
+        AddActionType::RouteNeed | AddActionType::RouteStop | AddActionType::PickupEvent => {
+            VisibilityClass::RouteScoped
+        }
+        AddActionType::Photo | AddActionType::Note | AddActionType::Scan => {
+            VisibilityClass::LocalDraft
+        }
+        _ => VisibilityClass::FarmPrivate,
+    }
+}
+
+pub fn fixture_add_actions(context_id: Option<String>) -> Vec<AddAction> {
+    let context =
+        context_by_object_id(context_id).unwrap_or_else(|| context_for_type(ContextType::Farm));
+    CANONICAL_ADD_ACTION_TYPES
+        .into_iter()
+        .map(|action_type| {
+            let (domain, action) = add_action_authority(action_type);
+            AddAction {
+                action_type,
+                display_label: format!("{:?}", action_type),
+                allowed_context_types: vec![context.context_type],
+                required_authority: fixture_authority_gate(
+                    context.actor,
+                    context.clone(),
+                    domain,
+                    action,
+                ),
+                default_visibility: default_visibility_for_action(action_type),
+                allowed_visibility_options: vec![
+                    VisibilityClass::LocalDraft,
+                    default_visibility_for_action(action_type),
+                ],
+                created_or_updated_object_type: add_action_object_kind(action_type),
+                related_object_requirements: vec![RelatedObjectRequirement {
+                    object_type: context.context_ref.object_type,
+                    relationship_label: "primary context".to_string(),
+                    is_required: true,
+                }],
+                validation_requirements: vec![ValidationRequirement {
+                    id: "fixture_required_fields".to_string(),
+                    label: "Required fields are present".to_string(),
+                    is_blocking: true,
+                }],
+                supports_offline: true,
+                supports_draft: true,
+                outbox_behavior: OutboxBehavior::QueueWhenOffline,
+                primary_submit_label: "Submit".to_string(),
+                completion_state: AddFlowState::ReadyToSubmit,
+            }
+        })
+        .collect()
+}
+
+fn object_kind_for_page(family: ObjectPageFamily) -> ObjectKind {
+    match family {
+        ObjectPageFamily::Network => ObjectKind::Network,
+        ObjectPageFamily::NetworkRoute => ObjectKind::Route,
+        ObjectPageFamily::FarmWorkspace | ObjectPageFamily::FarmPublicProfile => ObjectKind::Farm,
+        ObjectPageFamily::BuyerWorkspace => ObjectKind::BuyerWorkspace,
+        ObjectPageFamily::PickupPointPlace => ObjectKind::PickupPoint,
+        ObjectPageFamily::Food => ObjectKind::Food,
+        ObjectPageFamily::Event => ObjectKind::Event,
+        ObjectPageFamily::RouteStop => ObjectKind::RouteStop,
+        ObjectPageFamily::Proof => ObjectKind::Proof,
+        ObjectPageFamily::BuyerPacket => ObjectKind::BuyerPacket,
+        ObjectPageFamily::PublicProvenance => ObjectKind::Provenance,
+        ObjectPageFamily::Exception => ObjectKind::Exception,
+    }
+}
+
+pub fn fixture_object_page_summaries(context_id: Option<String>) -> Vec<ObjectPageSummary> {
+    let context =
+        context_by_object_id(context_id).unwrap_or_else(|| context_for_type(ContextType::Network));
+    CANONICAL_OBJECT_PAGE_FAMILIES
+        .into_iter()
+        .map(|family| {
+            let object_kind = object_kind_for_page(family);
+            ObjectPageSummary {
+                object_ref: object_ref(
+                    object_kind,
+                    format!("phase1_{:?}_page_001", family).to_lowercase(),
+                    format!("{:?} fixture page", family),
+                ),
+                family,
+                primary_context: context.clone(),
+                title: format!("{:?} fixture page", family),
+                subtitle: Some("fixture-backed object summary".to_string()),
+                visibility: context.visibility_scope,
+                visibility_label: format!("{:?}", context.visibility_scope),
+                required_authority: fixture_authority_gate(
+                    context.actor,
+                    context.clone(),
+                    AuthorityDomain::RelayGroupAccess,
+                    AuthorityAction::NavigateRelatedObject,
+                ),
+                sync_state: SyncState::Online,
+            }
+        })
+        .collect()
+}
+
+pub fn fixture_outbox_items() -> Vec<OutboxItem> {
+    let context = context_for_type(ContextType::Farm);
+    CANONICAL_OUTBOX_STATES
+        .into_iter()
+        .enumerate()
+        .map(|(index, outbox_state)| OutboxItem {
+            id: format!("outbox_fixture_{index:02}"),
+            action_type: AddActionType::PublicUpdate,
+            context: context.clone(),
+            object_refs: vec![object_ref(
+                ObjectKind::Update,
+                format!("draft_update_{index:02}"),
+                "Public update draft",
+            )],
+            event_refs: Vec::new(),
+            visibility: VisibilityClass::PublicCommunity,
+            authority_gate: fixture_authority_gate(
+                context.actor,
+                context.clone(),
+                AuthorityDomain::PublicPublishing,
+                AuthorityAction::Retry,
+            ),
+            flow_state: if matches!(outbox_state, OutboxState::Draft) {
+                AddFlowState::Draft
+            } else {
+                AddFlowState::Queued
+            },
+            outbox_state,
+            sync_state: CANONICAL_SYNC_STATES[index % CANONICAL_SYNC_STATES.len()],
+            queued_at_unix: Some(1_799_971_200 + index as u64),
+            last_attempt_at_unix: None,
+            retry_count: index as u32,
+            last_error: if matches!(outbox_state, OutboxState::Failed) {
+                Some("fixture failure".to_string())
+            } else {
+                None
+            },
+        })
+        .collect()
+}
+
+#[cfg_attr(not(coverage_nightly), uniffi::export)]
+impl RadrootsRuntime {
+    pub fn phase1_active_contexts(&self) -> Vec<ActiveContext> {
+        let _ = self;
+        fixture_active_contexts()
+    }
+
+    pub fn phase1_today_cards(&self, context_id: Option<String>) -> Vec<TodayCard> {
+        let _ = self;
+        fixture_today_cards(context_id)
+    }
+
+    pub fn phase1_add_actions(&self, context_id: Option<String>) -> Vec<AddAction> {
+        let _ = self;
+        fixture_add_actions(context_id)
+    }
+
+    pub fn phase1_object_page_summaries(
+        &self,
+        context_id: Option<String>,
+    ) -> Vec<ObjectPageSummary> {
+        let _ = self;
+        fixture_object_page_summaries(context_id)
+    }
+
+    pub fn phase1_outbox_snapshot(&self) -> Vec<OutboxItem> {
+        let _ = self;
+        fixture_outbox_items()
+    }
+
+    pub fn phase1_check_authority(
+        &self,
+        actor: WorkflowActor,
+        context: ActiveContext,
+        domain: AuthorityDomain,
+        action: AuthorityAction,
+    ) -> AuthorityGate {
+        let _ = self;
+        fixture_authority_gate(actor, context, domain, action)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -547,6 +1084,29 @@ mod tests {
         assert_eq!(CANONICAL_ADD_ACTION_TYPES.len(), 18);
         assert_eq!(CANONICAL_ADD_FLOW_STATES.len(), 16);
         assert_eq!(CANONICAL_OBJECT_PAGE_FAMILIES.len(), 13);
+        assert_eq!(CANONICAL_OUTBOX_STATES.len(), 10);
+        assert_eq!(CANONICAL_SYNC_STATES.len(), 7);
+    }
+
+    #[test]
+    fn fixture_backed_projection_apis_cover_required_surface() {
+        assert_eq!(
+            fixture_active_contexts().len(),
+            CANONICAL_CONTEXT_TYPES.len()
+        );
+        assert_eq!(
+            fixture_today_cards(None).len(),
+            CANONICAL_TODAY_CARD_TYPES.len()
+        );
+        assert_eq!(
+            fixture_add_actions(None).len(),
+            CANONICAL_ADD_ACTION_TYPES.len()
+        );
+        assert_eq!(
+            fixture_object_page_summaries(None).len(),
+            CANONICAL_OBJECT_PAGE_FAMILIES.len()
+        );
+        assert_eq!(fixture_outbox_items().len(), CANONICAL_OUTBOX_STATES.len());
     }
 
     #[test]
@@ -674,5 +1234,27 @@ mod tests {
         assert!(WORKFLOW_ACTOR_COMPATIBILITY_NOTE.contains("Farmer"));
         assert!(WORKFLOW_ACTOR_COMPATIBILITY_NOTE.contains("Buyer"));
         assert!(WORKFLOW_ACTOR_COMPATIBILITY_NOTE.contains("not sufficient authority"));
+    }
+
+    #[test]
+    fn authority_fixture_allows_and_denies_by_actor_domain_pair() {
+        let context = active_context();
+        let allowed = fixture_authority_gate(
+            WorkflowActor::ProducerAdmin,
+            context.clone(),
+            AuthorityDomain::FarmWorkspaceOperations,
+            AuthorityAction::Submit,
+        );
+        assert!(allowed.is_allowed);
+        assert_eq!(allowed.reason, None);
+
+        let denied = fixture_authority_gate(
+            WorkflowActor::NetworkMember,
+            context,
+            AuthorityDomain::FarmWorkspaceOperations,
+            AuthorityAction::Submit,
+        );
+        assert!(!denied.is_allowed);
+        assert!(denied.reason.is_some());
     }
 }
