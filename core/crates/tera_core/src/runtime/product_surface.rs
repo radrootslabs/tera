@@ -218,6 +218,14 @@ pub enum OutboxBehavior {
 
 #[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
+pub enum PrototypePathKind {
+    ProducerFoodToRoute,
+    BuyerCommitmentToRoute,
+    RouteCoordinatorAssignment,
+}
+
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub enum OutboxState {
     NotQueued,
     Draft,
@@ -404,6 +412,31 @@ pub struct SearchResultSummary {
     pub visibility_label: String,
     pub required_authority: AuthorityGate,
     pub sync_state: SyncState,
+}
+
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrototypePathStep {
+    pub id: String,
+    pub label: String,
+    pub context: ActiveContext,
+    pub action_type: Option<AddActionType>,
+    pub object_ref: Option<ObjectRef>,
+    pub authority_gate: AuthorityGate,
+    pub visibility: VisibilityClass,
+    pub outbox_state: OutboxState,
+    pub sync_state: SyncState,
+}
+
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PrototypePath {
+    pub id: String,
+    pub kind: PrototypePathKind,
+    pub title: String,
+    pub actor: WorkflowActor,
+    pub context: ActiveContext,
+    pub steps: Vec<PrototypePathStep>,
 }
 
 pub const CANONICAL_CONTEXT_TYPES: [ContextType; 10] = [
@@ -1146,6 +1179,240 @@ pub fn fixture_search_results(
         .collect()
 }
 
+fn prototype_path_step(
+    id: impl Into<String>,
+    label: impl Into<String>,
+    context: ActiveContext,
+    action_type: Option<AddActionType>,
+    object_ref: Option<ObjectRef>,
+    domain: AuthorityDomain,
+    action: AuthorityAction,
+    visibility: VisibilityClass,
+    outbox_state: OutboxState,
+    sync_state: SyncState,
+) -> PrototypePathStep {
+    PrototypePathStep {
+        id: id.into(),
+        label: label.into(),
+        context: context.clone(),
+        action_type,
+        object_ref,
+        authority_gate: fixture_authority_gate(context.actor, context, domain, action),
+        visibility,
+        outbox_state,
+        sync_state,
+    }
+}
+
+pub fn fixture_prototype_paths() -> Vec<PrototypePath> {
+    let farm = context_for_type(ContextType::Farm);
+    let buyer = context_for_type(ContextType::Buyer);
+    let route = context_for_type(ContextType::Route);
+    let route_partner = context_for_type(ContextType::RoutePartner);
+    let food_ref = object_ref(ObjectKind::Food, "food_harvest_001", "Summer squash lot");
+    let route_ref = object_ref(
+        ObjectKind::Route,
+        "route_thursday_001",
+        "Thursday network loop",
+    );
+    let buyer_request_ref = object_ref(
+        ObjectKind::BuyerPacket,
+        "buyer_commitment_001",
+        "Kitchen commitment packet",
+    );
+    let exception_ref = object_ref(
+        ObjectKind::Exception,
+        "route_blocker_001",
+        "Missing pickup confirmation",
+    );
+
+    vec![
+        PrototypePath {
+            id: "producer_food_to_route".to_string(),
+            kind: PrototypePathKind::ProducerFoodToRoute,
+            title: "Producer food to route".to_string(),
+            actor: farm.actor,
+            context: farm.clone(),
+            steps: vec![
+                prototype_path_step(
+                    "producer_today",
+                    "Farm Today",
+                    farm.clone(),
+                    None,
+                    Some(farm.context_ref.clone()),
+                    AuthorityDomain::FarmWorkspaceOperations,
+                    AuthorityAction::Search,
+                    farm.visibility_scope,
+                    OutboxState::NotQueued,
+                    SyncState::Online,
+                ),
+                prototype_path_step(
+                    "producer_add_food",
+                    "Add Food",
+                    farm.clone(),
+                    Some(AddActionType::Food),
+                    Some(food_ref.clone()),
+                    AuthorityDomain::FarmWorkspaceOperations,
+                    AuthorityAction::Submit,
+                    VisibilityClass::NetworkVisible,
+                    OutboxState::Draft,
+                    SyncState::Offline,
+                ),
+                prototype_path_step(
+                    "producer_add_to_route",
+                    "Add to Route",
+                    farm.clone(),
+                    Some(AddActionType::RouteNeed),
+                    Some(route_ref.clone()),
+                    AuthorityDomain::FarmWorkspaceOperations,
+                    AuthorityAction::Share,
+                    VisibilityClass::RouteScoped,
+                    OutboxState::Queued,
+                    SyncState::Syncing,
+                ),
+                prototype_path_step(
+                    "producer_food_page",
+                    "Food page",
+                    farm.clone(),
+                    None,
+                    Some(food_ref.clone()),
+                    AuthorityDomain::FarmWorkspaceOperations,
+                    AuthorityAction::NavigateRelatedObject,
+                    VisibilityClass::NetworkVisible,
+                    OutboxState::Shared,
+                    SyncState::Synced,
+                ),
+                prototype_path_step(
+                    "producer_route_page",
+                    "Route page",
+                    route.clone(),
+                    None,
+                    Some(route_ref.clone()),
+                    AuthorityDomain::RouteCoordination,
+                    AuthorityAction::NavigateRelatedObject,
+                    VisibilityClass::RouteScoped,
+                    OutboxState::NotQueued,
+                    SyncState::Online,
+                ),
+            ],
+        },
+        PrototypePath {
+            id: "buyer_commitment_to_route".to_string(),
+            kind: PrototypePathKind::BuyerCommitmentToRoute,
+            title: "Buyer commitment to route".to_string(),
+            actor: buyer.actor,
+            context: buyer.clone(),
+            steps: vec![
+                prototype_path_step(
+                    "buyer_today",
+                    "Buyer Today",
+                    buyer.clone(),
+                    None,
+                    Some(buyer.context_ref.clone()),
+                    AuthorityDomain::BuyerWorkspace,
+                    AuthorityAction::Search,
+                    buyer.visibility_scope,
+                    OutboxState::NotQueued,
+                    SyncState::Online,
+                ),
+                prototype_path_step(
+                    "buyer_request",
+                    "Add Buyer Request",
+                    buyer.clone(),
+                    Some(AddActionType::BuyerRequest),
+                    Some(buyer_request_ref.clone()),
+                    AuthorityDomain::BuyerWorkspace,
+                    AuthorityAction::Submit,
+                    VisibilityClass::BuyerScoped,
+                    OutboxState::Draft,
+                    SyncState::Offline,
+                ),
+                prototype_path_step(
+                    "buyer_commitment",
+                    "Confirm Commitment",
+                    buyer.clone(),
+                    Some(AddActionType::BuyerCommitment),
+                    Some(buyer_request_ref),
+                    AuthorityDomain::BuyerWorkspace,
+                    AuthorityAction::Approve,
+                    VisibilityClass::BuyerScoped,
+                    OutboxState::Queued,
+                    SyncState::Syncing,
+                ),
+                prototype_path_step(
+                    "buyer_route",
+                    "Route",
+                    route.clone(),
+                    None,
+                    Some(route_ref.clone()),
+                    AuthorityDomain::RouteCoordination,
+                    AuthorityAction::NavigateRelatedObject,
+                    VisibilityClass::RouteScoped,
+                    OutboxState::Shared,
+                    SyncState::Synced,
+                ),
+            ],
+        },
+        PrototypePath {
+            id: "route_coordinator_assignment".to_string(),
+            kind: PrototypePathKind::RouteCoordinatorAssignment,
+            title: "Route coordinator assignment".to_string(),
+            actor: route.actor,
+            context: route.clone(),
+            steps: vec![
+                prototype_path_step(
+                    "route_today",
+                    "Route Today",
+                    route.clone(),
+                    None,
+                    Some(route_ref.clone()),
+                    AuthorityDomain::RouteCoordination,
+                    AuthorityAction::Search,
+                    VisibilityClass::RouteScoped,
+                    OutboxState::NotQueued,
+                    SyncState::Online,
+                ),
+                prototype_path_step(
+                    "route_page",
+                    "Route page",
+                    route.clone(),
+                    None,
+                    Some(route_ref),
+                    AuthorityDomain::RouteCoordination,
+                    AuthorityAction::NavigateRelatedObject,
+                    VisibilityClass::RouteScoped,
+                    OutboxState::NotQueued,
+                    SyncState::Online,
+                ),
+                prototype_path_step(
+                    "route_resolve_blocker",
+                    "Resolve blocker",
+                    route.clone(),
+                    Some(AddActionType::Exception),
+                    Some(exception_ref),
+                    AuthorityDomain::RouteCoordination,
+                    AuthorityAction::Close,
+                    VisibilityClass::RouteScoped,
+                    OutboxState::Conflict,
+                    SyncState::Failed,
+                ),
+                prototype_path_step(
+                    "route_assign_partner",
+                    "Assign RoutePartner",
+                    route,
+                    Some(AddActionType::RouteNeed),
+                    Some(route_partner.context_ref.clone()),
+                    AuthorityDomain::RouteCoordination,
+                    AuthorityAction::Assign,
+                    VisibilityClass::RouteScoped,
+                    OutboxState::Queued,
+                    SyncState::Syncing,
+                ),
+            ],
+        },
+    ]
+}
+
 pub fn fixture_outbox_items() -> Vec<OutboxItem> {
     let context = context_for_type(ContextType::Farm);
     CANONICAL_OUTBOX_STATES
@@ -1269,6 +1536,11 @@ impl RadrootsRuntime {
     ) -> Vec<SearchResultSummary> {
         let _ = self;
         fixture_search_results(query, context_id)
+    }
+
+    pub fn phase1_prototype_paths(&self) -> Vec<PrototypePath> {
+        let _ = self;
+        fixture_prototype_paths()
     }
 
     pub fn phase1_outbox_retry_decision(&self, item: OutboxItem) -> OutboxRetryDecision {
@@ -1473,6 +1745,80 @@ mod tests {
             Some(farm.context_ref.object_id),
         );
         assert!(denied.is_empty());
+    }
+
+    #[test]
+    fn prototype_paths_cover_required_phase_1_actor_routes() {
+        let paths = fixture_prototype_paths();
+        assert_eq!(paths.len(), 3);
+        assert!(
+            paths
+                .iter()
+                .any(|path| path.kind == PrototypePathKind::ProducerFoodToRoute
+                    && path.actor == WorkflowActor::ProducerAdmin
+                    && path.steps.iter().any(|step| step.label == "Add Food")
+                    && path.steps.iter().any(|step| step.label == "Add to Route"))
+        );
+        assert!(paths.iter().any(|path| {
+            path.kind == PrototypePathKind::BuyerCommitmentToRoute
+                && path.actor == WorkflowActor::BuyerSourcingLead
+                && path
+                    .steps
+                    .iter()
+                    .any(|step| step.label == "Confirm Commitment")
+        }));
+        assert!(paths.iter().any(|path| {
+            path.kind == PrototypePathKind::RouteCoordinatorAssignment
+                && path.actor == WorkflowActor::RouteCoordinator
+                && path
+                    .steps
+                    .iter()
+                    .any(|step| step.label == "Assign RoutePartner")
+        }));
+    }
+
+    #[test]
+    fn prototype_paths_connect_actions_objects_outbox_and_authority() {
+        let paths = fixture_prototype_paths();
+        let steps: Vec<&PrototypePathStep> =
+            paths.iter().flat_map(|path| path.steps.iter()).collect();
+
+        assert!(
+            steps
+                .iter()
+                .any(|step| step.action_type == Some(AddActionType::Food))
+        );
+        assert!(steps.iter().any(|step| {
+            step.object_ref
+                .as_ref()
+                .is_some_and(|object_ref| object_ref.object_type == ObjectKind::Food)
+        }));
+        assert!(steps.iter().any(|step| {
+            step.object_ref
+                .as_ref()
+                .is_some_and(|object_ref| object_ref.object_type == ObjectKind::Route)
+        }));
+        assert!(steps.iter().any(|step| {
+            step.object_ref
+                .as_ref()
+                .is_some_and(|object_ref| object_ref.object_type == ObjectKind::RoutePartner)
+        }));
+        assert!(
+            steps
+                .iter()
+                .any(|step| step.outbox_state == OutboxState::Queued)
+        );
+        assert!(
+            steps
+                .iter()
+                .any(|step| step.outbox_state == OutboxState::Conflict)
+        );
+        assert!(steps.iter().all(|step| step.authority_gate.is_required));
+        assert!(
+            steps
+                .iter()
+                .all(|step| step.visibility != VisibilityClass::SecretNeverShared)
+        );
     }
 
     #[test]
