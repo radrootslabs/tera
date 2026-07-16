@@ -1239,6 +1239,31 @@ mod tests {
     }
 
     #[test]
+    fn object_page_fixtures_carry_routeable_refs_and_navigation_authority() {
+        let pages = fixture_object_page_summaries(None);
+        assert_eq!(pages.len(), CANONICAL_OBJECT_PAGE_FAMILIES.len());
+
+        for (page, family) in pages.iter().zip(CANONICAL_OBJECT_PAGE_FAMILIES) {
+            assert_eq!(page.family, family);
+            assert_eq!(page.object_ref.object_type, object_kind_for_page(family));
+            assert_eq!(
+                page.required_authority.action,
+                AuthorityAction::NavigateRelatedObject
+            );
+            assert_eq!(
+                page.required_authority.domain,
+                AuthorityDomain::RelayGroupAccess
+            );
+            assert_eq!(
+                page.required_authority.context.context_ref.object_id,
+                page.primary_context.context_ref.object_id
+            );
+            assert!(!page.object_ref.object_id.is_empty());
+            assert!(!page.title.is_empty());
+        }
+    }
+
+    #[test]
     fn serde_names_preserve_product_vocabulary() {
         assert_eq!(
             serde_json::to_value(WorkflowActor::NetworkMember).expect("serialize actor"),
