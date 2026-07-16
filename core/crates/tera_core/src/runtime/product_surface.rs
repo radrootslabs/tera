@@ -392,6 +392,20 @@ pub struct OutboxRetryDecision {
     pub reason: Option<String>,
 }
 
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResultSummary {
+    pub id: String,
+    pub object_ref: ObjectRef,
+    pub primary_context: ActiveContext,
+    pub title: String,
+    pub subtitle: Option<String>,
+    pub visibility: VisibilityClass,
+    pub visibility_label: String,
+    pub required_authority: AuthorityGate,
+    pub sync_state: SyncState,
+}
+
 pub const CANONICAL_CONTEXT_TYPES: [ContextType; 10] = [
     ContextType::Regional,
     ContextType::Network,
@@ -1077,6 +1091,61 @@ pub fn fixture_object_page_summaries(context_id: Option<String>) -> Vec<ObjectPa
         .collect()
 }
 
+fn visibility_allows_search_result(visibility: VisibilityClass) -> bool {
+    matches!(
+        visibility,
+        VisibilityClass::NetworkVisible
+            | VisibilityClass::PublicCommunity
+            | VisibilityClass::PublicProvenance
+    )
+}
+
+fn object_kind_allows_search_result(object_kind: ObjectKind, visibility: VisibilityClass) -> bool {
+    match object_kind {
+        ObjectKind::BuyerPacket | ObjectKind::RouteStop => false,
+        ObjectKind::Proof => visibility == VisibilityClass::PublicProvenance,
+        _ => true,
+    }
+}
+
+pub fn fixture_search_results(
+    query: Option<String>,
+    context_id: Option<String>,
+) -> Vec<SearchResultSummary> {
+    let normalized_query = query.unwrap_or_default().trim().to_lowercase();
+    fixture_object_page_summaries(context_id)
+        .into_iter()
+        .filter(|page| page.required_authority.is_allowed)
+        .filter(|page| visibility_allows_search_result(page.visibility))
+        .filter(|page| {
+            object_kind_allows_search_result(page.object_ref.object_type, page.visibility)
+        })
+        .filter(|page| {
+            normalized_query.is_empty()
+                || page.title.to_lowercase().contains(&normalized_query)
+                || page
+                    .object_ref
+                    .display_label
+                    .to_lowercase()
+                    .contains(&normalized_query)
+                || format!("{:?}", page.family)
+                    .to_lowercase()
+                    .contains(&normalized_query)
+        })
+        .map(|page| SearchResultSummary {
+            id: format!("search_{}", page.object_ref.object_id),
+            object_ref: page.object_ref,
+            primary_context: page.primary_context,
+            title: page.title,
+            subtitle: page.subtitle,
+            visibility: page.visibility,
+            visibility_label: page.visibility_label,
+            required_authority: page.required_authority,
+            sync_state: page.sync_state,
+        })
+        .collect()
+}
+
 pub fn fixture_outbox_items() -> Vec<OutboxItem> {
     let context = context_for_type(ContextType::Farm);
     CANONICAL_OUTBOX_STATES
@@ -1191,6 +1260,15 @@ impl RadrootsRuntime {
     pub fn phase1_outbox_snapshot(&self) -> Vec<OutboxItem> {
         let _ = self;
         fixture_outbox_items()
+    }
+
+    pub fn phase1_search_results(
+        &self,
+        query: Option<String>,
+        context_id: Option<String>,
+    ) -> Vec<SearchResultSummary> {
+        let _ = self;
+        fixture_search_results(query, context_id)
     }
 
     pub fn phase1_outbox_retry_decision(&self, item: OutboxItem) -> OutboxRetryDecision {
@@ -1320,6 +1398,81 @@ mod tests {
             assert!(!page.object_ref.object_id.is_empty());
             assert!(!page.title.is_empty());
         }
+    }
+
+    #[test]
+    fn authority_visibility_fixtures_cover_every_actor_and_visibility_class() {
+        let context = active_context();
+        for actor in CANONICAL_WORKFLOW_ACTORS {
+            let gate = fixture_authority_gate(
+                actor,
+                context.clone(),
+                AuthorityDomain::RelayGroupAccess,
+                AuthorityAction::Search,
+            );
+            assert_eq!(gate.actor, actor);
+            assert_eq!(gate.action, AuthorityAction::Search);
+        }
+
+        for visibility in CANONICAL_VISIBILITY_CLASSES {
+            let result_allowed = visibility_allows_search_result(visibility);
+            if matches!(
+                visibility,
+                VisibilityClass::LocalDraft
+                    | VisibilityClass::FarmPrivate
+                    | VisibilityClass::WorkspacePrivate
+                    | VisibilityClass::RouteScoped
+                    | VisibilityClass::BuyerScoped
+                    | VisibilityClass::SecretNeverShared
+            ) {
+                assert!(!result_allowed);
+            }
+        }
+    }
+
+    #[test]
+    fn search_results_filter_private_and_unauthorized_surfaces() {
+        let network = context_for_type(ContextType::Network);
+        let results = fixture_search_results(
+            Some("fixture".to_string()),
+            Some(network.context_ref.object_id),
+        );
+        assert!(!results.is_empty());
+        assert!(
+            results
+                .iter()
+                .all(|result| result.required_authority.is_allowed)
+        );
+        assert!(
+            results
+                .iter()
+                .all(|result| visibility_allows_search_result(result.visibility))
+        );
+        assert!(
+            results
+                .iter()
+                .all(|result| object_kind_allows_search_result(
+                    result.object_ref.object_type,
+                    result.visibility
+                ))
+        );
+        assert!(
+            !results
+                .iter()
+                .any(|result| result.object_ref.object_type == ObjectKind::BuyerPacket)
+        );
+        assert!(
+            !results
+                .iter()
+                .any(|result| result.object_ref.object_type == ObjectKind::RouteStop)
+        );
+
+        let farm = context_for_type(ContextType::Farm);
+        let denied = fixture_search_results(
+            Some("fixture".to_string()),
+            Some(farm.context_ref.object_id),
+        );
+        assert!(denied.is_empty());
     }
 
     #[test]
