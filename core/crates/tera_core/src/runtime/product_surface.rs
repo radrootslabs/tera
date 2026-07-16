@@ -245,6 +245,28 @@ pub enum RouteExecutionStepKind {
 
 #[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
+pub enum ProofProvenanceArtifactKind {
+    ProofCompleteness,
+    BuyerPacketDraft,
+    BuyerPacketShared,
+    PublicProvenancePreview,
+}
+
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum ProofProvenanceReviewState {
+    MissingProof,
+    Complete,
+    Draft,
+    ReadyToShare,
+    Shared,
+    RedactionRequired,
+    ReadyToPublish,
+    Published,
+}
+
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub enum OutboxState {
     NotQueued,
     Draft,
@@ -490,6 +512,28 @@ pub struct RouteExecutionFlow {
     pub steps: Vec<RouteExecutionStep>,
 }
 
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofProvenanceArtifact {
+    pub id: String,
+    pub kind: ProofProvenanceArtifactKind,
+    pub review_state: ProofProvenanceReviewState,
+    pub title: String,
+    pub actor: WorkflowActor,
+    pub context: ActiveContext,
+    pub object_ref: ObjectRef,
+    pub source_object_refs: Vec<ObjectRef>,
+    pub required_authority: AuthorityGate,
+    pub visibility: VisibilityClass,
+    pub is_public_preview: bool,
+    pub requires_redaction_review: bool,
+    pub can_publish: bool,
+    pub public_summary_lines: Vec<String>,
+    pub redacted_field_labels: Vec<String>,
+    pub outbox_state: OutboxState,
+    pub sync_state: SyncState,
+}
+
 pub const CANONICAL_CONTEXT_TYPES: [ContextType; 10] = [
     ContextType::Regional,
     ContextType::Network,
@@ -665,6 +709,24 @@ pub const CANONICAL_ROUTE_EXECUTION_STEP_KINDS: [RouteExecutionStepKind; 6] = [
     RouteExecutionStepKind::RecoveryAction,
 ];
 
+pub const CANONICAL_PROOF_PROVENANCE_ARTIFACT_KINDS: [ProofProvenanceArtifactKind; 4] = [
+    ProofProvenanceArtifactKind::ProofCompleteness,
+    ProofProvenanceArtifactKind::BuyerPacketDraft,
+    ProofProvenanceArtifactKind::BuyerPacketShared,
+    ProofProvenanceArtifactKind::PublicProvenancePreview,
+];
+
+pub const CANONICAL_PROOF_PROVENANCE_REVIEW_STATES: [ProofProvenanceReviewState; 8] = [
+    ProofProvenanceReviewState::MissingProof,
+    ProofProvenanceReviewState::Complete,
+    ProofProvenanceReviewState::Draft,
+    ProofProvenanceReviewState::ReadyToShare,
+    ProofProvenanceReviewState::Shared,
+    ProofProvenanceReviewState::RedactionRequired,
+    ProofProvenanceReviewState::ReadyToPublish,
+    ProofProvenanceReviewState::Published,
+];
+
 fn object_ref(
     object_type: ObjectKind,
     object_id: impl Into<String>,
@@ -781,16 +843,20 @@ fn authority_allowed(actor: WorkflowActor, domain: AuthorityDomain) -> bool {
         ) | (
             WorkflowActor::ProducerAdmin,
             AuthorityDomain::FarmWorkspaceOperations
-        ) | (
-            WorkflowActor::ProducerAdmin,
-            AuthorityDomain::PublicPublishing
-        ) | (
-            WorkflowActor::FarmTeamMember,
-            AuthorityDomain::FarmWorkspaceOperations
-        ) | (
-            WorkflowActor::HubOperator,
-            AuthorityDomain::FarmWorkspaceOperations
-        ) | (WorkflowActor::HubOperator, AuthorityDomain::RouteExecution)
+        ) | (WorkflowActor::ProducerAdmin, AuthorityDomain::TraceProof)
+            | (
+                WorkflowActor::ProducerAdmin,
+                AuthorityDomain::PublicPublishing
+            )
+            | (
+                WorkflowActor::FarmTeamMember,
+                AuthorityDomain::FarmWorkspaceOperations
+            )
+            | (
+                WorkflowActor::HubOperator,
+                AuthorityDomain::FarmWorkspaceOperations
+            )
+            | (WorkflowActor::HubOperator, AuthorityDomain::RouteExecution)
             | (WorkflowActor::TraceLead, AuthorityDomain::TraceProof)
             | (
                 WorkflowActor::BuyerSourcingLead,
@@ -1810,6 +1876,259 @@ pub fn fixture_route_execution_flows(context_id: Option<String>) -> Vec<RouteExe
     }
 }
 
+struct ProofProvenanceArtifactFixture {
+    id: &'static str,
+    kind: ProofProvenanceArtifactKind,
+    review_state: ProofProvenanceReviewState,
+    title: &'static str,
+    actor: WorkflowActor,
+    context: ActiveContext,
+    object_ref: ObjectRef,
+    source_object_refs: Vec<ObjectRef>,
+    domain: AuthorityDomain,
+    action: AuthorityAction,
+    visibility: VisibilityClass,
+    is_public_preview: bool,
+    requires_redaction_review: bool,
+    can_publish: bool,
+    public_summary_lines: Vec<&'static str>,
+    redacted_field_labels: Vec<&'static str>,
+    outbox_state: OutboxState,
+    sync_state: SyncState,
+}
+
+fn proof_provenance_artifact(fixture: ProofProvenanceArtifactFixture) -> ProofProvenanceArtifact {
+    ProofProvenanceArtifact {
+        id: fixture.id.to_string(),
+        kind: fixture.kind,
+        review_state: fixture.review_state,
+        title: fixture.title.to_string(),
+        actor: fixture.actor,
+        context: fixture.context.clone(),
+        object_ref: fixture.object_ref,
+        source_object_refs: fixture.source_object_refs,
+        required_authority: fixture_authority_gate(
+            fixture.actor,
+            fixture.context,
+            fixture.domain,
+            fixture.action,
+        ),
+        visibility: fixture.visibility,
+        is_public_preview: fixture.is_public_preview,
+        requires_redaction_review: fixture.requires_redaction_review,
+        can_publish: fixture.can_publish,
+        public_summary_lines: fixture
+            .public_summary_lines
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        redacted_field_labels: fixture
+            .redacted_field_labels
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+        outbox_state: fixture.outbox_state,
+        sync_state: fixture.sync_state,
+    }
+}
+
+fn private_provenance_redaction_labels() -> Vec<&'static str> {
+    vec![
+        "private trace JSON",
+        "private buyer details",
+        "private evidence",
+        "private route stops",
+        "worker notes",
+    ]
+}
+
+fn all_proof_provenance_artifacts() -> Vec<ProofProvenanceArtifact> {
+    let trace = context_for_type(ContextType::TraceRecords);
+    let farm = context_for_type(ContextType::Farm);
+    let buyer = context_for_type(ContextType::Buyer);
+    let proof_ref = object_ref(
+        ObjectKind::Proof,
+        "proof_route_loop_001",
+        "Route loop proof set",
+    );
+    let producer_proof_ref = object_ref(
+        ObjectKind::Proof,
+        "proof_farm_lot_001",
+        "Farm lot proof set",
+    );
+    let buyer_packet_ref = object_ref(
+        ObjectKind::BuyerPacket,
+        "buyer_packet_kitchen_001",
+        "Kitchen buyer packet",
+    );
+    let public_provenance_ref = object_ref(
+        ObjectKind::Provenance,
+        "public_provenance_squash_001",
+        "Summer squash provenance preview",
+    );
+    let food_ref = object_ref(ObjectKind::Food, "food_harvest_001", "Summer squash lot");
+    let route_ref = object_ref(
+        ObjectKind::Route,
+        "route_thursday_001",
+        "Thursday network loop",
+    );
+    let receipt_ref = object_ref(
+        ObjectKind::Proof,
+        "receipt_kitchen_001",
+        "Kitchen receipt confirmation",
+    );
+
+    vec![
+        proof_provenance_artifact(ProofProvenanceArtifactFixture {
+            id: "trace_proof_completeness",
+            kind: ProofProvenanceArtifactKind::ProofCompleteness,
+            review_state: ProofProvenanceReviewState::MissingProof,
+            title: "Trace proof completeness",
+            actor: WorkflowActor::TraceLead,
+            context: trace.clone(),
+            object_ref: proof_ref.clone(),
+            source_object_refs: vec![route_ref.clone(), receipt_ref.clone()],
+            domain: AuthorityDomain::TraceProof,
+            action: AuthorityAction::Approve,
+            visibility: VisibilityClass::WorkspacePrivate,
+            is_public_preview: false,
+            requires_redaction_review: false,
+            can_publish: false,
+            public_summary_lines: vec![
+                "Internal proof set needs one receipt confirmation before publication review.",
+            ],
+            redacted_field_labels: Vec::new(),
+            outbox_state: OutboxState::NotQueued,
+            sync_state: SyncState::Online,
+        }),
+        proof_provenance_artifact(ProofProvenanceArtifactFixture {
+            id: "producer_proof_completeness",
+            kind: ProofProvenanceArtifactKind::ProofCompleteness,
+            review_state: ProofProvenanceReviewState::Complete,
+            title: "Producer proof completeness",
+            actor: WorkflowActor::ProducerAdmin,
+            context: farm.clone(),
+            object_ref: producer_proof_ref.clone(),
+            source_object_refs: vec![food_ref.clone(), route_ref.clone()],
+            domain: AuthorityDomain::TraceProof,
+            action: AuthorityAction::Approve,
+            visibility: VisibilityClass::FarmPrivate,
+            is_public_preview: false,
+            requires_redaction_review: false,
+            can_publish: false,
+            public_summary_lines: vec![
+                "Authorized producer review confirms farm lot proof completeness.",
+            ],
+            redacted_field_labels: Vec::new(),
+            outbox_state: OutboxState::Shared,
+            sync_state: SyncState::Synced,
+        }),
+        proof_provenance_artifact(ProofProvenanceArtifactFixture {
+            id: "buyer_packet_draft",
+            kind: ProofProvenanceArtifactKind::BuyerPacketDraft,
+            review_state: ProofProvenanceReviewState::Draft,
+            title: "Buyer packet draft",
+            actor: WorkflowActor::BuyerSourcingLead,
+            context: buyer.clone(),
+            object_ref: buyer_packet_ref.clone(),
+            source_object_refs: vec![food_ref.clone(), receipt_ref.clone()],
+            domain: AuthorityDomain::BuyerWorkspace,
+            action: AuthorityAction::Submit,
+            visibility: VisibilityClass::BuyerScoped,
+            is_public_preview: false,
+            requires_redaction_review: false,
+            can_publish: false,
+            public_summary_lines: vec!["Buyer packet draft is scoped to the buyer workspace."],
+            redacted_field_labels: Vec::new(),
+            outbox_state: OutboxState::Draft,
+            sync_state: SyncState::Offline,
+        }),
+        proof_provenance_artifact(ProofProvenanceArtifactFixture {
+            id: "buyer_packet_shared",
+            kind: ProofProvenanceArtifactKind::BuyerPacketShared,
+            review_state: ProofProvenanceReviewState::Shared,
+            title: "Buyer packet shared",
+            actor: WorkflowActor::BuyerSourcingLead,
+            context: buyer,
+            object_ref: buyer_packet_ref,
+            source_object_refs: vec![producer_proof_ref.clone(), receipt_ref.clone()],
+            domain: AuthorityDomain::BuyerWorkspace,
+            action: AuthorityAction::Share,
+            visibility: VisibilityClass::BuyerScoped,
+            is_public_preview: false,
+            requires_redaction_review: false,
+            can_publish: false,
+            public_summary_lines: vec!["Buyer packet has been shared with authorized receivers."],
+            redacted_field_labels: Vec::new(),
+            outbox_state: OutboxState::Shared,
+            sync_state: SyncState::Synced,
+        }),
+        proof_provenance_artifact(ProofProvenanceArtifactFixture {
+            id: "public_provenance_redaction_review",
+            kind: ProofProvenanceArtifactKind::PublicProvenancePreview,
+            review_state: ProofProvenanceReviewState::RedactionRequired,
+            title: "Public provenance redaction review",
+            actor: WorkflowActor::ProducerAdmin,
+            context: farm.clone(),
+            object_ref: public_provenance_ref.clone(),
+            source_object_refs: vec![food_ref.clone(), producer_proof_ref.clone()],
+            domain: AuthorityDomain::PublicPublishing,
+            action: AuthorityAction::Publish,
+            visibility: VisibilityClass::PublicProvenance,
+            is_public_preview: true,
+            requires_redaction_review: true,
+            can_publish: false,
+            public_summary_lines: vec![
+                "Summer squash was grown by Floripa Farm for the Thursday network loop.",
+                "Public preview includes farm, food, harvest window, and network-level route summary.",
+            ],
+            redacted_field_labels: private_provenance_redaction_labels(),
+            outbox_state: OutboxState::AwaitingAuthority,
+            sync_state: SyncState::Online,
+        }),
+        proof_provenance_artifact(ProofProvenanceArtifactFixture {
+            id: "public_provenance_ready",
+            kind: ProofProvenanceArtifactKind::PublicProvenancePreview,
+            review_state: ProofProvenanceReviewState::ReadyToPublish,
+            title: "Public provenance ready",
+            actor: WorkflowActor::ProducerAdmin,
+            context: farm,
+            object_ref: public_provenance_ref,
+            source_object_refs: vec![food_ref, producer_proof_ref],
+            domain: AuthorityDomain::PublicPublishing,
+            action: AuthorityAction::Publish,
+            visibility: VisibilityClass::PublicProvenance,
+            is_public_preview: true,
+            requires_redaction_review: false,
+            can_publish: true,
+            public_summary_lines: vec![
+                "Summer squash provenance is ready for public community publication.",
+                "Preview includes only redacted farm, food, harvest window, and network summary fields.",
+            ],
+            redacted_field_labels: private_provenance_redaction_labels(),
+            outbox_state: OutboxState::Queued,
+            sync_state: SyncState::Syncing,
+        }),
+    ]
+}
+
+pub fn fixture_proof_provenance_artifacts(
+    context_id: Option<String>,
+) -> Vec<ProofProvenanceArtifact> {
+    let Some(context_id) = context_id else {
+        return all_proof_provenance_artifacts();
+    };
+    let matching: Vec<ProofProvenanceArtifact> = all_proof_provenance_artifacts()
+        .into_iter()
+        .filter(|artifact| artifact.context.context_ref.object_id == context_id)
+        .collect();
+    if matching.is_empty() {
+        all_proof_provenance_artifacts()
+    } else {
+        matching
+    }
+}
+
 pub fn fixture_outbox_items() -> Vec<OutboxItem> {
     let context = context_for_type(ContextType::Farm);
     CANONICAL_OUTBOX_STATES
@@ -1948,6 +2267,14 @@ impl RadrootsRuntime {
         fixture_route_execution_flows(context_id)
     }
 
+    pub fn phase1_proof_provenance_artifacts(
+        &self,
+        context_id: Option<String>,
+    ) -> Vec<ProofProvenanceArtifact> {
+        let _ = self;
+        fixture_proof_provenance_artifacts(context_id)
+    }
+
     pub fn phase1_outbox_retry_decision(&self, item: OutboxItem) -> OutboxRetryDecision {
         let _ = self;
         fixture_outbox_retry_decision(item)
@@ -2014,6 +2341,8 @@ mod tests {
         assert_eq!(CANONICAL_SYNC_STATES.len(), 7);
         assert_eq!(CANONICAL_ROUTE_EXECUTION_FLOW_KINDS.len(), 3);
         assert_eq!(CANONICAL_ROUTE_EXECUTION_STEP_KINDS.len(), 6);
+        assert_eq!(CANONICAL_PROOF_PROVENANCE_ARTIFACT_KINDS.len(), 4);
+        assert_eq!(CANONICAL_PROOF_PROVENANCE_REVIEW_STATES.len(), 8);
     }
 
     #[test]
@@ -2056,6 +2385,7 @@ mod tests {
             fixture_route_execution_flows(None).len(),
             CANONICAL_ROUTE_EXECUTION_FLOW_KINDS.len()
         );
+        assert_eq!(fixture_proof_provenance_artifacts(None).len(), 6);
     }
 
     #[test]
@@ -2369,6 +2699,173 @@ mod tests {
         assert_eq!(recovery.required_authority.action, AuthorityAction::Close);
         assert!(recovery.supports_partial_receipt);
         assert!(recovery.required_authority.is_allowed);
+    }
+
+    #[test]
+    fn proof_provenance_artifacts_cover_required_kinds_and_states() {
+        let artifacts = fixture_proof_provenance_artifacts(None);
+        for kind in CANONICAL_PROOF_PROVENANCE_ARTIFACT_KINDS {
+            assert!(
+                artifacts.iter().any(|artifact| artifact.kind == kind),
+                "missing {kind:?}"
+            );
+        }
+
+        assert!(artifacts.iter().any(|artifact| {
+            artifact.kind == ProofProvenanceArtifactKind::ProofCompleteness
+                && artifact.review_state == ProofProvenanceReviewState::MissingProof
+        }));
+        assert!(artifacts.iter().any(|artifact| {
+            artifact.kind == ProofProvenanceArtifactKind::ProofCompleteness
+                && artifact.review_state == ProofProvenanceReviewState::Complete
+        }));
+        assert!(artifacts.iter().any(|artifact| {
+            artifact.kind == ProofProvenanceArtifactKind::BuyerPacketDraft
+                && artifact.review_state == ProofProvenanceReviewState::Draft
+        }));
+        assert!(artifacts.iter().any(|artifact| {
+            artifact.kind == ProofProvenanceArtifactKind::BuyerPacketShared
+                && artifact.review_state == ProofProvenanceReviewState::Shared
+        }));
+        assert!(artifacts.iter().any(|artifact| {
+            artifact.kind == ProofProvenanceArtifactKind::PublicProvenancePreview
+                && artifact.review_state == ProofProvenanceReviewState::RedactionRequired
+        }));
+        assert!(artifacts.iter().any(|artifact| {
+            artifact.kind == ProofProvenanceArtifactKind::PublicProvenancePreview
+                && artifact.review_state == ProofProvenanceReviewState::ReadyToPublish
+        }));
+    }
+
+    #[test]
+    fn trace_lead_and_authorized_producer_can_review_proof_completeness() {
+        let proof_artifacts: Vec<ProofProvenanceArtifact> =
+            fixture_proof_provenance_artifacts(None)
+                .into_iter()
+                .filter(|artifact| artifact.kind == ProofProvenanceArtifactKind::ProofCompleteness)
+                .collect();
+        assert_eq!(proof_artifacts.len(), 2);
+        assert!(proof_artifacts.iter().any(|artifact| {
+            artifact.actor == WorkflowActor::TraceLead
+                && artifact.required_authority.domain == AuthorityDomain::TraceProof
+                && artifact.required_authority.action == AuthorityAction::Approve
+                && artifact.required_authority.is_allowed
+        }));
+        assert!(proof_artifacts.iter().any(|artifact| {
+            artifact.actor == WorkflowActor::ProducerAdmin
+                && artifact.required_authority.domain == AuthorityDomain::TraceProof
+                && artifact.required_authority.action == AuthorityAction::Approve
+                && artifact.required_authority.is_allowed
+        }));
+    }
+
+    #[test]
+    fn buyer_packets_are_private_and_public_provenance_is_distinct() {
+        let artifacts = fixture_proof_provenance_artifacts(None);
+        let buyer_packets: Vec<&ProofProvenanceArtifact> = artifacts
+            .iter()
+            .filter(|artifact| {
+                matches!(
+                    artifact.kind,
+                    ProofProvenanceArtifactKind::BuyerPacketDraft
+                        | ProofProvenanceArtifactKind::BuyerPacketShared
+                )
+            })
+            .collect();
+        assert_eq!(buyer_packets.len(), 2);
+        assert!(buyer_packets.iter().all(|artifact| {
+            artifact.object_ref.object_type == ObjectKind::BuyerPacket
+                && artifact.visibility == VisibilityClass::BuyerScoped
+                && !artifact.is_public_preview
+                && !artifact.can_publish
+        }));
+
+        let public_previews: Vec<&ProofProvenanceArtifact> = artifacts
+            .iter()
+            .filter(|artifact| {
+                artifact.kind == ProofProvenanceArtifactKind::PublicProvenancePreview
+            })
+            .collect();
+        assert_eq!(public_previews.len(), 2);
+        assert!(public_previews.iter().all(|artifact| {
+            artifact.object_ref.object_type == ObjectKind::Provenance
+                && artifact.visibility == VisibilityClass::PublicProvenance
+                && artifact.is_public_preview
+                && artifact.required_authority.domain == AuthorityDomain::PublicPublishing
+        }));
+    }
+
+    #[test]
+    fn public_provenance_publication_requires_authority_and_redaction_review() {
+        let artifacts = fixture_proof_provenance_artifacts(None);
+        let review = artifacts
+            .iter()
+            .find(|artifact| {
+                artifact.id == "public_provenance_redaction_review"
+                    && artifact.kind == ProofProvenanceArtifactKind::PublicProvenancePreview
+            })
+            .expect("redaction review artifact");
+        assert!(review.required_authority.is_allowed);
+        assert_eq!(review.required_authority.action, AuthorityAction::Publish);
+        assert!(review.requires_redaction_review);
+        assert!(!review.can_publish);
+        assert_eq!(review.outbox_state, OutboxState::AwaitingAuthority);
+
+        let ready = artifacts
+            .iter()
+            .find(|artifact| artifact.id == "public_provenance_ready")
+            .expect("ready artifact");
+        assert!(ready.required_authority.is_allowed);
+        assert!(!ready.requires_redaction_review);
+        assert!(ready.can_publish);
+        assert_eq!(
+            ready.review_state,
+            ProofProvenanceReviewState::ReadyToPublish
+        );
+    }
+
+    #[test]
+    fn public_provenance_never_leaks_private_trace_or_buyer_fields() {
+        let public_previews: Vec<ProofProvenanceArtifact> =
+            fixture_proof_provenance_artifacts(None)
+                .into_iter()
+                .filter(|artifact| {
+                    artifact.kind == ProofProvenanceArtifactKind::PublicProvenancePreview
+                })
+                .collect();
+        assert!(!public_previews.is_empty());
+
+        let blocked = private_provenance_redaction_labels();
+        for artifact in public_previews {
+            for label in &blocked {
+                assert!(
+                    artifact
+                        .redacted_field_labels
+                        .iter()
+                        .any(|redacted| redacted == label)
+                );
+            }
+
+            let public_text = artifact.public_summary_lines.join(" ").to_lowercase();
+            for label in &blocked {
+                assert!(
+                    !public_text.contains(&label.to_lowercase()),
+                    "{label} leaked into public summary"
+                );
+            }
+            assert!(
+                !artifact
+                    .source_object_refs
+                    .iter()
+                    .any(|object_ref| object_ref.object_type == ObjectKind::BuyerPacket)
+            );
+            assert!(
+                !artifact
+                    .source_object_refs
+                    .iter()
+                    .any(|object_ref| object_ref.object_type == ObjectKind::RouteStop)
+            );
+        }
     }
 
     #[test]
