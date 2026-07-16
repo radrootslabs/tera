@@ -267,6 +267,20 @@ pub enum ProofProvenanceReviewState {
 
 #[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
+pub enum StewardshipAccessItemKind {
+    AccessRequestReview,
+    RoleApproval,
+    RoutePartnerInvite,
+    RoutePoolMetadata,
+    PublicModeration,
+    InviteAcceptance,
+    RequestAccess,
+    AccessDenied,
+    GroupManagementDeferred,
+}
+
+#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "PascalCase")]
 pub enum OutboxState {
     NotQueued,
     Draft,
@@ -534,6 +548,25 @@ pub struct ProofProvenanceArtifact {
     pub sync_state: SyncState,
 }
 
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StewardshipAccessItem {
+    pub id: String,
+    pub kind: StewardshipAccessItemKind,
+    pub title: String,
+    pub actor: WorkflowActor,
+    pub context: ActiveContext,
+    pub target_ref: ObjectRef,
+    pub required_authority: AuthorityGate,
+    pub visibility: VisibilityClass,
+    pub is_admin_lite: bool,
+    pub is_phase_2_deferred: bool,
+    pub grants_private_access: bool,
+    pub outbox_state: OutboxState,
+    pub sync_state: SyncState,
+    pub detail_lines: Vec<String>,
+}
+
 pub const CANONICAL_CONTEXT_TYPES: [ContextType; 10] = [
     ContextType::Regional,
     ContextType::Network,
@@ -725,6 +758,18 @@ pub const CANONICAL_PROOF_PROVENANCE_REVIEW_STATES: [ProofProvenanceReviewState;
     ProofProvenanceReviewState::RedactionRequired,
     ProofProvenanceReviewState::ReadyToPublish,
     ProofProvenanceReviewState::Published,
+];
+
+pub const CANONICAL_STEWARDSHIP_ACCESS_ITEM_KINDS: [StewardshipAccessItemKind; 9] = [
+    StewardshipAccessItemKind::AccessRequestReview,
+    StewardshipAccessItemKind::RoleApproval,
+    StewardshipAccessItemKind::RoutePartnerInvite,
+    StewardshipAccessItemKind::RoutePoolMetadata,
+    StewardshipAccessItemKind::PublicModeration,
+    StewardshipAccessItemKind::InviteAcceptance,
+    StewardshipAccessItemKind::RequestAccess,
+    StewardshipAccessItemKind::AccessDenied,
+    StewardshipAccessItemKind::GroupManagementDeferred,
 ];
 
 fn object_ref(
@@ -2129,6 +2174,296 @@ pub fn fixture_proof_provenance_artifacts(
     }
 }
 
+struct StewardshipAccessItemFixture {
+    id: &'static str,
+    kind: StewardshipAccessItemKind,
+    title: &'static str,
+    actor: WorkflowActor,
+    context: ActiveContext,
+    target_ref: ObjectRef,
+    domain: AuthorityDomain,
+    action: AuthorityAction,
+    visibility: VisibilityClass,
+    is_admin_lite: bool,
+    is_phase_2_deferred: bool,
+    grants_private_access: bool,
+    outbox_state: OutboxState,
+    sync_state: SyncState,
+    detail_lines: Vec<&'static str>,
+}
+
+fn stewardship_access_item(fixture: StewardshipAccessItemFixture) -> StewardshipAccessItem {
+    StewardshipAccessItem {
+        id: fixture.id.to_string(),
+        kind: fixture.kind,
+        title: fixture.title.to_string(),
+        actor: fixture.actor,
+        context: fixture.context.clone(),
+        target_ref: fixture.target_ref,
+        required_authority: fixture_authority_gate(
+            fixture.actor,
+            fixture.context,
+            fixture.domain,
+            fixture.action,
+        ),
+        visibility: fixture.visibility,
+        is_admin_lite: fixture.is_admin_lite,
+        is_phase_2_deferred: fixture.is_phase_2_deferred,
+        grants_private_access: fixture.grants_private_access,
+        outbox_state: fixture.outbox_state,
+        sync_state: fixture.sync_state,
+        detail_lines: fixture
+            .detail_lines
+            .into_iter()
+            .map(str::to_string)
+            .collect(),
+    }
+}
+
+fn all_stewardship_access_items() -> Vec<StewardshipAccessItem> {
+    let steward = context_for_type(ContextType::NetworkSteward);
+    let network = context_for_type(ContextType::Network);
+    let route = context_for_type(ContextType::Route);
+    let member = context_for_type(ContextType::Regional);
+    let access_request_ref = object_ref(
+        ObjectKind::AccessMembership,
+        "access_request_farm_team_001",
+        "Farm team access request",
+    );
+    let role_ref = object_ref(
+        ObjectKind::AccessMembership,
+        "role_route_partner_candidate_001",
+        "Route partner candidate role",
+    );
+    let route_partner_ref = object_ref(
+        ObjectKind::RoutePartner,
+        "route_partner_invite_001",
+        "Thursday route partner invite",
+    );
+    let route_pool_ref = object_ref(
+        ObjectKind::Route,
+        "route_pool_metadata_001",
+        "Route pool metadata",
+    );
+    let public_update_ref = object_ref(
+        ObjectKind::Update,
+        "community_update_review_001",
+        "Community update moderation",
+    );
+    let invite_ref = object_ref(
+        ObjectKind::MemberInvite,
+        "member_invite_001",
+        "Network invite",
+    );
+    let request_ref = object_ref(
+        ObjectKind::AccessMembership,
+        "access_request_self_001",
+        "Request network access",
+    );
+    let denied_ref = object_ref(
+        ObjectKind::Farm,
+        "private_farm_denied_001",
+        "Private farm context",
+    );
+    let group_ref = object_ref(
+        ObjectKind::AccessMembership,
+        "phase2_group_management_001",
+        "Group management",
+    );
+
+    vec![
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "steward_review_access_request",
+            kind: StewardshipAccessItemKind::AccessRequestReview,
+            title: "Review access request",
+            actor: WorkflowActor::NetworkSteward,
+            context: steward.clone(),
+            target_ref: access_request_ref,
+            domain: AuthorityDomain::RelayGroupAccess,
+            action: AuthorityAction::Approve,
+            visibility: VisibilityClass::WorkspacePrivate,
+            is_admin_lite: true,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::Queued,
+            sync_state: SyncState::Online,
+            detail_lines: vec![
+                "NetworkSteward reviews scoped membership requests.",
+                "Approval grants role context, not private workspace access.",
+            ],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "steward_approve_role",
+            kind: StewardshipAccessItemKind::RoleApproval,
+            title: "Approve role",
+            actor: WorkflowActor::NetworkSteward,
+            context: steward.clone(),
+            target_ref: role_ref,
+            domain: AuthorityDomain::RelayGroupAccess,
+            action: AuthorityAction::Approve,
+            visibility: VisibilityClass::WorkspacePrivate,
+            is_admin_lite: true,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::Shared,
+            sync_state: SyncState::Synced,
+            detail_lines: vec![
+                "Role approval remains constrained to the requested context.",
+                "Private farm, buyer, route, proof, and trace data require their own authorities.",
+            ],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "steward_invite_route_partner",
+            kind: StewardshipAccessItemKind::RoutePartnerInvite,
+            title: "Invite RoutePartner",
+            actor: WorkflowActor::NetworkSteward,
+            context: steward.clone(),
+            target_ref: route_partner_ref,
+            domain: AuthorityDomain::RelayGroupAccess,
+            action: AuthorityAction::Share,
+            visibility: VisibilityClass::NetworkVisible,
+            is_admin_lite: true,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::Queued,
+            sync_state: SyncState::Syncing,
+            detail_lines: vec![
+                "RoutePartner invite can be issued without route stop details.",
+                "Assignment still belongs to route coordination.",
+            ],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "steward_route_pool_metadata",
+            kind: StewardshipAccessItemKind::RoutePoolMetadata,
+            title: "Set route pool metadata",
+            actor: WorkflowActor::NetworkSteward,
+            context: steward.clone(),
+            target_ref: route_pool_ref,
+            domain: AuthorityDomain::NetworkStewardship,
+            action: AuthorityAction::Assign,
+            visibility: VisibilityClass::NetworkVisible,
+            is_admin_lite: true,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::Draft,
+            sync_state: SyncState::Offline,
+            detail_lines: vec![
+                "Stewardship metadata describes route pool availability.",
+                "Concrete route assignment remains route-coordinator authority.",
+            ],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "steward_public_moderation",
+            kind: StewardshipAccessItemKind::PublicModeration,
+            title: "Moderate public/community state",
+            actor: WorkflowActor::NetworkSteward,
+            context: steward.clone(),
+            target_ref: public_update_ref,
+            domain: AuthorityDomain::PublicPublishing,
+            action: AuthorityAction::Correct,
+            visibility: VisibilityClass::PublicCommunity,
+            is_admin_lite: true,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::AwaitingAuthority,
+            sync_state: SyncState::Online,
+            detail_lines: vec![
+                "Public/community moderation is allowed where publishing authority permits it.",
+                "Moderation never exposes private proof, buyer, farm, or route-stop data.",
+            ],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "member_accept_invite",
+            kind: StewardshipAccessItemKind::InviteAcceptance,
+            title: "Accept invite",
+            actor: WorkflowActor::NetworkMember,
+            context: network.clone(),
+            target_ref: invite_ref,
+            domain: AuthorityDomain::RelayGroupAccess,
+            action: AuthorityAction::Submit,
+            visibility: VisibilityClass::NetworkVisible,
+            is_admin_lite: false,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::Queued,
+            sync_state: SyncState::Online,
+            detail_lines: vec![
+                "Invite acceptance connects membership without full group management.",
+            ],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "member_request_access",
+            kind: StewardshipAccessItemKind::RequestAccess,
+            title: "Request access",
+            actor: WorkflowActor::NetworkMember,
+            context: member,
+            target_ref: request_ref,
+            domain: AuthorityDomain::RelayGroupAccess,
+            action: AuthorityAction::Submit,
+            visibility: VisibilityClass::NetworkVisible,
+            is_admin_lite: false,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::Draft,
+            sync_state: SyncState::Offline,
+            detail_lines: vec!["Access requests are queued as explicit membership work."],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "member_access_denied",
+            kind: StewardshipAccessItemKind::AccessDenied,
+            title: "Access denied",
+            actor: WorkflowActor::NetworkMember,
+            context: network,
+            target_ref: denied_ref,
+            domain: AuthorityDomain::FarmWorkspaceOperations,
+            action: AuthorityAction::Search,
+            visibility: VisibilityClass::FarmPrivate,
+            is_admin_lite: false,
+            is_phase_2_deferred: false,
+            grants_private_access: false,
+            outbox_state: OutboxState::NotQueued,
+            sync_state: SyncState::Online,
+            detail_lines: vec![
+                "Denied state preserves the blocked context label without revealing private data.",
+            ],
+        }),
+        stewardship_access_item(StewardshipAccessItemFixture {
+            id: "phase2_group_management_deferred",
+            kind: StewardshipAccessItemKind::GroupManagementDeferred,
+            title: "Group management deferred",
+            actor: WorkflowActor::NetworkSteward,
+            context: route,
+            target_ref: group_ref,
+            domain: AuthorityDomain::NetworkStewardship,
+            action: AuthorityAction::Approve,
+            visibility: VisibilityClass::WorkspacePrivate,
+            is_admin_lite: true,
+            is_phase_2_deferred: true,
+            grants_private_access: false,
+            outbox_state: OutboxState::NotQueued,
+            sync_state: SyncState::Unknown,
+            detail_lines: vec![
+                "Full group creation and management are explicitly deferred to Phase 2.",
+            ],
+        }),
+    ]
+}
+
+pub fn fixture_stewardship_access_items(context_id: Option<String>) -> Vec<StewardshipAccessItem> {
+    let Some(context_id) = context_id else {
+        return all_stewardship_access_items();
+    };
+    let matching: Vec<StewardshipAccessItem> = all_stewardship_access_items()
+        .into_iter()
+        .filter(|item| item.context.context_ref.object_id == context_id)
+        .collect();
+    if matching.is_empty() {
+        all_stewardship_access_items()
+    } else {
+        matching
+    }
+}
+
 pub fn fixture_outbox_items() -> Vec<OutboxItem> {
     let context = context_for_type(ContextType::Farm);
     CANONICAL_OUTBOX_STATES
@@ -2275,6 +2610,14 @@ impl RadrootsRuntime {
         fixture_proof_provenance_artifacts(context_id)
     }
 
+    pub fn phase1_stewardship_access_items(
+        &self,
+        context_id: Option<String>,
+    ) -> Vec<StewardshipAccessItem> {
+        let _ = self;
+        fixture_stewardship_access_items(context_id)
+    }
+
     pub fn phase1_outbox_retry_decision(&self, item: OutboxItem) -> OutboxRetryDecision {
         let _ = self;
         fixture_outbox_retry_decision(item)
@@ -2343,6 +2686,7 @@ mod tests {
         assert_eq!(CANONICAL_ROUTE_EXECUTION_STEP_KINDS.len(), 6);
         assert_eq!(CANONICAL_PROOF_PROVENANCE_ARTIFACT_KINDS.len(), 4);
         assert_eq!(CANONICAL_PROOF_PROVENANCE_REVIEW_STATES.len(), 8);
+        assert_eq!(CANONICAL_STEWARDSHIP_ACCESS_ITEM_KINDS.len(), 9);
     }
 
     #[test]
@@ -2386,6 +2730,7 @@ mod tests {
             CANONICAL_ROUTE_EXECUTION_FLOW_KINDS.len()
         );
         assert_eq!(fixture_proof_provenance_artifacts(None).len(), 6);
+        assert_eq!(fixture_stewardship_access_items(None).len(), 9);
     }
 
     #[test]
@@ -2866,6 +3211,138 @@ mod tests {
                     .any(|object_ref| object_ref.object_type == ObjectKind::RouteStop)
             );
         }
+    }
+
+    #[test]
+    fn stewardship_access_items_cover_admin_lite_and_member_access_states() {
+        let items = fixture_stewardship_access_items(None);
+        for kind in CANONICAL_STEWARDSHIP_ACCESS_ITEM_KINDS {
+            assert!(
+                items.iter().any(|item| item.kind == kind),
+                "missing {kind:?}"
+            );
+        }
+
+        assert!(items.iter().any(|item| {
+            item.kind == StewardshipAccessItemKind::InviteAcceptance
+                && item.actor == WorkflowActor::NetworkMember
+        }));
+        assert!(items.iter().any(|item| {
+            item.kind == StewardshipAccessItemKind::RequestAccess
+                && item.actor == WorkflowActor::NetworkMember
+        }));
+        assert!(items.iter().any(|item| {
+            item.kind == StewardshipAccessItemKind::AccessDenied
+                && !item.required_authority.is_allowed
+                && item.visibility == VisibilityClass::FarmPrivate
+        }));
+        assert!(items.iter().any(|item| {
+            item.kind == StewardshipAccessItemKind::GroupManagementDeferred
+                && item.is_phase_2_deferred
+        }));
+    }
+
+    #[test]
+    fn network_steward_can_perform_admin_lite_actions() {
+        let items: Vec<StewardshipAccessItem> = fixture_stewardship_access_items(None)
+            .into_iter()
+            .filter(|item| item.actor == WorkflowActor::NetworkSteward && item.is_admin_lite)
+            .collect();
+        assert!(items.len() >= 6);
+
+        for kind in [
+            StewardshipAccessItemKind::AccessRequestReview,
+            StewardshipAccessItemKind::RoleApproval,
+            StewardshipAccessItemKind::RoutePartnerInvite,
+            StewardshipAccessItemKind::RoutePoolMetadata,
+            StewardshipAccessItemKind::PublicModeration,
+        ] {
+            let item = items
+                .iter()
+                .find(|item| item.kind == kind)
+                .unwrap_or_else(|| panic!("missing {kind:?}"));
+            assert!(item.required_authority.is_allowed);
+            assert!(!item.grants_private_access);
+            assert!(!item.is_phase_2_deferred);
+        }
+
+        let route_pool = items
+            .iter()
+            .find(|item| item.kind == StewardshipAccessItemKind::RoutePoolMetadata)
+            .expect("route pool item");
+        assert_eq!(
+            route_pool.required_authority.domain,
+            AuthorityDomain::NetworkStewardship
+        );
+        assert_eq!(
+            route_pool.required_authority.action,
+            AuthorityAction::Assign
+        );
+
+        let moderation = items
+            .iter()
+            .find(|item| item.kind == StewardshipAccessItemKind::PublicModeration)
+            .expect("public moderation item");
+        assert_eq!(
+            moderation.required_authority.domain,
+            AuthorityDomain::PublicPublishing
+        );
+    }
+
+    #[test]
+    fn phase_2_group_management_remains_deferred() {
+        let deferred = fixture_stewardship_access_items(None)
+            .into_iter()
+            .find(|item| item.kind == StewardshipAccessItemKind::GroupManagementDeferred)
+            .expect("deferred group management item");
+        assert!(deferred.is_phase_2_deferred);
+        assert!(deferred.is_admin_lite);
+        assert!(!deferred.grants_private_access);
+        assert_eq!(deferred.outbox_state, OutboxState::NotQueued);
+    }
+
+    #[test]
+    fn network_steward_does_not_automatically_gain_private_workspace_access() {
+        let steward = context_for_type(ContextType::NetworkSteward);
+        for (domain, context_type) in [
+            (AuthorityDomain::FarmWorkspaceOperations, ContextType::Farm),
+            (AuthorityDomain::BuyerWorkspace, ContextType::Buyer),
+            (AuthorityDomain::RouteCoordination, ContextType::Route),
+            (AuthorityDomain::RouteExecution, ContextType::RoutePartner),
+            (AuthorityDomain::TraceProof, ContextType::TraceRecords),
+            (AuthorityDomain::Receipt, ContextType::PickupPoint),
+        ] {
+            let context = context_for_type(context_type);
+            let gate = fixture_authority_gate(
+                WorkflowActor::NetworkSteward,
+                context,
+                domain,
+                AuthorityAction::Search,
+            );
+            assert!(
+                !gate.is_allowed,
+                "NetworkSteward unexpectedly gained {domain:?}"
+            );
+        }
+
+        assert!(
+            fixture_authority_gate(
+                WorkflowActor::NetworkSteward,
+                steward.clone(),
+                AuthorityDomain::RelayGroupAccess,
+                AuthorityAction::Approve,
+            )
+            .is_allowed
+        );
+        assert!(
+            fixture_authority_gate(
+                WorkflowActor::NetworkSteward,
+                steward,
+                AuthorityDomain::NetworkStewardship,
+                AuthorityAction::Assign,
+            )
+            .is_allowed
+        );
     }
 
     #[test]
