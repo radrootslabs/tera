@@ -449,6 +449,21 @@ pub const CANONICAL_TODAY_CARD_TYPES: [TodayCardType; 12] = [
     TodayCardType::SyncOutbox,
 ];
 
+pub const TODAY_CARD_RANKING_PRIORITY: [TodayCardType; 12] = [
+    TodayCardType::Exception,
+    TodayCardType::SyncOutbox,
+    TodayCardType::Route,
+    TodayCardType::Proof,
+    TodayCardType::Food,
+    TodayCardType::Task,
+    TodayCardType::Provenance,
+    TodayCardType::Ask,
+    TodayCardType::Event,
+    TodayCardType::Place,
+    TodayCardType::Update,
+    TodayCardType::AccessMembership,
+];
+
 pub const CANONICAL_ADD_ACTION_TYPES: [AddActionType; 18] = [
     AddActionType::Photo,
     AddActionType::Note,
@@ -758,10 +773,95 @@ fn object_kind_for_card(card_type: TodayCardType) -> ObjectKind {
     }
 }
 
+fn ranking_reason_for(card_type: TodayCardType) -> &'static str {
+    match card_type {
+        TodayCardType::Exception => "blocking exception",
+        TodayCardType::SyncOutbox => "required sync action",
+        TodayCardType::Route => "time-window route operation",
+        TodayCardType::Proof => "route readiness and proof gap",
+        TodayCardType::Food => "commitment window",
+        TodayCardType::Task => "assigned task",
+        TodayCardType::Provenance => "provenance candidate",
+        TodayCardType::Ask => "food availability and ask",
+        TodayCardType::Event => "event window",
+        TodayCardType::Place => "place context",
+        TodayCardType::Update => "community update",
+        TodayCardType::AccessMembership => "network access state",
+    }
+}
+
+fn ranking_features_for(card_type: TodayCardType) -> Vec<String> {
+    match card_type {
+        TodayCardType::Exception => vec!["blocking".to_string(), "recovery".to_string()],
+        TodayCardType::SyncOutbox => vec!["outbox".to_string(), "retry".to_string()],
+        TodayCardType::Route => vec!["time_window".to_string(), "route".to_string()],
+        TodayCardType::Proof => vec!["proof_gap".to_string(), "trace".to_string()],
+        TodayCardType::Food => vec!["commitment".to_string(), "availability".to_string()],
+        TodayCardType::Task => vec!["assigned".to_string(), "work".to_string()],
+        TodayCardType::Provenance => vec!["candidate".to_string(), "public_review".to_string()],
+        TodayCardType::Ask => vec!["ask".to_string(), "network_need".to_string()],
+        TodayCardType::Event => vec!["event".to_string(), "calendar".to_string()],
+        TodayCardType::Place => vec!["place".to_string(), "local_context".to_string()],
+        TodayCardType::Update => vec!["update".to_string(), "community".to_string()],
+        TodayCardType::AccessMembership => vec!["access".to_string(), "membership".to_string()],
+    }
+}
+
+fn status_line_for(card_type: TodayCardType) -> &'static str {
+    match card_type {
+        TodayCardType::Exception => "Needs review",
+        TodayCardType::SyncOutbox => "Retry required",
+        TodayCardType::Route => "Route window open",
+        TodayCardType::Proof => "Proof gap detected",
+        TodayCardType::Food => "Commitment window active",
+        TodayCardType::Task => "Assigned work ready",
+        TodayCardType::Provenance => "Candidate ready for review",
+        TodayCardType::Ask => "Network need available",
+        TodayCardType::Event => "Upcoming gathering",
+        TodayCardType::Place => "Place context updated",
+        TodayCardType::Update => "Community update ready",
+        TodayCardType::AccessMembership => "Membership state available",
+    }
+}
+
+fn detail_lines_for(card_type: TodayCardType) -> Vec<String> {
+    match card_type {
+        TodayCardType::Exception => vec![
+            "Resolve the blocker before related route work continues.".to_string(),
+            "Recovery path remains scoped to the active context.".to_string(),
+        ],
+        TodayCardType::SyncOutbox => {
+            vec!["Queued work will re-check context, visibility, and authority.".to_string()]
+        }
+        TodayCardType::Route => {
+            vec!["Review stops, timing, proof gaps, and assigned route partner state.".to_string()]
+        }
+        TodayCardType::Proof => {
+            vec!["Trace record needs proof completion before publication.".to_string()]
+        }
+        TodayCardType::Food => {
+            vec!["Food availability is connected to commitments and routes.".to_string()]
+        }
+        TodayCardType::Task => vec!["Complete the assigned task from this context.".to_string()],
+        TodayCardType::Provenance => {
+            vec!["Public provenance preview requires redaction review.".to_string()]
+        }
+        TodayCardType::Ask => vec!["Respond to a scoped network ask.".to_string()],
+        TodayCardType::Event => vec!["Gathering context is visible to the network.".to_string()],
+        TodayCardType::Place => {
+            vec!["Place details are ready for local network review.".to_string()]
+        }
+        TodayCardType::Update => vec!["Share a context-aware network update.".to_string()],
+        TodayCardType::AccessMembership => {
+            vec!["Review member access for this context.".to_string()]
+        }
+    }
+}
+
 pub fn fixture_today_cards(context_id: Option<String>) -> Vec<TodayCard> {
     let contexts = fixture_active_contexts();
     let filter_context = context_by_object_id(context_id);
-    CANONICAL_TODAY_CARD_TYPES
+    TODAY_CARD_RANKING_PRIORITY
         .into_iter()
         .enumerate()
         .filter_map(|(index, card_type)| {
@@ -782,9 +882,12 @@ pub fn fixture_today_cards(context_id: Option<String>) -> Vec<TodayCard> {
                 visibility: context.visibility_scope,
                 visibility_label: format!("{:?}", context.visibility_scope),
                 title: format!("{:?} fixture card", card_type),
-                status_line: "fixture-backed projection".to_string(),
-                detail_lines: vec!["deterministic Phase 1 fixture".to_string()],
-                pills: vec![format!("{:?}", card_type)],
+                status_line: status_line_for(card_type).to_string(),
+                detail_lines: detail_lines_for(card_type),
+                pills: vec![
+                    format!("{:?}", card_type),
+                    ranking_reason_for(card_type).to_string(),
+                ],
                 primary_action: TodayCardAction {
                     id: format!("primary_{:?}", card_type).to_lowercase(),
                     label: action_type
@@ -794,12 +897,20 @@ pub fn fixture_today_cards(context_id: Option<String>) -> Vec<TodayCard> {
                     target_object: Some(object),
                 },
                 secondary_action: None,
-                ranking_reason: "fixture ranking".to_string(),
-                ranking_features: vec!["fixture".to_string()],
-                sync_state: SyncState::Online,
-                outbox_state: OutboxState::NotQueued,
-                is_stale: false,
-                is_offline: false,
+                ranking_reason: ranking_reason_for(card_type).to_string(),
+                ranking_features: ranking_features_for(card_type),
+                sync_state: if matches!(card_type, TodayCardType::SyncOutbox) {
+                    SyncState::Failed
+                } else {
+                    SyncState::Online
+                },
+                outbox_state: if matches!(card_type, TodayCardType::SyncOutbox) {
+                    OutboxState::Failed
+                } else {
+                    OutboxState::NotQueued
+                },
+                is_stale: matches!(card_type, TodayCardType::Proof),
+                is_offline: matches!(card_type, TodayCardType::SyncOutbox),
             })
         })
         .collect()
@@ -1081,11 +1192,29 @@ mod tests {
         assert_eq!(CANONICAL_VISIBILITY_CLASSES.len(), 9);
         assert_eq!(CANONICAL_AUTHORITY_DOMAINS.len(), 9);
         assert_eq!(CANONICAL_TODAY_CARD_TYPES.len(), 12);
+        assert_eq!(TODAY_CARD_RANKING_PRIORITY.len(), 12);
         assert_eq!(CANONICAL_ADD_ACTION_TYPES.len(), 18);
         assert_eq!(CANONICAL_ADD_FLOW_STATES.len(), 16);
         assert_eq!(CANONICAL_OBJECT_PAGE_FAMILIES.len(), 13);
         assert_eq!(CANONICAL_OUTBOX_STATES.len(), 10);
         assert_eq!(CANONICAL_SYNC_STATES.len(), 7);
+    }
+
+    #[test]
+    fn today_card_ranking_priority_covers_every_card_type() {
+        for card_type in CANONICAL_TODAY_CARD_TYPES {
+            assert!(TODAY_CARD_RANKING_PRIORITY.contains(&card_type));
+        }
+        assert_eq!(TODAY_CARD_RANKING_PRIORITY[0], TodayCardType::Exception);
+        assert_eq!(TODAY_CARD_RANKING_PRIORITY[1], TodayCardType::SyncOutbox);
+        assert_eq!(TODAY_CARD_RANKING_PRIORITY[2], TodayCardType::Route);
+
+        let cards = fixture_today_cards(None);
+        assert_eq!(cards[0].card_type, TodayCardType::Exception);
+        assert_eq!(cards[0].ranking_reason, "blocking exception");
+        assert_eq!(cards[1].card_type, TodayCardType::SyncOutbox);
+        assert_eq!(cards[1].outbox_state, OutboxState::Failed);
+        assert!(cards[1].is_offline);
     }
 
     #[test]
