@@ -383,6 +383,15 @@ pub struct OutboxItem {
     pub last_error: Option<String>,
 }
 
+#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OutboxRetryDecision {
+    pub item_id: String,
+    pub is_retryable: bool,
+    pub authority_gate: AuthorityGate,
+    pub reason: Option<String>,
+}
+
 pub const CANONICAL_CONTEXT_TYPES: [ContextType; 10] = [
     ContextType::Regional,
     ContextType::Network,
@@ -1109,6 +1118,51 @@ pub fn fixture_outbox_items() -> Vec<OutboxItem> {
         .collect()
 }
 
+fn outbox_state_allows_retry(state: OutboxState) -> bool {
+    matches!(state, OutboxState::Failed | OutboxState::Conflict)
+}
+
+fn outbox_visibility_allows_retry(visibility: VisibilityClass) -> bool {
+    !matches!(
+        visibility,
+        VisibilityClass::LocalDraft | VisibilityClass::SecretNeverShared
+    )
+}
+
+pub fn fixture_outbox_retry_decision(item: OutboxItem) -> OutboxRetryDecision {
+    let authority_gate = fixture_authority_gate(
+        item.context.actor,
+        item.context.clone(),
+        item.authority_gate.domain,
+        AuthorityAction::Retry,
+    );
+    let state_allows_retry = outbox_state_allows_retry(item.outbox_state);
+    let visibility_allows_retry = outbox_visibility_allows_retry(item.visibility);
+    let is_retryable = state_allows_retry && visibility_allows_retry && authority_gate.is_allowed;
+    let reason = if is_retryable {
+        None
+    } else if !state_allows_retry {
+        Some(format!(
+            "{:?} is not a retryable outbox state",
+            item.outbox_state
+        ))
+    } else if !visibility_allows_retry {
+        Some(format!(
+            "{:?} visibility cannot be retried",
+            item.visibility
+        ))
+    } else {
+        authority_gate.reason.clone()
+    };
+
+    OutboxRetryDecision {
+        item_id: item.id,
+        is_retryable,
+        authority_gate,
+        reason,
+    }
+}
+
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn phase1_active_contexts(&self) -> Vec<ActiveContext> {
@@ -1137,6 +1191,11 @@ impl RadrootsRuntime {
     pub fn phase1_outbox_snapshot(&self) -> Vec<OutboxItem> {
         let _ = self;
         fixture_outbox_items()
+    }
+
+    pub fn phase1_outbox_retry_decision(&self, item: OutboxItem) -> OutboxRetryDecision {
+        let _ = self;
+        fixture_outbox_retry_decision(item)
     }
 
     pub fn phase1_check_authority(
@@ -1381,6 +1440,51 @@ mod tests {
         assert_eq!(outbox_item.visibility, VisibilityClass::PublicCommunity);
         assert_eq!(outbox_item.flow_state, AddFlowState::Queued);
         assert_eq!(outbox_item.sync_state, SyncState::Offline);
+    }
+
+    #[test]
+    fn outbox_retry_decision_rechecks_state_visibility_and_authority() {
+        let failed = fixture_outbox_items()
+            .into_iter()
+            .find(|item| item.outbox_state == OutboxState::Failed)
+            .expect("failed outbox fixture");
+
+        let retryable = fixture_outbox_retry_decision(failed.clone());
+        assert!(retryable.is_retryable);
+        assert_eq!(retryable.item_id, failed.id);
+        assert_eq!(retryable.authority_gate.action, AuthorityAction::Retry);
+        assert!(retryable.reason.is_none());
+
+        let mut queued = failed.clone();
+        queued.outbox_state = OutboxState::Queued;
+        let queued_decision = fixture_outbox_retry_decision(queued);
+        assert!(!queued_decision.is_retryable);
+        assert!(
+            queued_decision
+                .reason
+                .as_deref()
+                .expect("queued reason")
+                .contains("not a retryable outbox state")
+        );
+
+        let mut secret = failed.clone();
+        secret.visibility = VisibilityClass::SecretNeverShared;
+        let secret_decision = fixture_outbox_retry_decision(secret);
+        assert!(!secret_decision.is_retryable);
+        assert!(
+            secret_decision
+                .reason
+                .as_deref()
+                .expect("secret reason")
+                .contains("visibility cannot be retried")
+        );
+
+        let mut denied = failed;
+        denied.authority_gate.domain = AuthorityDomain::BuyerWorkspace;
+        let denied_decision = fixture_outbox_retry_decision(denied);
+        assert!(!denied_decision.is_retryable);
+        assert!(!denied_decision.authority_gate.is_allowed);
+        assert!(denied_decision.reason.is_some());
     }
 
     #[test]
