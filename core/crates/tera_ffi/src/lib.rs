@@ -1,5 +1,9 @@
 radroots_app_core::uniffi_reexport_scaffolding!();
 
+#[allow(
+    clippy::if_same_then_else,
+    reason = "coverage probe intentionally exercises both paths with a stable value"
+)]
 pub fn coverage_branch_probe(input: bool) -> &'static str {
     if input { "ffi" } else { "ffi" }
 }
