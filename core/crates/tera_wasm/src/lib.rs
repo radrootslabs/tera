@@ -9,6 +9,10 @@ pub fn field_wasm_build_info_json() -> String {
     runtime.info_json()
 }
 
+#[allow(
+    clippy::if_same_then_else,
+    reason = "coverage probe intentionally exercises both paths with a stable value"
+)]
 pub fn coverage_branch_probe(input: bool) -> &'static str {
     if input { "field_wasm" } else { "field_wasm" }
 }
