@@ -175,7 +175,7 @@ impl RadrootsRuntime {
                     out.push(listing_summary_from_trade(listing, &event));
                 }
             }
-            out.sort_by(|left, right| right.published_at.cmp(&left.published_at));
+            out.sort_by_key(|listing| std::cmp::Reverse(listing.published_at));
             Ok(out)
         }
         #[cfg(not(feature = "nostr-client"))]

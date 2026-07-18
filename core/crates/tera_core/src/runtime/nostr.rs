@@ -83,7 +83,7 @@ fn map_post_event_metadata(
     NostrPostEventMetadata {
         id: event.id,
         author: event.author,
-        published_at: event.published_at as u64,
+        published_at: event.published_at,
         post: NostrPost {
             content: event.data.content,
         },
@@ -99,12 +99,12 @@ fn map_profile_event_metadata(
     NostrProfileEventMetadata {
         id: event.id,
         author: event.author,
-        published_at: event.published_at as u64,
+        published_at: event.published_at,
         profile: NostrProfile {
             name: event.data.profile.name.into(),
-            display_name: event.data.profile.display_name.into(),
-            nip05: event.data.profile.nip05.into(),
-            about: event.data.profile.about.into(),
+            display_name: event.data.profile.display_name,
+            nip05: event.data.profile.nip05,
+            about: event.data.profile.about,
             website: event.data.profile.website,
             picture: event.data.profile.picture,
             banner: event.data.profile.banner,
@@ -156,20 +156,20 @@ impl RadrootsRuntime {
         #[cfg(feature = "nostr-client")]
         {
             let guard = self.net.lock();
-            if let Ok(g) = guard {
-                if let Some(s) = g.nostr_connection_snapshot() {
-                    let light = match s.light {
-                        radroots_net_core::nostr_client::Light::Green => NostrLight::Green,
-                        radroots_net_core::nostr_client::Light::Yellow => NostrLight::Yellow,
-                        radroots_net_core::nostr_client::Light::Red => NostrLight::Red,
-                    };
-                    return NostrConnectionStatus {
-                        light,
-                        connected: s.connected as u32,
-                        connecting: s.connecting as u32,
-                        last_error: s.last_error,
-                    };
-                }
+            if let Ok(g) = guard
+                && let Some(s) = g.nostr_connection_snapshot()
+            {
+                let light = match s.light {
+                    radroots_net_core::nostr_client::Light::Green => NostrLight::Green,
+                    radroots_net_core::nostr_client::Light::Yellow => NostrLight::Yellow,
+                    radroots_net_core::nostr_client::Light::Red => NostrLight::Red,
+                };
+                return NostrConnectionStatus {
+                    light,
+                    connected: s.connected as u32,
+                    connecting: s.connecting as u32,
+                    last_error: s.last_error,
+                };
             }
             NostrConnectionStatus {
                 light: NostrLight::Red,
@@ -313,10 +313,10 @@ impl RadrootsRuntime {
         {
             let mgr = nostr_manager(self)?;
             mgr.start_post_event_stream(since_unix);
-            if let Ok(mut rx_guard) = self.post_events_rx.lock() {
-                if rx_guard.is_none() {
-                    *rx_guard = Some(mgr.subscribe_post_events());
-                }
+            if let Ok(mut rx_guard) = self.post_events_rx.lock()
+                && rx_guard.is_none()
+            {
+                *rx_guard = Some(mgr.subscribe_post_events());
             }
             Ok(())
         }

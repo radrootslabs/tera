@@ -158,7 +158,7 @@ impl RadrootsRuntime {
                 .accounts
                 .list_accounts()
                 .map_err(|e| RadrootsAppError::identity(format!("{e}")))?;
-            return Ok(accounts
+            Ok(accounts
                 .into_iter()
                 .map(|account| {
                     let is_selected = selected_identity_id
@@ -173,7 +173,7 @@ impl RadrootsRuntime {
                         is_selected,
                     }
                 })
-                .collect());
+                .collect())
         }
         #[cfg(not(feature = "nostr-client"))]
         {
@@ -230,12 +230,12 @@ impl RadrootsRuntime {
                     }
                 })
                 .collect();
-            return Ok(NostrIdentitySnapshot {
+            Ok(NostrIdentitySnapshot {
                 has_selected_signing_identity,
                 selected_identity_id: selected_identity_id.map(|id| id.to_string()),
                 selected_npub,
                 identities,
-            });
+            })
         }
         #[cfg(not(feature = "nostr-client"))]
         {
@@ -249,8 +249,7 @@ impl RadrootsRuntime {
     ) -> Result<NostrHostCustodyIdentity, RadrootsAppError> {
         #[cfg(feature = "nostr-client")]
         {
-            return host_custody_identity_from_secret(secret_key.as_str())
-                .map(|(_, identity)| identity);
+            host_custody_identity_from_secret(secret_key.as_str()).map(|(_, identity)| identity)
         }
         #[cfg(not(feature = "nostr-client"))]
         {
@@ -272,7 +271,7 @@ impl RadrootsRuntime {
                 Err(err) => return Err(RadrootsAppError::runtime(format!("{err}"))),
             };
             let (identity, _) = host_custody_identity_from_secret(secret_key.as_str())?;
-            return restore_host_custody_identity(&mut guard, &identity, label, make_selected);
+            restore_host_custody_identity(&mut guard, &identity, label, make_selected)
         }
         #[cfg(not(feature = "nostr-client"))]
         {

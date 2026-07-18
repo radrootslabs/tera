@@ -115,10 +115,10 @@ impl RadrootsRuntime {
     pub fn info_json(&self) -> String {
         #[cfg(feature = "rt")]
         {
-            return match serde_json::to_string_pretty(&self.info()) {
+            match serde_json::to_string_pretty(&self.info()) {
                 Ok(json) => json,
                 Err(err) => format!(r#"{{"error":"serialize RuntimeInfo: {err}"}}"#),
-            };
+            }
         }
         #[cfg(not(feature = "rt"))]
         {

@@ -9,6 +9,12 @@ pub struct RuntimeBuilder {
     manage_runtime: bool,
 }
 
+impl Default for RuntimeBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RuntimeBuilder {
     pub fn new() -> Self {
         Self {
