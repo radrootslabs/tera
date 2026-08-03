@@ -9,6 +9,8 @@ description = "WebAssembly bindings for Radroots web apps"
 repository.workspace = true
 homepage.workspace = true
 readme.workspace = true
+publish = false
+include = ["src/**", "Cargo.toml"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
