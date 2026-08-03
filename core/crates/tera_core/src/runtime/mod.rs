@@ -1,6 +1,10 @@
 pub mod app_info;
 pub mod builder;
 pub mod info;
+#[cfg(feature = "mobile-social")]
+pub mod key_management;
+#[cfg(feature = "mobile-social")]
+pub mod nostr;
 pub mod product_surface;
 pub mod sdk;
 
@@ -20,6 +24,12 @@ use crate::RadrootsAppError;
 #[derive(uniffi::Object)]
 pub struct RadrootsRuntime {
     pub(crate) client: Client,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) signing_slot: radroots_sdk::signing::Slot,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) nostr_slot: radroots_sdk::transport::NostrSlot,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) identity_label: RwLock<Option<String>>,
     pub(crate) started_unix_ms: i64,
     pub(crate) shutting_down: AtomicBool,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
@@ -29,12 +39,28 @@ pub struct RadrootsRuntime {
 impl RadrootsRuntime {
     #[cfg_attr(not(coverage_nightly), uniffi::constructor)]
     pub fn new() -> Result<Self, RadrootsAppError> {
-        let client = ClientBuilder::memory_default()
-            .build()
-            .map_err(RadrootsAppError::from_sdk)?;
+        #[cfg(feature = "mobile-social")]
+        let signing_slot = radroots_sdk::signing::Slot::new();
+        #[cfg(feature = "mobile-social")]
+        let nostr_slot = radroots_sdk::transport::NostrSlot::new(
+            radroots_sdk::transport::RelayUrlPolicy::Public,
+        );
+        let builder = ClientBuilder::memory_default();
+        #[cfg(feature = "mobile-social")]
+        let builder = builder
+            .signing(radroots_sdk::signing::Provider::slot(signing_slot.clone()))
+            .nostr(nostr_slot.clone())
+            .host_sync(radroots_sdk::sync::HostPolicy::standard());
+        let client = builder.build().map_err(RadrootsAppError::from_sdk)?;
 
         Ok(Self {
             client,
+            #[cfg(feature = "mobile-social")]
+            signing_slot,
+            #[cfg(feature = "mobile-social")]
+            nostr_slot,
+            #[cfg(feature = "mobile-social")]
+            identity_label: RwLock::new(None),
             started_unix_ms: Utc::now().timestamp_millis(),
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),

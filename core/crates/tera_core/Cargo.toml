@@ -20,6 +20,11 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [features]
 default = []
+mobile-social = [
+    "radroots_sdk/local-signing",
+    "radroots_sdk/nostr",
+    "radroots_sdk/sync",
+]
 
 [dependencies]
 radroots_log = { workspace = true }
