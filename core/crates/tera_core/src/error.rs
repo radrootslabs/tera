@@ -19,6 +19,15 @@ pub enum RadrootsAppError {
 }
 
 impl RadrootsAppError {
+    pub(crate) fn from_sdk(error: radroots_sdk::Error) -> Self {
+        let report = error.to_report();
+        Self::Runtime(format!(
+            "{}: {}",
+            report.code().as_str(),
+            report.message().as_str()
+        ))
+    }
+
     pub fn initialization(message: impl Into<String>) -> Self {
         Self::Initialization(message.into())
     }

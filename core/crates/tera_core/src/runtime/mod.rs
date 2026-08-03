@@ -1,22 +1,15 @@
 pub mod app_info;
 pub mod builder;
 pub mod info;
-pub mod key_management;
-pub mod nostr;
 pub mod product_surface;
-#[cfg(feature = "nostr-client")]
-pub mod trade_listing;
+pub mod sdk;
 
 use chrono::Utc;
-use radroots_net_core::{NetHandle, builder::NetBuilder};
-#[cfg(feature = "nostr-client")]
-use std::sync::Mutex;
+use radroots_sdk::{Client, ClientBuilder};
 use std::sync::{
-    RwLock,
+    Mutex, RwLock,
     atomic::{AtomicBool, Ordering},
 };
-#[cfg(feature = "nostr-client")]
-use tokio::sync::broadcast::Receiver;
 
 use self::{
     app_info::AppInfoPlatform,
@@ -26,72 +19,60 @@ use crate::RadrootsAppError;
 
 #[derive(uniffi::Object)]
 pub struct RadrootsRuntime {
-    pub(crate) net: NetHandle,
+    pub(crate) client: Client,
+    #[cfg(feature = "rt")]
+    executor: Mutex<Option<tokio::runtime::Runtime>>,
     pub(crate) started_unix_ms: i64,
     pub(crate) shutting_down: AtomicBool,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
-    #[cfg(feature = "nostr-client")]
-    pub(crate) post_events_rx: Mutex<
-        Option<
-            Receiver<
-                radroots_event_codec::parsed::RadrootsParsedData<
-                    radroots_event::post::RadrootsPost,
-                >,
-            >,
-        >,
-    >,
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     #[cfg_attr(not(coverage_nightly), uniffi::constructor)]
     pub fn new() -> Result<Self, RadrootsAppError> {
-        let cfg = radroots_net_core::config::NetConfig::default();
-        #[cfg(feature = "rt")]
-        let handle = match NetBuilder::new().config(cfg).manage_runtime(true).build() {
-            Ok(handle) => handle,
-            Err(err) => {
-                return Err(RadrootsAppError::initialization(format!(
-                    "net build failed: {err}"
-                )));
-            }
-        };
-        #[cfg(not(feature = "rt"))]
-        let handle = NetBuilder::new()
-            .config(cfg)
-            .manage_runtime(true)
+        let client = ClientBuilder::memory_default()
             .build()
-            .expect("net build must succeed when rt feature is disabled");
+            .map_err(RadrootsAppError::from_sdk)?;
+        #[cfg(feature = "rt")]
+        let executor = tokio::runtime::Builder::new_multi_thread()
+            .thread_name("radroots-app-sdk")
+            .enable_all()
+            .build()
+            .map_err(|error| RadrootsAppError::initialization(error.to_string()))?;
 
         Ok(Self {
-            net: handle,
+            client,
+            #[cfg(feature = "rt")]
+            executor: Mutex::new(Some(executor)),
             started_unix_ms: Utc::now().timestamp_millis(),
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
-            #[cfg(feature = "nostr-client")]
-            post_events_rx: Mutex::new(None),
         })
     }
 
     pub fn stop(&self) {
         if self.shutting_down.swap(true, Ordering::SeqCst) {
             let _ = crate::logging::log_info(
-                "Runtime stop already in progress or completed.".to_string(),
+                "Runtime stop already in progress or completed.".to_owned(),
             );
             return;
         }
 
         #[cfg(feature = "rt")]
-        {
-            if let Ok(mut net) = self.net.lock() {
-                if let Some(_rt) = net.rt.take() {
-                    let _ = crate::logging::log_info("Runtime stopped gracefully.".to_string());
-                } else {
-                    let _ = crate::logging::log_info("No runtime was active at stop.".to_string());
+        match self.executor.lock() {
+            Ok(mut executor) => {
+                if let Some(executor) = executor.take() {
+                    if let Err(error) = executor.block_on(self.client.close()) {
+                        let _ = crate::logging::log_error(format!(
+                            "SDK runtime close failed safely: {error}"
+                        ));
+                    }
                 }
-            } else {
-                let _ = crate::logging::log_info(
-                    "Failed to acquire runtime lock during stop.".to_string(),
+            }
+            Err(_) => {
+                let _ = crate::logging::log_error(
+                    "SDK executor lock was unavailable during shutdown.".to_owned(),
                 );
             }
         }
@@ -99,7 +80,7 @@ impl RadrootsRuntime {
         #[cfg(not(feature = "rt"))]
         {
             let _ = crate::logging::log_info(
-                "No managed runtime is available for this build.".to_string(),
+                "Host must complete asynchronous SDK close for this runtime build.".to_owned(),
             );
         }
     }
@@ -113,17 +94,8 @@ impl RadrootsRuntime {
     }
 
     pub fn info_json(&self) -> String {
-        #[cfg(feature = "rt")]
-        {
-            match serde_json::to_string_pretty(&self.info()) {
-                Ok(json) => json,
-                Err(err) => format!(r#"{{"error":"serialize RuntimeInfo: {err}"}}"#),
-            }
-        }
-        #[cfg(not(feature = "rt"))]
-        {
-            serde_json::to_string_pretty(&self.info()).unwrap_or_default()
-        }
+        serde_json::to_string_pretty(&self.info())
+            .unwrap_or_else(|error| format!(r#"{{"error":"serialize RuntimeInfo: {error}"}}"#))
     }
 
     pub fn set_app_info_platform(
@@ -145,22 +117,8 @@ impl RadrootsRuntime {
 #[cfg(test)]
 mod tests {
     use super::RadrootsRuntime;
+    use radroots_sdk::capability::{Availability, CapabilityId};
     use std::panic::{AssertUnwindSafe, catch_unwind};
-
-    fn init_info_logging() {
-        let _ = tracing_subscriber::fmt()
-            .with_test_writer()
-            .with_max_level(tracing::Level::INFO)
-            .try_init();
-    }
-
-    fn poison_net_lock(runtime: &RadrootsRuntime) {
-        let handle = runtime.net.clone();
-        let _ = catch_unwind(AssertUnwindSafe(|| {
-            let _guard = handle.lock().expect("lock net");
-            panic!("poison net lock");
-        }));
-    }
 
     fn poison_platform_lock(runtime: &RadrootsRuntime) {
         let _ = catch_unwind(AssertUnwindSafe(|| {
@@ -170,47 +128,42 @@ mod tests {
     }
 
     #[test]
-    fn runtime_info_uses_default_net_info_when_lock_is_poisoned() {
-        init_info_logging();
+    fn runtime_owns_one_sdk_client_and_closes_idempotently() {
         let runtime = RadrootsRuntime::new().expect("runtime");
+        let storage = runtime
+            .client
+            .capabilities()
+            .get(CapabilityId::CANONICAL_STORAGE)
+            .expect("storage capability");
+        assert_eq!(storage.availability(), Availability::Available);
+        assert!(!runtime.client.is_closed());
 
-        let healthy = runtime.info();
-        assert!(!healthy.net.crate_name.is_empty());
-        poison_net_lock(&runtime);
-
-        let _ = runtime.uptime_millis();
-        let info = runtime.info();
-        assert_eq!(info.net.crate_name, String::new());
-        assert_eq!(info.net.crate_version, String::new());
-        let json = runtime.info_json();
-        assert!(json.contains("\"net\""));
         runtime.stop();
+        assert!(runtime.client.is_closed());
         runtime.stop();
     }
 
     #[test]
     fn set_platform_info_handles_poisoned_lock() {
-        init_info_logging();
         let runtime = RadrootsRuntime::new().expect("runtime");
         runtime.set_app_info_platform(
-            Some("ios".to_string()),
-            Some("org.radroots.app".to_string()),
-            Some("1.0.0".to_string()),
-            Some("100".to_string()),
-            Some("abc123".to_string()),
+            Some("ios".to_owned()),
+            Some("org.radroots.app".to_owned()),
+            Some("1.0.0".to_owned()),
+            Some("100".to_owned()),
+            Some("abc123".to_owned()),
         );
-        let info = runtime.info();
         assert_eq!(
-            info.app.platform.as_ref().and_then(|v| v.platform.clone()),
-            Some("ios".to_string())
+            runtime
+                .info()
+                .app
+                .platform
+                .as_ref()
+                .and_then(|value| value.platform.clone()),
+            Some("ios".to_owned())
         );
         poison_platform_lock(&runtime);
-        runtime.set_app_info_platform(
-            Some("ios".to_string()),
-            Some("org.radroots.app".to_string()),
-            Some("1.0.0".to_string()),
-            Some("100".to_string()),
-            Some("abc123".to_string()),
-        );
+        runtime.set_app_info_platform(None, None, None, None, None);
+        runtime.stop();
     }
 }
