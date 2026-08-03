@@ -19,5 +19,5 @@ crate-type = ["staticlib", "cdylib"]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [dependencies]
-radroots_app_core = { workspace = true }
+radroots_app_core = { workspace = true, features = ["mobile-social"] }
 uniffi = { workspace = true }
