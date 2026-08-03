@@ -73,7 +73,5 @@ mod tests {
         assert_eq!(info.sdk.crate_name, "radroots_sdk");
         assert_eq!(info.sdk.crate_version, "0.1.0-alpha");
         assert!(!info.sdk_closed);
-        runtime.stop();
-        assert!(runtime.info().sdk_closed);
     }
 }

@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use radroots_app_core::{RadrootsAppError, RadrootsRuntime};
 
-#[test]
-fn runtime_is_send_sync_and_shares_one_sdk_lifecycle() {
+#[tokio::test]
+async fn runtime_is_send_sync_and_shares_one_sdk_lifecycle() {
     fn require_send_sync<T: Send + Sync>() {}
     require_send_sync::<RadrootsRuntime>();
 
@@ -18,21 +18,35 @@ fn runtime_is_send_sync_and_shares_one_sdk_lifecycle() {
             .iter()
             .any(|capability| capability.id == "storage.canonical")
     );
-    runtime.stop();
-    runtime.stop();
+    let first = runtime.shutdown().await.expect("first shutdown");
+    let second = runtime.shutdown().await.expect("second shutdown");
+    assert!(!first.already_closed);
+    assert!(second.already_closed);
     assert!(runtime.info().sdk_closed);
 }
 
-#[test]
-fn operations_fail_safely_after_explicit_close() {
+#[tokio::test]
+async fn operations_fail_safely_after_explicit_close() {
     let runtime = RadrootsRuntime::new().expect("runtime");
     assert_eq!(
-        runtime.sdk_storage_status().expect("status").backend,
+        runtime.sdk_storage_status().await.expect("status").backend,
         "memory"
     );
-    runtime.stop();
+    runtime.shutdown().await.expect("shutdown");
     assert!(matches!(
-        runtime.sdk_storage_status(),
-        Err(RadrootsAppError::Runtime(_))
+        runtime.sdk_storage_status().await,
+        Err(RadrootsAppError::Sdk { .. })
     ));
+}
+
+#[tokio::test]
+async fn dropping_unpolled_shutdown_has_no_effect_and_retry_closes() {
+    let runtime = RadrootsRuntime::new().expect("runtime");
+    drop(runtime.shutdown());
+    assert!(!runtime.info().sdk_closed);
+    assert!(!runtime.info().app.shutting_down);
+
+    runtime.shutdown().await.expect("retry shutdown");
+    assert!(runtime.info().sdk_closed);
+    assert!(runtime.info().app.shutting_down);
 }

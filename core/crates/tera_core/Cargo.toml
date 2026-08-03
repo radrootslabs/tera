@@ -17,8 +17,7 @@ crate-type = ["rlib"]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [features]
-default = ["rt"]
-rt = []
+default = []
 
 [dependencies]
 radroots_log = { workspace = true }
@@ -29,7 +28,7 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 uniffi = { workspace = true }
-tokio = { workspace = true }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
 tracing-subscriber = { workspace = true }

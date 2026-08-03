@@ -7,7 +7,7 @@ pub mod sdk;
 use chrono::Utc;
 use radroots_sdk::{Client, ClientBuilder};
 use std::sync::{
-    Mutex, RwLock,
+    RwLock,
     atomic::{AtomicBool, Ordering},
 };
 
@@ -20,8 +20,6 @@ use crate::RadrootsAppError;
 #[derive(uniffi::Object)]
 pub struct RadrootsRuntime {
     pub(crate) client: Client,
-    #[cfg(feature = "rt")]
-    executor: Mutex<Option<tokio::runtime::Runtime>>,
     pub(crate) started_unix_ms: i64,
     pub(crate) shutting_down: AtomicBool,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
@@ -34,55 +32,32 @@ impl RadrootsRuntime {
         let client = ClientBuilder::memory_default()
             .build()
             .map_err(RadrootsAppError::from_sdk)?;
-        #[cfg(feature = "rt")]
-        let executor = tokio::runtime::Builder::new_multi_thread()
-            .thread_name("radroots-app-sdk")
-            .enable_all()
-            .build()
-            .map_err(|error| RadrootsAppError::initialization(error.to_string()))?;
 
         Ok(Self {
             client,
-            #[cfg(feature = "rt")]
-            executor: Mutex::new(Some(executor)),
             started_unix_ms: Utc::now().timestamp_millis(),
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
         })
     }
 
-    pub fn stop(&self) {
-        if self.shutting_down.swap(true, Ordering::SeqCst) {
-            let _ = crate::logging::log_info(
-                "Runtime stop already in progress or completed.".to_owned(),
-            );
-            return;
-        }
-
-        #[cfg(feature = "rt")]
-        match self.executor.lock() {
-            Ok(mut executor) => {
-                if let Some(executor) = executor.take() {
-                    if let Err(error) = executor.block_on(self.client.close()) {
-                        let _ = crate::logging::log_error(format!(
-                            "SDK runtime close failed safely: {error}"
-                        ));
-                    }
-                }
-            }
-            Err(_) => {
-                let _ = crate::logging::log_error(
-                    "SDK executor lock was unavailable during shutdown.".to_owned(),
-                );
-            }
-        }
-
-        #[cfg(not(feature = "rt"))]
-        {
-            let _ = crate::logging::log_info(
-                "Host must complete asynchronous SDK close for this runtime build.".to_owned(),
-            );
-        }
+    /// Closes SDK resources asynchronously across every runtime reference.
+    ///
+    /// Dropping the returned future before its first poll has no effect. If a
+    /// host cancels after close begins, it must call `shutdown` again; the SDK
+    /// remains unavailable and resumes the explicit close attempt. Completed
+    /// calls are idempotent and no blocking destructor is installed.
+    pub async fn shutdown(&self) -> Result<sdk::SdkShutdownRecord, RadrootsAppError> {
+        let already_closed = self.client.is_closed();
+        self.shutting_down.store(true, Ordering::Release);
+        self.client
+            .close()
+            .await
+            .map_err(RadrootsAppError::from_sdk)?;
+        Ok(sdk::SdkShutdownRecord {
+            state: "closed".to_owned(),
+            already_closed,
+        })
     }
 
     pub fn uptime_millis(&self) -> i64 {
@@ -128,7 +103,7 @@ mod tests {
     }
 
     #[test]
-    fn runtime_owns_one_sdk_client_and_closes_idempotently() {
+    fn runtime_owns_one_sdk_client() {
         let runtime = RadrootsRuntime::new().expect("runtime");
         let storage = runtime
             .client
@@ -137,10 +112,6 @@ mod tests {
             .expect("storage capability");
         assert_eq!(storage.availability(), Availability::Available);
         assert!(!runtime.client.is_closed());
-
-        runtime.stop();
-        assert!(runtime.client.is_closed());
-        runtime.stop();
     }
 
     #[test]
@@ -164,6 +135,5 @@ mod tests {
         );
         poison_platform_lock(&runtime);
         runtime.set_app_info_platform(None, None, None, None, None);
-        runtime.stop();
     }
 }

@@ -20,6 +20,12 @@ pub struct SdkStorageStatusRecord {
     pub integrity: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct SdkShutdownRecord {
+    pub state: String,
+    pub already_closed: bool,
+}
+
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn sdk_capabilities(&self) -> Vec<SdkCapabilityRecord> {
@@ -36,32 +42,18 @@ impl RadrootsRuntime {
             .collect()
     }
 
-    pub fn sdk_storage_status(&self) -> Result<SdkStorageStatusRecord, RadrootsAppError> {
-        #[cfg(feature = "rt")]
-        {
-            let executor = self
-                .executor
-                .lock()
-                .map_err(|_| RadrootsAppError::runtime("SDK executor lock is unavailable"))?;
-            let executor = executor
-                .as_ref()
-                .ok_or_else(|| RadrootsAppError::runtime("SDK runtime is closed"))?;
-            let status = executor
-                .block_on(self.client.storage_status())
-                .map_err(RadrootsAppError::from_sdk)?;
-            Ok(SdkStorageStatusRecord {
-                backend: format!("{:?}", status.backend()).to_ascii_lowercase(),
-                open_mode: format!("{:?}", status.open_mode()).to_ascii_lowercase(),
-                shutdown: format!("{:?}", status.shutdown()).to_ascii_lowercase(),
-                integrity: format!("{:?}", status.integrity().health()).to_ascii_lowercase(),
-            })
-        }
-        #[cfg(not(feature = "rt"))]
-        {
-            Err(RadrootsAppError::unsupported(
-                "SDK storage status requires a host async executor",
-            ))
-        }
+    pub async fn sdk_storage_status(&self) -> Result<SdkStorageStatusRecord, RadrootsAppError> {
+        let status = self
+            .client
+            .storage_status()
+            .await
+            .map_err(RadrootsAppError::from_sdk)?;
+        Ok(SdkStorageStatusRecord {
+            backend: format!("{:?}", status.backend()).to_ascii_lowercase(),
+            open_mode: format!("{:?}", status.open_mode()).to_ascii_lowercase(),
+            shutdown: format!("{:?}", status.shutdown()).to_ascii_lowercase(),
+            integrity: format!("{:?}", status.integrity().health()).to_ascii_lowercase(),
+        })
     }
 }
 
@@ -86,8 +78,8 @@ const fn maturity_label(value: Maturity) -> &'static str {
 mod tests {
     use super::RadrootsRuntime;
 
-    #[test]
-    fn sdk_records_are_stable_and_storage_is_memory_backed() {
+    #[tokio::test]
+    async fn sdk_records_are_stable_and_storage_is_memory_backed() {
         let runtime = RadrootsRuntime::new().expect("runtime");
         let capabilities = runtime.sdk_capabilities();
         assert!(capabilities.iter().any(|capability| {
@@ -96,10 +88,10 @@ mod tests {
                 && capability.availability == "available"
                 && capability.maturity == "stable"
         }));
-        let status = runtime.sdk_storage_status().expect("storage status");
+        let status = runtime.sdk_storage_status().await.expect("storage status");
         assert_eq!(status.backend, "memory");
         assert_eq!(status.integrity, "healthy");
-        runtime.stop();
-        assert!(runtime.sdk_storage_status().is_err());
+        runtime.shutdown().await.expect("shutdown");
+        assert!(runtime.sdk_storage_status().await.is_err());
     }
 }
