@@ -27,15 +27,16 @@ mobile-social = [
 ]
 
 [dependencies]
-radroots_log = { workspace = true }
 radroots_sdk = { workspace = true }
 chrono = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
 uniffi = { workspace = true }
 
 [dev-dependencies]
+tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt"] }
-tracing-subscriber = { workspace = true }
