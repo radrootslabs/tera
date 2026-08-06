@@ -49,10 +49,10 @@ impl RadrootsRuntime {
             .await
             .map_err(RadrootsAppError::from_sdk)?;
         Ok(SdkStorageStatusRecord {
-            backend: format!("{:?}", status.backend()).to_ascii_lowercase(),
-            open_mode: format!("{:?}", status.open_mode()).to_ascii_lowercase(),
-            shutdown: format!("{:?}", status.shutdown()).to_ascii_lowercase(),
-            integrity: format!("{:?}", status.integrity().health()).to_ascii_lowercase(),
+            backend: status.backend().as_str().to_owned(),
+            open_mode: status.open_mode().as_str().to_owned(),
+            shutdown: status.shutdown().as_str().to_owned(),
+            integrity: status.integrity().health().as_str().to_owned(),
         })
     }
 }
