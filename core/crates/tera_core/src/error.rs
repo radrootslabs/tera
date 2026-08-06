@@ -34,12 +34,12 @@ impl RadrootsAppError {
             report: SdkErrorRecord {
                 schema_version: report.schema_version(),
                 code: report.code().as_str().to_owned(),
-                class: debug_label(report.class()),
+                class: report.class().as_str().to_owned(),
                 retryable: report.retryable(),
                 recovery_actions: report
                     .recovery_actions()
                     .iter()
-                    .map(|action| debug_label(*action))
+                    .map(|action| action.as_str().to_owned())
                     .collect(),
                 operation_id: report.operation_id().map(|id| id.as_str().to_owned()),
                 capability_id: report.capability_id().map(|id| id.as_str().to_owned()),
@@ -65,21 +65,10 @@ impl RadrootsAppError {
     }
 }
 
-fn debug_label(value: impl std::fmt::Debug) -> String {
-    let mut label = String::new();
-    for (index, character) in format!("{value:?}").chars().enumerate() {
-        if character.is_ascii_uppercase() && index != 0 {
-            label.push('_');
-        }
-        label.push(character.to_ascii_lowercase());
-    }
-    label
-}
-
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use super::{RadrootsAppError, SdkErrorRecord, debug_label};
+    use super::{RadrootsAppError, SdkErrorRecord};
 
     #[test]
     fn sdk_error_records_are_versioned_stable_and_secret_safe() {
@@ -106,14 +95,6 @@ mod tests {
     }
 
     #[test]
-    fn debug_labels_use_stable_mobile_case() {
-        assert_eq!(
-            debug_label(SampleLabel::RetryAfterClose),
-            "retry_after_close"
-        );
-    }
-
-    #[test]
     fn public_error_constructors_preserve_typed_variants() {
         assert!(matches!(
             RadrootsAppError::initialization("init"),
@@ -131,10 +112,5 @@ mod tests {
             RadrootsAppError::internal("internal"),
             RadrootsAppError::Internal(message) if message == "internal"
         ));
-    }
-
-    #[derive(Debug)]
-    enum SampleLabel {
-        RetryAfterClose,
     }
 }
