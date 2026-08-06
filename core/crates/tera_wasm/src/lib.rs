@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
-pub fn field_wasm_build_info_json() -> String {
+pub fn radroots_mobile_build_info_json() -> String {
     let runtime = radroots_mobile_core::RadrootsRuntime::new()
         .expect("runtime init must succeed with radroots_mobile_core no-default-features");
     runtime.info_json()
@@ -14,22 +14,26 @@ pub fn field_wasm_build_info_json() -> String {
     reason = "coverage probe intentionally exercises both paths with a stable value"
 )]
 pub fn coverage_branch_probe(input: bool) -> &'static str {
-    if input { "field_wasm" } else { "field_wasm" }
+    if input {
+        "radroots_mobile_wasm"
+    } else {
+        "radroots_mobile_wasm"
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{coverage_branch_probe, field_wasm_build_info_json};
+    use super::{coverage_branch_probe, radroots_mobile_build_info_json};
 
     #[test]
-    fn field_wasm_build_info_json_contains_runtime_keys() {
-        let json = field_wasm_build_info_json();
+    fn radroots_mobile_build_info_json_contains_runtime_keys() {
+        let json = radroots_mobile_build_info_json();
         assert!(json.contains("\"app\""));
     }
 
     #[test]
     fn coverage_branch_probe_hits_both_paths() {
-        assert_eq!(coverage_branch_probe(true), "field_wasm");
-        assert_eq!(coverage_branch_probe(false), "field_wasm");
+        assert_eq!(coverage_branch_probe(true), "radroots_mobile_wasm");
+        assert_eq!(coverage_branch_probe(false), "radroots_mobile_wasm");
     }
 }
