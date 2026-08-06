@@ -116,6 +116,13 @@ type FileWriter = tracing_appender::non_blocking::NonBlocking;
 fn build_file_writer(
     options: &LoggingOptions,
 ) -> Result<(Option<FileWriter>, Option<WorkerGuard>), String> {
+    #[cfg(windows)]
+    if options.dir.is_some() {
+        return Err(
+            "secure file logging is unavailable until Windows ACL and reparse-point enforcement is active"
+                .to_owned(),
+        );
+    }
     let Some(dir) = options.dir.as_ref() else {
         return Ok((None, None));
     };
@@ -245,6 +252,22 @@ mod tests {
         log_info("info".to_owned()).expect("info");
         log_error("error".to_owned()).expect("error");
         log_debug("debug".to_owned()).expect("debug");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_file_logging_fails_before_filesystem_mutation() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let requested = directory.path().join("must-not-exist");
+        let options = LoggingOptions {
+            dir: Some(requested.clone()),
+            stdout: false,
+            ..LoggingOptions::default()
+        };
+        let error = build_file_writer(&options).expect_err("ACL capability must fail closed");
+        assert!(error.contains("ACL"));
+        assert!(error.contains("reparse-point"));
+        assert!(!requested.exists());
     }
 
     #[test]

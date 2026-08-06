@@ -159,7 +159,7 @@ impl Write for SizeRotatingWriter {
     }
 }
 
-#[cfg(any(test, not(unix)))]
+#[cfg(test)]
 fn reject_unsafe_target(path: &Path) -> io::Result<()> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => Err(
@@ -230,7 +230,7 @@ fn open_append(_path: &Path) -> io::Result<File> {
     ))
 }
 
-#[cfg(any(test, not(unix)))]
+#[cfg(test)]
 fn rotated_path(path: &Path, index: usize) -> PathBuf {
     let mut value = path.as_os_str().to_owned();
     value.push(format!(".{index}"));
