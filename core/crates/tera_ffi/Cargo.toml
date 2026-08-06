@@ -1,7 +1,7 @@
 [package]
 name = "radroots_mobile_ffi"
 description = "Native FFI bindings for Radroots mobile apps"
-version.workspace = true
+version = "0.1.0-alpha"
 edition.workspace = true
 authors = ["Radroots Authors"]
 rust-version.workspace = true
