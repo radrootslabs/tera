@@ -1,5 +1,14 @@
 use radroots_mobile_ffi::{RadrootsAppError, RadrootsRuntime, SdkErrorRecord};
 
+#[test]
+fn swift_module_names_preserve_the_host_contract() {
+    let config = include_str!("../uniffi.toml");
+    assert_eq!(
+        config,
+        "[bindings.swift]\nmodule_name = \"RadrootsKitBindings\"\nffi_module_name = \"RadrootsFFI\"\n"
+    );
+}
+
 #[tokio::test]
 async fn final_mobile_abi_uses_async_sdk_dtos_and_versioned_errors() {
     let runtime = RadrootsRuntime::new().expect("runtime");
