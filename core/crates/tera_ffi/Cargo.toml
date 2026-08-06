@@ -1,0 +1,23 @@
+[package]
+name = "radroots_mobile_ffi"
+description = "Native FFI bindings for Radroots mobile apps"
+version.workspace = true
+edition.workspace = true
+authors = ["Radroots Authors"]
+rust-version.workspace = true
+license = "GPL-3.0-or-later"
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+publish = false
+include = ["src/**", "uniffi.toml", "Cargo.toml"]
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+
+[dependencies]
+radroots_mobile_core = { workspace = true, features = ["mobile-social"] }
+uniffi = { workspace = true }
