@@ -2,17 +2,18 @@ use super::RadrootsRuntime;
 use chrono::Utc;
 use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize, Default, uniffi::Record)]
+#[derive(Debug, Clone, Serialize, Default)]
 pub struct RuntimeBuildInfo {
     pub crate_name: String,
     pub crate_version: String,
     pub rustc: Option<String>,
     pub profile: Option<String>,
-    pub git_sha: Option<String>,
+    pub lib_revision: Option<String>,
+    pub consumer_revision: Option<String>,
     pub build_time_unix: Option<u64>,
 }
 
-#[derive(Debug, Clone, Serialize, uniffi::Record)]
+#[derive(Debug, Clone, Serialize)]
 pub struct AppInfo {
     pub build: RuntimeBuildInfo,
     pub started_unix_ms: i64,
@@ -21,7 +22,7 @@ pub struct AppInfo {
     pub platform: Option<super::app_info::AppInfoPlatform>,
 }
 
-#[derive(Debug, Clone, Serialize, uniffi::Record)]
+#[derive(Debug, Clone, Serialize)]
 pub struct RuntimeInfo {
     pub app: AppInfo,
     pub sdk: RuntimeBuildInfo,
@@ -59,7 +60,8 @@ pub fn app_build_info() -> RuntimeBuildInfo {
         crate_version: env!("CARGO_PKG_VERSION").to_owned(),
         rustc: option_env!("RUSTC_VERSION").map(str::to_owned),
         profile: option_env!("PROFILE").map(str::to_owned),
-        git_sha: option_env!("GIT_HASH").map(str::to_owned),
+        lib_revision: option_env!("RADROOTS_LIB_REVISION").map(str::to_owned),
+        consumer_revision: option_env!("RADROOTS_CONSUMER_REVISION").map(str::to_owned),
         build_time_unix: option_env!("BUILD_TIME_UNIX").and_then(|value| value.parse().ok()),
     }
 }

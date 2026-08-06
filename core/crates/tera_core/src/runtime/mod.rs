@@ -21,7 +21,6 @@ use self::{
 };
 use crate::RadrootsAppError;
 
-#[derive(uniffi::Object)]
 pub struct RadrootsRuntime {
     pub(crate) client: Client,
     #[cfg(feature = "mobile-social")]
@@ -35,9 +34,7 @@ pub struct RadrootsRuntime {
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
 }
 
-#[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
-    #[cfg_attr(not(coverage_nightly), uniffi::constructor)]
     pub fn new() -> Result<Self, RadrootsAppError> {
         #[cfg(feature = "mobile-social")]
         let signing_slot = radroots_sdk::signing::Slot::new();

@@ -3,7 +3,7 @@
 use super::RadrootsRuntime;
 use crate::RadrootsAppError;
 
-#[derive(uniffi::Record, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NostrIdentityRecord {
     pub id: String,
     pub public_key_hex: String,
@@ -12,7 +12,7 @@ pub struct NostrIdentityRecord {
     pub is_selected: bool,
 }
 
-#[derive(uniffi::Record, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NostrIdentitySnapshot {
     pub has_selected_signing_identity: bool,
     pub selected_identity_id: Option<String>,
@@ -20,7 +20,7 @@ pub struct NostrIdentitySnapshot {
     pub identities: Vec<NostrIdentityRecord>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NostrHostCustodyIdentity {
     pub id: String,
     pub public_key_hex: String,
@@ -50,7 +50,6 @@ fn identity_record(
     }
 }
 
-#[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn nostr_identity_has_selected_signing_identity(&self) -> bool {
         self.signing_slot.identity().is_some()

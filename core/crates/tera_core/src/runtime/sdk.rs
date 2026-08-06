@@ -3,7 +3,7 @@ use radroots_sdk::capability::{Availability, Maturity};
 use super::RadrootsRuntime;
 use crate::RadrootsAppError;
 
-#[derive(Clone, Debug, uniffi::Record)]
+#[derive(Clone, Debug)]
 pub struct SdkCapabilityRecord {
     pub id: String,
     pub compiled: bool,
@@ -12,7 +12,7 @@ pub struct SdkCapabilityRecord {
     pub maturity: String,
 }
 
-#[derive(Clone, Debug, uniffi::Record)]
+#[derive(Clone, Debug)]
 pub struct SdkStorageStatusRecord {
     pub backend: String,
     pub open_mode: String,
@@ -20,13 +20,12 @@ pub struct SdkStorageStatusRecord {
     pub integrity: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdkShutdownRecord {
     pub state: String,
     pub already_closed: bool,
 }
 
-#[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn sdk_capabilities(&self) -> Vec<SdkCapabilityRecord> {
         self.client

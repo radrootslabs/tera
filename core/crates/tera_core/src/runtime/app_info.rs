@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Default, serde::Serialize, uniffi::Record)]
+#[derive(Debug, Clone, Default, serde::Serialize)]
 pub struct AppInfoPlatform {
     pub platform: Option<String>,
     pub bundle_id: Option<String>,

@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// Versioned, secret-safe SDK failure exposed to mobile hosts.
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdkErrorRecord {
     pub schema_version: u16,
     pub code: String,
@@ -13,7 +13,7 @@ pub struct SdkErrorRecord {
     pub message: String,
 }
 
-#[derive(Debug, Error, uniffi::Error)]
+#[derive(Debug, Error)]
 pub enum RadrootsAppError {
     #[error("initialization: {0}")]
     Initialization(String),

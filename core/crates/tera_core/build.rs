@@ -1,10 +1,14 @@
 use std::{env, process::Command};
 
+#[path = "src/provenance.rs"]
+mod provenance;
+
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-env-changed=RUSTC");
     println!("cargo:rerun-if-env-changed=PROFILE");
-    println!("cargo:rerun-if-env-changed=RADROOTS_SOURCE_SHA");
+    println!("cargo:rerun-if-env-changed=RADROOTS_LIB_REVISION");
+    println!("cargo:rerun-if-env-changed=RADROOTS_CONSUMER_REVISION");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
 
     let rustc = env::var("RUSTC").expect("missing required env var RUSTC");
@@ -15,8 +19,17 @@ fn main() {
         println!("cargo:rustc-env=RUSTC_VERSION={}", version.trim());
     }
 
-    if let Some(source_sha) = optional_source_sha() {
-        println!("cargo:rustc-env=GIT_HASH={source_sha}");
+    let lib_revision = optional_full_revision("RADROOTS_LIB_REVISION");
+    let consumer_revision = optional_full_revision("RADROOTS_CONSUMER_REVISION");
+    assert!(
+        consumer_revision.is_none() || lib_revision.is_some(),
+        "RADROOTS_CONSUMER_REVISION requires RADROOTS_LIB_REVISION"
+    );
+    if let Some(revision) = lib_revision {
+        println!("cargo:rustc-env=RADROOTS_LIB_REVISION={revision}");
+    }
+    if let Some(revision) = consumer_revision {
+        println!("cargo:rustc-env=RADROOTS_CONSUMER_REVISION={revision}");
     }
 
     let profile = env::var("PROFILE").expect("missing required env var PROFILE");
@@ -27,13 +40,13 @@ fn main() {
     }
 }
 
-fn optional_source_sha() -> Option<String> {
-    let value = env::var("RADROOTS_SOURCE_SHA").ok()?;
+fn optional_full_revision(name: &str) -> Option<String> {
+    let value = env::var(name).ok()?;
     assert!(
-        (7..=64).contains(&value.len()) && value.bytes().all(|byte| byte.is_ascii_hexdigit()),
-        "RADROOTS_SOURCE_SHA must contain 7 to 64 hexadecimal characters"
+        provenance::is_full_revision(&value),
+        "{name} must contain exactly 40 lowercase hexadecimal characters"
     );
-    Some(value.to_ascii_lowercase())
+    Some(value)
 }
 
 fn optional_source_date_epoch() -> Option<u64> {

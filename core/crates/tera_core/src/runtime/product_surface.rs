@@ -16,7 +16,7 @@ pub const WORKFLOW_ACTOR_COMPATIBILITY_NOTE: &str = "Phase 1 workflow actors are
      roles such as Farmer, Buyer, Seller, and Service are compatibility roles \
      and are not sufficient authority.";
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ContextType {
     Regional,
@@ -31,7 +31,7 @@ pub enum ContextType {
     NetworkSteward,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum WorkflowActor {
     NetworkMember,
@@ -47,7 +47,7 @@ pub enum WorkflowActor {
     NetworkSteward,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum VisibilityClass {
     LocalDraft,
@@ -61,7 +61,7 @@ pub enum VisibilityClass {
     SecretNeverShared,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum AuthorityDomain {
     #[serde(rename = "Relay/group access")]
     RelayGroupAccess,
@@ -83,7 +83,7 @@ pub enum AuthorityDomain {
     NetworkStewardship,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum AuthorityAction {
     Submit,
@@ -98,7 +98,7 @@ pub enum AuthorityAction {
     NavigateRelatedObject,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ObjectKind {
     Region,
@@ -127,7 +127,7 @@ pub enum ObjectKind {
     Correction,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ObjectPageFamily {
     Network,
@@ -145,7 +145,7 @@ pub enum ObjectPageFamily {
     Exception,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum TodayCardType {
     Route,
@@ -162,7 +162,7 @@ pub enum TodayCardType {
     SyncOutbox,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum AddActionType {
     Photo,
@@ -185,7 +185,7 @@ pub enum AddActionType {
     Correction,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum AddFlowState {
     NotStarted,
@@ -206,7 +206,7 @@ pub enum AddFlowState {
     Discarded,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum OutboxBehavior {
     LocalOnly,
@@ -216,7 +216,7 @@ pub enum OutboxBehavior {
     ShareWhenAuthorized,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum PrototypePathKind {
     ProducerFoodToRoute,
@@ -224,7 +224,7 @@ pub enum PrototypePathKind {
     RouteCoordinatorAssignment,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum RouteExecutionFlowKind {
     RoutePartnerAssignedStops,
@@ -232,7 +232,7 @@ pub enum RouteExecutionFlowKind {
     ExceptionRecovery,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum RouteExecutionStepKind {
     AssignedRoute,
@@ -243,7 +243,7 @@ pub enum RouteExecutionStepKind {
     RecoveryAction,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ProofProvenanceArtifactKind {
     ProofCompleteness,
@@ -252,7 +252,7 @@ pub enum ProofProvenanceArtifactKind {
     PublicProvenancePreview,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum ProofProvenanceReviewState {
     MissingProof,
@@ -265,7 +265,7 @@ pub enum ProofProvenanceReviewState {
     Published,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum StewardshipAccessItemKind {
     AccessRequestReview,
@@ -279,7 +279,7 @@ pub enum StewardshipAccessItemKind {
     GroupManagementDeferred,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum OutboxState {
     NotQueued,
@@ -294,7 +294,7 @@ pub enum OutboxState {
     Discarded,
 }
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum SyncState {
     Unknown,
@@ -306,7 +306,7 @@ pub enum SyncState {
     Failed,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ObjectRef {
     pub object_type: ObjectKind,
@@ -314,7 +314,7 @@ pub struct ObjectRef {
     pub display_label: String,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EventRef {
     pub event_id: String,
@@ -322,7 +322,7 @@ pub struct EventRef {
     pub kind: Option<u32>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ActiveContext {
     pub context_type: ContextType,
@@ -332,7 +332,7 @@ pub struct ActiveContext {
     pub visibility_scope: VisibilityClass,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AuthorityGate {
     pub domain: AuthorityDomain,
@@ -344,7 +344,7 @@ pub struct AuthorityGate {
     pub reason: Option<String>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ObjectPageSummary {
     pub object_ref: ObjectRef,
@@ -358,7 +358,7 @@ pub struct ObjectPageSummary {
     pub sync_state: SyncState,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TodayCardAction {
     pub id: String,
@@ -367,7 +367,7 @@ pub struct TodayCardAction {
     pub target_object: Option<ObjectRef>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TodayCard {
     pub id: String,
@@ -392,7 +392,7 @@ pub struct TodayCard {
     pub is_offline: bool,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RelatedObjectRequirement {
     pub object_type: ObjectKind,
@@ -400,7 +400,7 @@ pub struct RelatedObjectRequirement {
     pub is_required: bool,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ValidationRequirement {
     pub id: String,
@@ -408,7 +408,7 @@ pub struct ValidationRequirement {
     pub is_blocking: bool,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AddAction {
     pub action_type: AddActionType,
@@ -427,7 +427,7 @@ pub struct AddAction {
     pub completion_state: AddFlowState,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutboxItem {
     pub id: String,
@@ -446,7 +446,7 @@ pub struct OutboxItem {
     pub last_error: Option<String>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutboxRetryDecision {
     pub item_id: String,
@@ -455,7 +455,7 @@ pub struct OutboxRetryDecision {
     pub reason: Option<String>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SearchResultSummary {
     pub id: String,
@@ -469,7 +469,7 @@ pub struct SearchResultSummary {
     pub sync_state: SyncState,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrototypePathStep {
     pub id: String,
@@ -483,7 +483,7 @@ pub struct PrototypePathStep {
     pub sync_state: SyncState,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PrototypePath {
     pub id: String,
@@ -494,7 +494,7 @@ pub struct PrototypePath {
     pub steps: Vec<PrototypePathStep>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteExecutionStep {
     pub id: String,
@@ -514,7 +514,7 @@ pub struct RouteExecutionStep {
     pub detail_lines: Vec<String>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RouteExecutionFlow {
     pub id: String,
@@ -526,7 +526,7 @@ pub struct RouteExecutionFlow {
     pub steps: Vec<RouteExecutionStep>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProofProvenanceArtifact {
     pub id: String,
@@ -548,7 +548,7 @@ pub struct ProofProvenanceArtifact {
     pub sync_state: SyncState,
 }
 
-#[derive(uniffi::Record, Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StewardshipAccessItem {
     pub id: String,
@@ -2559,7 +2559,6 @@ pub fn fixture_outbox_retry_decision(item: OutboxItem) -> OutboxRetryDecision {
     }
 }
 
-#[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn phase1_active_contexts(&self) -> Vec<ActiveContext> {
         let _ = self;

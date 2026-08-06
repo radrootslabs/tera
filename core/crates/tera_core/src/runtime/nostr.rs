@@ -3,14 +3,14 @@
 use super::RadrootsRuntime;
 use crate::RadrootsAppError;
 
-#[derive(uniffi::Enum, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NostrLight {
     Red,
     Yellow,
     Green,
 }
 
-#[derive(uniffi::Record, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NostrConnectionStatus {
     pub light: NostrLight,
     pub configured: bool,
@@ -19,7 +19,7 @@ pub struct NostrConnectionStatus {
     pub last_error: Option<String>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Default, Eq, PartialEq)]
 pub struct NostrProfile {
     pub name: Option<String>,
     pub display_name: Option<String>,
@@ -33,7 +33,7 @@ pub struct NostrProfile {
     pub bot: Option<String>,
 }
 
-#[derive(uniffi::Record, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NostrProfileEventMetadata {
     pub id: String,
     pub author: String,
@@ -41,12 +41,12 @@ pub struct NostrProfileEventMetadata {
     pub profile: NostrProfile,
 }
 
-#[derive(uniffi::Record, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NostrPost {
     pub content: String,
 }
 
-#[derive(uniffi::Record, Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct NostrPostEventMetadata {
     pub id: String,
     pub author: String,
@@ -85,7 +85,6 @@ fn map_post(event: radroots_sdk::client::PostEvent) -> NostrPostEventMetadata {
     }
 }
 
-#[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     pub fn nostr_set_default_relays(&self, relays: Vec<String>) -> Result<(), RadrootsAppError> {
         self.nostr_slot
