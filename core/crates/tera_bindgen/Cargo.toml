@@ -1,7 +1,7 @@
 [package]
 name = "radroots_mobile_bindgen"
 description = "Private UniFFI binding generator for Radroots mobile artifacts"
-version.workspace = true
+version = "0.1.0-alpha"
 edition.workspace = true
 authors = ["Radroots Authors"]
 rust-version.workspace = true
