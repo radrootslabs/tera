@@ -1,0 +1,20 @@
+[package]
+name = "radroots_mobile_wasm"
+version.workspace = true
+edition.workspace = true
+authors = ["Radroots Authors"]
+rust-version.workspace = true
+license = "GPL-3.0-or-later"
+description = "WebAssembly bindings for Radroots web apps"
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+publish = false
+include = ["src/**", "Cargo.toml"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+radroots_mobile_core = { workspace = true, default-features = false }
+wasm-bindgen = { workspace = true }
