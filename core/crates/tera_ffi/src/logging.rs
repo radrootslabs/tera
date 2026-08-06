@@ -40,9 +40,9 @@ pub fn init_logging(
     dir: Option<String>,
     file_name: Option<String>,
     is_stdout: Option<bool>,
-) -> Result<(), radroots_mobile_core::RadrootsAppError> {
+) -> Result<(), crate::RadrootsAppError> {
     let opts = logging_options(dir, file_name, is_stdout);
-    initialize(opts).map_err(radroots_mobile_core::RadrootsAppError::initialization)
+    initialize(opts).map_err(crate::RadrootsAppError::initialization)
 }
 
 fn logging_options(
@@ -142,25 +142,24 @@ fn build_file_writer(
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn init_logging_stdout() -> Result<(), radroots_mobile_core::RadrootsAppError> {
-    initialize(LoggingOptions::default())
-        .map_err(radroots_mobile_core::RadrootsAppError::initialization)
+pub fn init_logging_stdout() -> Result<(), crate::RadrootsAppError> {
+    initialize(LoggingOptions::default()).map_err(crate::RadrootsAppError::initialization)
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn log_info(msg: String) -> Result<(), radroots_mobile_core::RadrootsAppError> {
+pub fn log_info(msg: String) -> Result<(), crate::RadrootsAppError> {
     tracing::info!("{msg}");
     Ok(())
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn log_error(msg: String) -> Result<(), radroots_mobile_core::RadrootsAppError> {
+pub fn log_error(msg: String) -> Result<(), crate::RadrootsAppError> {
     tracing::error!("{msg}");
     Ok(())
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn log_debug(msg: String) -> Result<(), radroots_mobile_core::RadrootsAppError> {
+pub fn log_debug(msg: String) -> Result<(), crate::RadrootsAppError> {
     tracing::debug!("{msg}");
     Ok(())
 }

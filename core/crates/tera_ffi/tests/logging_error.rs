@@ -1,4 +1,4 @@
-use radroots_mobile_core::RadrootsAppError;
+use radroots_mobile_ffi::RadrootsAppError;
 use radroots_mobile_ffi::logging;
 
 #[test]

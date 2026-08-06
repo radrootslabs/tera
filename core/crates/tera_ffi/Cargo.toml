@@ -23,6 +23,7 @@ radroots_mobile_core = { workspace = true, features = ["mobile-social"] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
 uniffi = { workspace = true }
 
 [target.'cfg(unix)'.dependencies]
@@ -30,3 +31,4 @@ rustix = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt", "time"] }

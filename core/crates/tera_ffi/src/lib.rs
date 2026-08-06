@@ -3,10 +3,16 @@
 #![allow(clippy::result_large_err)]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
-uniffi::setup_scaffolding!("radroots_mobile_ffi");
-radroots_mobile_core::uniffi_reexport_scaffolding!();
+uniffi::setup_scaffolding!("radroots_mobile_core");
 
 pub mod logging;
+mod remote;
+mod runtime;
+
+pub use error::{RadrootsAppError, SdkErrorRecord};
+pub use runtime::RadrootsRuntime;
+
+mod error;
 
 #[allow(
     clippy::if_same_then_else,
