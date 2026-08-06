@@ -1,0 +1,44 @@
+[package]
+name = "radroots_mobile_core"
+version.workspace = true
+edition.workspace = true
+authors = ["Radroots Authors"]
+rust-version.workspace = true
+license = "GPL-3.0-or-later"
+description = "Application core runtime for Radroots apps"
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+publish = false
+include = ["src/**", "tests/**", "build.rs", "Cargo.toml"]
+
+[lib]
+crate-type = ["rlib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+
+[features]
+default = []
+mobile-social = [
+    "radroots_sdk/local-signing",
+    "radroots_sdk/nostr",
+    "radroots_sdk/sync",
+]
+
+[dependencies]
+radroots_sdk = { workspace = true, features = ["memory"] }
+chrono = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uniffi = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt"] }
