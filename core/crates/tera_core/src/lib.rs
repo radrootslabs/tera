@@ -7,8 +7,6 @@
 uniffi::setup_scaffolding!("radroots_mobile_core");
 
 pub mod error;
-#[cfg(not(target_arch = "wasm32"))]
-pub mod logging;
 pub mod runtime;
 
 pub use error::{RadrootsAppError, SdkErrorRecord};
