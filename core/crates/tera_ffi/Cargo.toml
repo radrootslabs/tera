@@ -13,11 +13,17 @@ publish = false
 include = ["src/**", "uniffi.toml", "Cargo.toml"]
 
 [lib]
-crate-type = ["staticlib", "cdylib"]
+crate-type = ["rlib", "staticlib", "cdylib"]
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [dependencies]
 radroots_mobile_core = { workspace = true, features = ["mobile-social"] }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
 uniffi = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

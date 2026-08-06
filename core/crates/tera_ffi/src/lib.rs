@@ -1,4 +1,11 @@
+// UniFFI serializes the complete versioned error record across the language
+// boundary; keeping it by value preserves the generated wire contract.
+#![allow(clippy::result_large_err)]
+
+uniffi::setup_scaffolding!("radroots_mobile_ffi");
 radroots_mobile_core::uniffi_reexport_scaffolding!();
+
+pub mod logging;
 
 #[allow(
     clippy::if_same_then_else,
