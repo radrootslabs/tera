@@ -1,4 +1,7 @@
-use std::fs::{self, File, OpenOptions};
+use std::ffi::{OsStr, OsString};
+#[cfg(any(test, not(unix)))]
+use std::fs;
+use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
@@ -21,7 +24,11 @@ impl Default for LogRotation {
 }
 
 pub(super) struct SizeRotatingWriter {
+    #[cfg(not(unix))]
     path: PathBuf,
+    #[cfg(unix)]
+    directory: File,
+    file_name: OsString,
     file: Option<File>,
     bytes_written: u64,
     policy: LogRotation,
@@ -29,11 +36,25 @@ pub(super) struct SizeRotatingWriter {
 
 impl SizeRotatingWriter {
     pub(super) fn new(path: PathBuf, policy: LogRotation) -> io::Result<Self> {
-        reject_unsafe_target(&path)?;
+        let file_name = path
+            .file_name()
+            .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "log target has no name"))?
+            .to_owned();
+        #[cfg(unix)]
+        let directory = open_secure_directory(path.parent().ok_or_else(|| {
+            io::Error::new(io::ErrorKind::InvalidInput, "log target has no parent")
+        })?)?;
+        #[cfg(unix)]
+        let file = open_append_at(&directory, &file_name)?;
+        #[cfg(not(unix))]
         let file = open_append(&path)?;
         let bytes_written = file.metadata()?.len();
         let mut writer = Self {
+            #[cfg(not(unix))]
             path,
+            #[cfg(unix)]
+            directory,
+            file_name,
             file: Some(file),
             bytes_written,
             policy,
@@ -50,20 +71,58 @@ impl SizeRotatingWriter {
             file.sync_data()?;
         }
         if self.policy.retained_files == 1 {
-            remove_if_present(&self.path)?;
+            self.remove_if_present(&self.file_name)?;
         } else {
-            remove_if_present(&rotated_path(&self.path, self.policy.retained_files - 1))?;
+            self.remove_if_present(&rotated_name(
+                &self.file_name,
+                self.policy.retained_files - 1,
+            ))?;
             for index in (2..self.policy.retained_files).rev() {
-                rename_if_present(
-                    &rotated_path(&self.path, index - 1),
-                    &rotated_path(&self.path, index),
+                self.rename_if_present(
+                    &rotated_name(&self.file_name, index - 1),
+                    &rotated_name(&self.file_name, index),
                 )?;
             }
-            rename_if_present(&self.path, &rotated_path(&self.path, 1))?;
+            self.rename_if_present(&self.file_name, &rotated_name(&self.file_name, 1))?;
         }
-        self.file = Some(open_append(&self.path)?);
+        #[cfg(unix)]
+        let file = open_append_at(&self.directory, &self.file_name)?;
+        #[cfg(not(unix))]
+        let file = open_append(&self.path)?;
+        self.file = Some(file);
         self.bytes_written = 0;
         Ok(())
+    }
+
+    fn remove_if_present(&self, name: &OsStr) -> io::Result<()> {
+        #[cfg(unix)]
+        {
+            use rustix::fs::{AtFlags, unlinkat};
+            match unlinkat(&self.directory, name, AtFlags::empty()) {
+                Ok(()) => Ok(()),
+                Err(error) if error == rustix::io::Errno::NOENT => Ok(()),
+                Err(error) => Err(io::Error::from_raw_os_error(error.raw_os_error())),
+            }
+        }
+        #[cfg(not(unix))]
+        remove_if_present(&self.path.with_file_name(name))
+    }
+
+    fn rename_if_present(&self, source: &OsStr, target: &OsStr) -> io::Result<()> {
+        #[cfg(unix)]
+        {
+            use rustix::fs::renameat;
+            match renameat(&self.directory, source, &self.directory, target) {
+                Ok(()) => Ok(()),
+                Err(error) if error == rustix::io::Errno::NOENT => Ok(()),
+                Err(error) => Err(io::Error::from_raw_os_error(error.raw_os_error())),
+            }
+        }
+        #[cfg(not(unix))]
+        rename_if_present(
+            &self.path.with_file_name(source),
+            &self.path.with_file_name(target),
+        )
     }
 
     fn file_mut(&mut self) -> io::Result<&mut File> {
@@ -100,6 +159,7 @@ impl Write for SizeRotatingWriter {
     }
 }
 
+#[cfg(any(test, not(unix)))]
 fn reject_unsafe_target(path: &Path) -> io::Result<()> {
     match fs::symlink_metadata(path) {
         Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => Err(
@@ -111,27 +171,79 @@ fn reject_unsafe_target(path: &Path) -> io::Result<()> {
     }
 }
 
-fn open_append(path: &Path) -> io::Result<File> {
-    let mut options = OpenOptions::new();
-    options.create(true).append(true);
-    #[cfg(unix)]
+#[cfg(unix)]
+fn open_secure_directory(path: &Path) -> io::Result<File> {
+    use rustix::fs::{FileType, Mode, OFlags, fstat, open};
+    use rustix::process::geteuid;
+
+    let directory = open(
+        path,
+        OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+        Mode::empty(),
+    )
+    .map_err(errno_to_io)?;
+    let status = fstat(&directory).map_err(errno_to_io)?;
+    if FileType::from_raw_mode(status.st_mode) != FileType::Directory
+        || status.st_uid != geteuid().as_raw()
+        || status.st_mode & 0o022 != 0
     {
-        use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
-        options.mode(0o600);
-        let file = options.open(path)?;
-        file.set_permissions(fs::Permissions::from_mode(0o600))?;
-        Ok(file)
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "log parent must be an owner-controlled non-writable directory",
+        ));
     }
-    #[cfg(not(unix))]
-    options.open(path)
+    Ok(File::from(directory))
 }
 
+#[cfg(unix)]
+fn open_append_at(directory: &File, name: &OsStr) -> io::Result<File> {
+    use rustix::fs::{FileType, Mode, OFlags, fchmod, fstat, openat};
+
+    let descriptor = openat(
+        directory,
+        name,
+        OFlags::WRONLY | OFlags::APPEND | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+        Mode::RUSR | Mode::WUSR,
+    )
+    .map_err(errno_to_io)?;
+    let status = fstat(&descriptor).map_err(errno_to_io)?;
+    if FileType::from_raw_mode(status.st_mode) != FileType::RegularFile || status.st_nlink != 1 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "log target must be one regular file link",
+        ));
+    }
+    fchmod(&descriptor, Mode::RUSR | Mode::WUSR).map_err(errno_to_io)?;
+    Ok(File::from(descriptor))
+}
+
+#[cfg(unix)]
+fn errno_to_io(error: rustix::io::Errno) -> io::Error {
+    io::Error::from_raw_os_error(error.raw_os_error())
+}
+
+#[cfg(not(unix))]
+fn open_append(_path: &Path) -> io::Result<File> {
+    Err(io::Error::new(
+        io::ErrorKind::Unsupported,
+        "secure file logging is unavailable without a no-follow ACL implementation",
+    ))
+}
+
+#[cfg(any(test, not(unix)))]
 fn rotated_path(path: &Path, index: usize) -> PathBuf {
     let mut value = path.as_os_str().to_owned();
     value.push(format!(".{index}"));
     PathBuf::from(value)
 }
 
+fn rotated_name(name: &OsStr, index: usize) -> OsString {
+    let mut value = name.to_owned();
+    value.push(format!(".{index}"));
+    value
+}
+
+#[cfg(any(test, not(unix)))]
 fn remove_if_present(path: &Path) -> io::Result<()> {
     match fs::remove_file(path) {
         Ok(()) => Ok(()),
@@ -140,6 +252,7 @@ fn remove_if_present(path: &Path) -> io::Result<()> {
     }
 }
 
+#[cfg(any(test, not(unix)))]
 fn rename_if_present(source: &Path, target: &Path) -> io::Result<()> {
     match fs::rename(source, target) {
         Ok(()) => Ok(()),
@@ -155,6 +268,7 @@ mod tests {
         LogRotation, SizeRotatingWriter, reject_unsafe_target, remove_if_present,
         rename_if_present, rotated_path,
     };
+    use std::ffi::OsStr;
     use std::io::Write;
 
     #[test]
@@ -232,6 +346,9 @@ mod tests {
     fn unsafe_targets_and_absent_rotation_files_are_handled() {
         let directory = tempfile::tempdir().expect("temporary directory");
         assert!(reject_unsafe_target(directory.path()).is_err());
+        let regular = directory.path().join("regular");
+        std::fs::write(&regular, b"regular").expect("regular file");
+        assert!(reject_unsafe_target(&regular).is_ok());
         let missing = directory.path().join("missing");
         assert!(reject_unsafe_target(&missing).is_ok());
         assert!(remove_if_present(&missing).is_ok());
@@ -247,6 +364,57 @@ mod tests {
             std::os::unix::fs::symlink(directory.path(), &missing).expect("symlink");
             assert!(reject_unsafe_target(&missing).is_err());
         }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn descriptor_relative_open_rejects_symlinks_and_multiple_links() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let outside = tempfile::NamedTempFile::new().expect("outside file");
+        let symlink = directory.path().join("radroots.log");
+        std::os::unix::fs::symlink(outside.path(), &symlink).expect("symlink");
+        assert!(SizeRotatingWriter::new(symlink.clone(), LogRotation::default()).is_err());
+
+        std::fs::remove_file(&symlink).expect("remove symlink");
+        std::fs::hard_link(outside.path(), &symlink).expect("hard link");
+        assert!(SizeRotatingWriter::new(symlink, LogRotation::default()).is_err());
+
+        let link_holder = tempfile::tempdir().expect("link holder");
+        let parent_link = link_holder.path().join("parent-link");
+        std::os::unix::fs::symlink(directory.path(), &parent_link).expect("parent symlink");
+        assert!(
+            SizeRotatingWriter::new(parent_link.join("other.log"), LogRotation::default()).is_err()
+        );
+
+        use std::os::unix::fs::PermissionsExt;
+        let insecure = tempfile::tempdir().expect("insecure parent");
+        std::fs::set_permissions(insecure.path(), std::fs::Permissions::from_mode(0o777))
+            .expect("insecure permissions");
+        assert!(
+            SizeRotatingWriter::new(insecure.path().join("radroots.log"), LogRotation::default())
+                .is_err()
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn descriptor_relative_rotation_propagates_non_missing_errors() {
+        let directory = tempfile::tempdir().expect("temporary directory");
+        let mut writer = SizeRotatingWriter::new(
+            directory.path().join("radroots.log"),
+            LogRotation::default(),
+        )
+        .expect("writer");
+        writer.flush().expect("flush");
+
+        std::fs::create_dir(directory.path().join("blocked")).expect("blocked directory");
+        assert!(writer.remove_if_present(OsStr::new("blocked")).is_err());
+        std::fs::write(directory.path().join("source"), b"source").expect("source");
+        assert!(
+            writer
+                .rename_if_present(OsStr::new("source"), OsStr::new("blocked"))
+                .is_err()
+        );
     }
 
     #[test]

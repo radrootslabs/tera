@@ -225,6 +225,19 @@ mod tests {
             ..LoggingOptions::default()
         };
         assert!(build_file_writer(&options).is_err());
+
+        #[cfg(unix)]
+        {
+            let target = directory.path().join("real-directory");
+            std::fs::create_dir(&target).expect("real directory");
+            let link = directory.path().join("linked-directory");
+            std::os::unix::fs::symlink(&target, &link).expect("directory symlink");
+            let options = LoggingOptions {
+                dir: Some(link),
+                ..LoggingOptions::default()
+            };
+            assert!(build_file_writer(&options).is_err());
+        }
     }
 
     #[test]
