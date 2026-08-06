@@ -1,0 +1,23 @@
+[package]
+name = "radroots_mobile_bindgen"
+description = "Private UniFFI binding generator for Radroots mobile artifacts"
+version.workspace = true
+edition.workspace = true
+authors = ["Radroots Authors"]
+rust-version.workspace = true
+license = "GPL-3.0-or-later"
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+publish = false
+include = ["src/**", "Cargo.toml"]
+
+[[bin]]
+name = "radroots-mobile-bindgen"
+path = "src/main.rs"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+
+[dependencies]
+uniffi = { workspace = true, features = ["cli"] }
