@@ -7,6 +7,12 @@ const INFO: &str = include_str!("../src/runtime/info.rs");
 const KEY_MANAGEMENT: &str = include_str!("../src/runtime/key_management.rs");
 const NOSTR: &str = include_str!("../src/runtime/nostr.rs");
 const PRODUCT_SURFACE: &str = include_str!("../src/runtime/product_surface.rs");
+const PRODUCT_CONTEXT: &str = include_str!("../src/runtime/product_surface/context.rs");
+const PRODUCT_CURSOR: &str = include_str!("../src/runtime/product_surface/cursor.rs");
+const PRODUCT_IDENTITY: &str = include_str!("../src/runtime/product_surface/identity.rs");
+const PRODUCT_MODEL: &str = include_str!("../src/runtime/product_surface/model.rs");
+const PRODUCT_PROJECTION: &str = include_str!("../src/runtime/product_surface/projection.rs");
+const PRODUCT_RANKING: &str = include_str!("../src/runtime/product_surface/ranking.rs");
 const SDK: &str = include_str!("../src/runtime/sdk.rs");
 
 #[test]
@@ -21,6 +27,15 @@ fn core_owns_no_uniffi_or_process_global_logging_policy() {
         ("src/runtime/key_management.rs", KEY_MANAGEMENT),
         ("src/runtime/nostr.rs", NOSTR),
         ("src/runtime/product_surface.rs", PRODUCT_SURFACE),
+        ("src/runtime/product_surface/context.rs", PRODUCT_CONTEXT),
+        ("src/runtime/product_surface/cursor.rs", PRODUCT_CURSOR),
+        ("src/runtime/product_surface/identity.rs", PRODUCT_IDENTITY),
+        ("src/runtime/product_surface/model.rs", PRODUCT_MODEL),
+        (
+            "src/runtime/product_surface/projection.rs",
+            PRODUCT_PROJECTION,
+        ),
+        ("src/runtime/product_surface/ranking.rs", PRODUCT_RANKING),
         ("src/runtime/sdk.rs", SDK),
     ] {
         assert!(
