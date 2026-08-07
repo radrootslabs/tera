@@ -2,11 +2,7 @@ use radroots_mobile_core::runtime::{
     info::RuntimeInfo,
     key_management::{NostrHostCustodyIdentity, NostrIdentityRecord, NostrIdentitySnapshot},
     nostr::{NostrConnectionStatus, NostrPostEventMetadata, NostrProfileEventMetadata},
-    product_surface::{
-        ActiveContext, AddAction, AuthorityAction, AuthorityDomain, AuthorityGate,
-        ObjectPageSummary, OutboxItem, OutboxRetryDecision, ProofProvenanceArtifact, PrototypePath,
-        RouteExecutionFlow, SearchResultSummary, StewardshipAccessItem, TodayCard, WorkflowActor,
-    },
+    product_surface::{AddCommandType, CardAddParity, LocalNetwork, TodayCardType},
     sdk::{SdkCapabilityRecord, SdkShutdownRecord, SdkStorageStatusRecord},
 };
 
@@ -204,74 +200,36 @@ impl RadrootsRuntime {
             .map_err(Into::into)
     }
 
-    pub fn phase1_active_contexts(&self) -> Vec<ActiveContext> {
-        self.inner.phase1_active_contexts()
+    pub fn phase1_card_types(&self) -> Vec<TodayCardType> {
+        self.inner.phase1_card_types()
     }
 
-    pub fn phase1_today_cards(&self, context_id: Option<String>) -> Vec<TodayCard> {
-        self.inner.phase1_today_cards(context_id)
+    pub fn phase1_add_command_types(&self) -> Vec<AddCommandType> {
+        self.inner.phase1_add_command_types()
     }
 
-    pub fn phase1_add_actions(&self, context_id: Option<String>) -> Vec<AddAction> {
-        self.inner.phase1_add_actions(context_id)
+    pub fn phase1_card_add_parity(&self) -> Vec<CardAddParity> {
+        self.inner.phase1_card_add_parity()
     }
 
-    pub fn phase1_object_page_summaries(
+    pub fn phase1_local_network(
         &self,
-        context_id: Option<String>,
-    ) -> Vec<ObjectPageSummary> {
-        self.inner.phase1_object_page_summaries(context_id)
-    }
-
-    pub fn phase1_outbox_snapshot(&self) -> Vec<OutboxItem> {
-        self.inner.phase1_outbox_snapshot()
-    }
-
-    pub fn phase1_search_results(
-        &self,
-        query: Option<String>,
-        context_id: Option<String>,
-    ) -> Vec<SearchResultSummary> {
-        self.inner.phase1_search_results(query, context_id)
-    }
-
-    pub fn phase1_prototype_paths(&self) -> Vec<PrototypePath> {
-        self.inner.phase1_prototype_paths()
-    }
-
-    pub fn phase1_route_execution_flows(
-        &self,
-        context_id: Option<String>,
-    ) -> Vec<RouteExecutionFlow> {
-        self.inner.phase1_route_execution_flows(context_id)
-    }
-
-    pub fn phase1_proof_provenance_artifacts(
-        &self,
-        context_id: Option<String>,
-    ) -> Vec<ProofProvenanceArtifact> {
-        self.inner.phase1_proof_provenance_artifacts(context_id)
-    }
-
-    pub fn phase1_stewardship_access_items(
-        &self,
-        context_id: Option<String>,
-    ) -> Vec<StewardshipAccessItem> {
-        self.inner.phase1_stewardship_access_items(context_id)
-    }
-
-    pub fn phase1_outbox_retry_decision(&self, item: OutboxItem) -> OutboxRetryDecision {
-        self.inner.phase1_outbox_retry_decision(item)
-    }
-
-    pub fn phase1_check_authority(
-        &self,
-        actor: WorkflowActor,
-        context: ActiveContext,
-        domain: AuthorityDomain,
-        action: AuthorityAction,
-    ) -> AuthorityGate {
+        id: String,
+        label: String,
+        relay_urls: Vec<String>,
+        locality: Option<String>,
+        followed_authors: Vec<String>,
+        generation: u64,
+    ) -> Result<LocalNetwork, RadrootsAppError> {
         self.inner
-            .phase1_check_authority(actor, context, domain, action)
+            .phase1_local_network(
+                id,
+                label,
+                relay_urls,
+                locality,
+                followed_authors,
+                generation,
+            )
+            .map_err(Into::into)
     }
 }

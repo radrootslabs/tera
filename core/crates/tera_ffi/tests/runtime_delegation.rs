@@ -1,6 +1,4 @@
-use radroots_mobile_core::runtime::product_surface::{
-    AuthorityAction, AuthorityDomain, OutboxState,
-};
+use radroots_mobile_core::runtime::product_surface::{AddCommandType, TodayCardType};
 use radroots_mobile_ffi::{RadrootsAppError, RadrootsRuntime};
 
 const SECRET: &str = "0000000000000000000000000000000000000000000000000000000000000001";
@@ -120,53 +118,57 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         Err(RadrootsAppError::Unsupported(_))
     ));
 
-    let contexts = runtime.phase1_active_contexts();
-    let context = contexts.first().expect("context").clone();
-    let context_id = Some(context.context_ref.object_id.clone());
-    assert!(!runtime.phase1_today_cards(context_id.clone()).is_empty());
-    assert!(!runtime.phase1_add_actions(context_id.clone()).is_empty());
-    assert!(
-        !runtime
-            .phase1_object_page_summaries(context_id.clone())
-            .is_empty()
-    );
-    let outbox = runtime.phase1_outbox_snapshot();
-    let failed = outbox
-        .into_iter()
-        .find(|item| item.outbox_state == OutboxState::Failed)
-        .expect("failed outbox item");
-    assert!(runtime.phase1_outbox_retry_decision(failed).is_retryable);
-    assert!(
-        !runtime
-            .phase1_search_results(Some("farm".to_owned()), context_id.clone())
-            .is_empty()
-    );
-    assert!(!runtime.phase1_prototype_paths().is_empty());
-    assert!(
-        !runtime
-            .phase1_route_execution_flows(context_id.clone())
-            .is_empty()
-    );
-    assert!(
-        !runtime
-            .phase1_proof_provenance_artifacts(context_id.clone())
-            .is_empty()
-    );
-    assert!(
-        !runtime
-            .phase1_stewardship_access_items(context_id)
-            .is_empty()
+    assert_eq!(
+        runtime.phase1_card_types(),
+        vec![
+            TodayCardType::Update,
+            TodayCardType::PhotoUpdate,
+            TodayCardType::Ask,
+            TodayCardType::Event,
+            TodayCardType::FoodAvailability,
+        ]
     );
     assert_eq!(
+        runtime.phase1_add_command_types(),
+        vec![
+            AddCommandType::CreateUpdate,
+            AddCommandType::CreatePhotoUpdate,
+            AddCommandType::CreateAsk,
+            AddCommandType::CreateEvent,
+            AddCommandType::CreateFoodAvailability,
+        ]
+    );
+    let parity = runtime.phase1_card_add_parity();
+    assert_eq!(parity.len(), 5);
+    for (index, item) in parity.iter().enumerate() {
+        assert_eq!(item.card_type, runtime.phase1_card_types()[index]);
+        assert_eq!(
+            item.add_command_type,
+            runtime.phase1_add_command_types()[index]
+        );
+    }
+    let local_network = runtime
+        .phase1_local_network(
+            "nearby".to_owned(),
+            "Near me".to_owned(),
+            vec!["wss://relay.example".to_owned()],
+            Some("u10h".to_owned()),
+            vec!["a".repeat(64)],
+            1,
+        )
+        .expect("valid local network");
+    assert_eq!(local_network.id, "nearby");
+    assert!(
         runtime
-            .phase1_check_authority(
-                context.actor,
-                context.clone(),
-                AuthorityDomain::RelayGroupAccess,
-                AuthorityAction::Search,
+            .phase1_local_network(
+                "nearby".to_owned(),
+                "Near me".to_owned(),
+                Vec::new(),
+                None,
+                Vec::new(),
+                1,
             )
-            .context,
-        context
+            .is_err()
     );
 
     runtime.shutdown().await.expect("shutdown");
