@@ -285,6 +285,98 @@
       }
     },
     {
+      "id": "typed_calendar_date_event_011",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.calendar.date_event.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 31922,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "d",
+            "market-day"
+          ],
+          [
+            "title",
+            "Saturday Market"
+          ],
+          [
+            "start",
+            "2026-08-08"
+          ],
+          [
+            "end",
+            "2026-08-09"
+          ],
+          [
+            "location",
+            "Central Saanich, BC"
+          ],
+          [
+            "summary",
+            "Local food and seeds"
+          ]
+        ],
+        "content": "Farmers market and seed swap.",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,31922,[[\"d\",\"market-day\"],[\"title\",\"Saturday Market\"],[\"start\",\"2026-08-08\"],[\"end\",\"2026-08-09\"],[\"location\",\"Central Saanich, BC\"],[\"summary\",\"Local food and seeds\"]],\"Farmers market and seed swap.\"]",
+        "event_id": "b63f56e5a5a8ec22d084fbcafbaa03f3ffd2580dc9df50bb18d5df8c64ddcbe6",
+        "signature": "0de7de628fb564be7b5d34e49cfe0d217476d8cca4a6e2cdf06b351401cd6e2476a30d7ad87a815bf74cd7ae47987379341487d71dc70913674dd7fc792a4469",
+        "raw_json": "{\"id\":\"b63f56e5a5a8ec22d084fbcafbaa03f3ffd2580dc9df50bb18d5df8c64ddcbe6\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":31922,\"tags\":[[\"d\",\"market-day\"],[\"title\",\"Saturday Market\"],[\"start\",\"2026-08-08\"],[\"end\",\"2026-08-09\"],[\"location\",\"Central Saanich, BC\"],[\"summary\",\"Local food and seeds\"]],\"content\":\"Farmers market and seed swap.\",\"sig\":\"0de7de628fb564be7b5d34e49cfe0d217476d8cca4a6e2cdf06b351401cd6e2476a30d7ad87a815bf74cd7ae47987379341487d71dc70913674dd7fc792a4469\"}"
+      }
+    },
+    {
+      "id": "typed_calendar_time_event_012",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.calendar.time_event.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 31923,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "d",
+            "farm-tour"
+          ],
+          [
+            "title",
+            "Farm Tour"
+          ],
+          [
+            "start",
+            "1784380800"
+          ],
+          [
+            "end",
+            "1784387900"
+          ],
+          [
+            "D",
+            "20652"
+          ],
+          [
+            "start_tzid",
+            "America/Vancouver"
+          ],
+          [
+            "location",
+            "Saanich Peninsula"
+          ]
+        ],
+        "content": "Walk the fields and meet the growers.",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,31923,[[\"d\",\"farm-tour\"],[\"title\",\"Farm Tour\"],[\"start\",\"1784380800\"],[\"end\",\"1784387900\"],[\"D\",\"20652\"],[\"start_tzid\",\"America/Vancouver\"],[\"location\",\"Saanich Peninsula\"]],\"Walk the fields and meet the growers.\"]",
+        "event_id": "22d1538c18614f9c089cbccd9de91dab5dcd55d7a41bce07a7282f49ce757433",
+        "signature": "ddac1ac03aed8b888bde2fae0915e07cab85a1f1bcd2f1ce2812befb0456f320a03bea94e1469f62aa1ecaceb241bada4449c3707f34d42cb378299c6a4793f5",
+        "raw_json": "{\"id\":\"22d1538c18614f9c089cbccd9de91dab5dcd55d7a41bce07a7282f49ce757433\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":31923,\"tags\":[[\"d\",\"farm-tour\"],[\"title\",\"Farm Tour\"],[\"start\",\"1784380800\"],[\"end\",\"1784387900\"],[\"D\",\"20652\"],[\"start_tzid\",\"America/Vancouver\"],[\"location\",\"Saanich Peninsula\"]],\"content\":\"Walk the fields and meet the growers.\",\"sig\":\"ddac1ac03aed8b888bde2fae0915e07cab85a1f1bcd2f1ce2812befb0456f320a03bea94e1469f62aa1ecaceb241bada4449c3707f34d42cb378299c6a4793f5\"}"
+      }
+    },
+    {
       "id": "generic_operational_listing_009",
       "kind": "authored_operations.wire",
       "input": {
