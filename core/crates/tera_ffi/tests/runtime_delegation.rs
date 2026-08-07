@@ -3,8 +3,6 @@ use radroots_mobile_ffi::RadrootsAppError;
 
 mod support;
 
-const SECRET: &str = "0000000000000000000000000000000000000000000000000000000000000001";
-
 #[tokio::test]
 async fn native_boundary_delegates_the_complete_core_surface() {
     let (_root, runtime) = support::runtime().await;
@@ -26,99 +24,6 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         runtime.sdk_storage_status().await.expect("storage").backend,
         "sqlite"
     );
-
-    assert!(!runtime.nostr_identity_has_selected_signing_identity());
-    assert!(runtime.nostr_identity_selected_npub().is_none());
-    assert!(
-        runtime
-            .nostr_identity_list()
-            .expect("empty list")
-            .is_empty()
-    );
-    assert!(
-        runtime
-            .nostr_identity_list_ids()
-            .expect("empty identifiers")
-            .is_empty()
-    );
-    assert!(
-        runtime
-            .nostr_identity_snapshot()
-            .expect("empty snapshot")
-            .identities
-            .is_empty()
-    );
-    let validated = runtime
-        .nostr_identity_validate_host_custody_secret(SECRET.to_owned())
-        .expect("valid secret");
-    let staged = runtime
-        .nostr_identity_restore_host_custody_secret(
-            SECRET.to_owned(),
-            Some("staged".to_owned()),
-            false,
-        )
-        .expect("staged identity");
-    assert_eq!(validated.id, staged.id);
-    let selected = runtime
-        .nostr_identity_restore_host_custody_secret(
-            SECRET.to_owned(),
-            Some("selected".to_owned()),
-            true,
-        )
-        .expect("selected identity");
-    assert_eq!(
-        runtime.nostr_identity_selected_npub(),
-        Some(selected.public_key_npub.clone())
-    );
-    runtime
-        .nostr_identity_select(selected.id.clone())
-        .expect("select installed");
-    assert!(runtime.nostr_identity_select("missing".to_owned()).is_err());
-    runtime
-        .nostr_identity_remove("missing".to_owned())
-        .expect("removing missing identity is idempotent");
-    runtime
-        .nostr_identity_lock_host_custody_runtime()
-        .expect("lock identity");
-    runtime
-        .nostr_identity_reset_host_custody_runtime()
-        .expect("reset identity");
-
-    assert!(runtime.nostr_set_default_relays(Vec::new()).is_err());
-    assert!(runtime.nostr_connect_if_key_present().is_err());
-    assert!(
-        runtime
-            .nostr_connection_status()
-            .await
-            .expect("unconfigured status")
-            .last_error
-            .is_none()
-    );
-    assert!(runtime.nostr_profile_for_self().await.is_err());
-    assert!(
-        runtime
-            .nostr_post_profile(None, None, None, None)
-            .await
-            .is_err()
-    );
-    assert!(
-        runtime
-            .nostr_post_text_note("post".to_owned())
-            .await
-            .is_err()
-    );
-    assert!(runtime.nostr_fetch_text_notes(1, None).await.is_err());
-    assert!(matches!(
-        runtime
-            .nostr_post_reply(
-                "parent".to_owned(),
-                "author".to_owned(),
-                "reply".to_owned(),
-                Some("different-root".to_owned()),
-            )
-            .await,
-        Err(RadrootsAppError::Unsupported(_))
-    ));
 
     assert_eq!(
         runtime.phase1_card_types(),

@@ -2,8 +2,6 @@
 
 use radroots_mobile_core::runtime::app_info::*;
 use radroots_mobile_core::runtime::info::*;
-use radroots_mobile_core::runtime::key_management::*;
-use radroots_mobile_core::runtime::nostr::*;
 use radroots_mobile_core::runtime::product_surface::*;
 use radroots_mobile_core::runtime::sdk::*;
 use radroots_mobile_core::{SdkErrorRecord, StoreErrorRecord};
@@ -87,81 +85,6 @@ pub struct SdkStorageStatusRecord {
 pub struct SdkShutdownRecord {
     pub state: String,
     pub already_closed: bool,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrIdentityRecord {
-    pub id: String,
-    pub public_key_hex: String,
-    pub public_key_npub: String,
-    pub label: Option<String>,
-    pub is_selected: bool,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrIdentitySnapshot {
-    pub has_selected_signing_identity: bool,
-    pub selected_identity_id: Option<String>,
-    pub selected_npub: Option<String>,
-    pub identities: Vec<NostrIdentityRecord>,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrHostCustodyIdentity {
-    pub id: String,
-    pub public_key_hex: String,
-    pub public_key_npub: String,
-}
-
-#[uniffi::remote(Enum)]
-pub enum NostrLight {
-    Red,
-    Yellow,
-    Green,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrConnectionStatus {
-    pub light: NostrLight,
-    pub configured: bool,
-    pub source_available: bool,
-    pub sink_available: bool,
-    pub last_error: Option<String>,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrProfile {
-    pub name: Option<String>,
-    pub display_name: Option<String>,
-    pub nip05: Option<String>,
-    pub about: Option<String>,
-    pub website: Option<String>,
-    pub picture: Option<String>,
-    pub banner: Option<String>,
-    pub lud06: Option<String>,
-    pub lud16: Option<String>,
-    pub bot: Option<String>,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrProfileEventMetadata {
-    pub id: String,
-    pub author: String,
-    pub published_at: u64,
-    pub profile: NostrProfile,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrPost {
-    pub content: String,
-}
-
-#[uniffi::remote(Record)]
-pub struct NostrPostEventMetadata {
-    pub id: String,
-    pub author: String,
-    pub published_at: u64,
-    pub post: NostrPost,
 }
 
 #[uniffi::remote(Enum)]
