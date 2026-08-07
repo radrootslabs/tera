@@ -34,7 +34,7 @@ async fn concurrent_host_references_converge_and_repeated_close_is_idempotent() 
             outcome.is_ok()
                 || matches!(
                     outcome,
-                    Err(RadrootsAppError::Sdk { report })
+                    Err(RadrootsAppError::Failure { report })
                         if report.code == "client_close_in_progress"
                 )
         );

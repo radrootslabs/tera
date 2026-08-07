@@ -19,7 +19,15 @@ crate-type = ["rlib", "staticlib", "cdylib"]
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [dependencies]
+async-trait = { workspace = true }
+hex = { workspace = true }
+radroots_blossom = { workspace = true, features = ["std"] }
+radroots_event = { workspace = true, features = ["serde", "std"] }
 radroots_mobile_core = { workspace = true, features = ["mobile-social"] }
+radroots_sdk = { workspace = true, features = ["blossom"] }
+radroots_signing = { workspace = true, features = ["serde", "std"] }
+radroots_storage = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
 tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
@@ -30,5 +38,6 @@ uniffi = { workspace = true }
 rustix = { workspace = true }
 
 [dev-dependencies]
+secp256k1 = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt", "time"] }

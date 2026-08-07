@@ -5,12 +5,22 @@
 
 uniffi::setup_scaffolding!("radroots_mobile_core");
 
+mod dto;
 pub mod logging;
-mod remote;
 mod runtime;
+mod signer;
+mod subscription;
 
-pub use error::{RadrootsAppError, SdkErrorRecord, StoreErrorRecord};
+pub use dto::*;
+pub use error::{RadrootsAppError, RadrootsErrorRecord};
 pub use runtime::{ProtectedDataAvailability, RadrootsRuntime};
+pub use signer::{
+    HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,
+    RadrootsHostSigner, SignerAvailabilityRecord, SignerStatusRecord,
+};
+pub use subscription::{
+    FfiRuntimeChangeKind, FfiRuntimeChangeRecord, FfiSubscriptionHandle, RadrootsRuntimeObserver,
+};
 
 mod error;
 
