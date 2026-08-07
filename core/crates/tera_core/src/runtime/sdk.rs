@@ -21,6 +21,27 @@ pub struct SdkStorageStatusRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SdkRelayStatusRecord {
+    pub relay_url: String,
+    pub access: String,
+    pub read_state: String,
+    pub write_state: String,
+    pub read_last_attempt_unix_ms: Option<u64>,
+    pub write_last_attempt_unix_ms: Option<u64>,
+    pub read_next_attempt_unix_ms: Option<u64>,
+    pub write_next_attempt_unix_ms: Option<u64>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SdkRelayStatusReportRecord {
+    pub profile: String,
+    pub state: String,
+    pub read_availability: String,
+    pub write_availability: String,
+    pub relays: Vec<SdkRelayStatusRecord>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdkShutdownRecord {
     pub state: String,
     pub already_closed: bool,
@@ -53,6 +74,136 @@ impl RadrootsRuntime {
             shutdown: status.shutdown().as_str().to_owned(),
             integrity: status.integrity().health().as_str().to_owned(),
         })
+    }
+
+    /// Installs a validated public relay profile without probing it.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_public_relays(
+        &self,
+        writable_relays: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        self.configure_relay_profile(
+            radroots_sdk::transport::RelayProfile::public(writable_relays)
+                .map_err(|error| RadrootsAppError::runtime(error.to_string()))?,
+        )
+    }
+
+    /// Installs an exact-loopback simulator profile without probing it.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_simulator_relays(
+        &self,
+        loopback_relays: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        self.configure_relay_profile(
+            radroots_sdk::transport::RelayProfile::simulator(loopback_relays)
+                .map_err(|error| RadrootsAppError::runtime(error.to_string()))?,
+        )
+    }
+
+    /// Installs an explicit physical-device TLS relay profile without probing it.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_device_relays(
+        &self,
+        writable_relays: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        self.configure_relay_profile(
+            radroots_sdk::transport::RelayProfile::device(writable_relays)
+                .map_err(|error| RadrootsAppError::runtime(error.to_string()))?,
+        )
+    }
+
+    #[cfg(feature = "mobile-social")]
+    fn configure_relay_profile(
+        &self,
+        profile: radroots_sdk::transport::RelayProfile,
+    ) -> Result<(), RadrootsAppError> {
+        self.client
+            .configure_nostr(profile)
+            .map_err(RadrootsAppError::from_sdk)
+    }
+
+    /// Returns passive relay evidence without DNS, socket, or probe work.
+    #[cfg(feature = "mobile-social")]
+    pub fn sdk_relay_status(&self) -> Result<Option<SdkRelayStatusReportRecord>, RadrootsAppError> {
+        let report = self
+            .client
+            .nostr_status()
+            .map_err(RadrootsAppError::from_sdk)?;
+        Ok(report.map(|report| SdkRelayStatusReportRecord {
+            profile: relay_profile_label(report.profile_kind()).to_owned(),
+            state: relay_aggregate_label(report.state()).to_owned(),
+            read_availability: transport_availability_label(report.read_availability()).to_owned(),
+            write_availability: transport_availability_label(report.write_availability())
+                .to_owned(),
+            relays: report
+                .relays()
+                .iter()
+                .map(|relay| SdkRelayStatusRecord {
+                    relay_url: relay.endpoint().url().to_string(),
+                    access: if relay.endpoint().access().can_write() {
+                        "read_write"
+                    } else {
+                        "read_only"
+                    }
+                    .to_owned(),
+                    read_state: relay_evidence_label(relay.read().state()).to_owned(),
+                    write_state: relay_evidence_label(relay.write().state()).to_owned(),
+                    read_last_attempt_unix_ms: relay.read().last_attempt_unix_ms(),
+                    write_last_attempt_unix_ms: relay.write().last_attempt_unix_ms(),
+                    read_next_attempt_unix_ms: relay.read().next_attempt_unix_ms(),
+                    write_next_attempt_unix_ms: relay.write().next_attempt_unix_ms(),
+                })
+                .collect(),
+        }))
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn relay_evidence_label(value: radroots_sdk::transport::RelayEvidenceState) -> &'static str {
+    match value {
+        radroots_sdk::transport::RelayEvidenceState::Unsupported => "unsupported",
+        radroots_sdk::transport::RelayEvidenceState::Unobserved => "unobserved",
+        radroots_sdk::transport::RelayEvidenceState::Connecting => "connecting",
+        radroots_sdk::transport::RelayEvidenceState::Available => "available",
+        radroots_sdk::transport::RelayEvidenceState::Unavailable => "unavailable",
+        _ => "unknown",
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn relay_profile_label(value: radroots_sdk::transport::RelayProfileKind) -> &'static str {
+    match value {
+        radroots_sdk::transport::RelayProfileKind::Public => "public",
+        radroots_sdk::transport::RelayProfileKind::Simulator => "simulator_local",
+        radroots_sdk::transport::RelayProfileKind::Device => "device_development",
+        _ => "unknown",
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn relay_aggregate_label(
+    value: radroots_sdk::transport::RelayAggregateState,
+) -> &'static str {
+    match value {
+        radroots_sdk::transport::RelayAggregateState::Configured => "configured",
+        radroots_sdk::transport::RelayAggregateState::Connecting => "connecting",
+        radroots_sdk::transport::RelayAggregateState::ReadOnly => "read_only",
+        radroots_sdk::transport::RelayAggregateState::Writable => "writable",
+        radroots_sdk::transport::RelayAggregateState::Degraded => "degraded",
+        radroots_sdk::transport::RelayAggregateState::Offline => "offline",
+        radroots_sdk::transport::RelayAggregateState::Failed => "failed",
+        _ => "unknown",
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn transport_availability_label(
+    value: radroots_transport::capability::Availability,
+) -> &'static str {
+    match value {
+        radroots_transport::capability::Availability::Available => "available",
+        radroots_transport::capability::Availability::Degraded => "degraded",
+        radroots_transport::capability::Availability::Unavailable => "unavailable",
     }
 }
 

@@ -1179,6 +1179,7 @@ mod tests {
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
+            None,
         )
         .unwrap()
     }
@@ -1192,6 +1193,7 @@ mod tests {
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             Some(std::sync::Arc::new(signer)),
+            None,
         )
         .unwrap()
     }

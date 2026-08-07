@@ -34,15 +34,20 @@ impl RadrootsRuntime {
         #[cfg(feature = "mobile-social")] signer: Option<
             std::sync::Arc<dyn radroots_signing::Signer>,
         >,
+        #[cfg(feature = "mobile-social")] relay_profile: Option<
+            radroots_sdk::transport::RelayProfile,
+        >,
     ) -> Result<Self, RadrootsAppError> {
         #[cfg(feature = "mobile-social")]
-        let nostr_slot = radroots_sdk::transport::NostrSlot::new(
-            radroots_sdk::transport::RelayUrlPolicy::Public,
-        );
-        #[cfg(feature = "mobile-social")]
         let builder = {
+            let nostr_slot = radroots_sdk::transport::NostrSlot::new();
+            if let Some(profile) = relay_profile {
+                nostr_slot
+                    .configure(profile)
+                    .map_err(RadrootsAppError::from_sdk)?;
+            }
             let builder = builder
-                .nostr(nostr_slot.clone())
+                .nostr(nostr_slot)
                 .host_sync(radroots_sdk::sync::HostPolicy::standard());
             match signer {
                 Some(signer) => builder.signing(radroots_sdk::signing::Provider::host(signer)),
@@ -64,6 +69,8 @@ impl RadrootsRuntime {
     pub(crate) fn test_memory() -> Result<Self, RadrootsAppError> {
         Self::from_client_builder(
             ClientBuilder::memory_default(),
+            None,
+            #[cfg(feature = "mobile-social")]
             None,
             #[cfg(feature = "mobile-social")]
             None,

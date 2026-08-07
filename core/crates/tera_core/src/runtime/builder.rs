@@ -6,15 +6,20 @@ pub struct RuntimeBuilder {
     store: MobileUserStoreConfig,
     #[cfg(feature = "mobile-social")]
     signer: Option<std::sync::Arc<dyn radroots_signing::Signer>>,
+    #[cfg(feature = "mobile-social")]
+    relay_profile: radroots_sdk::transport::RelayProfile,
 }
 
 impl RuntimeBuilder {
     #[must_use]
-    pub const fn new(store: MobileUserStoreConfig) -> Self {
+    pub fn new(store: MobileUserStoreConfig) -> Self {
         Self {
             store,
             #[cfg(feature = "mobile-social")]
             signer: None,
+            #[cfg(feature = "mobile-social")]
+            relay_profile: radroots_sdk::transport::RelayProfile::public(Vec::<String>::new())
+                .expect("bundled public relay profile is valid"),
         }
     }
 
@@ -23,6 +28,15 @@ impl RuntimeBuilder {
     #[must_use]
     pub fn signer(mut self, signer: std::sync::Arc<dyn radroots_signing::Signer>) -> Self {
         self.signer = Some(signer);
+        self
+    }
+
+    /// Replaces the bundled read-only public profile with one validated host
+    /// environment profile. Construction remains inert.
+    #[cfg(feature = "mobile-social")]
+    #[must_use]
+    pub fn relay_profile(mut self, relay_profile: radroots_sdk::transport::RelayProfile) -> Self {
+        self.relay_profile = relay_profile;
         self
     }
 
@@ -41,6 +55,8 @@ impl RuntimeBuilder {
             Some(self.store.public_key()),
             #[cfg(feature = "mobile-social")]
             self.signer,
+            #[cfg(feature = "mobile-social")]
+            Some(self.relay_profile),
         )
     }
 }
@@ -80,6 +96,55 @@ mod tests {
         assert_eq!(
             runtime.sdk_storage_status().await.expect("status").backend,
             "sqlite"
+        );
+        #[cfg(feature = "mobile-social")]
+        {
+            let report = runtime
+                .sdk_relay_status()
+                .expect("relay status")
+                .expect("configured profile");
+            assert_eq!(report.profile, "public");
+            assert_eq!(report.state, "configured");
+            assert_eq!(report.relays.len(), 1);
+            assert_eq!(report.relays[0].relay_url, "wss://radroots.org");
+            assert_eq!(report.relays[0].access, "read_only");
+            assert_eq!(report.relays[0].read_state, "unobserved");
+            assert_eq!(report.relays[0].write_state, "unsupported");
+        }
+        runtime.shutdown().await.expect("shutdown");
+    }
+
+    #[cfg(feature = "mobile-social")]
+    #[tokio::test]
+    async fn runtime_reconfiguration_preserves_profile_network_boundaries() {
+        let root = tempfile::tempdir().expect("tempdir");
+        let runtime = RuntimeBuilder::new(store(root.path(), ProtectedDataAvailability::Available))
+            .build()
+            .await
+            .expect("runtime");
+        assert!(
+            runtime
+                .configure_simulator_relays(vec!["ws://127.0.0.1:8080".to_owned()])
+                .is_ok()
+        );
+        let report = runtime
+            .sdk_relay_status()
+            .expect("simulator status")
+            .expect("configured profile");
+        assert_eq!(report.profile, "simulator_local");
+        assert_eq!(report.relays.len(), 1);
+        assert_eq!(report.relays[0].access, "read_write");
+        assert!(
+            runtime
+                .configure_public_relays(vec!["ws://127.0.0.1:8080".to_owned()])
+                .is_err()
+        );
+        assert_eq!(
+            runtime
+                .sdk_relay_status()
+                .expect("unchanged status")
+                .expect("configured profile"),
+            report
         );
         runtime.shutdown().await.expect("shutdown");
     }

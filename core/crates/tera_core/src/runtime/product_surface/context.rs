@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use radroots_event::id::RelayUrl;
+use radroots_transport_nostr::{RelayUrl, RelayUrlPolicy};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -53,17 +53,17 @@ impl LocalNetwork {
             return Err(LocalNetworkError::MissingRelay);
         }
         let mut relays = BTreeSet::new();
-        for relay in &relay_urls {
-            if relay.is_empty()
-                || relay.len() > RELAY_URL_MAX_BYTES
-                || !relay.starts_with("wss://")
-                || RelayUrl::parse(relay).is_err()
-            {
+        let mut canonical_relay_urls = Vec::with_capacity(relay_urls.len());
+        for relay in relay_urls {
+            if relay.is_empty() || relay.len() > RELAY_URL_MAX_BYTES {
                 return Err(LocalNetworkError::InvalidRelay);
             }
-            if !relays.insert(relay) {
+            let relay = RelayUrl::parse(relay, RelayUrlPolicy::Public)
+                .map_err(|_| LocalNetworkError::InvalidRelay)?;
+            if !relays.insert(relay.clone()) {
                 return Err(LocalNetworkError::DuplicateRelay);
             }
+            canonical_relay_urls.push(relay.to_string());
         }
         let mut authors = BTreeSet::new();
         for author in &followed_authors {
@@ -81,7 +81,7 @@ impl LocalNetwork {
         Ok(Self {
             id,
             label,
-            relay_urls,
+            relay_urls: canonical_relay_urls,
             locality,
             followed_authors,
             generation,
@@ -334,5 +334,40 @@ mod tests {
         ] {
             assert!(invalid.is_err());
         }
+        let canonical = LocalNetwork::new(
+            "id".into(),
+            "label".into(),
+            vec!["WSS://RELAY.EXAMPLE:443/".into()],
+            None,
+            vec![],
+            0,
+        )
+        .expect("canonical relay");
+        assert_eq!(canonical.relay_urls, vec!["wss://relay.example"]);
+        assert!(matches!(
+            LocalNetwork::new(
+                "id".into(),
+                "label".into(),
+                vec![
+                    "wss://relay.example".into(),
+                    "WSS://RELAY.EXAMPLE:443/".into(),
+                ],
+                None,
+                vec![],
+                0,
+            ),
+            Err(LocalNetworkError::DuplicateRelay)
+        ));
+        assert!(matches!(
+            LocalNetwork::new(
+                "id".into(),
+                "label".into(),
+                vec!["wss://127.0.0.1:7447".into()],
+                None,
+                vec![],
+                0,
+            ),
+            Err(LocalNetworkError::InvalidRelay)
+        ));
     }
 }
