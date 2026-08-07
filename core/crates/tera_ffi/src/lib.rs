@@ -9,8 +9,8 @@ pub mod logging;
 mod remote;
 mod runtime;
 
-pub use error::{RadrootsAppError, SdkErrorRecord};
-pub use runtime::RadrootsRuntime;
+pub use error::{RadrootsAppError, SdkErrorRecord, StoreErrorRecord};
+pub use runtime::{ProtectedDataAvailability, RadrootsRuntime};
 
 mod error;
 

@@ -1,12 +1,12 @@
 //! UniFFI converter ownership for ordinary Rust DTOs defined by mobile core.
 
-use radroots_mobile_core::SdkErrorRecord;
 use radroots_mobile_core::runtime::app_info::*;
 use radroots_mobile_core::runtime::info::*;
 use radroots_mobile_core::runtime::key_management::*;
 use radroots_mobile_core::runtime::nostr::*;
 use radroots_mobile_core::runtime::product_surface::*;
 use radroots_mobile_core::runtime::sdk::*;
+use radroots_mobile_core::{SdkErrorRecord, StoreErrorRecord};
 
 #[uniffi::remote(Record)]
 pub struct SdkErrorRecord {
@@ -17,6 +17,16 @@ pub struct SdkErrorRecord {
     pub recovery_actions: Vec<String>,
     pub operation_id: Option<String>,
     pub capability_id: Option<String>,
+    pub message: String,
+}
+
+#[uniffi::remote(Record)]
+pub struct StoreErrorRecord {
+    pub schema_version: u16,
+    pub code: String,
+    pub class: String,
+    pub retryable: bool,
+    pub recovery_actions: Vec<String>,
     pub message: String,
 }
 

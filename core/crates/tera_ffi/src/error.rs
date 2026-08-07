@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-pub use radroots_mobile_core::SdkErrorRecord;
+pub use radroots_mobile_core::{SdkErrorRecord, StoreErrorRecord};
 
 /// Versioned, secret-safe failure exposed across the native language boundary.
 #[derive(Debug, Error, uniffi::Error)]
@@ -9,6 +9,8 @@ pub enum RadrootsAppError {
     Initialization(String),
     #[error("sdk: {report:?}")]
     Sdk { report: SdkErrorRecord },
+    #[error("store: {report:?}")]
+    Store { report: StoreErrorRecord },
     #[error("runtime: {0}")]
     Runtime(String),
     #[error("unsupported: {0}")]
@@ -24,6 +26,7 @@ impl From<radroots_mobile_core::RadrootsAppError> for RadrootsAppError {
                 Self::Initialization(message)
             }
             radroots_mobile_core::RadrootsAppError::Sdk { report } => Self::Sdk { report },
+            radroots_mobile_core::RadrootsAppError::Store { report } => Self::Store { report },
             radroots_mobile_core::RadrootsAppError::Runtime(message) => Self::Runtime(message),
             radroots_mobile_core::RadrootsAppError::Unsupported(message) => {
                 Self::Unsupported(message)

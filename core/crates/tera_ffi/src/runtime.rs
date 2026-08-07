@@ -8,6 +8,23 @@ use radroots_mobile_core::runtime::{
 
 use crate::RadrootsAppError;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum ProtectedDataAvailability {
+    Available,
+    Unavailable,
+}
+
+impl From<ProtectedDataAvailability>
+    for radroots_mobile_core::runtime::store::ProtectedDataAvailability
+{
+    fn from(value: ProtectedDataAvailability) -> Self {
+        match value {
+            ProtectedDataAvailability::Available => Self::Available,
+            ProtectedDataAvailability::Unavailable => Self::Unavailable,
+        }
+    }
+}
+
 /// Native boundary object delegating all behavior to the ordinary Rust core.
 #[derive(uniffi::Object)]
 pub struct RadrootsRuntime {
@@ -17,8 +34,23 @@ pub struct RadrootsRuntime {
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 impl RadrootsRuntime {
     #[cfg_attr(not(coverage_nightly), uniffi::constructor)]
-    pub fn new() -> Result<Self, RadrootsAppError> {
-        radroots_mobile_core::RadrootsRuntime::new()
+    pub async fn new(
+        application_support_directory: String,
+        public_key_hex: String,
+        source_generation_hex: String,
+        source_generation_created_at_unix_ms: u64,
+        protected_data: ProtectedDataAvailability,
+    ) -> Result<Self, RadrootsAppError> {
+        let store = radroots_mobile_core::runtime::store::MobileUserStoreConfig::from_encoded(
+            application_support_directory,
+            public_key_hex.as_str(),
+            source_generation_hex.as_str(),
+            source_generation_created_at_unix_ms,
+            protected_data.into(),
+        )?;
+        radroots_mobile_core::runtime::builder::RuntimeBuilder::new(store)
+            .build()
+            .await
             .map(|inner| Self { inner })
             .map_err(Into::into)
     }

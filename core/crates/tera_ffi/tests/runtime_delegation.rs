@@ -1,11 +1,13 @@
 use radroots_mobile_core::runtime::product_surface::{AddCommandType, TodayCardType};
-use radroots_mobile_ffi::{RadrootsAppError, RadrootsRuntime};
+use radroots_mobile_ffi::RadrootsAppError;
+
+mod support;
 
 const SECRET: &str = "0000000000000000000000000000000000000000000000000000000000000001";
 
 #[tokio::test]
 async fn native_boundary_delegates_the_complete_core_surface() {
-    let runtime = RadrootsRuntime::new().expect("runtime");
+    let (_root, runtime) = support::runtime().await;
     assert!(runtime.uptime_millis() >= 0);
     assert!(runtime.info_json().contains("sdk"));
     runtime.set_app_info_platform(
@@ -22,7 +24,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert!(!runtime.sdk_capabilities().is_empty());
     assert_eq!(
         runtime.sdk_storage_status().await.expect("storage").backend,
-        "memory"
+        "sqlite"
     );
 
     assert!(!runtime.nostr_identity_has_selected_signing_identity());
