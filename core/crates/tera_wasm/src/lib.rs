@@ -4,9 +4,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
 
 #[wasm_bindgen]
 pub fn radroots_mobile_build_info_json() -> String {
-    let runtime = radroots_mobile_core::RadrootsRuntime::new()
-        .expect("runtime init must succeed with radroots_mobile_core no-default-features");
-    runtime.info_json()
+    serde_json::to_string(&radroots_mobile_core::runtime::info::app_build_info())
+        .expect("static build information must serialize")
 }
 
 #[allow(
@@ -28,7 +27,8 @@ mod tests {
     #[test]
     fn radroots_mobile_build_info_json_contains_runtime_keys() {
         let json = radroots_mobile_build_info_json();
-        assert!(json.contains("\"app\""));
+        assert!(json.contains("\"crate_name\""));
+        assert!(json.contains("radroots_mobile_core"));
     }
 
     #[test]
