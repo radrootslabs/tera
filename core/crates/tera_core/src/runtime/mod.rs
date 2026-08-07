@@ -37,6 +37,9 @@ impl RadrootsRuntime {
         #[cfg(feature = "mobile-social")] relay_profile: Option<
             radroots_sdk::transport::RelayProfile,
         >,
+        #[cfg(feature = "mobile-social")] blossom_config: Option<
+            radroots_sdk::transport::BlossomConfig,
+        >,
     ) -> Result<Self, RadrootsAppError> {
         #[cfg(feature = "mobile-social")]
         let builder = {
@@ -48,6 +51,14 @@ impl RadrootsRuntime {
             }
             let builder = builder
                 .nostr(nostr_slot)
+                .blossom({
+                    let slot = radroots_sdk::transport::BlossomSlot::new();
+                    if let Some(config) = blossom_config {
+                        slot.configure(config)
+                            .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?;
+                    }
+                    slot
+                })
                 .host_sync(radroots_sdk::sync::HostPolicy::standard());
             match signer {
                 Some(signer) => builder.signing(radroots_sdk::signing::Provider::host(signer)),
@@ -69,6 +80,8 @@ impl RadrootsRuntime {
     pub(crate) fn test_memory() -> Result<Self, RadrootsAppError> {
         Self::from_client_builder(
             ClientBuilder::memory_default(),
+            None,
+            #[cfg(feature = "mobile-social")]
             None,
             #[cfg(feature = "mobile-social")]
             None,

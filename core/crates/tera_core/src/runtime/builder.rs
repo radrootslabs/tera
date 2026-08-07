@@ -8,6 +8,8 @@ pub struct RuntimeBuilder {
     signer: Option<std::sync::Arc<dyn radroots_signing::Signer>>,
     #[cfg(feature = "mobile-social")]
     relay_profile: radroots_sdk::transport::RelayProfile,
+    #[cfg(feature = "mobile-social")]
+    blossom_config: Option<radroots_sdk::transport::BlossomConfig>,
 }
 
 impl RuntimeBuilder {
@@ -20,6 +22,8 @@ impl RuntimeBuilder {
             #[cfg(feature = "mobile-social")]
             relay_profile: radroots_sdk::transport::RelayProfile::public(Vec::<String>::new())
                 .expect("bundled public relay profile is valid"),
+            #[cfg(feature = "mobile-social")]
+            blossom_config: None,
         }
     }
 
@@ -40,6 +44,17 @@ impl RuntimeBuilder {
         self
     }
 
+    /// Installs one validated inert Blossom environment profile.
+    #[cfg(feature = "mobile-social")]
+    #[must_use]
+    pub fn blossom_config(
+        mut self,
+        blossom_config: radroots_sdk::transport::BlossomConfig,
+    ) -> Self {
+        self.blossom_config = Some(blossom_config);
+        self
+    }
+
     /// Opens the exact authenticated user's durable SQLite store.
     pub async fn build(self) -> Result<RadrootsRuntime, RadrootsAppError> {
         if self.store.protected_data() == ProtectedDataAvailability::Unavailable {
@@ -57,6 +72,8 @@ impl RuntimeBuilder {
             self.signer,
             #[cfg(feature = "mobile-social")]
             Some(self.relay_profile),
+            #[cfg(feature = "mobile-social")]
+            self.blossom_config,
         )
     }
 }
@@ -145,6 +162,24 @@ mod tests {
                 .expect("unchanged status")
                 .expect("configured profile"),
             report
+        );
+        assert!(
+            runtime
+                .configure_simulator_blossom(vec!["http://127.0.0.1:3000".to_owned()])
+                .is_ok()
+        );
+        assert_eq!(
+            runtime.sdk_blossom_profile().expect("Blossom profile"),
+            Some("simulator_local".to_owned())
+        );
+        assert!(
+            runtime
+                .configure_public_blossom(vec!["http://127.0.0.1:3000".to_owned()])
+                .is_err()
+        );
+        assert_eq!(
+            runtime.sdk_blossom_profile().expect("unchanged profile"),
+            Some("simulator_local".to_owned())
         );
         runtime.shutdown().await.expect("shutdown");
     }

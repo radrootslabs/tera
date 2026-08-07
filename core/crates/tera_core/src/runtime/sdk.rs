@@ -122,6 +122,67 @@ impl RadrootsRuntime {
             .map_err(RadrootsAppError::from_sdk)
     }
 
+    /// Installs explicit public TLS Blossom origins without probing them.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_public_blossom(&self, origins: Vec<String>) -> Result<(), RadrootsAppError> {
+        self.configure_blossom_profile(
+            radroots_sdk::transport::BlossomProfile::public(origins)
+                .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
+        )
+    }
+
+    /// Installs exact-loopback simulator Blossom origins without probing them.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_simulator_blossom(
+        &self,
+        origins: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        self.configure_blossom_profile(
+            radroots_sdk::transport::BlossomProfile::simulator(origins)
+                .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
+        )
+    }
+
+    /// Installs explicit physical-device TLS Blossom origins without probing them.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_device_blossom(&self, origins: Vec<String>) -> Result<(), RadrootsAppError> {
+        self.configure_blossom_profile(
+            radroots_sdk::transport::BlossomProfile::device(origins)
+                .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
+        )
+    }
+
+    #[cfg(feature = "mobile-social")]
+    fn configure_blossom_profile(
+        &self,
+        profile: radroots_sdk::transport::BlossomProfile,
+    ) -> Result<(), RadrootsAppError> {
+        self.client
+            .configure_blossom(radroots_sdk::transport::BlossomConfig::from_profile(
+                profile,
+            ))
+            .map_err(RadrootsAppError::from_sdk)
+    }
+
+    /// Returns the inert Blossom environment profile, when configured.
+    #[cfg(feature = "mobile-social")]
+    pub fn sdk_blossom_profile(&self) -> Result<Option<String>, RadrootsAppError> {
+        let profile = self
+            .client
+            .blossom()
+            .map_err(RadrootsAppError::from_sdk)?
+            .and_then(radroots_sdk::transport::BlossomSlot::profile_kind);
+        Ok(profile.map(|profile| {
+            match profile {
+                radroots_sdk::transport::BlossomProfileKind::Public => "public",
+                radroots_sdk::transport::BlossomProfileKind::Simulator => "simulator_local",
+                radroots_sdk::transport::BlossomProfileKind::Device => "device_development",
+                _ => "unknown",
+            }
+            .to_owned()
+        }))
+    }
+
     /// Returns passive relay evidence without DNS, socket, or probe work.
     #[cfg(feature = "mobile-social")]
     pub fn sdk_relay_status(&self) -> Result<Option<SdkRelayStatusReportRecord>, RadrootsAppError> {

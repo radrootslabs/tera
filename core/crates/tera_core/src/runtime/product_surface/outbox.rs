@@ -1,6 +1,8 @@
 use std::collections::BTreeSet;
 
-use radroots_blossom::{BlobUrl, MediaType, authorization::AuthoredUploadClaim};
+use radroots_blossom::{
+    BlobUrl, ByteVerifiedDescriptor, MediaType, authorization::AuthoredUploadClaim,
+};
 use radroots_event::contract::AuthorRole;
 use radroots_event_codec::authoring::PlanWireV1;
 use radroots_identity::PublicKey;
@@ -64,35 +66,48 @@ pub struct Phase1MediaPrerequisite {
     byte_size: u64,
     stage: Phase1MediaStage,
     failure_code: Option<String>,
+    upload_attempts: u8,
+    verified_at_unix_ms: Option<u64>,
+    orphan: Option<Phase1MediaOrphanRecord>,
+}
+
+/// Durable, secret-safe evidence that a remote blob may be unreferenced.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Phase1MediaOrphanRecord {
+    reason_code: String,
+    recorded_at_unix_ms: u64,
+}
+
+impl Phase1MediaOrphanRecord {
+    pub fn reason_code(&self) -> &str {
+        self.reason_code.as_str()
+    }
+
+    pub const fn recorded_at_unix_ms(&self) -> u64 {
+        self.recorded_at_unix_ms
+    }
 }
 
 impl Phase1MediaPrerequisite {
     pub fn new(
         local_reference: impl Into<String>,
-        url: impl Into<String>,
-        sha256: impl Into<String>,
-        media_type: impl Into<String>,
-        byte_size: u64,
-        stage: Phase1MediaStage,
+        descriptor: &ByteVerifiedDescriptor,
     ) -> Result<Self, Phase1DraftError> {
         let value = Self {
             local_reference: local_reference.into(),
-            url: url.into(),
-            sha256: sha256.into(),
-            media_type: media_type.into(),
-            byte_size,
-            stage,
+            url: descriptor.url().as_blob_url().as_str().to_owned(),
+            sha256: descriptor.sha256().to_hex(),
+            media_type: descriptor.media_type().as_str().to_owned(),
+            byte_size: descriptor.size(),
+            stage: Phase1MediaStage::Pending,
             failure_code: None,
+            upload_attempts: 0,
+            verified_at_unix_ms: None,
+            orphan: None,
         };
         value.validate()?;
         Ok(value)
-    }
-
-    pub fn with_failure_code(mut self, code: impl Into<String>) -> Result<Self, Phase1DraftError> {
-        self.stage = Phase1MediaStage::Failed;
-        self.failure_code = Some(code.into());
-        self.validate()?;
-        Ok(self)
     }
 
     fn validate(&self) -> Result<(), Phase1DraftError> {
@@ -111,7 +126,36 @@ impl Phase1MediaPrerequisite {
                     || code != code.trim()
                     || code.chars().any(char::is_control)
             })
-            || (self.stage == Phase1MediaStage::Failed) != self.failure_code.is_some()
+            || self.orphan.as_ref().is_some_and(|record| {
+                record.reason_code.is_empty()
+                    || record.reason_code.len() > DRAFT_FAILURE_CODE_MAX_BYTES
+                    || record.reason_code != record.reason_code.trim()
+                    || record.reason_code.chars().any(char::is_control)
+                    || record.recorded_at_unix_ms == 0
+            })
+            || match self.stage {
+                Phase1MediaStage::Pending | Phase1MediaStage::Preparing => {
+                    self.failure_code.is_some()
+                        || self.upload_attempts != 0
+                        || self.verified_at_unix_ms.is_some()
+                        || self.orphan.is_some()
+                }
+                Phase1MediaStage::Uploading => {
+                    self.failure_code.is_some()
+                        || self.verified_at_unix_ms.is_some()
+                        || self.orphan.is_some()
+                }
+                Phase1MediaStage::Verified => {
+                    self.failure_code.is_some()
+                        || self.upload_attempts == 0
+                        || self.verified_at_unix_ms.is_none()
+                        || self.orphan.is_some()
+                }
+                Phase1MediaStage::Failed => {
+                    self.failure_code.is_none() || self.verified_at_unix_ms.is_some()
+                }
+                Phase1MediaStage::Orphaned => self.failure_code.is_some() || self.orphan.is_none(),
+            }
         {
             return Err(Phase1DraftError::InvalidMedia);
         }
@@ -123,6 +167,34 @@ impl Phase1MediaPrerequisite {
     }
     pub const fn stage(&self) -> Phase1MediaStage {
         self.stage
+    }
+
+    pub const fn upload_attempts(&self) -> u8 {
+        self.upload_attempts
+    }
+
+    pub const fn verified_at_unix_ms(&self) -> Option<u64> {
+        self.verified_at_unix_ms
+    }
+
+    pub const fn orphan(&self) -> Option<&Phase1MediaOrphanRecord> {
+        self.orphan.as_ref()
+    }
+
+    fn matches_receipt(&self, receipt: &radroots_sdk::transport::BlossomUploadReceipt) -> bool {
+        let descriptor = receipt.descriptor();
+        self.url == descriptor.url().as_blob_url().as_str()
+            && self.sha256 == descriptor.sha256().to_hex()
+            && self.media_type == descriptor.media_type().as_str()
+            && self.byte_size == descriptor.size()
+            && receipt.attempts() > 0
+            && receipt.verified_at_unix_ms() > 0
+    }
+
+    fn is_remote_verified(&self) -> bool {
+        self.stage == Phase1MediaStage::Verified
+            && self.upload_attempts > 0
+            && self.verified_at_unix_ms.is_some()
     }
 }
 
@@ -505,11 +577,19 @@ impl RadrootsRuntime {
             .iter_mut()
             .find(|media| media.url == url)
             .ok_or(Phase1DraftError::InvalidMedia)?;
-        if !valid_media_transition(media.stage, stage) {
+        if !valid_media_transition(media.stage, stage)
+            || matches!(
+                stage,
+                Phase1MediaStage::Verified | Phase1MediaStage::Orphaned
+            )
+        {
             return Err(Phase1DraftError::InvalidMedia);
         }
         media.stage = stage;
         media.failure_code = failure_code;
+        if stage != Phase1MediaStage::Failed {
+            media.failure_code = None;
+        }
         media.validate()?;
         let next_stage = match stage {
             Phase1MediaStage::Pending | Phase1MediaStage::Preparing => {
@@ -522,6 +602,134 @@ impl RadrootsRuntime {
         };
         let next = head
             .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = storage
+            .append_authored_draft(next, Some(expected))
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+
+    /// Records the only proof that can advance media to remote-byte-verified.
+    pub async fn phase1_complete_draft_media(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        url: &str,
+        receipt: radroots_sdk::transport::BlossomUploadReceipt,
+        updated_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected
+            || head.stage().is_terminal()
+            || matches!(
+                head.stage(),
+                AuthoredDraftStage::ReadyToSign | AuthoredDraftStage::Queued
+            )
+        {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let mut payload = Phase1DraftPayload::decode(&head)?;
+        let media = payload
+            .media
+            .iter_mut()
+            .find(|media| media.url == url)
+            .ok_or(Phase1DraftError::InvalidMedia)?;
+        if media.stage != Phase1MediaStage::Uploading || !media.matches_receipt(&receipt) {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        media.stage = Phase1MediaStage::Verified;
+        media.failure_code = None;
+        media.upload_attempts = receipt.attempts();
+        media.verified_at_unix_ms = Some(receipt.verified_at_unix_ms());
+        media.orphan = None;
+        media.validate()?;
+        let next = head
+            .successor(
+                payload.encode()?,
+                AuthoredDraftStage::MediaUploading,
+                None,
+                updated_at_unix_ms,
+            )
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = storage
+            .append_authored_draft(next, Some(expected))
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+
+    /// Persists a redacted recoverable Blossom failure and possible-orphan evidence.
+    pub async fn phase1_fail_draft_media(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        url: &str,
+        error: &radroots_sdk::transport::BlossomError,
+        updated_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        if updated_at_unix_ms == 0 {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected
+            || head.stage().is_terminal()
+            || matches!(
+                head.stage(),
+                AuthoredDraftStage::ReadyToSign | AuthoredDraftStage::Queued
+            )
+        {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let mut payload = Phase1DraftPayload::decode(&head)?;
+        let media = payload
+            .media
+            .iter_mut()
+            .find(|media| media.url == url)
+            .ok_or(Phase1DraftError::InvalidMedia)?;
+        if !matches!(
+            media.stage,
+            Phase1MediaStage::Pending
+                | Phase1MediaStage::Preparing
+                | Phase1MediaStage::Uploading
+                | Phase1MediaStage::Failed
+        ) {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        media.stage = Phase1MediaStage::Failed;
+        media.failure_code = Some(error.code().to_owned());
+        media.upload_attempts = error.attempts();
+        media.verified_at_unix_ms = None;
+        media.orphan = error.possible_orphan().then(|| Phase1MediaOrphanRecord {
+            reason_code: error.code().to_owned(),
+            recorded_at_unix_ms: updated_at_unix_ms,
+        });
+        media.validate()?;
+        let next = head
+            .successor(
+                payload.encode()?,
+                AuthoredDraftStage::MediaUploading,
+                None,
+                updated_at_unix_ms,
+            )
             .map_err(|_| Phase1DraftError::RevisionConflict)?;
         let receipt = storage
             .append_authored_draft(next, Some(expected))
@@ -573,7 +781,7 @@ impl RadrootsRuntime {
                 if payload
                     .media
                     .iter()
-                    .any(|media| media.stage != Phase1MediaStage::Verified)
+                    .any(|media| !media.is_remote_verified())
                 {
                     return Err(Phase1DraftError::MediaNotReady);
                 }
@@ -700,6 +908,115 @@ impl RadrootsRuntime {
             .map_err(|_| Phase1DraftError::Operation)
     }
 
+    /// Runs the complete durable BUD-11/BUD-02/BUD-01 media transaction.
+    ///
+    /// Final image bytes are bound before authorization. The draft becomes
+    /// verified only after the upload descriptor and a full retrieval agree.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn phase1_upload_draft_media(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        request: radroots_sdk::transport::BlossomUploadRequest,
+        authorization_content: radroots_blossom::authorization::AuthorizationContent,
+        authorization_created_at_unix_s: u64,
+        authorization_lifetime_seconds: u64,
+        operation_id: [u8; 16],
+        artifact_id: [u8; 16],
+        signing_deadline_unix_ms: u64,
+        signing_cancellation: Phase1CancellationPolicy,
+        transfer_cancellation: radroots_sdk::transport::BlossomCancellation,
+        updated_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let url = request.expected_url().as_str().to_owned();
+        let uploading = self
+            .phase1_update_draft_media(
+                draft_id,
+                expected_revision,
+                url.as_str(),
+                Phase1MediaStage::Uploading,
+                None,
+                updated_at_unix_ms,
+            )
+            .await?;
+        let revision = uploading.draft().revision().get();
+        let blossom = self
+            .client
+            .blossom()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?
+            .ok_or(Phase1DraftError::OperationUnavailable)?;
+        let claim = match blossom.authored_upload_claim(
+            &request,
+            authorization_content,
+            authorization_created_at_unix_s,
+            authorization_lifetime_seconds,
+        ) {
+            Ok(claim) => claim,
+            Err(_) => {
+                self.phase1_update_draft_media(
+                    draft_id,
+                    revision,
+                    url.as_str(),
+                    Phase1MediaStage::Failed,
+                    Some("blossom_authorization_failed".to_owned()),
+                    updated_at_unix_ms,
+                )
+                .await?;
+                return Err(Phase1DraftError::Operation);
+            }
+        };
+        let authorization = match self
+            .phase1_authorize_blossom_upload(
+                operation_id,
+                artifact_id,
+                claim,
+                signing_deadline_unix_ms,
+                signing_cancellation,
+            )
+            .await
+        {
+            Ok(authorization) => authorization,
+            Err(error) => {
+                self.phase1_update_draft_media(
+                    draft_id,
+                    revision,
+                    url.as_str(),
+                    Phase1MediaStage::Failed,
+                    Some("blossom_authorization_failed".to_owned()),
+                    updated_at_unix_ms,
+                )
+                .await?;
+                return Err(error);
+            }
+        };
+        match blossom
+            .upload(request, authorization, transfer_cancellation)
+            .await
+        {
+            Ok(receipt) => {
+                self.phase1_complete_draft_media(
+                    draft_id,
+                    revision,
+                    url.as_str(),
+                    receipt,
+                    updated_at_unix_ms,
+                )
+                .await
+            }
+            Err(error) => {
+                self.phase1_fail_draft_media(
+                    draft_id,
+                    revision,
+                    url.as_str(),
+                    &error,
+                    updated_at_unix_ms,
+                )
+                .await?;
+                Err(Phase1DraftError::Operation)
+            }
+        }
+    }
+
     /// Returns durable draft state composed with canonical authored-operation state.
     pub async fn phase1_draft_status(
         &self,
@@ -765,10 +1082,10 @@ impl RadrootsRuntime {
                 .await
                 .map_err(|_| Phase1DraftError::Operation)?;
             if status.artifact().signed().is_none() {
-                mark_possible_orphans(&mut payload.media);
+                mark_possible_orphans(&mut payload.media, cancelled_at_unix_ms);
             }
         } else {
-            mark_possible_orphans(&mut payload.media);
+            mark_possible_orphans(&mut payload.media, cancelled_at_unix_ms);
         }
         let next = head
             .successor(
@@ -990,10 +1307,15 @@ fn draft_stage_for_media(media: &[Phase1MediaPrerequisite]) -> AuthoredDraftStag
     }
 }
 
-fn mark_possible_orphans(media: &mut [Phase1MediaPrerequisite]) {
+fn mark_possible_orphans(media: &mut [Phase1MediaPrerequisite], recorded_at_unix_ms: u64) {
     for media in media {
-        if media.stage == Phase1MediaStage::Verified {
+        if media.stage == Phase1MediaStage::Verified || media.orphan.is_some() {
             media.stage = Phase1MediaStage::Orphaned;
+            media.failure_code = None;
+            media.orphan = Some(Phase1MediaOrphanRecord {
+                reason_code: "draft_cancelled_after_upload".to_owned(),
+                recorded_at_unix_ms,
+            });
         }
     }
 }
@@ -1180,6 +1502,7 @@ mod tests {
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
             None,
+            None,
         )
         .unwrap()
     }
@@ -1193,6 +1516,7 @@ mod tests {
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             Some(std::sync::Arc::new(signer)),
+            None,
             None,
         )
         .unwrap()
@@ -1437,11 +1761,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn media_phase_revisions_gate_queue_and_record_possible_orphans() {
+    async fn media_phase_revisions_gate_queue_and_reject_forged_verification() {
         let runtime = runtime();
         let id = [9; 16];
         let (command, mut media) = photo_command();
         media.stage = Phase1MediaStage::Pending;
+        media.upload_attempts = 0;
+        media.verified_at_unix_ms = None;
         media.validate().unwrap();
         let saved = runtime
             .phase1_save_draft(id, command, 1_784_347_200, vec![media], None, 30)
@@ -1477,41 +1803,27 @@ mod tests {
             )
             .await
             .unwrap();
-        let verified = runtime
-            .phase1_update_draft_media(
-                id,
-                3,
-                uploading.media()[0].url(),
-                Phase1MediaStage::Verified,
-                None,
-                33,
-            )
-            .await
-            .unwrap();
-        assert_eq!(verified.media()[0].stage(), Phase1MediaStage::Verified);
         assert_eq!(
             runtime
                 .phase1_update_draft_media(
                     id,
-                    4,
-                    verified.media()[0].url(),
-                    Phase1MediaStage::Uploading,
+                    3,
+                    uploading.media()[0].url(),
+                    Phase1MediaStage::Verified,
                     None,
-                    34,
+                    33,
                 )
                 .await
                 .unwrap_err(),
             Phase1DraftError::InvalidMedia
         );
-        let queued = runtime
-            .phase1_queue_draft(id, 4, policy(), 34)
-            .await
-            .unwrap();
-        let cancelled = runtime
-            .phase1_cancel_draft(id, queued.draft().revision().get(), 35)
-            .await
-            .unwrap();
-        assert_eq!(cancelled.media()[0].stage(), Phase1MediaStage::Orphaned);
+        assert_eq!(
+            runtime
+                .phase1_queue_draft(id, 3, policy(), 34)
+                .await
+                .unwrap_err(),
+            Phase1DraftError::MediaNotReady
+        );
         assert_eq!(runtime.phase1_draft_heads(10).await.unwrap().len(), 1);
     }
 
@@ -1554,6 +1866,8 @@ mod tests {
         .unwrap()
         .verify_bytes(bytes, &media_type)
         .unwrap();
+        let mut prerequisite =
+            Phase1MediaPrerequisite::new("protected://draft/photo-1", &descriptor).unwrap();
         let image = AuthoredPostImage::new(
             AuthoredImage::try_from(descriptor).unwrap(),
             PostImageDimensions::new(1200, 900).unwrap(),
@@ -1563,15 +1877,10 @@ mod tests {
         let command = Phase1AddCommand::CreatePhotoUpdate(
             CreatePhotoUpdate::new(format!("Harvest photo {url}"), vec![image]).unwrap(),
         );
-        let prerequisite = Phase1MediaPrerequisite::new(
-            "protected://draft/photo-1",
-            url,
-            hash.to_hex(),
-            "image/webp",
-            bytes.len() as u64,
-            Phase1MediaStage::Verified,
-        )
-        .unwrap();
+        prerequisite.stage = Phase1MediaStage::Verified;
+        prerequisite.upload_attempts = 2;
+        prerequisite.verified_at_unix_ms = Some(1_784_347_100_000);
+        prerequisite.validate().unwrap();
         (command, prerequisite)
     }
 
