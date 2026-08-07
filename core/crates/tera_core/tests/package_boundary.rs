@@ -14,6 +14,8 @@ const PRODUCT_MODEL: &str = include_str!("../src/runtime/product_surface/model.r
 const PRODUCT_PROJECTION: &str = include_str!("../src/runtime/product_surface/projection.rs");
 const PRODUCT_RANKING: &str = include_str!("../src/runtime/product_surface/ranking.rs");
 const SDK: &str = include_str!("../src/runtime/sdk.rs");
+const BUILDER: &str = include_str!("../src/runtime/builder.rs");
+const STORE: &str = include_str!("../src/runtime/store.rs");
 
 #[test]
 fn core_owns_no_uniffi_or_process_global_logging_policy() {
@@ -47,4 +49,13 @@ fn core_owns_no_uniffi_or_process_global_logging_policy() {
             "{name} contains process-global logging policy"
         );
     }
+}
+
+#[test]
+fn production_runtime_requires_validated_sqlite_and_memory_is_test_only() {
+    assert!(MANIFEST.contains("radroots_sdk = { workspace = true, features = [\"sqlite\"] }"));
+    assert_eq!(BUILDER.matches("ClientBuilder::sqlite").count(), 1);
+    assert!(!BUILDER.contains("memory_default") && !STORE.contains("memory_default"));
+    assert!(RUNTIME.contains("#[cfg(test)]\n    pub(crate) fn test_memory()"));
+    assert!(!RUNTIME.contains("pub fn new()"));
 }

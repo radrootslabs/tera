@@ -76,7 +76,7 @@ mod tests {
 
     #[test]
     fn runtime_exposes_only_the_locked_card_and_add_catalogs() {
-        let runtime = RadrootsRuntime::new().expect("runtime");
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
         assert_eq!(runtime.phase1_card_types(), CANONICAL_TODAY_CARD_TYPES);
         assert_eq!(
             runtime.phase1_add_command_types(),

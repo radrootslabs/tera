@@ -79,8 +79,8 @@ mod tests {
     use super::RadrootsRuntime;
 
     #[tokio::test]
-    async fn sdk_records_are_stable_and_storage_is_memory_backed() {
-        let runtime = RadrootsRuntime::new().expect("runtime");
+    async fn explicit_test_runtime_is_memory_backed() {
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
         let capabilities = runtime.sdk_capabilities();
         assert!(capabilities.iter().any(|capability| {
             capability.id == "storage.canonical"

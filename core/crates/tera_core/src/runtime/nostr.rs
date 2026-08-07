@@ -228,7 +228,7 @@ mod tests {
 
     #[tokio::test]
     async fn relay_configuration_is_explicit_and_status_is_categorical() {
-        let runtime = RadrootsRuntime::new().expect("runtime");
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
         let initial = runtime
             .nostr_connection_status()
             .await

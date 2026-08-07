@@ -8,5 +8,5 @@ pub mod error;
 mod provenance;
 pub mod runtime;
 
-pub use error::{RadrootsAppError, SdkErrorRecord};
+pub use error::{RadrootsAppError, SdkErrorRecord, StoreErrorRecord};
 pub use runtime::RadrootsRuntime;

@@ -7,8 +7,10 @@ pub mod key_management;
 pub mod nostr;
 pub mod product_surface;
 pub mod sdk;
+pub mod store;
 
 use chrono::Utc;
+use radroots_identity::PublicKey;
 use radroots_sdk::{Client, ClientBuilder};
 use std::sync::{
     RwLock,
@@ -32,17 +34,20 @@ pub struct RadrootsRuntime {
     pub(crate) started_unix_ms: i64,
     pub(crate) shutting_down: AtomicBool,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
+    pub(crate) store_public_key: Option<PublicKey>,
 }
 
 impl RadrootsRuntime {
-    pub fn new() -> Result<Self, RadrootsAppError> {
+    pub(crate) fn from_client_builder(
+        builder: ClientBuilder,
+        store_public_key: Option<PublicKey>,
+    ) -> Result<Self, RadrootsAppError> {
         #[cfg(feature = "mobile-social")]
         let signing_slot = radroots_sdk::signing::Slot::new();
         #[cfg(feature = "mobile-social")]
         let nostr_slot = radroots_sdk::transport::NostrSlot::new(
             radroots_sdk::transport::RelayUrlPolicy::Public,
         );
-        let builder = ClientBuilder::memory_default();
         #[cfg(feature = "mobile-social")]
         let builder = builder
             .signing(radroots_sdk::signing::Provider::slot(signing_slot.clone()))
@@ -61,7 +66,13 @@ impl RadrootsRuntime {
             started_unix_ms: Utc::now().timestamp_millis(),
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
+            store_public_key,
         })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_memory() -> Result<Self, RadrootsAppError> {
+        Self::from_client_builder(ClientBuilder::memory_default(), None)
     }
 
     /// Closes SDK resources asynchronously across every runtime reference.
@@ -85,6 +96,12 @@ impl RadrootsRuntime {
 
     pub fn uptime_millis(&self) -> i64 {
         Utc::now().timestamp_millis() - self.started_unix_ms
+    }
+
+    /// Returns the canonical public identity that scopes durable storage.
+    /// Explicit unit-test memory runtimes are the only runtimes without one.
+    pub fn authenticated_store_public_key_hex(&self) -> Option<String> {
+        self.store_public_key.map(|key| key.to_hex())
     }
 
     pub fn info(&self) -> RuntimeInfo {
@@ -127,7 +144,7 @@ mod tests {
 
     #[test]
     fn runtime_owns_one_sdk_client() {
-        let runtime = RadrootsRuntime::new().expect("runtime");
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
         let storage = runtime
             .client
             .capabilities()
@@ -139,7 +156,7 @@ mod tests {
 
     #[test]
     fn set_platform_info_handles_poisoned_lock() {
-        let runtime = RadrootsRuntime::new().expect("runtime");
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
         runtime.set_app_info_platform(
             Some("ios".to_owned()),
             Some("org.radroots.app".to_owned()),
@@ -162,7 +179,7 @@ mod tests {
 
     #[test]
     fn runtime_metadata_helpers_are_host_safe() {
-        let runtime = RadrootsRuntime::new().expect("runtime");
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
         assert!(runtime.uptime_millis() >= 0);
         let json = runtime.info_json();
         assert!(json.contains("sdk"));

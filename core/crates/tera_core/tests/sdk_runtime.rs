@@ -2,12 +2,15 @@ use std::sync::Arc;
 
 use radroots_mobile_core::{RadrootsAppError, RadrootsRuntime};
 
+mod support;
+
 #[tokio::test]
 async fn runtime_is_send_sync_and_shares_one_sdk_lifecycle() {
     fn require_send_sync<T: Send + Sync>() {}
     require_send_sync::<RadrootsRuntime>();
 
-    let runtime = Arc::new(RadrootsRuntime::new().expect("runtime"));
+    let (_root, runtime) = support::runtime().await;
+    let runtime = Arc::new(runtime);
     let worker = {
         let runtime = Arc::clone(&runtime);
         std::thread::spawn(move || runtime.sdk_capabilities())
@@ -27,10 +30,10 @@ async fn runtime_is_send_sync_and_shares_one_sdk_lifecycle() {
 
 #[tokio::test]
 async fn operations_fail_safely_after_explicit_close() {
-    let runtime = RadrootsRuntime::new().expect("runtime");
+    let (_root, runtime) = support::runtime().await;
     assert_eq!(
         runtime.sdk_storage_status().await.expect("status").backend,
-        "memory"
+        "sqlite"
     );
     runtime.shutdown().await.expect("shutdown");
     assert!(matches!(
@@ -41,7 +44,7 @@ async fn operations_fail_safely_after_explicit_close() {
 
 #[tokio::test]
 async fn dropping_unpolled_shutdown_has_no_effect_and_retry_closes() {
-    let runtime = RadrootsRuntime::new().expect("runtime");
+    let (_root, runtime) = support::runtime().await;
     drop(runtime.shutdown());
     assert!(!runtime.info().sdk_closed);
     assert!(!runtime.info().app.shutting_down);

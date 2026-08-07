@@ -119,6 +119,15 @@ impl RadrootsRuntime {
             .signing_slot
             .install(secret_key.as_str())
             .map_err(|_| RadrootsAppError::runtime("identity secret is invalid"))?;
+        if self
+            .store_public_key
+            .is_some_and(|expected| expected.to_hex() != identity.public_key_hex())
+        {
+            self.signing_slot.clear();
+            return Err(RadrootsAppError::runtime(
+                "identity does not match the authenticated user store",
+            ));
+        }
         self.set_identity_label(label.clone())?;
         Ok(identity_record(&identity, label))
     }
@@ -180,7 +189,7 @@ mod tests {
 
     #[test]
     fn validation_does_not_select_and_restore_is_single_slot() {
-        let runtime = RadrootsRuntime::new().expect("runtime");
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
         let validated = runtime
             .nostr_identity_validate_host_custody_secret(SECRET.to_owned())
             .expect("valid secret");
