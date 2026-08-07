@@ -4,6 +4,7 @@
 //! and admission remain in lower event crates; persistence and live query
 //! composition remain in the runtime slices that consume these types.
 
+mod authoring;
 mod context;
 mod cursor;
 mod identity;
@@ -11,6 +12,10 @@ mod model;
 mod projection;
 mod ranking;
 
+pub use authoring::{
+    CreateAsk, CreateEvent, CreateFoodAvailability, CreatePhotoUpdate, CreateUpdate,
+    Phase1AddCommand, Phase1ReplacementPolicy, phase1_retraction_plan,
+};
 pub use context::{
     ContextAdmission, ContextRank, LocalNetwork, LocalNetworkAdmission, LocalNetworkError,
     LocalityEvidence,

@@ -39,4 +39,8 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 nostr = { workspace = true, features = ["std"] }
+radroots_blossom = { workspace = true, default-features = false, features = [
+    "serde",
+    "std",
+] }
 tokio = { workspace = true, features = ["macros", "rt"] }
