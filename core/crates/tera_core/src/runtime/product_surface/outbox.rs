@@ -1,10 +1,14 @@
 use std::collections::BTreeSet;
 
-use radroots_blossom::{BlobUrl, MediaType};
+use radroots_blossom::{BlobUrl, MediaType, authorization::AuthoredUploadClaim};
 use radroots_event::contract::AuthorRole;
 use radroots_event_codec::authoring::PlanWireV1;
 use radroots_identity::PublicKey;
-use radroots_signing::{Actor, actor::ActorSource, request::CancellationPolicy};
+use radroots_signing::{
+    Actor, AuthoredArtifactId, SigningIntentId, SigningOperationId,
+    actor::ActorSource,
+    request::{CancellationPolicy, SignPolicy},
+};
 use radroots_storage::{
     authored::{AdmissionState, SigningState},
     authored_delivery::{AuthoredDeliveryState, DeliveryAttemptOutcome},
@@ -138,6 +142,15 @@ pub enum Phase1RelaySatisfaction {
 pub enum Phase1CancellationPolicy {
     PreservePublishedRequest,
     LocalCooperative,
+}
+
+impl Phase1CancellationPolicy {
+    const fn signing(self) -> CancellationPolicy {
+        match self {
+            Self::PreservePublishedRequest => CancellationPolicy::PreservePublishedRequest,
+            Self::LocalCooperative => CancellationPolicy::LocalCooperative,
+        }
+    }
 }
 
 /// Exact relay and deadline intent frozen before an operation is prepared.
@@ -614,6 +627,79 @@ impl RadrootsRuntime {
         }
     }
 
+    /// Invokes the configured opaque host signer for one durably queued draft.
+    ///
+    /// The canonical sync engine verifies author, event ID, exact fields,
+    /// signature, deadline, cancellation, and operation binding before the
+    /// signed artifact can be persisted. Delivery remains a separate phase.
+    pub async fn phase1_sign_queued_draft(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let head = self
+            .storage()?
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        self.sync()?
+            .sign_prepared(push_request(&head)?)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)?;
+        self.draft_status_from(head).await
+    }
+
+    /// Signs one short-lived BUD-11 upload credential for HTTP use only.
+    ///
+    /// The returned value is not persisted and its distinct plan type cannot
+    /// enter the relay push pipeline.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn phase1_authorize_blossom_upload(
+        &self,
+        operation_id: [u8; 16],
+        artifact_id: [u8; 16],
+        claim: AuthoredUploadClaim,
+        deadline_unix_ms: u64,
+        cancellation: Phase1CancellationPolicy,
+    ) -> Result<radroots_sdk::signing::AuthorizationHeader, Phase1DraftError> {
+        let public_key = self
+            .store_public_key
+            .ok_or(Phase1DraftError::IdentityUnavailable)?;
+        let actor = Actor::new(public_key, ActorSource::ExplicitPublicKey, AuthorRole::ALL)
+            .map_err(|_| Phase1DraftError::IdentityUnavailable)?;
+        let plan = radroots_sdk::signing::BlossomAuthorizationPlan::for_upload(&claim, public_key)
+            .map_err(|_| Phase1DraftError::InvalidMedia)?;
+        let operation_id =
+            SigningOperationId::new(operation_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let artifact_id =
+            AuthoredArtifactId::new(artifact_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let policy = SignPolicy::new(deadline_unix_ms, cancellation.signing())
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let request = radroots_sdk::signing::blossom_upload_request(
+            radroots_protocol::runtime::v1::OperationId::SyncPush,
+            SigningIntentId::new(operation_id, artifact_id),
+            actor,
+            plan,
+            policy,
+        )
+        .map_err(|_| Phase1DraftError::Operation)?;
+        self.client
+            .signing()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?
+            .ok_or(Phase1DraftError::OperationUnavailable)?
+            .authorize_blossom_upload(request)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)
+    }
+
     /// Returns durable draft state composed with canonical authored-operation state.
     pub async fn phase1_draft_status(
         &self,
@@ -1085,12 +1171,27 @@ mod tests {
     };
     use radroots_sdk::ClientBuilder;
 
-    const AUTHOR: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    const AUTHOR: &str = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
+    const SECRET: &str = "0000000000000000000000000000000000000000000000000000000000000001";
 
     fn runtime() -> RadrootsRuntime {
         RadrootsRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
+            None,
+        )
+        .unwrap()
+    }
+
+    fn signing_runtime() -> RadrootsRuntime {
+        let signer = radroots_nostr::signing::LocalSigner::new(
+            radroots_nostr::key::SecretKey::parse(SECRET).unwrap(),
+        )
+        .unwrap();
+        RadrootsRuntime::from_client_builder(
+            ClientBuilder::memory_default(),
+            Some(PublicKey::from_hex(AUTHOR).unwrap()),
+            Some(std::sync::Arc::new(signer)),
         )
         .unwrap()
     }
@@ -1184,8 +1285,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn all_five_add_flows_queue_without_network_access() {
-        let runtime = runtime();
+    async fn all_five_add_flows_queue_and_sign_without_network_access() {
+        let runtime = signing_runtime();
         let (photo, media) = photo_command();
         let commands = [
             (
@@ -1238,7 +1339,66 @@ mod tests {
                 .unwrap();
             assert_eq!(queued.state(), Phase1OutboxState::Queued);
             assert_eq!(queued.command_type(), CANONICAL_ADD_COMMAND_TYPES[index]);
+            let signed = runtime
+                .phase1_sign_queued_draft(id, queued.draft().revision().get())
+                .await
+                .unwrap();
+            assert_eq!(signed.state(), Phase1OutboxState::Signed);
+            assert_eq!(
+                signed
+                    .push()
+                    .and_then(|push| push.artifact().signed())
+                    .expect("signed artifact")
+                    .event()
+                    .kind(),
+                match index {
+                    0..=2 => 1,
+                    3 => 31_922,
+                    4 => 30_402,
+                    _ => unreachable!(),
+                }
+            );
         }
+    }
+
+    #[tokio::test]
+    async fn blossom_authorization_uses_the_same_opaque_signer_but_never_the_outbox() {
+        use radroots_blossom::authorization::{
+            AuthorizationContent, AuthorizationTarget, AuthorizationValidation, ServerDomain,
+        };
+
+        let runtime = signing_runtime();
+        let hash = BlossomSha256::digest(b"exact upload bytes");
+        let server = ServerDomain::parse("media.example").unwrap();
+        let claim = AuthoredUploadClaim::new(
+            AuthorizationContent::parse("Upload exact Radroots image").unwrap(),
+            server.clone(),
+            hash,
+            1_900_000_000,
+            60,
+        )
+        .unwrap();
+        let header = runtime
+            .phase1_authorize_blossom_upload(
+                [71; 16],
+                [72; 16],
+                claim,
+                u64::MAX,
+                Phase1CancellationPolicy::LocalCooperative,
+            )
+            .await
+            .unwrap();
+        let verified = radroots_nostr::blossom::decode_verify_authorization_header(
+            header.as_str(),
+            &AuthorizationValidation::bud11(
+                AuthorizationTarget::Upload(hash),
+                server,
+                1_900_000_001,
+            ),
+        )
+        .unwrap();
+        assert_eq!(verified.claim().hashes(), &[hash]);
+        assert!(runtime.phase1_draft_heads(10).await.unwrap().is_empty());
     }
 
     #[tokio::test]

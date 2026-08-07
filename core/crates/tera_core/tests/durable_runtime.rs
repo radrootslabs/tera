@@ -109,21 +109,3 @@ async fn unrecognized_sqlite_bytes_are_corruption_classified() {
     assert_eq!(report.code, "storage_integrity_failed");
     assert!(!report.retryable);
 }
-
-#[cfg(feature = "mobile-social")]
-#[tokio::test]
-async fn signer_selection_cannot_cross_the_authenticated_store_identity() {
-    const OTHER_SECRET: &str = "0000000000000000000000000000000000000000000000000000000000000002";
-
-    let root = tempfile::tempdir().expect("tempdir");
-    let runtime = RuntimeBuilder::new(support::store(root.path()))
-        .build()
-        .await
-        .expect("runtime");
-    let error = runtime
-        .nostr_identity_restore_host_custody_secret(OTHER_SECRET.to_owned(), None, true)
-        .expect_err("different identity must not select this user store");
-    assert!(matches!(error, RadrootsAppError::Runtime(_)));
-    assert!(!runtime.nostr_identity_has_selected_signing_identity());
-    runtime.shutdown().await.expect("shutdown");
-}

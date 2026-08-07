@@ -21,7 +21,7 @@ unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 [features]
 default = []
 mobile-social = [
-    "radroots_sdk/local-signing",
+    "radroots_sdk/blossom",
     "radroots_sdk/nostr",
     "radroots_sdk/sync",
 ]
@@ -35,6 +35,7 @@ radroots_sdk = { workspace = true, features = ["sqlite"] }
 radroots_event = { workspace = true, default-features = false, features = ["std"] }
 radroots_event_codec = { workspace = true, default-features = false, features = ["json", "std"] }
 radroots_identity = { workspace = true, default-features = false, features = ["std"] }
+radroots_protocol = { workspace = true, default-features = false, features = ["std"] }
 radroots_signing = { workspace = true, default-features = false, features = ["std"] }
 radroots_storage = { workspace = true, default-features = false }
 radroots_sync = { workspace = true, default-features = false }
@@ -48,6 +49,7 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 nostr = { workspace = true, features = ["std"] }
+radroots_nostr = { workspace = true, features = ["blossom", "signing"] }
 radroots_sdk = { workspace = true, features = ["memory", "sqlite"] }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }

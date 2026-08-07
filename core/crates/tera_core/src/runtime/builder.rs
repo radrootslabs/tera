@@ -4,12 +4,26 @@ use crate::{RadrootsAppError, RadrootsRuntime};
 /// Host-owned construction boundary for the shared SDK-backed runtime.
 pub struct RuntimeBuilder {
     store: MobileUserStoreConfig,
+    #[cfg(feature = "mobile-social")]
+    signer: Option<std::sync::Arc<dyn radroots_signing::Signer>>,
 }
 
 impl RuntimeBuilder {
     #[must_use]
     pub const fn new(store: MobileUserStoreConfig) -> Self {
-        Self { store }
+        Self {
+            store,
+            #[cfg(feature = "mobile-social")]
+            signer: None,
+        }
+    }
+
+    /// Installs one opaque host signer without transferring secret material.
+    #[cfg(feature = "mobile-social")]
+    #[must_use]
+    pub fn signer(mut self, signer: std::sync::Arc<dyn radroots_signing::Signer>) -> Self {
+        self.signer = Some(signer);
+        self
     }
 
     /// Opens the exact authenticated user's durable SQLite store.
@@ -22,7 +36,12 @@ impl RuntimeBuilder {
         let builder = radroots_sdk::ClientBuilder::sqlite(options)
             .await
             .map_err(RadrootsAppError::from_sdk)?;
-        RadrootsRuntime::from_client_builder(builder, Some(self.store.public_key()))
+        RadrootsRuntime::from_client_builder(
+            builder,
+            Some(self.store.public_key()),
+            #[cfg(feature = "mobile-social")]
+            self.signer,
+        )
     }
 }
 

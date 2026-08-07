@@ -1,10 +1,6 @@
 pub mod app_info;
 pub mod builder;
 pub mod info;
-#[cfg(feature = "mobile-social")]
-pub mod key_management;
-#[cfg(feature = "mobile-social")]
-pub mod nostr;
 pub mod product_surface;
 pub mod sdk;
 pub mod store;
@@ -25,12 +21,6 @@ use crate::RadrootsAppError;
 
 pub struct RadrootsRuntime {
     pub(crate) client: Client,
-    #[cfg(feature = "mobile-social")]
-    pub(crate) signing_slot: radroots_sdk::signing::Slot,
-    #[cfg(feature = "mobile-social")]
-    pub(crate) nostr_slot: radroots_sdk::transport::NostrSlot,
-    #[cfg(feature = "mobile-social")]
-    pub(crate) identity_label: RwLock<Option<String>>,
     pub(crate) started_unix_ms: i64,
     pub(crate) shutting_down: AtomicBool,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
@@ -41,28 +31,28 @@ impl RadrootsRuntime {
     pub(crate) fn from_client_builder(
         builder: ClientBuilder,
         store_public_key: Option<PublicKey>,
+        #[cfg(feature = "mobile-social")] signer: Option<
+            std::sync::Arc<dyn radroots_signing::Signer>,
+        >,
     ) -> Result<Self, RadrootsAppError> {
-        #[cfg(feature = "mobile-social")]
-        let signing_slot = radroots_sdk::signing::Slot::new();
         #[cfg(feature = "mobile-social")]
         let nostr_slot = radroots_sdk::transport::NostrSlot::new(
             radroots_sdk::transport::RelayUrlPolicy::Public,
         );
         #[cfg(feature = "mobile-social")]
-        let builder = builder
-            .signing(radroots_sdk::signing::Provider::slot(signing_slot.clone()))
-            .nostr(nostr_slot.clone())
-            .host_sync(radroots_sdk::sync::HostPolicy::standard());
+        let builder = {
+            let builder = builder
+                .nostr(nostr_slot.clone())
+                .host_sync(radroots_sdk::sync::HostPolicy::standard());
+            match signer {
+                Some(signer) => builder.signing(radroots_sdk::signing::Provider::host(signer)),
+                None => builder,
+            }
+        };
         let client = builder.build().map_err(RadrootsAppError::from_sdk)?;
 
         Ok(Self {
             client,
-            #[cfg(feature = "mobile-social")]
-            signing_slot,
-            #[cfg(feature = "mobile-social")]
-            nostr_slot,
-            #[cfg(feature = "mobile-social")]
-            identity_label: RwLock::new(None),
             started_unix_ms: Utc::now().timestamp_millis(),
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
@@ -72,7 +62,12 @@ impl RadrootsRuntime {
 
     #[cfg(test)]
     pub(crate) fn test_memory() -> Result<Self, RadrootsAppError> {
-        Self::from_client_builder(ClientBuilder::memory_default(), None)
+        Self::from_client_builder(
+            ClientBuilder::memory_default(),
+            None,
+            #[cfg(feature = "mobile-social")]
+            None,
+        )
     }
 
     /// Closes SDK resources asynchronously across every runtime reference.

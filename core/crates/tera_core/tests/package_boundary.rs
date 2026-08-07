@@ -4,13 +4,13 @@ const ERROR: &str = include_str!("../src/error.rs");
 const RUNTIME: &str = include_str!("../src/runtime/mod.rs");
 const APP_INFO: &str = include_str!("../src/runtime/app_info.rs");
 const INFO: &str = include_str!("../src/runtime/info.rs");
-const KEY_MANAGEMENT: &str = include_str!("../src/runtime/key_management.rs");
-const NOSTR: &str = include_str!("../src/runtime/nostr.rs");
 const PRODUCT_SURFACE: &str = include_str!("../src/runtime/product_surface.rs");
+const PRODUCT_AUTHORING: &str = include_str!("../src/runtime/product_surface/authoring.rs");
 const PRODUCT_CONTEXT: &str = include_str!("../src/runtime/product_surface/context.rs");
 const PRODUCT_CURSOR: &str = include_str!("../src/runtime/product_surface/cursor.rs");
 const PRODUCT_IDENTITY: &str = include_str!("../src/runtime/product_surface/identity.rs");
 const PRODUCT_MODEL: &str = include_str!("../src/runtime/product_surface/model.rs");
+const PRODUCT_OUTBOX: &str = include_str!("../src/runtime/product_surface/outbox.rs");
 const PRODUCT_PROJECTION: &str = include_str!("../src/runtime/product_surface/projection.rs");
 const PRODUCT_RANKING: &str = include_str!("../src/runtime/product_surface/ranking.rs");
 const SDK: &str = include_str!("../src/runtime/sdk.rs");
@@ -26,13 +26,16 @@ fn core_owns_no_uniffi_or_process_global_logging_policy() {
         ("src/runtime/mod.rs", RUNTIME),
         ("src/runtime/app_info.rs", APP_INFO),
         ("src/runtime/info.rs", INFO),
-        ("src/runtime/key_management.rs", KEY_MANAGEMENT),
-        ("src/runtime/nostr.rs", NOSTR),
         ("src/runtime/product_surface.rs", PRODUCT_SURFACE),
+        (
+            "src/runtime/product_surface/authoring.rs",
+            PRODUCT_AUTHORING,
+        ),
         ("src/runtime/product_surface/context.rs", PRODUCT_CONTEXT),
         ("src/runtime/product_surface/cursor.rs", PRODUCT_CURSOR),
         ("src/runtime/product_surface/identity.rs", PRODUCT_IDENTITY),
         ("src/runtime/product_surface/model.rs", PRODUCT_MODEL),
+        ("src/runtime/product_surface/outbox.rs", PRODUCT_OUTBOX),
         (
             "src/runtime/product_surface/projection.rs",
             PRODUCT_PROJECTION,
@@ -49,6 +52,22 @@ fn core_owns_no_uniffi_or_process_global_logging_policy() {
             "{name} contains process-global logging policy"
         );
     }
+}
+
+#[test]
+fn mobile_runtime_has_no_secret_taking_or_local_signer_slot_surface() {
+    for source in [
+        MANIFEST,
+        RUNTIME,
+        BUILDER,
+        PRODUCT_AUTHORING,
+        PRODUCT_OUTBOX,
+    ] {
+        assert!(!source.contains("signing::Slot"));
+        assert!(!source.contains("secret_key: String"));
+        assert!(!source.contains("Provider::slot"));
+    }
+    assert!(!MANIFEST.contains("radroots_sdk/local-signing"));
 }
 
 #[test]
