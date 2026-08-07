@@ -1,0 +1,1432 @@
+use std::collections::BTreeSet;
+
+use radroots_blossom::{BlobUrl, MediaType};
+use radroots_event::contract::AuthorRole;
+use radroots_event_codec::authoring::PlanWireV1;
+use radroots_identity::PublicKey;
+use radroots_signing::{Actor, actor::ActorSource, request::CancellationPolicy};
+use radroots_storage::{
+    authored::{AdmissionState, SigningState},
+    authored_delivery::{AuthoredDeliveryState, DeliveryAttemptOutcome},
+    authored_draft::{
+        AuthoredDraft, AuthoredDraftId, AuthoredDraftRevision, AuthoredDraftStage,
+        AuthoredDraftStore,
+    },
+    journal::{IdempotencyKey, OperationInstanceId},
+};
+use radroots_sync::{PushRequest, PushStatus, policy::SyncId};
+use radroots_transport::{
+    Target, TargetSet,
+    outcome::DeliveryOutcomeKind,
+    policy::{SatisfactionClass, SatisfactionPolicy, TargetPolicy},
+};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use thiserror::Error;
+
+use super::{
+    AddCommandType, CardId, CardSourceIdentity, LocalAuthorOverlay, LocalNetwork, Phase1AddCommand,
+    TodayCardType, TodayError,
+};
+use crate::runtime::RadrootsRuntime;
+
+const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
+const DRAFT_SCHEMA_VERSION: u16 = 1;
+const DRAFT_MEDIA_MAX: usize = 20;
+const DRAFT_LOCAL_REFERENCE_MAX_BYTES: usize = 4_096;
+const DRAFT_FAILURE_CODE_MAX_BYTES: usize = 96;
+const DRAFT_OPERATION_DOMAIN: &[u8] = b"radroots.mobile.phase1-draft-operation.v1\0";
+
+/// Durable state of one media prerequisite referenced by an Add command.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase1MediaStage {
+    Pending,
+    Preparing,
+    Uploading,
+    Verified,
+    Failed,
+    Orphaned,
+}
+
+/// Exact local and remote identity of one Add media prerequisite.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Phase1MediaPrerequisite {
+    local_reference: String,
+    url: String,
+    sha256: String,
+    media_type: String,
+    byte_size: u64,
+    stage: Phase1MediaStage,
+    failure_code: Option<String>,
+}
+
+impl Phase1MediaPrerequisite {
+    pub fn new(
+        local_reference: impl Into<String>,
+        url: impl Into<String>,
+        sha256: impl Into<String>,
+        media_type: impl Into<String>,
+        byte_size: u64,
+        stage: Phase1MediaStage,
+    ) -> Result<Self, Phase1DraftError> {
+        let value = Self {
+            local_reference: local_reference.into(),
+            url: url.into(),
+            sha256: sha256.into(),
+            media_type: media_type.into(),
+            byte_size,
+            stage,
+            failure_code: None,
+        };
+        value.validate()?;
+        Ok(value)
+    }
+
+    pub fn with_failure_code(mut self, code: impl Into<String>) -> Result<Self, Phase1DraftError> {
+        self.stage = Phase1MediaStage::Failed;
+        self.failure_code = Some(code.into());
+        self.validate()?;
+        Ok(self)
+    }
+
+    fn validate(&self) -> Result<(), Phase1DraftError> {
+        let blob = BlobUrl::parse(self.url.as_str()).map_err(|_| Phase1DraftError::InvalidMedia)?;
+        let hash = blob.hash_path().hash().to_string();
+        if self.local_reference.is_empty()
+            || self.local_reference.len() > DRAFT_LOCAL_REFERENCE_MAX_BYTES
+            || self.local_reference != self.local_reference.trim()
+            || self.local_reference.chars().any(char::is_control)
+            || self.sha256 != hash
+            || MediaType::parse(self.media_type.as_str()).is_err()
+            || self.byte_size == 0
+            || self.failure_code.as_ref().is_some_and(|code| {
+                code.is_empty()
+                    || code.len() > DRAFT_FAILURE_CODE_MAX_BYTES
+                    || code != code.trim()
+                    || code.chars().any(char::is_control)
+            })
+            || (self.stage == Phase1MediaStage::Failed) != self.failure_code.is_some()
+        {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        Ok(())
+    }
+
+    pub fn url(&self) -> &str {
+        self.url.as_str()
+    }
+    pub const fn stage(&self) -> Phase1MediaStage {
+        self.stage
+    }
+}
+
+/// Closed delivery-satisfaction profiles available to Phase 1 Add.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase1RelaySatisfaction {
+    AnyAccepted,
+    AllAccepted,
+    AnyDelivered,
+    AllDelivered,
+}
+
+/// Stable product-level cancellation policy persisted with queue intent.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase1CancellationPolicy {
+    PreservePublishedRequest,
+    LocalCooperative,
+}
+
+/// Exact relay and deadline intent frozen before an operation is prepared.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Phase1QueuePolicy {
+    relay_urls: Vec<String>,
+    satisfaction: Phase1RelaySatisfaction,
+    delivery_deadline_unix_ms: u64,
+    cancellation: Phase1CancellationPolicy,
+}
+
+impl Phase1QueuePolicy {
+    pub fn new(
+        relay_urls: Vec<String>,
+        satisfaction: Phase1RelaySatisfaction,
+        delivery_deadline_unix_ms: u64,
+        cancellation: Phase1CancellationPolicy,
+    ) -> Result<Self, Phase1DraftError> {
+        let value = Self {
+            relay_urls,
+            satisfaction,
+            delivery_deadline_unix_ms,
+            cancellation,
+        };
+        value.materialize()?;
+        Ok(value)
+    }
+
+    fn materialize(
+        &self,
+    ) -> Result<(TargetSet, SatisfactionPolicy, CancellationPolicy), Phase1DraftError> {
+        if self.delivery_deadline_unix_ms == 0 || self.relay_urls.is_empty() {
+            return Err(Phase1DraftError::InvalidQueuePolicy);
+        }
+        let mut canonical = BTreeSet::new();
+        let targets = self
+            .relay_urls
+            .iter()
+            .map(|url| {
+                let target =
+                    Target::nostr_relay(url).map_err(|_| Phase1DraftError::InvalidQueuePolicy)?;
+                if target.uri().as_str() != url || !canonical.insert(url.as_str()) {
+                    return Err(Phase1DraftError::InvalidQueuePolicy);
+                }
+                Ok(target)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let targets = TargetSet::new(targets).map_err(|_| Phase1DraftError::InvalidQueuePolicy)?;
+        let (class, target_policy) = match self.satisfaction {
+            Phase1RelaySatisfaction::AnyAccepted => {
+                (SatisfactionClass::Accepted, TargetPolicy::any())
+            }
+            Phase1RelaySatisfaction::AllAccepted => {
+                (SatisfactionClass::Accepted, TargetPolicy::all())
+            }
+            Phase1RelaySatisfaction::AnyDelivered => {
+                (SatisfactionClass::Delivered, TargetPolicy::any())
+            }
+            Phase1RelaySatisfaction::AllDelivered => {
+                (SatisfactionClass::Delivered, TargetPolicy::all())
+            }
+        };
+        let cancellation = match self.cancellation {
+            Phase1CancellationPolicy::PreservePublishedRequest => {
+                CancellationPolicy::PreservePublishedRequest
+            }
+            Phase1CancellationPolicy::LocalCooperative => CancellationPolicy::LocalCooperative,
+        };
+        Ok((
+            targets,
+            SatisfactionPolicy::new(class, target_policy),
+            cancellation,
+        ))
+    }
+}
+
+/// Honest aggregate state for a local draft and its durable authored operation.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Phase1OutboxState {
+    Draft,
+    MediaPreparing,
+    MediaUploading,
+    ReadyToSign,
+    Signing,
+    Signed,
+    Queued,
+    Delivering,
+    PartiallyDelivered,
+    Retryable,
+    Terminal,
+    Cancelled,
+    Complete,
+}
+
+impl Phase1OutboxState {
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Draft => "draft",
+            Self::MediaPreparing => "media_preparing",
+            Self::MediaUploading => "media_uploading",
+            Self::ReadyToSign => "ready_to_sign",
+            Self::Signing => "signing",
+            Self::Signed => "signed",
+            Self::Queued => "queued",
+            Self::Delivering => "delivering",
+            Self::PartiallyDelivered => "partially_delivered",
+            Self::Retryable => "retryable",
+            Self::Terminal => "terminal",
+            Self::Cancelled => "cancelled",
+            Self::Complete => "complete",
+        }
+    }
+}
+
+/// Current reconstructable product view of one Add draft.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Phase1DraftStatus {
+    draft: AuthoredDraft,
+    command_type: AddCommandType,
+    media: Vec<Phase1MediaPrerequisite>,
+    state: Phase1OutboxState,
+    card_id: CardId,
+    push: Option<PushStatus>,
+}
+
+impl Phase1DraftStatus {
+    pub const fn draft(&self) -> &AuthoredDraft {
+        &self.draft
+    }
+    pub const fn command_type(&self) -> AddCommandType {
+        self.command_type
+    }
+    pub fn media(&self) -> &[Phase1MediaPrerequisite] {
+        self.media.as_slice()
+    }
+    pub const fn state(&self) -> Phase1OutboxState {
+        self.state
+    }
+    pub const fn card_id(&self) -> CardId {
+        self.card_id
+    }
+    pub const fn push(&self) -> Option<&PushStatus> {
+        self.push.as_ref()
+    }
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
+pub enum Phase1DraftError {
+    #[error("authenticated draft identity is unavailable")]
+    IdentityUnavailable,
+    #[error("phase 1 draft input is invalid")]
+    InvalidDraft,
+    #[error("phase 1 media prerequisite is invalid")]
+    InvalidMedia,
+    #[error("phase 1 queue policy is invalid")]
+    InvalidQueuePolicy,
+    #[error("phase 1 draft revision conflicts with durable state")]
+    RevisionConflict,
+    #[error("phase 1 draft is not found")]
+    NotFound,
+    #[error("phase 1 draft is terminal")]
+    Terminal,
+    #[error("phase 1 draft media is not ready")]
+    MediaNotReady,
+    #[error("phase 1 authored operation is unavailable")]
+    OperationUnavailable,
+    #[error("phase 1 draft persistence failed")]
+    Storage,
+    #[error("phase 1 draft payload is corrupt")]
+    Corrupt,
+    #[error("phase 1 authored operation failed")]
+    Operation,
+    #[error("phase 1 Today overlay failed")]
+    Overlay,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Phase1DraftPayload {
+    schema_version: u16,
+    command_type: AddCommandType,
+    plan_wire_json: Vec<u8>,
+    media: Vec<Phase1MediaPrerequisite>,
+    queue: Option<Phase1QueuePolicy>,
+}
+
+impl Phase1DraftPayload {
+    fn new(
+        command: &Phase1AddCommand,
+        plan_wire_json: Vec<u8>,
+        media: Vec<Phase1MediaPrerequisite>,
+    ) -> Result<Self, Phase1DraftError> {
+        let value = Self {
+            schema_version: DRAFT_SCHEMA_VERSION,
+            command_type: command.command_type(),
+            plan_wire_json,
+            media,
+            queue: None,
+        };
+        value.validate()?;
+        Ok(value)
+    }
+
+    fn validate(&self) -> Result<(), Phase1DraftError> {
+        if self.schema_version != DRAFT_SCHEMA_VERSION || self.media.len() > DRAFT_MEDIA_MAX {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        let integrity = PlanWireV1::from_json(self.plan_wire_json.as_slice())
+            .map_err(|_| Phase1DraftError::Corrupt)?;
+        let plan = integrity.plan();
+        let expected_media = media_urls(plan.body().tags())?;
+        let actual_media = self
+            .media
+            .iter()
+            .map(|media| {
+                media.validate()?;
+                Ok(media.url.as_str())
+            })
+            .collect::<Result<BTreeSet<_>, Phase1DraftError>>()?;
+        if expected_media != actual_media || actual_media.len() != self.media.len() {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        if let Some(queue) = &self.queue {
+            queue.materialize()?;
+        }
+        Ok(())
+    }
+
+    fn decode(draft: &AuthoredDraft) -> Result<Self, Phase1DraftError> {
+        if draft.payload_schema() != DRAFT_PAYLOAD_SCHEMA {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        let value = serde_json::from_slice::<Self>(draft.payload())
+            .map_err(|_| Phase1DraftError::Corrupt)?;
+        value.validate()?;
+        let plan = PlanWireV1::from_json(value.plan_wire_json.as_slice())
+            .map_err(|_| Phase1DraftError::Corrupt)?;
+        if plan.plan().author().as_bytes() != draft.author() {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        Ok(value)
+    }
+
+    fn encode(&self) -> Result<Vec<u8>, Phase1DraftError> {
+        self.validate()?;
+        serde_json::to_vec(self).map_err(|_| Phase1DraftError::InvalidDraft)
+    }
+}
+
+impl RadrootsRuntime {
+    /// Creates or replaces the editable content of one immutable-revision draft.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn phase1_save_draft(
+        &self,
+        draft_id: [u8; 16],
+        command: Phase1AddCommand,
+        authored_at_unix_s: u64,
+        media: Vec<Phase1MediaPrerequisite>,
+        expected_revision: Option<u64>,
+        persisted_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let author = self.draft_author()?;
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let plan = command
+            .authored_plan(authored_at_unix_s, hex::encode(author))
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let wire = PlanWireV1::from_plan(&plan)
+            .to_json()
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let payload = Phase1DraftPayload::new(&command, wire, media)?;
+        let bytes = payload.encode()?;
+        let storage = self.storage()?;
+        let expected = expected_revision
+            .map(AuthoredDraftRevision::new)
+            .transpose()
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let draft = if let Some(expected) = expected {
+            let head = storage
+                .authored_draft_head(draft_id)
+                .await
+                .map_err(|_| Phase1DraftError::Storage)?
+                .ok_or(Phase1DraftError::NotFound)?;
+            if head.revision() != expected
+                || head.stage().is_terminal()
+                || matches!(
+                    head.stage(),
+                    AuthoredDraftStage::ReadyToSign | AuthoredDraftStage::Queued
+                )
+            {
+                return Err(Phase1DraftError::RevisionConflict);
+            }
+            head.successor(
+                bytes,
+                draft_stage_for_media(&payload.media),
+                None,
+                persisted_at_unix_ms,
+            )
+            .map_err(|_| Phase1DraftError::RevisionConflict)?
+        } else {
+            AuthoredDraft::initial(
+                draft_id,
+                author,
+                DRAFT_PAYLOAD_SCHEMA,
+                bytes,
+                draft_stage_for_media(&payload.media),
+                None,
+                persisted_at_unix_ms,
+            )
+            .map_err(|_| Phase1DraftError::InvalidDraft)?
+        };
+        let receipt = storage
+            .append_authored_draft(draft, expected)
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+
+    /// Advances one media prerequisite without mutating any prior revision.
+    pub async fn phase1_update_draft_media(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        url: &str,
+        stage: Phase1MediaStage,
+        failure_code: Option<String>,
+        updated_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected
+            || head.stage().is_terminal()
+            || matches!(
+                head.stage(),
+                AuthoredDraftStage::ReadyToSign | AuthoredDraftStage::Queued
+            )
+        {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let mut payload = Phase1DraftPayload::decode(&head)?;
+        let media = payload
+            .media
+            .iter_mut()
+            .find(|media| media.url == url)
+            .ok_or(Phase1DraftError::InvalidMedia)?;
+        if !valid_media_transition(media.stage, stage) {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        media.stage = stage;
+        media.failure_code = failure_code;
+        media.validate()?;
+        let next_stage = match stage {
+            Phase1MediaStage::Pending | Phase1MediaStage::Preparing => {
+                AuthoredDraftStage::MediaPreparing
+            }
+            Phase1MediaStage::Uploading
+            | Phase1MediaStage::Verified
+            | Phase1MediaStage::Failed
+            | Phase1MediaStage::Orphaned => AuthoredDraftStage::MediaUploading,
+        };
+        let next = head
+            .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = storage
+            .append_authored_draft(next, Some(expected))
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+
+    /// Freezes queue intent and atomically prepares the canonical outbox before
+    /// returning `queued`. Network connectivity is neither read nor required.
+    pub async fn phase1_queue_draft(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        policy: Phase1QueuePolicy,
+        queued_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let mut payload = Phase1DraftPayload::decode(&head)?;
+        let ready = match head.stage() {
+            AuthoredDraftStage::ReadyToSign => {
+                if payload.queue.as_ref() != Some(&policy) {
+                    return Err(Phase1DraftError::RevisionConflict);
+                }
+                head
+            }
+            AuthoredDraftStage::Queued => {
+                if payload.queue.as_ref() != Some(&policy) {
+                    return Err(Phase1DraftError::RevisionConflict);
+                }
+                return self.draft_status_from(head).await;
+            }
+            AuthoredDraftStage::Cancelled => return Err(Phase1DraftError::Terminal),
+            AuthoredDraftStage::Draft
+            | AuthoredDraftStage::MediaPreparing
+            | AuthoredDraftStage::MediaUploading => {
+                if payload
+                    .media
+                    .iter()
+                    .any(|media| media.stage != Phase1MediaStage::Verified)
+                {
+                    return Err(Phase1DraftError::MediaNotReady);
+                }
+                policy.materialize()?;
+                payload.queue = Some(policy);
+                let bytes = payload.encode()?;
+                let operation_id = operation_id(draft_id, bytes.as_slice())?;
+                let operation_id = OperationInstanceId::new(*operation_id.as_bytes())
+                    .map_err(|_| Phase1DraftError::InvalidDraft)?;
+                let ready = head
+                    .successor(
+                        bytes,
+                        AuthoredDraftStage::ReadyToSign,
+                        Some(operation_id),
+                        queued_at_unix_ms,
+                    )
+                    .map_err(|_| Phase1DraftError::RevisionConflict)?;
+                storage
+                    .append_authored_draft(ready.clone(), Some(expected))
+                    .await
+                    .map_err(map_draft_storage_error)?;
+                ready
+            }
+        };
+        self.finish_queue(ready, queued_at_unix_ms).await
+    }
+
+    /// Resumes a queue transition interrupted after its durable ready-to-sign
+    /// checkpoint, including the crash window after outbox preparation.
+    pub async fn phase1_recover_draft_queue(
+        &self,
+        draft_id: [u8; 16],
+        recovered_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let head = self
+            .storage()?
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        match head.stage() {
+            AuthoredDraftStage::ReadyToSign => self.finish_queue(head, recovered_at_unix_ms).await,
+            AuthoredDraftStage::Queued | AuthoredDraftStage::Cancelled => {
+                self.draft_status_from(head).await
+            }
+            AuthoredDraftStage::Draft
+            | AuthoredDraftStage::MediaPreparing
+            | AuthoredDraftStage::MediaUploading => Err(Phase1DraftError::InvalidDraft),
+        }
+    }
+
+    /// Returns durable draft state composed with canonical authored-operation state.
+    pub async fn phase1_draft_status(
+        &self,
+        draft_id: [u8; 16],
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let head = self
+            .storage()?
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        self.draft_status_from(head).await
+    }
+
+    /// Lists the newest immutable revision of each draft for the active author.
+    pub async fn phase1_draft_heads(
+        &self,
+        limit: u16,
+    ) -> Result<Vec<Phase1DraftStatus>, Phase1DraftError> {
+        let drafts = self
+            .storage()?
+            .authored_draft_heads(self.draft_author()?, limit)
+            .await
+            .map_err(map_draft_storage_error)?;
+        let mut statuses = Vec::with_capacity(drafts.len());
+        for draft in drafts {
+            statuses.push(self.draft_status_from(draft).await?);
+        }
+        Ok(statuses)
+    }
+
+    /// Cancels still-pending authored work and records uploaded-but-unreferenced
+    /// media as possible orphans without deleting any evidence.
+    pub async fn phase1_cancel_draft(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        cancelled_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.stage() == AuthoredDraftStage::Cancelled {
+            return self.draft_status_from(head).await;
+        }
+        if head.revision() != expected {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let mut payload = Phase1DraftPayload::decode(&head)?;
+        let push = self.push_status_for(&head).await?;
+        if let Some(status) = &push {
+            self.sync()?
+                .cancel_push(sync_id_for(&head)?)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+            if status.artifact().signed().is_none() {
+                mark_possible_orphans(&mut payload.media);
+            }
+        } else {
+            mark_possible_orphans(&mut payload.media);
+        }
+        let next = head
+            .successor(
+                payload.encode()?,
+                AuthoredDraftStage::Cancelled,
+                head.operation_id(),
+                cancelled_at_unix_ms,
+            )
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = storage
+            .append_authored_draft(next, Some(expected))
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+
+    /// Applies the current durable operation state to an already-projected
+    /// active-author card. The overlay remains local and never changes event truth.
+    pub async fn phase1_apply_draft_overlay(
+        &self,
+        context: &LocalNetwork,
+        draft_id: [u8; 16],
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let status = self.phase1_draft_status(draft_id).await?;
+        let operation_id = status
+            .draft
+            .operation_id()
+            .map(|id| hex::encode(id.as_bytes()))
+            .ok_or(Phase1DraftError::OperationUnavailable)?;
+        self.phase1_set_local_author_overlay(
+            context,
+            status.card_id,
+            Some(LocalAuthorOverlay {
+                operation_id,
+                state: status.state.label().to_owned(),
+            }),
+        )
+        .await
+        .map_err(map_overlay_error)?;
+        Ok(status)
+    }
+
+    async fn finish_queue(
+        &self,
+        ready: AuthoredDraft,
+        queued_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let request = push_request(&ready)?;
+        self.sync()?
+            .prepare_push(request)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)?;
+        let queued = ready
+            .successor(
+                ready.payload().to_vec(),
+                AuthoredDraftStage::Queued,
+                ready.operation_id(),
+                queued_at_unix_ms.max(ready.updated_at_unix_ms()),
+            )
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = self
+            .storage()?
+            .append_authored_draft(queued, Some(ready.revision()))
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+
+    async fn draft_status_from(
+        &self,
+        draft: AuthoredDraft,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        if draft.author() != &self.draft_author()? {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        let payload = Phase1DraftPayload::decode(&draft)?;
+        let integrity = PlanWireV1::from_json(payload.plan_wire_json.as_slice())
+            .map_err(|_| Phase1DraftError::Corrupt)?;
+        let card_id = card_id(payload.command_type, integrity.plan())?;
+        let push = self.push_status_for(&draft).await?;
+        if draft.stage() == AuthoredDraftStage::Queued && push.is_none() {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        let state = aggregate_state(&draft, push.as_ref());
+        Ok(Phase1DraftStatus {
+            draft,
+            command_type: payload.command_type,
+            media: payload.media,
+            state,
+            card_id,
+            push,
+        })
+    }
+
+    async fn push_status_for(
+        &self,
+        draft: &AuthoredDraft,
+    ) -> Result<Option<PushStatus>, Phase1DraftError> {
+        let Some(_) = draft.operation_id() else {
+            return Ok(None);
+        };
+        self.sync()?
+            .push_status(sync_id_for(draft)?)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)
+    }
+
+    fn storage(&self) -> Result<&dyn AuthoredDraftStore, Phase1DraftError> {
+        self.client
+            .storage()
+            .map(|storage| storage as &dyn AuthoredDraftStore)
+            .map_err(|_| Phase1DraftError::Storage)
+    }
+
+    fn sync(&self) -> Result<radroots_sdk::sync::Operations<'_>, Phase1DraftError> {
+        self.client
+            .sync()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?
+            .ok_or(Phase1DraftError::OperationUnavailable)
+    }
+
+    fn draft_author(&self) -> Result<[u8; 32], Phase1DraftError> {
+        self.store_public_key
+            .map(|key| *key.as_bytes())
+            .ok_or(Phase1DraftError::IdentityUnavailable)
+    }
+}
+
+fn push_request(draft: &AuthoredDraft) -> Result<PushRequest, Phase1DraftError> {
+    let payload = Phase1DraftPayload::decode(draft)?;
+    let policy = payload.queue.ok_or(Phase1DraftError::InvalidQueuePolicy)?;
+    let (targets, satisfaction, cancellation) = policy.materialize()?;
+    let plan = PlanWireV1::from_json(payload.plan_wire_json.as_slice())
+        .map_err(|_| Phase1DraftError::Corrupt)?
+        .into_plan();
+    let public_key = PublicKey::from_bytes(*draft.author())
+        .map_err(|_| Phase1DraftError::IdentityUnavailable)?;
+    let actor = Actor::new(public_key, ActorSource::ExplicitPublicKey, AuthorRole::ALL)
+        .map_err(|_| Phase1DraftError::IdentityUnavailable)?;
+    let sync_id = sync_id_for(draft)?;
+    let idempotency = IdempotencyKey::parse(format!(
+        "phase1-draft-{}",
+        hex::encode(draft.draft_id().as_bytes())
+    ))
+    .map_err(|_| Phase1DraftError::InvalidDraft)?;
+    PushRequest::new(
+        sync_id,
+        idempotency,
+        actor,
+        plan,
+        targets,
+        satisfaction,
+        policy.delivery_deadline_unix_ms,
+        cancellation,
+    )
+    .map_err(|_| Phase1DraftError::InvalidQueuePolicy)
+}
+
+fn operation_id(
+    draft_id: AuthoredDraftId,
+    ready_payload: &[u8],
+) -> Result<SyncId, Phase1DraftError> {
+    let mut hasher = Sha256::new();
+    hasher.update(DRAFT_OPERATION_DOMAIN);
+    hasher.update(draft_id.as_bytes());
+    hasher.update(
+        u64::try_from(ready_payload.len())
+            .map_err(|_| Phase1DraftError::InvalidDraft)?
+            .to_be_bytes(),
+    );
+    hasher.update(ready_payload);
+    let digest: [u8; 32] = hasher.finalize().into();
+    let mut value = [0_u8; 16];
+    value.copy_from_slice(&digest[..16]);
+    if value.iter().all(|byte| *byte == 0) {
+        value[15] = 1;
+    }
+    SyncId::new(value).map_err(|_| Phase1DraftError::InvalidDraft)
+}
+
+fn sync_id_for(draft: &AuthoredDraft) -> Result<SyncId, Phase1DraftError> {
+    draft
+        .operation_id()
+        .ok_or(Phase1DraftError::OperationUnavailable)
+        .and_then(|id| SyncId::new(*id.as_bytes()).map_err(|_| Phase1DraftError::Corrupt))
+}
+
+fn media_urls(tags: &[Vec<String>]) -> Result<BTreeSet<&str>, Phase1DraftError> {
+    let mut urls = BTreeSet::new();
+    for tag in tags {
+        let candidate = match tag.first().map(String::as_str) {
+            Some("imeta") => tag
+                .iter()
+                .skip(1)
+                .find_map(|value| value.strip_prefix("url ")),
+            Some("image") => tag.get(1).map(String::as_str),
+            _ => None,
+        };
+        if let Some(candidate) = candidate
+            && BlobUrl::parse(candidate).is_ok()
+            && !urls.insert(candidate)
+        {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+    }
+    Ok(urls)
+}
+
+fn draft_stage_for_media(media: &[Phase1MediaPrerequisite]) -> AuthoredDraftStage {
+    if media.is_empty() {
+        AuthoredDraftStage::Draft
+    } else if media
+        .iter()
+        .any(|media| media.stage == Phase1MediaStage::Uploading)
+    {
+        AuthoredDraftStage::MediaUploading
+    } else {
+        AuthoredDraftStage::MediaPreparing
+    }
+}
+
+fn mark_possible_orphans(media: &mut [Phase1MediaPrerequisite]) {
+    for media in media {
+        if media.stage == Phase1MediaStage::Verified {
+            media.stage = Phase1MediaStage::Orphaned;
+        }
+    }
+}
+
+const fn valid_media_transition(previous: Phase1MediaStage, next: Phase1MediaStage) -> bool {
+    match previous {
+        Phase1MediaStage::Pending => matches!(
+            next,
+            Phase1MediaStage::Pending
+                | Phase1MediaStage::Preparing
+                | Phase1MediaStage::Uploading
+                | Phase1MediaStage::Failed
+        ),
+        Phase1MediaStage::Preparing => matches!(
+            next,
+            Phase1MediaStage::Preparing | Phase1MediaStage::Uploading | Phase1MediaStage::Failed
+        ),
+        Phase1MediaStage::Uploading => matches!(
+            next,
+            Phase1MediaStage::Uploading | Phase1MediaStage::Verified | Phase1MediaStage::Failed
+        ),
+        Phase1MediaStage::Failed => matches!(
+            next,
+            Phase1MediaStage::Preparing | Phase1MediaStage::Uploading | Phase1MediaStage::Failed
+        ),
+        Phase1MediaStage::Verified => matches!(next, Phase1MediaStage::Verified),
+        Phase1MediaStage::Orphaned => matches!(next, Phase1MediaStage::Orphaned),
+    }
+}
+
+fn aggregate_state(draft: &AuthoredDraft, push: Option<&PushStatus>) -> Phase1OutboxState {
+    if draft.stage() == AuthoredDraftStage::Cancelled {
+        return Phase1OutboxState::Cancelled;
+    }
+    let Some(push) = push else {
+        return match draft.stage() {
+            AuthoredDraftStage::Draft => Phase1OutboxState::Draft,
+            AuthoredDraftStage::MediaPreparing => Phase1OutboxState::MediaPreparing,
+            AuthoredDraftStage::MediaUploading => Phase1OutboxState::MediaUploading,
+            AuthoredDraftStage::ReadyToSign => Phase1OutboxState::ReadyToSign,
+            AuthoredDraftStage::Queued => Phase1OutboxState::Queued,
+            AuthoredDraftStage::Cancelled => Phase1OutboxState::Cancelled,
+        };
+    };
+    if push.settlement().is_successful() {
+        return Phase1OutboxState::Complete;
+    }
+    if push.settlement().has_failures() {
+        return if push.settlement().retryable() != 0 || push.settlement().delivery_retryable() != 0
+        {
+            Phase1OutboxState::Retryable
+        } else if push.settlement().cancelled() != 0 || push.settlement().delivery_cancelled() != 0
+        {
+            Phase1OutboxState::Cancelled
+        } else {
+            Phase1OutboxState::Terminal
+        };
+    }
+    match push.artifact().signing_state() {
+        SigningState::Planned if push.artifact().signing_claim().is_some() => {
+            Phase1OutboxState::Signing
+        }
+        SigningState::Planned => Phase1OutboxState::Queued,
+        SigningState::Retryable => Phase1OutboxState::Retryable,
+        SigningState::Indeterminate | SigningState::FailedTerminal => Phase1OutboxState::Terminal,
+        SigningState::Cancelled => Phase1OutboxState::Cancelled,
+        SigningState::Signed => match push.artifact().admission_state() {
+            AdmissionState::Pending => Phase1OutboxState::Signed,
+            AdmissionState::Retryable => Phase1OutboxState::Retryable,
+            AdmissionState::Rejected => Phase1OutboxState::Terminal,
+            AdmissionState::Cancelled => Phase1OutboxState::Cancelled,
+            AdmissionState::Inserted | AdmissionState::Duplicate => match push
+                .delivery_plan()
+                .state()
+            {
+                AuthoredDeliveryState::Pending
+                    if push.delivery_plan().claim_evidence().is_some() =>
+                {
+                    Phase1OutboxState::Delivering
+                }
+                AuthoredDeliveryState::Pending if push.delivery_plan().attempts().is_empty() => {
+                    Phase1OutboxState::Queued
+                }
+                AuthoredDeliveryState::Pending => Phase1OutboxState::PartiallyDelivered,
+                AuthoredDeliveryState::Retryable if has_delivery_success(push) => {
+                    Phase1OutboxState::PartiallyDelivered
+                }
+                AuthoredDeliveryState::Retryable => Phase1OutboxState::Retryable,
+                AuthoredDeliveryState::Satisfied => Phase1OutboxState::Complete,
+                AuthoredDeliveryState::Exhausted | AuthoredDeliveryState::FailedTerminal => {
+                    Phase1OutboxState::Terminal
+                }
+                AuthoredDeliveryState::Cancelled => Phase1OutboxState::Cancelled,
+            },
+        },
+    }
+}
+
+fn has_delivery_success(push: &PushStatus) -> bool {
+    push.delivery_plan().attempts().iter().any(|attempt| {
+        let evidence = match attempt.outcome() {
+            DeliveryAttemptOutcome::Receipt(receipt) => receipt.target_receipts(),
+            DeliveryAttemptOutcome::SinkFailure(failure) => failure.partial_evidence(),
+        };
+        evidence.iter().any(|receipt| {
+            matches!(
+                receipt.outcome().kind(),
+                DeliveryOutcomeKind::Accepted | DeliveryOutcomeKind::Delivered
+            )
+        })
+    })
+}
+
+fn card_id(
+    command_type: AddCommandType,
+    plan: &radroots_event_codec::authoring::AuthoredEventPlan,
+) -> Result<CardId, Phase1DraftError> {
+    let card_type = match command_type {
+        AddCommandType::CreateUpdate => TodayCardType::Update,
+        AddCommandType::CreatePhotoUpdate => TodayCardType::PhotoUpdate,
+        AddCommandType::CreateAsk => TodayCardType::Ask,
+        AddCommandType::CreateEvent => TodayCardType::Event,
+        AddCommandType::CreateFoodAvailability => TodayCardType::FoodAvailability,
+    };
+    let source = if (30_000..40_000).contains(&plan.body().kind()) {
+        let identifier = plan
+            .body()
+            .tags()
+            .iter()
+            .find(|tag| tag.first().map(String::as_str) == Some("d") && tag.len() == 2)
+            .and_then(|tag| tag.get(1))
+            .ok_or(Phase1DraftError::Corrupt)?;
+        CardSourceIdentity::address(
+            plan.body().kind(),
+            plan.author().to_hex(),
+            identifier.clone(),
+        )
+        .map_err(|_| Phase1DraftError::Corrupt)?
+    } else {
+        CardSourceIdentity::Event(*plan.expected_event_id())
+    };
+    Ok(CardId::derive(card_type, &source))
+}
+
+fn map_draft_storage_error(error: radroots_storage::Error) -> Phase1DraftError {
+    match error {
+        radroots_storage::Error::DraftRevisionConflict => Phase1DraftError::RevisionConflict,
+        radroots_storage::Error::DraftNotFound => Phase1DraftError::NotFound,
+        radroots_storage::Error::CorruptAuthoredDraft => Phase1DraftError::Corrupt,
+        _ => Phase1DraftError::Storage,
+    }
+}
+
+fn map_overlay_error(_: TodayError) -> Phase1DraftError {
+    Phase1DraftError::Overlay
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::runtime::product_surface::{
+        CANONICAL_ADD_COMMAND_TYPES, CreateAsk, CreateEvent, CreateFoodAvailability,
+        CreatePhotoUpdate, CreateUpdate,
+    };
+    use radroots_blossom::{BlobDescriptor, Sha256 as BlossomSha256};
+    use radroots_event::{
+        calendar::{AuthoredCalendarDateEvent, CalendarDate},
+        food::availability::{
+            FoodAvailabilityDetails, FoodAvailabilityDetailsParts, FoodAvailabilityStatus,
+            FoodContent, FoodCurrency, FoodIdentifier, FoodPrice, FoodPublishedAt, FoodText,
+            FoodUnit,
+        },
+        media::AuthoredImage,
+        post::{AuthoredPostImage, PostImageDimensions},
+    };
+    use radroots_sdk::ClientBuilder;
+
+    const AUTHOR: &str = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    fn runtime() -> RadrootsRuntime {
+        RadrootsRuntime::from_client_builder(
+            ClientBuilder::memory_default(),
+            Some(PublicKey::from_hex(AUTHOR).unwrap()),
+        )
+        .unwrap()
+    }
+
+    fn policy() -> Phase1QueuePolicy {
+        Phase1QueuePolicy::new(
+            vec![
+                "wss://relay-one.example".to_owned(),
+                "wss://relay-two.example".to_owned(),
+            ],
+            Phase1RelaySatisfaction::AllAccepted,
+            2_000_000_000_000,
+            Phase1CancellationPolicy::LocalCooperative,
+        )
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn media_free_draft_queues_offline_and_recovers_exactly() {
+        let runtime = runtime();
+        let id = [7; 16];
+        let draft = runtime
+            .phase1_save_draft(
+                id,
+                Phase1AddCommand::CreateUpdate(CreateUpdate::new("Harvest").unwrap()),
+                1_900_000_000,
+                Vec::new(),
+                None,
+                10,
+            )
+            .await
+            .unwrap();
+        assert_eq!(draft.state(), Phase1OutboxState::Draft);
+        let queued = runtime
+            .phase1_queue_draft(id, 1, policy(), 11)
+            .await
+            .unwrap();
+        assert_eq!(queued.state(), Phase1OutboxState::Queued);
+        assert_eq!(queued.draft().revision().get(), 3);
+        assert!(queued.push().is_some());
+        let recovered = runtime.phase1_recover_draft_queue(id, 12).await.unwrap();
+        assert_eq!(recovered.draft(), queued.draft());
+        assert_eq!(recovered.push(), queued.push());
+    }
+
+    #[tokio::test]
+    async fn queue_recovery_closes_both_preparation_crash_windows() {
+        let runtime = runtime();
+        for (id_byte, prepare_before_recovery) in [(10, false), (11, true)] {
+            let id = [id_byte; 16];
+            let saved = runtime
+                .phase1_save_draft(
+                    id,
+                    Phase1AddCommand::CreateUpdate(CreateUpdate::new("Recover").unwrap()),
+                    1_900_000_010,
+                    Vec::new(),
+                    None,
+                    40,
+                )
+                .await
+                .unwrap();
+            let mut payload = Phase1DraftPayload::decode(saved.draft()).unwrap();
+            payload.queue = Some(policy());
+            let bytes = payload.encode().unwrap();
+            let draft_id = saved.draft().draft_id();
+            let operation = operation_id(draft_id, bytes.as_slice()).unwrap();
+            let operation = OperationInstanceId::new(*operation.as_bytes()).unwrap();
+            let ready = saved
+                .draft()
+                .successor(bytes, AuthoredDraftStage::ReadyToSign, Some(operation), 41)
+                .unwrap();
+            runtime
+                .storage()
+                .unwrap()
+                .append_authored_draft(ready.clone(), Some(saved.draft().revision()))
+                .await
+                .unwrap();
+            if prepare_before_recovery {
+                runtime
+                    .sync()
+                    .unwrap()
+                    .prepare_push(push_request(&ready).unwrap())
+                    .await
+                    .unwrap();
+            }
+            let recovered = runtime.phase1_recover_draft_queue(id, 42).await.unwrap();
+            assert_eq!(recovered.draft().stage(), AuthoredDraftStage::Queued);
+            assert_eq!(recovered.draft().revision().get(), 3);
+            assert!(recovered.push().is_some());
+        }
+    }
+
+    #[tokio::test]
+    async fn all_five_add_flows_queue_without_network_access() {
+        let runtime = runtime();
+        let (photo, media) = photo_command();
+        let commands = [
+            (
+                Phase1AddCommand::CreateUpdate(CreateUpdate::new("Harvest update").unwrap()),
+                Vec::new(),
+            ),
+            (photo, vec![media]),
+            (
+                Phase1AddCommand::CreateAsk(CreateAsk::new("Who has basil?", Vec::new()).unwrap()),
+                Vec::new(),
+            ),
+            (
+                Phase1AddCommand::CreateEvent(CreateEvent::date(
+                    AuthoredCalendarDateEvent::new(
+                        "market-day",
+                        "Saturday Market",
+                        CalendarDate::parse("2026-08-08").unwrap(),
+                    )
+                    .unwrap(),
+                )),
+                Vec::new(),
+            ),
+            (
+                Phase1AddCommand::CreateFoodAvailability(CreateFoodAvailability::new(food())),
+                Vec::new(),
+            ),
+        ];
+        for (index, (command, media)) in commands.into_iter().enumerate() {
+            let mut id = [30; 16];
+            id[15] = u8::try_from(index + 1).unwrap();
+            let saved = runtime
+                .phase1_save_draft(
+                    id,
+                    command,
+                    1_784_347_200,
+                    media,
+                    None,
+                    100 + u64::try_from(index).unwrap() * 10,
+                )
+                .await
+                .unwrap();
+            let queued = runtime
+                .phase1_queue_draft(
+                    id,
+                    saved.draft().revision().get(),
+                    policy(),
+                    101 + u64::try_from(index).unwrap() * 10,
+                )
+                .await
+                .unwrap();
+            assert_eq!(queued.state(), Phase1OutboxState::Queued);
+            assert_eq!(queued.command_type(), CANONICAL_ADD_COMMAND_TYPES[index]);
+        }
+    }
+
+    #[tokio::test]
+    async fn cancellation_is_terminal_and_preserves_operation_evidence() {
+        let runtime = runtime();
+        let id = [8; 16];
+        runtime
+            .phase1_save_draft(
+                id,
+                Phase1AddCommand::CreateUpdate(CreateUpdate::new("Cancelled").unwrap()),
+                1_900_000_001,
+                Vec::new(),
+                None,
+                20,
+            )
+            .await
+            .unwrap();
+        let queued = runtime
+            .phase1_queue_draft(id, 1, policy(), 21)
+            .await
+            .unwrap();
+        let cancelled = runtime
+            .phase1_cancel_draft(id, queued.draft().revision().get(), 22)
+            .await
+            .unwrap();
+        assert_eq!(cancelled.state(), Phase1OutboxState::Cancelled);
+        let push = cancelled.push().expect("retained push evidence");
+        assert_eq!(push.artifact().signing_state(), SigningState::Cancelled);
+        assert_eq!(
+            push.delivery_plan().state(),
+            AuthoredDeliveryState::Cancelled
+        );
+        assert!(push.settlement().is_settled());
+    }
+
+    #[tokio::test]
+    async fn media_phase_revisions_gate_queue_and_record_possible_orphans() {
+        let runtime = runtime();
+        let id = [9; 16];
+        let (command, mut media) = photo_command();
+        media.stage = Phase1MediaStage::Pending;
+        media.validate().unwrap();
+        let saved = runtime
+            .phase1_save_draft(id, command, 1_784_347_200, vec![media], None, 30)
+            .await
+            .unwrap();
+        assert_eq!(saved.state(), Phase1OutboxState::MediaPreparing);
+        assert_eq!(
+            runtime
+                .phase1_queue_draft(id, 1, policy(), 31)
+                .await
+                .unwrap_err(),
+            Phase1DraftError::MediaNotReady
+        );
+        let preparing = runtime
+            .phase1_update_draft_media(
+                id,
+                1,
+                saved.media()[0].url(),
+                Phase1MediaStage::Preparing,
+                None,
+                31,
+            )
+            .await
+            .unwrap();
+        let uploading = runtime
+            .phase1_update_draft_media(
+                id,
+                2,
+                preparing.media()[0].url(),
+                Phase1MediaStage::Uploading,
+                None,
+                32,
+            )
+            .await
+            .unwrap();
+        let verified = runtime
+            .phase1_update_draft_media(
+                id,
+                3,
+                uploading.media()[0].url(),
+                Phase1MediaStage::Verified,
+                None,
+                33,
+            )
+            .await
+            .unwrap();
+        assert_eq!(verified.media()[0].stage(), Phase1MediaStage::Verified);
+        assert_eq!(
+            runtime
+                .phase1_update_draft_media(
+                    id,
+                    4,
+                    verified.media()[0].url(),
+                    Phase1MediaStage::Uploading,
+                    None,
+                    34,
+                )
+                .await
+                .unwrap_err(),
+            Phase1DraftError::InvalidMedia
+        );
+        let queued = runtime
+            .phase1_queue_draft(id, 4, policy(), 34)
+            .await
+            .unwrap();
+        let cancelled = runtime
+            .phase1_cancel_draft(id, queued.draft().revision().get(), 35)
+            .await
+            .unwrap();
+        assert_eq!(cancelled.media()[0].stage(), Phase1MediaStage::Orphaned);
+        assert_eq!(runtime.phase1_draft_heads(10).await.unwrap().len(), 1);
+    }
+
+    #[test]
+    fn queue_policy_rejects_duplicates_and_noncanonical_relays() {
+        assert!(
+            Phase1QueuePolicy::new(
+                vec!["wss://relay.example".into(), "wss://relay.example".into()],
+                Phase1RelaySatisfaction::AnyAccepted,
+                1,
+                Phase1CancellationPolicy::LocalCooperative,
+            )
+            .is_err()
+        );
+        assert!(
+            Phase1QueuePolicy::new(
+                vec!["WSS://relay.example".into()],
+                Phase1RelaySatisfaction::AnyAccepted,
+                1,
+                Phase1CancellationPolicy::LocalCooperative,
+            )
+            .is_err()
+        );
+    }
+
+    fn photo_command() -> (Phase1AddCommand, Phase1MediaPrerequisite) {
+        let bytes = b"harvest-photo";
+        let hash = BlossomSha256::digest(bytes);
+        let url = format!("https://media.example/{hash}.webp");
+        let media_type = MediaType::parse("image/webp").unwrap();
+        let descriptor = BlobDescriptor::new(
+            BlobUrl::parse(url.as_str()).unwrap(),
+            hash,
+            bytes.len() as u64,
+            media_type.clone(),
+            1_784_347_100,
+        )
+        .unwrap()
+        .approve_reference()
+        .unwrap()
+        .verify_bytes(bytes, &media_type)
+        .unwrap();
+        let image = AuthoredPostImage::new(
+            AuthoredImage::try_from(descriptor).unwrap(),
+            PostImageDimensions::new(1200, 900).unwrap(),
+            "Harvest",
+        )
+        .unwrap();
+        let command = Phase1AddCommand::CreatePhotoUpdate(
+            CreatePhotoUpdate::new(format!("Harvest photo {url}"), vec![image]).unwrap(),
+        );
+        let prerequisite = Phase1MediaPrerequisite::new(
+            "protected://draft/photo-1",
+            url,
+            hash.to_hex(),
+            "image/webp",
+            bytes.len() as u64,
+            Phase1MediaStage::Verified,
+        )
+        .unwrap();
+        (command, prerequisite)
+    }
+
+    fn food() -> FoodAvailabilityDetails {
+        FoodAvailabilityDetails::new(FoodAvailabilityDetailsParts {
+            content: FoodContent::new("Carrots available this week.").unwrap(),
+            identifier: FoodIdentifier::parse("nantes-carrots").unwrap(),
+            title: FoodText::new("Nantes Carrots").unwrap(),
+            summary: FoodText::new("Fresh bunches").unwrap(),
+            published_at: FoodPublishedAt::new(1_784_347_100).unwrap(),
+            location: FoodText::new("Central Saanich, BC").unwrap(),
+            price: FoodPrice::new("3", FoodCurrency::parse("CAD").unwrap(), FoodUnit::Pound)
+                .unwrap(),
+            quantity: None,
+            status: FoodAvailabilityStatus::Active,
+            images: Vec::new(),
+        })
+        .unwrap()
+    }
+}

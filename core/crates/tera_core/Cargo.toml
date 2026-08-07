@@ -27,11 +27,18 @@ mobile-social = [
 ]
 
 [dependencies]
+radroots_blossom = { workspace = true, default-features = false, features = [
+    "serde",
+    "std",
+] }
 radroots_sdk = { workspace = true, features = ["sqlite"] }
 radroots_event = { workspace = true, default-features = false, features = ["std"] }
 radroots_event_codec = { workspace = true, default-features = false, features = ["json", "std"] }
 radroots_identity = { workspace = true, default-features = false, features = ["std"] }
+radroots_signing = { workspace = true, default-features = false, features = ["std"] }
 radroots_storage = { workspace = true, default-features = false }
+radroots_sync = { workspace = true, default-features = false }
+radroots_transport = { workspace = true, default-features = false, features = ["std"] }
 chrono = { workspace = true }
 hex = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
@@ -41,11 +48,6 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 nostr = { workspace = true, features = ["std"] }
-radroots_blossom = { workspace = true, default-features = false, features = [
-    "serde",
-    "std",
-] }
 radroots_sdk = { workspace = true, features = ["memory", "sqlite"] }
-radroots_transport = { workspace = true, default-features = false, features = ["std"] }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
