@@ -1,7 +1,9 @@
 use radroots_mobile_core::runtime::{
     info::RuntimeInfo,
     product_surface::{AddCommandType, CardAddParity, LocalNetwork, TodayCardType},
-    sdk::{SdkCapabilityRecord, SdkShutdownRecord, SdkStorageStatusRecord},
+    sdk::{
+        SdkCapabilityRecord, SdkRelayStatusReportRecord, SdkShutdownRecord, SdkStorageStatusRecord,
+    },
 };
 
 use crate::RadrootsAppError;
@@ -87,6 +89,37 @@ impl RadrootsRuntime {
 
     pub async fn sdk_storage_status(&self) -> Result<SdkStorageStatusRecord, RadrootsAppError> {
         self.inner.sdk_storage_status().await.map_err(Into::into)
+    }
+
+    pub fn sdk_relay_status(&self) -> Result<Option<SdkRelayStatusReportRecord>, RadrootsAppError> {
+        self.inner.sdk_relay_status().map_err(Into::into)
+    }
+
+    pub fn configure_public_relays(
+        &self,
+        writable_relays: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        self.inner
+            .configure_public_relays(writable_relays)
+            .map_err(Into::into)
+    }
+
+    pub fn configure_simulator_relays(
+        &self,
+        loopback_relays: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        self.inner
+            .configure_simulator_relays(loopback_relays)
+            .map_err(Into::into)
+    }
+
+    pub fn configure_device_relays(
+        &self,
+        writable_relays: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        self.inner
+            .configure_device_relays(writable_relays)
+            .map_err(Into::into)
     }
 
     pub fn phase1_card_types(&self) -> Vec<TodayCardType> {

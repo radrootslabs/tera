@@ -82,6 +82,27 @@ pub struct SdkStorageStatusRecord {
 }
 
 #[uniffi::remote(Record)]
+pub struct SdkRelayStatusRecord {
+    pub relay_url: String,
+    pub access: String,
+    pub read_state: String,
+    pub write_state: String,
+    pub read_last_attempt_unix_ms: Option<u64>,
+    pub write_last_attempt_unix_ms: Option<u64>,
+    pub read_next_attempt_unix_ms: Option<u64>,
+    pub write_next_attempt_unix_ms: Option<u64>,
+}
+
+#[uniffi::remote(Record)]
+pub struct SdkRelayStatusReportRecord {
+    pub profile: String,
+    pub state: String,
+    pub read_availability: String,
+    pub write_availability: String,
+    pub relays: Vec<SdkRelayStatusRecord>,
+}
+
+#[uniffi::remote(Record)]
 pub struct SdkShutdownRecord {
     pub state: String,
     pub already_closed: bool,

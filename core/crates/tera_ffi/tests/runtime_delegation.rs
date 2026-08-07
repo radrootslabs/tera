@@ -25,6 +25,65 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         "sqlite"
     );
 
+    let public = runtime
+        .sdk_relay_status()
+        .expect("relay status")
+        .expect("default public profile");
+    assert_eq!(public.profile, "public");
+    assert_eq!(public.state, "configured");
+    assert_eq!(public.read_availability, "unavailable");
+    assert_eq!(public.write_availability, "unavailable");
+    assert_eq!(public.relays.len(), 1);
+    assert_eq!(public.relays[0].access, "read_only");
+    assert_eq!(public.relays[0].read_state, "unobserved");
+    assert_eq!(public.relays[0].write_state, "unsupported");
+
+    runtime
+        .configure_public_relays(vec!["wss://write.example".to_owned()])
+        .expect("public relays");
+    let public = runtime
+        .sdk_relay_status()
+        .expect("relay status")
+        .expect("public profile");
+    assert_eq!(public.relays.len(), 2);
+    assert_eq!(public.relays[1].access, "read_write");
+    assert!(
+        runtime
+            .configure_public_relays(vec!["ws://127.0.0.1:7447".to_owned()])
+            .is_err()
+    );
+
+    runtime
+        .configure_simulator_relays(vec!["ws://127.0.0.1:7447".to_owned()])
+        .expect("simulator relays");
+    let simulator = runtime
+        .sdk_relay_status()
+        .expect("relay status")
+        .expect("simulator profile");
+    assert_eq!(simulator.profile, "simulator_local");
+    assert_eq!(simulator.relays.len(), 1);
+    assert_eq!(simulator.relays[0].access, "read_write");
+    assert!(
+        runtime
+            .configure_simulator_relays(vec!["wss://relay.example".to_owned()])
+            .is_err()
+    );
+
+    runtime
+        .configure_device_relays(vec!["wss://10.0.0.5:7447".to_owned()])
+        .expect("device relays");
+    let device = runtime
+        .sdk_relay_status()
+        .expect("relay status")
+        .expect("device profile");
+    assert_eq!(device.profile, "device_development");
+    assert_eq!(device.relays.len(), 2);
+    assert!(
+        runtime
+            .configure_device_relays(vec!["wss://127.0.0.1:7447".to_owned()])
+            .is_err()
+    );
+
     assert_eq!(
         runtime.phase1_card_types(),
         vec![
@@ -81,6 +140,14 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     runtime.shutdown().await.expect("shutdown");
     assert!(matches!(
         runtime.sdk_storage_status().await,
+        Err(RadrootsAppError::Sdk { .. })
+    ));
+    assert!(matches!(
+        runtime.sdk_relay_status(),
+        Err(RadrootsAppError::Sdk { .. })
+    ));
+    assert!(matches!(
+        runtime.configure_public_relays(Vec::new()),
         Err(RadrootsAppError::Sdk { .. })
     ));
 }
