@@ -11,6 +11,7 @@ mod identity;
 mod model;
 mod projection;
 mod ranking;
+mod today;
 
 pub use authoring::{
     CreateAsk, CreateEvent, CreateFoodAvailability, CreatePhotoUpdate, CreateUpdate,
@@ -24,11 +25,16 @@ pub use cursor::{CursorError, CursorScope, TodayCursor, TodayCursorPosition};
 pub use identity::{CARD_ID_SCHEMA_VERSION, CardId, CardIdError, CardSourceIdentity};
 pub use model::{
     AddCommandType, CANONICAL_ADD_COMMAND_TYPES, CANONICAL_CARD_ADD_PARITY,
-    CANONICAL_TODAY_CARD_TYPES, CardAddParity, CardLifecycleState, ClassifiedCard, MediaReference,
-    MediaVerificationState, ProfileSummary, SupportingProfile, ThreadReference, TodayCardType,
+    CANONICAL_TODAY_CARD_TYPES, CardAddParity, CardLifecycleState, ClassifiedCard,
+    LocalAuthorOverlay, MeSnapshot, MediaReference, MediaVerificationState, ProfileSummary,
+    SearchResult, SearchResultType, SupportingProfile, ThreadEntry, ThreadReference, TodayCard,
+    TodayCardType, TodayPage,
 };
 pub use projection::{ProductEventClassification, ProductEventExclusion, classify_admitted_event};
 pub use ranking::{RankError, TODAY_RANK_SCHEMA_VERSION, TimeRelevance, TodayRank, TodayRankInput};
+pub use today::{
+    TodayError, TodayIngestReceipt, TodayPageRequest, TodayProjectionUpdate, TodayRefreshReceipt,
+};
 
 use super::RadrootsRuntime;
 

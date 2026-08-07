@@ -145,6 +145,22 @@ fn card(
             identifier,
         } => Some(format!("{kind}:{author_pubkey}:{identifier}")),
     };
+    let tags = event.tags_as_vec();
+    let title = tag_value(&tags, &["title", "name"]);
+    let (effective_at, event_start, event_end) = match card_type {
+        TodayCardType::Event => {
+            let start = tag_time(&tags, "start").unwrap_or_else(|| event.created_at_u64());
+            (start, Some(start), tag_time(&tags, "end"))
+        }
+        TodayCardType::FoodAvailability => (
+            tag_time(&tags, "published_at").unwrap_or_else(|| event.created_at_u64()),
+            None,
+            None,
+        ),
+        TodayCardType::Update | TodayCardType::PhotoUpdate | TodayCardType::Ask => {
+            (event.created_at_u64(), None, None)
+        }
+    };
     ProductEventClassification::Card(Box::new(ClassifiedCard {
         schema_version: CLASSIFIED_CARD_SCHEMA_VERSION,
         card_id: CardId::derive(card_type, &source),
@@ -153,14 +169,40 @@ fn card(
         source_address,
         author_pubkey: event.author().to_hex(),
         contract_id: admitted.contract_id().to_owned(),
+        title,
         content: event.content().to_owned(),
         authored_at: event.created_at_u64(),
+        effective_at,
+        event_start,
+        event_end,
         context_rank: context.rank,
         inclusion_reason: context.reason.to_owned(),
         media,
         lifecycle,
         rank: None,
     }))
+}
+
+fn tag_value(tags: &[Vec<String>], names: &[&str]) -> Option<String> {
+    tags.iter().find_map(|tag| {
+        names
+            .contains(&tag.first()?.as_str())
+            .then(|| tag.get(1).cloned())
+            .flatten()
+    })
+}
+
+fn tag_time(tags: &[Vec<String>], name: &str) -> Option<u64> {
+    let value = tag_value(tags, &[name])?;
+    value.parse().ok().or_else(|| {
+        chrono::NaiveDate::parse_from_str(&value, "%Y-%m-%d")
+            .ok()?
+            .and_hms_opt(0, 0, 0)?
+            .and_utc()
+            .timestamp()
+            .try_into()
+            .ok()
+    })
 }
 
 fn post_media(

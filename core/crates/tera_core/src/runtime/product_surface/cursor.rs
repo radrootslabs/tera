@@ -102,25 +102,26 @@ impl TodayCursor {
     }
 
     pub fn decode(value: &str, expected: &CursorScope) -> Result<TodayCursorPosition, CursorError> {
-        let encoded = value
-            .strip_prefix(CURSOR_PREFIX)
-            .ok_or(CursorError::Malformed)?;
-        if encoded.len() % 2 != 0
-            || !encoded
-                .bytes()
-                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        let (scope, position) = decode_unbound(value)?;
+        if scope.context_id != expected.context_id
+            || scope.context_generation != expected.context_generation
         {
-            return Err(CursorError::Malformed);
+            return Err(CursorError::ContextMismatch);
         }
-        let bytes = hex::decode(encoded).map_err(|_| CursorError::Malformed)?;
-        if bytes.len() < FIXED_PAYLOAD_BYTES + DIGEST_BYTES {
-            return Err(CursorError::Malformed);
+        if scope.as_of != expected.as_of {
+            return Err(CursorError::SnapshotMismatch);
         }
-        let (payload, observed_digest) = bytes.split_at(bytes.len() - DIGEST_BYTES);
-        if cursor_digest(payload).as_slice() != observed_digest {
-            return Err(CursorError::Integrity);
+        if scope.store_generation != expected.store_generation
+            || scope.projection_generation != expected.projection_generation
+        {
+            return Err(CursorError::Stale);
         }
-        decode_payload(payload, expected)
+        Ok(position)
+    }
+
+    /// Recovers the integrity-checked frozen scope carried by an opaque cursor.
+    pub fn scope(value: &str) -> Result<CursorScope, CursorError> {
+        decode_unbound(value).map(|(scope, _)| scope)
     }
 
     pub fn as_str(&self) -> &str {
@@ -128,10 +129,29 @@ impl TodayCursor {
     }
 }
 
-fn decode_payload(
-    payload: &[u8],
-    expected: &CursorScope,
-) -> Result<TodayCursorPosition, CursorError> {
+fn decode_unbound(value: &str) -> Result<(CursorScope, TodayCursorPosition), CursorError> {
+    let encoded = value
+        .strip_prefix(CURSOR_PREFIX)
+        .ok_or(CursorError::Malformed)?;
+    if encoded.len() % 2 != 0
+        || !encoded
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    {
+        return Err(CursorError::Malformed);
+    }
+    let bytes = hex::decode(encoded).map_err(|_| CursorError::Malformed)?;
+    if bytes.len() < FIXED_PAYLOAD_BYTES + DIGEST_BYTES {
+        return Err(CursorError::Malformed);
+    }
+    let (payload, observed_digest) = bytes.split_at(bytes.len() - DIGEST_BYTES);
+    if cursor_digest(payload).as_slice() != observed_digest {
+        return Err(CursorError::Integrity);
+    }
+    decode_payload(payload)
+}
+
+fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), CursorError> {
     let mut decoder = Decoder::new(payload);
     let cursor_version = decoder.u16()?;
     let rank_schema_version = decoder.u16()?;
@@ -161,27 +181,25 @@ fn decode_payload(
     if !decoder.is_finished() {
         return Err(CursorError::Malformed);
     }
-    if context_id != expected.context_id || context_generation != expected.context_generation {
-        return Err(CursorError::ContextMismatch);
-    }
-    if as_of != expected.as_of {
-        return Err(CursorError::SnapshotMismatch);
-    }
-    if store_generation != expected.store_generation
-        || projection_generation != expected.projection_generation
-    {
-        return Err(CursorError::Stale);
-    }
-    Ok(TodayCursorPosition {
-        rank: TodayRank {
-            schema_version: rank_schema_version,
-            algorithm_version: rank_algorithm_version,
-            context_rank,
-            time_relevance_rank,
-            effective_at,
-            card_id,
+    Ok((
+        CursorScope {
+            context_id: context_id.to_owned(),
+            context_generation,
+            as_of,
+            store_generation,
+            projection_generation,
         },
-    })
+        TodayCursorPosition {
+            rank: TodayRank {
+                schema_version: rank_schema_version,
+                algorithm_version: rank_algorithm_version,
+                context_rank,
+                time_relevance_rank,
+                effective_at,
+                card_id,
+            },
+        },
+    ))
 }
 
 fn validate_context_id(value: &str) -> Result<(), CursorError> {
@@ -288,6 +306,7 @@ mod tests {
             TodayCursor::decode(cursor.as_str(), &scope()).expect("decode"),
             position()
         );
+        assert_eq!(TodayCursor::scope(cursor.as_str()).expect("scope"), scope());
     }
 
     #[test]

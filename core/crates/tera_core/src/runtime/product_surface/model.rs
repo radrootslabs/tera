@@ -124,7 +124,12 @@ pub struct ProfileSummary {
     pub author_pubkey: String,
     pub name: Option<String>,
     pub display_name: Option<String>,
+    pub about: Option<String>,
     pub picture: Option<MediaReference>,
+    pub banner: Option<MediaReference>,
+    pub nip05: Option<String>,
+    pub website: Option<String>,
+    pub lightning_address: Option<String>,
 }
 
 /// Thread enrichment identity; replies and comments never become top-level cards.
@@ -134,6 +139,26 @@ pub struct ThreadReference {
     pub profile: SupportingProfile,
     pub root: String,
     pub parent_event_id: String,
+}
+
+/// One admitted reply or comment attached to its canonical root.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreadEntry {
+    pub event_id: String,
+    pub author_pubkey: String,
+    pub content: String,
+    pub authored_at: u64,
+    pub reference: ThreadReference,
+    pub author_profile: Option<ProfileSummary>,
+}
+
+/// Durable local-only authored state overlaid without changing event truth.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LocalAuthorOverlay {
+    pub operation_id: String,
+    pub state: String,
 }
 
 /// Current rendering state derived from standard event semantics.
@@ -156,13 +181,62 @@ pub struct ClassifiedCard {
     pub source_address: Option<String>,
     pub author_pubkey: String,
     pub contract_id: String,
+    pub title: Option<String>,
     pub content: String,
     pub authored_at: u64,
+    pub effective_at: u64,
+    pub event_start: Option<u64>,
+    pub event_end: Option<u64>,
     pub context_rank: ContextRank,
     pub inclusion_reason: String,
     pub media: Vec<MediaReference>,
     pub lifecycle: CardLifecycleState,
     pub rank: Option<TodayRank>,
+}
+
+/// One fully enriched Today card returned to a host.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TodayCard {
+    pub card: ClassifiedCard,
+    pub author_profile: Option<ProfileSummary>,
+    pub thread: Vec<ThreadEntry>,
+    pub local_overlay: Option<LocalAuthorOverlay>,
+}
+
+/// One frozen, cursor-addressable Today page.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TodayPage {
+    pub as_of: u64,
+    pub items: Vec<TodayCard>,
+    pub next_cursor: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum SearchResultType {
+    Card,
+    Profile,
+}
+
+/// One local search result governed by the same current projection as Today.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SearchResult {
+    pub result_type: SearchResultType,
+    pub stable_id: String,
+    pub card: Option<TodayCard>,
+    pub profile: Option<ProfileSummary>,
+}
+
+/// Active identity attribution and its current visible Phase 1 cards.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeSnapshot {
+    pub public_key: String,
+    pub profile: Option<ProfileSummary>,
+    pub cards: Vec<TodayCard>,
 }
 
 #[cfg(test)]

@@ -46,5 +46,6 @@ radroots_blossom = { workspace = true, default-features = false, features = [
     "std",
 ] }
 radroots_sdk = { workspace = true, features = ["memory", "sqlite"] }
+radroots_transport = { workspace = true, default-features = false, features = ["std"] }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
