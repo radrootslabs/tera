@@ -34,7 +34,8 @@ pub use model::{
 };
 #[cfg(feature = "mobile-social")]
 pub use outbox::{
-    Phase1CancellationPolicy, Phase1DraftError, Phase1DraftStatus, Phase1MediaOrphanRecord,
+    Phase1CancellationPolicy, Phase1DraftError, Phase1DraftEventTiming, Phase1DraftFormSnapshot,
+    Phase1DraftKind, Phase1DraftMediaSnapshot, Phase1DraftStatus, Phase1MediaOrphanRecord,
     Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState, Phase1QueuePolicy,
     Phase1RelaySatisfaction,
 };

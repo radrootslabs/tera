@@ -3,7 +3,12 @@ use std::collections::BTreeSet;
 use radroots_blossom::{
     BlobUrl, ByteVerifiedDescriptor, MediaType, authorization::AuthoredUploadClaim,
 };
-use radroots_event::contract::AuthorRole;
+use radroots_event::{
+    contract::AuthorRole,
+    post::deletion::{
+        AuthoredNip09DeletionRequest, Nip09DeletionAddressTarget, Nip09DeletionEventTarget,
+    },
+};
 use radroots_event_codec::authoring::PlanWireV1;
 use radroots_identity::PublicKey;
 use radroots_signing::{
@@ -32,7 +37,7 @@ use thiserror::Error;
 
 use super::{
     AddCommandType, CardId, CardSourceIdentity, LocalAuthorOverlay, LocalNetwork, Phase1AddCommand,
-    TodayCardType, TodayError,
+    TodayCardType, TodayError, phase1_retraction_plan,
 };
 use crate::runtime::RadrootsRuntime;
 
@@ -42,6 +47,114 @@ const DRAFT_MEDIA_MAX: usize = 20;
 const DRAFT_LOCAL_REFERENCE_MAX_BYTES: usize = 4_096;
 const DRAFT_FAILURE_CODE_MAX_BYTES: usize = 96;
 const DRAFT_OPERATION_DOMAIN: &[u8] = b"radroots.mobile.phase1-draft-operation.v1\0";
+
+/// Product intent represented by one durable draft/outbox item.
+#[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase1DraftKind {
+    #[default]
+    Add,
+    Retraction,
+}
+
+/// Event timing profile retained for a reopenable Add form.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase1DraftEventTiming {
+    AllDay,
+    Timed,
+}
+
+/// Secret-free, restart-safe media fields retained with an Add form.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Phase1DraftMediaSnapshot {
+    pub opaque_reference: String,
+    pub url: String,
+    pub sha256: String,
+    pub media_type: String,
+    pub byte_size: u64,
+    pub width: u32,
+    pub height: u32,
+    pub alt: String,
+    pub prepared_at_unix_s: u64,
+}
+
+/// Immutable, validated presentation input used to reopen a durable draft.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Phase1DraftFormSnapshot {
+    pub command_type: AddCommandType,
+    pub content: String,
+    pub identifier: Option<String>,
+    pub title: Option<String>,
+    pub summary: Option<String>,
+    pub location: Option<String>,
+    pub event_timing: Option<Phase1DraftEventTiming>,
+    pub event_start_date: Option<String>,
+    pub event_end_date: Option<String>,
+    pub event_start_unix_s: Option<u64>,
+    pub event_end_unix_s: Option<u64>,
+    pub event_timezone: Option<String>,
+    pub price_amount: Option<String>,
+    pub currency: Option<String>,
+    pub unit: Option<String>,
+    pub quantity: Option<String>,
+    pub food_status: Option<String>,
+    pub media: Vec<Phase1DraftMediaSnapshot>,
+}
+
+impl Phase1DraftFormSnapshot {
+    fn validate(
+        &self,
+        command_type: AddCommandType,
+        media: &[Phase1MediaPrerequisite],
+    ) -> Result<(), Phase1DraftError> {
+        let bounded = |value: &str, maximum: usize| {
+            value.len() <= maximum && !value.chars().any(char::is_control)
+        };
+        if self.command_type != command_type
+            || self.content.len() > 65_535
+            || self.media.len() != media.len()
+            || [
+                self.identifier.as_deref(),
+                self.title.as_deref(),
+                self.summary.as_deref(),
+                self.location.as_deref(),
+                self.event_start_date.as_deref(),
+                self.event_end_date.as_deref(),
+                self.event_timezone.as_deref(),
+                self.price_amount.as_deref(),
+                self.currency.as_deref(),
+                self.unit.as_deref(),
+                self.quantity.as_deref(),
+                self.food_status.as_deref(),
+            ]
+            .into_iter()
+            .flatten()
+            .any(|value| !bounded(value, 1_024))
+        {
+            return Err(Phase1DraftError::InvalidDraft);
+        }
+        for (snapshot, prerequisite) in self.media.iter().zip(media) {
+            if snapshot.opaque_reference.is_empty()
+                || snapshot.opaque_reference != prerequisite.local_reference()
+                || snapshot.url != prerequisite.url
+                || snapshot.sha256 != prerequisite.sha256()
+                || snapshot.media_type != prerequisite.media_type()
+                || snapshot.byte_size != prerequisite.byte_size()
+                || snapshot.width == 0
+                || snapshot.height == 0
+                || snapshot.alt.trim().is_empty()
+                || !bounded(&snapshot.alt, 1_024)
+                || snapshot.prepared_at_unix_s == 0
+            {
+                return Err(Phase1DraftError::InvalidMedia);
+            }
+        }
+        Ok(())
+    }
+}
 
 /// Durable state of one media prerequisite referenced by an Add command.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -164,6 +277,18 @@ impl Phase1MediaPrerequisite {
 
     pub fn url(&self) -> &str {
         self.url.as_str()
+    }
+    pub fn local_reference(&self) -> &str {
+        self.local_reference.as_str()
+    }
+    pub fn sha256(&self) -> &str {
+        self.sha256.as_str()
+    }
+    pub fn media_type(&self) -> &str {
+        self.media_type.as_str()
+    }
+    pub const fn byte_size(&self) -> u64 {
+        self.byte_size
     }
     pub const fn stage(&self) -> Phase1MediaStage {
         self.stage
@@ -342,7 +467,9 @@ impl Phase1OutboxState {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Phase1DraftStatus {
     draft: AuthoredDraft,
+    kind: Phase1DraftKind,
     command_type: AddCommandType,
+    form: Option<Phase1DraftFormSnapshot>,
     media: Vec<Phase1MediaPrerequisite>,
     state: Phase1OutboxState,
     card_id: CardId,
@@ -355,6 +482,12 @@ impl Phase1DraftStatus {
     }
     pub const fn command_type(&self) -> AddCommandType {
         self.command_type
+    }
+    pub const fn kind(&self) -> Phase1DraftKind {
+        self.kind
+    }
+    pub const fn form(&self) -> Option<&Phase1DraftFormSnapshot> {
+        self.form.as_ref()
     }
     pub fn media(&self) -> &[Phase1MediaPrerequisite] {
         self.media.as_slice()
@@ -404,7 +537,13 @@ pub enum Phase1DraftError {
 #[serde(deny_unknown_fields)]
 struct Phase1DraftPayload {
     schema_version: u16,
+    #[serde(default)]
+    kind: Phase1DraftKind,
     command_type: AddCommandType,
+    #[serde(default)]
+    form: Option<Phase1DraftFormSnapshot>,
+    #[serde(default)]
+    target_card_id: Option<CardId>,
     plan_wire_json: Vec<u8>,
     media: Vec<Phase1MediaPrerequisite>,
     queue: Option<Phase1QueuePolicy>,
@@ -415,12 +554,35 @@ impl Phase1DraftPayload {
         command: &Phase1AddCommand,
         plan_wire_json: Vec<u8>,
         media: Vec<Phase1MediaPrerequisite>,
+        form: Option<Phase1DraftFormSnapshot>,
     ) -> Result<Self, Phase1DraftError> {
         let value = Self {
             schema_version: DRAFT_SCHEMA_VERSION,
+            kind: Phase1DraftKind::Add,
             command_type: command.command_type(),
+            form,
+            target_card_id: None,
             plan_wire_json,
             media,
+            queue: None,
+        };
+        value.validate()?;
+        Ok(value)
+    }
+
+    fn retraction(
+        command_type: AddCommandType,
+        target_card_id: CardId,
+        plan_wire_json: Vec<u8>,
+    ) -> Result<Self, Phase1DraftError> {
+        let value = Self {
+            schema_version: DRAFT_SCHEMA_VERSION,
+            kind: Phase1DraftKind::Retraction,
+            command_type,
+            form: None,
+            target_card_id: Some(target_card_id),
+            plan_wire_json,
+            media: Vec::new(),
             queue: None,
         };
         value.validate()?;
@@ -430,6 +592,21 @@ impl Phase1DraftPayload {
     fn validate(&self) -> Result<(), Phase1DraftError> {
         if self.schema_version != DRAFT_SCHEMA_VERSION || self.media.len() > DRAFT_MEDIA_MAX {
             return Err(Phase1DraftError::Corrupt);
+        }
+        match self.kind {
+            Phase1DraftKind::Add => {
+                if self.target_card_id.is_some() {
+                    return Err(Phase1DraftError::Corrupt);
+                }
+                if let Some(form) = &self.form {
+                    form.validate(self.command_type, &self.media)?;
+                }
+            }
+            Phase1DraftKind::Retraction => {
+                if self.form.is_some() || self.target_card_id.is_none() || !self.media.is_empty() {
+                    return Err(Phase1DraftError::Corrupt);
+                }
+            }
         }
         let integrity = PlanWireV1::from_json(self.plan_wire_json.as_slice())
             .map_err(|_| Phase1DraftError::Corrupt)?;
@@ -485,6 +662,53 @@ impl RadrootsRuntime {
         expected_revision: Option<u64>,
         persisted_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        self.phase1_save_draft_inner(
+            draft_id,
+            command,
+            authored_at_unix_s,
+            media,
+            None,
+            expected_revision,
+            persisted_at_unix_ms,
+        )
+        .await
+    }
+
+    /// Creates or replaces a draft while retaining its validated, reopenable form.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn phase1_save_draft_with_form(
+        &self,
+        draft_id: [u8; 16],
+        command: Phase1AddCommand,
+        authored_at_unix_s: u64,
+        media: Vec<Phase1MediaPrerequisite>,
+        form: Phase1DraftFormSnapshot,
+        expected_revision: Option<u64>,
+        persisted_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        self.phase1_save_draft_inner(
+            draft_id,
+            command,
+            authored_at_unix_s,
+            media,
+            Some(form),
+            expected_revision,
+            persisted_at_unix_ms,
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn phase1_save_draft_inner(
+        &self,
+        draft_id: [u8; 16],
+        command: Phase1AddCommand,
+        authored_at_unix_s: u64,
+        media: Vec<Phase1MediaPrerequisite>,
+        form: Option<Phase1DraftFormSnapshot>,
+        expected_revision: Option<u64>,
+        persisted_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         let author = self.draft_author()?;
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
@@ -494,7 +718,7 @@ impl RadrootsRuntime {
         let wire = PlanWireV1::from_plan(&plan)
             .to_json()
             .map_err(|_| Phase1DraftError::InvalidDraft)?;
-        let payload = Phase1DraftPayload::new(&command, wire, media)?;
+        let payload = Phase1DraftPayload::new(&command, wire, media, form)?;
         let bytes = payload.encode()?;
         let storage = self.storage()?;
         let expected = expected_revision
@@ -537,6 +761,73 @@ impl RadrootsRuntime {
         };
         let receipt = storage
             .append_authored_draft(draft, expected)
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+
+    /// Persists an independent strict NIP-09 retraction as a normal durable outbox item.
+    #[allow(clippy::too_many_arguments)]
+    pub async fn phase1_save_retraction_draft(
+        &self,
+        draft_id: [u8; 16],
+        command_type: AddCommandType,
+        target_card_id: CardId,
+        target_event_id: &str,
+        target_kind: u32,
+        target_address: Option<&str>,
+        reason: &str,
+        authored_at_unix_s: u64,
+        persisted_at_unix_ms: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let target_shape_valid = match command_type {
+            AddCommandType::CreateUpdate
+            | AddCommandType::CreatePhotoUpdate
+            | AddCommandType::CreateAsk => target_kind == 1 && target_address.is_none(),
+            AddCommandType::CreateEvent => {
+                matches!(target_kind, 31_922 | 31_923) && target_address.is_some()
+            }
+            AddCommandType::CreateFoodAvailability => {
+                target_kind == 30_402 && target_address.is_some()
+            }
+        };
+        if !target_shape_valid || authored_at_unix_s == 0 || persisted_at_unix_ms == 0 {
+            return Err(Phase1DraftError::InvalidDraft);
+        }
+        let author = self.draft_author()?;
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let event_target = Nip09DeletionEventTarget::parse(target_event_id, target_kind)
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let address_targets = target_address
+            .map(Nip09DeletionAddressTarget::parse)
+            .transpose()
+            .map_err(|_| Phase1DraftError::InvalidDraft)?
+            .into_iter()
+            .collect();
+        let request =
+            AuthoredNip09DeletionRequest::new(reason, vec![event_target], address_targets)
+                .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let plan = phase1_retraction_plan(&request, authored_at_unix_s, hex::encode(author))
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let wire = PlanWireV1::from_plan(&plan)
+            .to_json()
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let payload = Phase1DraftPayload::retraction(command_type, target_card_id, wire)?;
+        let bytes = payload.encode()?;
+        let draft = AuthoredDraft::initial(
+            draft_id,
+            author,
+            DRAFT_PAYLOAD_SCHEMA,
+            bytes,
+            AuthoredDraftStage::Draft,
+            None,
+            persisted_at_unix_ms,
+        )
+        .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let receipt = self
+            .storage()?
+            .append_authored_draft(draft, None)
             .await
             .map_err(map_draft_storage_error)?;
         self.draft_status_from(receipt.draft().clone()).await
@@ -865,6 +1156,76 @@ impl RadrootsRuntime {
         self.draft_status_from(head).await
     }
 
+    /// Advances one durably queued draft through signing, local admission, and
+    /// at most one bounded relay-delivery attempt.
+    pub async fn phase1_advance_draft(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let head = self
+            .storage()?
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let request = push_request(&head)?;
+        let operation_id = request.operation_id();
+        let sync = self.sync()?;
+        let mut status = sync
+            .push_status(operation_id)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)?
+            .ok_or(Phase1DraftError::Corrupt)?;
+
+        if matches!(
+            status.artifact().signing_state(),
+            SigningState::Planned | SigningState::Retryable
+        ) {
+            sync.sign_prepared(request)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+            status = sync
+                .push_status(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?
+                .ok_or(Phase1DraftError::Corrupt)?;
+        }
+        if status.artifact().signing_state() == SigningState::Signed
+            && matches!(
+                status.artifact().admission_state(),
+                AdmissionState::Pending | AdmissionState::Retryable
+            )
+        {
+            sync.admit_signed(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+            status = sync
+                .push_status(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?
+                .ok_or(Phase1DraftError::Corrupt)?;
+        }
+        if status.artifact().admission_state().is_admitted()
+            && matches!(
+                status.delivery_plan().state(),
+                AuthoredDeliveryState::Pending | AuthoredDeliveryState::Retryable
+            )
+        {
+            sync.deliver_push(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+        }
+        self.draft_status_from(head).await
+    }
+
     /// Signs one short-lived BUD-11 upload credential for HTTP use only.
     ///
     /// The returned value is not persisted and its distinct plan type cannot
@@ -1164,7 +1525,10 @@ impl RadrootsRuntime {
         let payload = Phase1DraftPayload::decode(&draft)?;
         let integrity = PlanWireV1::from_json(payload.plan_wire_json.as_slice())
             .map_err(|_| Phase1DraftError::Corrupt)?;
-        let card_id = card_id(payload.command_type, integrity.plan())?;
+        let card_id = payload
+            .target_card_id
+            .map(Ok)
+            .unwrap_or_else(|| card_id(payload.command_type, integrity.plan()))?;
         let push = self.push_status_for(&draft).await?;
         if draft.stage() == AuthoredDraftStage::Queued && push.is_none() {
             return Err(Phase1DraftError::Corrupt);
@@ -1172,7 +1536,9 @@ impl RadrootsRuntime {
         let state = aggregate_state(&draft, push.as_ref());
         Ok(Phase1DraftStatus {
             draft,
+            kind: payload.kind,
             command_type: payload.command_type,
+            form: payload.form,
             media: payload.media,
             state,
             card_id,
@@ -1533,6 +1899,147 @@ mod tests {
             Phase1CancellationPolicy::LocalCooperative,
         )
         .unwrap()
+    }
+
+    fn update_form() -> Phase1DraftFormSnapshot {
+        Phase1DraftFormSnapshot {
+            command_type: AddCommandType::CreateUpdate,
+            content: "Harvest update".to_owned(),
+            identifier: None,
+            title: None,
+            summary: None,
+            location: None,
+            event_timing: None,
+            event_start_date: None,
+            event_end_date: None,
+            event_start_unix_s: None,
+            event_end_unix_s: None,
+            event_timezone: None,
+            price_amount: None,
+            currency: None,
+            unit: None,
+            quantity: None,
+            food_status: None,
+            media: Vec::new(),
+        }
+    }
+
+    #[tokio::test]
+    async fn form_snapshots_reopen_exactly_and_freeze_after_queue() {
+        let runtime = runtime();
+        let id = [6; 16];
+        let saved = runtime
+            .phase1_save_draft_with_form(
+                id,
+                Phase1AddCommand::CreateUpdate(CreateUpdate::new("Harvest update").unwrap()),
+                1_900_000_000,
+                Vec::new(),
+                update_form(),
+                None,
+                10,
+            )
+            .await
+            .unwrap();
+        assert_eq!(saved.kind(), Phase1DraftKind::Add);
+        assert_eq!(saved.form(), Some(&update_form()));
+        assert_eq!(
+            runtime.phase1_draft_status(id).await.unwrap().form(),
+            Some(&update_form())
+        );
+
+        let queued = runtime
+            .phase1_queue_draft(id, 1, policy(), 11)
+            .await
+            .unwrap();
+        assert_eq!(queued.form(), Some(&update_form()));
+        assert_eq!(
+            runtime
+                .phase1_save_draft_with_form(
+                    id,
+                    Phase1AddCommand::CreateUpdate(CreateUpdate::new("Changed").unwrap()),
+                    1_900_000_001,
+                    Vec::new(),
+                    update_form(),
+                    Some(queued.draft().revision().get()),
+                    12,
+                )
+                .await
+                .unwrap_err(),
+            Phase1DraftError::RevisionConflict
+        );
+    }
+
+    #[tokio::test]
+    async fn retraction_is_independent_and_add_advance_attempts_delivery() {
+        let runtime = signing_runtime();
+        let target = CardId::parse(&"a".repeat(64)).unwrap();
+        let retraction = runtime
+            .phase1_save_retraction_draft(
+                [5; 16],
+                AddCommandType::CreateUpdate,
+                target,
+                &"b".repeat(64),
+                1,
+                None,
+                "Replaced by a corrected copy",
+                1_900_000_000,
+                20,
+            )
+            .await
+            .unwrap();
+        assert_eq!(retraction.kind(), Phase1DraftKind::Retraction);
+        assert_eq!(retraction.card_id(), target);
+        assert!(retraction.form().is_none());
+        let queued = runtime
+            .phase1_queue_draft([5; 16], retraction.draft().revision().get(), policy(), 21)
+            .await
+            .unwrap();
+        let signed_retraction = runtime
+            .phase1_sign_queued_draft([5; 16], queued.draft().revision().get())
+            .await;
+        let signed_retraction = signed_retraction.unwrap();
+        assert_eq!(signed_retraction.kind(), Phase1DraftKind::Retraction);
+        let push = signed_retraction
+            .push()
+            .expect("durable retraction operation");
+        assert_eq!(
+            push.artifact()
+                .signed()
+                .expect("signed retraction")
+                .event()
+                .kind(),
+            5
+        );
+
+        let saved = runtime
+            .phase1_save_draft(
+                [4; 16],
+                Phase1AddCommand::CreateUpdate(CreateUpdate::new("Deliver me").unwrap()),
+                1_900_000_001,
+                Vec::new(),
+                None,
+                30,
+            )
+            .await
+            .unwrap();
+        let queued = runtime
+            .phase1_queue_draft([4; 16], saved.draft().revision().get(), policy(), 31)
+            .await
+            .unwrap();
+        let _ = runtime
+            .phase1_advance_draft([4; 16], queued.draft().revision().get())
+            .await;
+        let advanced = runtime.phase1_draft_status([4; 16]).await.unwrap();
+        let push = advanced.push().expect("durable add operation");
+        assert!(push.artifact().admission_state().is_admitted());
+        assert!(!push.delivery_plan().attempts().is_empty());
+        assert!(matches!(
+            advanced.state(),
+            Phase1OutboxState::Retryable
+                | Phase1OutboxState::PartiallyDelivered
+                | Phase1OutboxState::Complete
+                | Phase1OutboxState::Terminal
+        ));
     }
 
     #[tokio::test]
