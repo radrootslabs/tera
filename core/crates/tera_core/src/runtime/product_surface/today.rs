@@ -659,6 +659,16 @@ impl AdmissionPolicy for TodayAdmissionPolicy {
         "radroots.mobile.today.v1"
     }
 
+    fn select_contract(
+        &self,
+        event: &radroots_event::admission::SignatureVerifiedEvent,
+    ) -> Option<&'static str> {
+        verify_nip01_event(event.event().clone())
+            .ok()
+            .and_then(|event| admit_verified_event(event).ok())
+            .map(|event| event.contract().id)
+    }
+
     fn decide(&self, event: &ContractValidatedEvent) -> AdmissionDecision {
         let admitted = verify_nip01_event(event.event().clone())
             .ok()

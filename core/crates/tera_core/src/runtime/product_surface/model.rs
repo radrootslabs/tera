@@ -197,6 +197,12 @@ pub struct ClassifiedCard {
     pub price_unit: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quantity: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub food_summary: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub food_published_at: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub food_status: Option<String>,
     pub context_rank: ContextRank,
     pub inclusion_reason: String,
     pub media: Vec<MediaReference>,

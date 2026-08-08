@@ -100,6 +100,8 @@ pub struct Phase1DraftFormSnapshot {
     pub currency: Option<String>,
     pub unit: Option<String>,
     pub quantity: Option<String>,
+    #[serde(default)]
+    pub food_published_at_unix_s: Option<u64>,
     pub food_status: Option<String>,
     pub media: Vec<Phase1DraftMediaSnapshot>,
 }
@@ -1730,7 +1732,9 @@ fn aggregate_state(draft: &AuthoredDraft, push: Option<&PushStatus>) -> Phase1Ou
         return Phase1OutboxState::Complete;
     }
     if push.settlement().has_failures() {
-        return if push.settlement().retryable() != 0 || push.settlement().delivery_retryable() != 0
+        return if has_delivery_success(push) {
+            Phase1OutboxState::PartiallyDelivered
+        } else if push.settlement().retryable() != 0 || push.settlement().delivery_retryable() != 0
         {
             Phase1OutboxState::Retryable
         } else if push.settlement().cancelled() != 0 || push.settlement().delivery_cancelled() != 0
@@ -1919,6 +1923,7 @@ mod tests {
             currency: None,
             unit: None,
             quantity: None,
+            food_published_at_unix_s: None,
             food_status: None,
             media: Vec::new(),
         }

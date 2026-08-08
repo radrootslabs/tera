@@ -165,6 +165,15 @@ fn card(
         .then(|| tag_values(&tags, "radroots:quantity"))
         .flatten()
         .and_then(|values| values.first().cloned());
+    let food_summary = matches!(card_type, TodayCardType::FoodAvailability)
+        .then(|| tag_value(&tags, &["summary"]))
+        .flatten();
+    let food_published_at = matches!(card_type, TodayCardType::FoodAvailability)
+        .then(|| tag_time(&tags, "published_at"))
+        .flatten();
+    let food_status = matches!(card_type, TodayCardType::FoodAvailability)
+        .then(|| tag_value(&tags, &["status"]))
+        .flatten();
     let (effective_at, event_start, event_end) = match card_type {
         TodayCardType::Event => {
             let start = tag_time(&tags, "start").unwrap_or_else(|| event.created_at_u64());
@@ -198,6 +207,9 @@ fn card(
         price_currency,
         price_unit,
         quantity,
+        food_summary,
+        food_published_at,
+        food_status,
         context_rank: context.rank,
         inclusion_reason: context.reason.to_owned(),
         media,
@@ -474,6 +486,9 @@ mod tests {
         assert_eq!(food.price_currency.as_deref(), Some("CAD"));
         assert_eq!(food.price_unit.as_deref(), Some("lb"));
         assert_eq!(food.quantity.as_deref(), Some("12"));
+        assert_eq!(food.food_summary.as_deref(), Some("Fresh bunches"));
+        assert_eq!(food.food_published_at, Some(1_999_999_999));
+        assert_eq!(food.food_status.as_deref(), Some("active"));
     }
 
     #[test]
