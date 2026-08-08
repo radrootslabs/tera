@@ -251,6 +251,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         currency: None,
         unit: None,
         quantity: None,
+        food_published_at_unix_s: None,
         food_status: None,
         media: Vec::new(),
     };

@@ -180,6 +180,7 @@ async fn host_signer_constructor_exposes_only_an_opaque_configured_boundary() {
                     currency: None,
                     unit: None,
                     quantity: None,
+                    food_published_at_unix_s: None,
                     food_status: None,
                     media: Vec::new(),
                 },

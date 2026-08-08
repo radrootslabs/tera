@@ -419,6 +419,9 @@ pub struct FfiTodayCardRecord {
     pub price_currency: Option<String>,
     pub price_unit: Option<String>,
     pub quantity: Option<String>,
+    pub food_summary: Option<String>,
+    pub food_published_at_unix_s: Option<u64>,
+    pub food_status: Option<String>,
     pub context_rank: u8,
     pub inclusion_reason: String,
     pub media: Vec<FfiMediaReferenceRecord>,
@@ -453,6 +456,9 @@ impl From<TodayCard> for FfiTodayCardRecord {
             price_currency: card.price_currency,
             price_unit: card.price_unit,
             quantity: card.quantity,
+            food_summary: card.food_summary,
+            food_published_at_unix_s: card.food_published_at,
+            food_status: card.food_status,
             context_rank: card.context_rank.value(),
             inclusion_reason: card.inclusion_reason,
             media: card.media.into_iter().map(Into::into).collect(),
@@ -861,6 +867,7 @@ pub struct FfiAddDraftInput {
     pub currency: Option<String>,
     pub unit: Option<String>,
     pub quantity: Option<String>,
+    pub food_published_at_unix_s: Option<u64>,
     pub food_status: Option<String>,
     pub media: Vec<FfiPreparedMediaInput>,
 }
@@ -994,6 +1001,7 @@ impl FfiAddDraftInput {
             currency: self.currency.clone(),
             unit: self.unit.clone(),
             quantity: self.quantity.clone(),
+            food_published_at_unix_s: self.food_published_at_unix_s,
             food_status: self.food_status.clone(),
             media: self
                 .media
@@ -1252,8 +1260,10 @@ fn food_command(
             .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_title"))?,
         summary: FoodText::new(required(input.summary, "food_summary_required")?)
             .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_summary"))?,
-        published_at: FoodPublishedAt::new(authored_at_unix_s)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_published_at"))?,
+        published_at: FoodPublishedAt::new(
+            input.food_published_at_unix_s.unwrap_or(authored_at_unix_s),
+        )
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_published_at"))?,
         location: FoodText::new(required(input.location, "food_location_required")?)
             .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_location"))?,
         price: FoodPrice::new(
@@ -1461,6 +1471,7 @@ pub struct FfiDraftFormRecord {
     pub currency: Option<String>,
     pub unit: Option<String>,
     pub quantity: Option<String>,
+    pub food_published_at_unix_s: Option<u64>,
     pub food_status: Option<String>,
     pub media: Vec<FfiDraftFormMediaRecord>,
 }
@@ -1489,6 +1500,7 @@ impl From<&Phase1DraftFormSnapshot> for FfiDraftFormRecord {
             currency: value.currency.clone(),
             unit: value.unit.clone(),
             quantity: value.quantity.clone(),
+            food_published_at_unix_s: value.food_published_at_unix_s,
             food_status: value.food_status.clone(),
             media: value.media.iter().map(Into::into).collect(),
         }
@@ -1825,6 +1837,7 @@ mod tests {
             currency: None,
             unit: None,
             quantity: None,
+            food_published_at_unix_s: None,
             food_status: None,
             media: vec![FfiPreparedMediaInput {
                 schema_version: MOBILE_FFI_SCHEMA_VERSION,
@@ -1861,6 +1874,7 @@ mod tests {
             currency: None,
             unit: None,
             quantity: None,
+            food_published_at_unix_s: None,
             food_status: None,
             media: Vec::new(),
         }
