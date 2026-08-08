@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use radroots_mobile_core::runtime::product_surface::LocalNetworkRelayPolicy;
 use radroots_mobile_core::runtime::product_surface::TodayPageRequest;
 
 use crate::dto::PreparedMedia;
@@ -11,7 +12,8 @@ use crate::{
     FfiMeRecord, FfiQueuePolicyRecord, FfiRelayStatusReportRecord, FfiRuntimeChangeKind,
     FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord, FfiStorageStatusRecord,
     FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate, FfiTodayRefreshRecord,
-    RadrootsAppError, RadrootsHostSigner, RadrootsRuntimeObserver, add_schemas, decode_id,
+    FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner, RadrootsRuntimeObserver, add_schemas,
+    decode_id,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
@@ -253,7 +255,7 @@ impl RadrootsRuntime {
         &self,
         context: FfiLocalNetworkRecord,
     ) -> Result<FfiLocalNetworkRecord, RadrootsAppError> {
-        LocalNetworkRecordConversion::round_trip(context)
+        self.local_network(context).map(Into::into)
     }
 
     pub async fn phase1_today_page(
@@ -268,7 +270,7 @@ impl RadrootsRuntime {
                 "invalid_today_page_request",
             ));
         }
-        let context = context.try_into()?;
+        let context = self.local_network(context)?;
         let request = match cursor {
             Some(cursor) => TodayPageRequest::after(limit, cursor),
             None => TodayPageRequest::first(
@@ -290,10 +292,26 @@ impl RadrootsRuntime {
         now_unix_s: u64,
         update: FfiTodayProjectionUpdate,
     ) -> Result<FfiTodayRefreshRecord, RadrootsAppError> {
-        let context = context.try_into()?;
+        let context = self.local_network(context)?;
         let receipt = self
             .inner
             .phase1_refresh_today(&context, now_unix_s, update.into())
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions.notify(FfiRuntimeChangeKind::Today, None);
+        Ok(receipt.into())
+    }
+
+    pub async fn phase1_sync_today(
+        &self,
+        context: FfiLocalNetworkRecord,
+        now_unix_s: u64,
+        update: FfiTodayProjectionUpdate,
+    ) -> Result<FfiTodaySyncRecord, RadrootsAppError> {
+        let context = self.local_network(context)?;
+        let receipt = self
+            .inner
+            .phase1_sync_today(&context, now_unix_s, update.into())
             .await
             .map_err(RadrootsAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Today, None);
@@ -307,7 +325,7 @@ impl RadrootsRuntime {
         limit: u16,
         as_of_unix_s: u64,
     ) -> Result<Vec<FfiSearchResultRecord>, RadrootsAppError> {
-        let context = context.try_into()?;
+        let context = self.local_network(context)?;
         self.inner
             .phase1_search(&context, &query, limit, as_of_unix_s)
             .await
@@ -320,7 +338,7 @@ impl RadrootsRuntime {
         context: FfiLocalNetworkRecord,
         as_of_unix_s: u64,
     ) -> Result<FfiMeRecord, RadrootsAppError> {
-        let context = context.try_into()?;
+        let context = self.local_network(context)?;
         let public_key = self
             .inner
             .authenticated_store_public_key_hex()
@@ -514,6 +532,39 @@ impl RadrootsRuntime {
     }
 }
 
+impl RadrootsRuntime {
+    fn local_network(
+        &self,
+        context: FfiLocalNetworkRecord,
+    ) -> Result<radroots_mobile_core::runtime::product_surface::LocalNetwork, RadrootsAppError>
+    {
+        let profile = self.inner.sdk_relay_status()?.ok_or_else(|| {
+            RadrootsAppError::failure(
+                "relay_profile_unavailable",
+                "relay",
+                true,
+                &["configure_relay"],
+                "The relay profile is unavailable.",
+            )
+        })?;
+        let relay_policy = match profile.profile.as_str() {
+            "public" => LocalNetworkRelayPolicy::Public,
+            "simulator_local" => LocalNetworkRelayPolicy::Simulator,
+            "device_development" => LocalNetworkRelayPolicy::Device,
+            _ => {
+                return Err(RadrootsAppError::failure(
+                    "relay_profile_unsupported",
+                    "relay",
+                    false,
+                    &["configure_relay"],
+                    "The relay profile is unsupported.",
+                ));
+            }
+        };
+        context.try_into_with_relay_policy(relay_policy)
+    }
+}
+
 async fn build_runtime(
     application_support_directory: String,
     public_key_hex: String,
@@ -543,14 +594,4 @@ async fn build_runtime(
             subscriptions: SubscriptionHub::new(),
         })
         .map_err(Into::into)
-}
-
-struct LocalNetworkRecordConversion;
-
-impl LocalNetworkRecordConversion {
-    fn round_trip(value: FfiLocalNetworkRecord) -> Result<FfiLocalNetworkRecord, RadrootsAppError> {
-        let context: radroots_mobile_core::runtime::product_surface::LocalNetwork =
-            value.try_into()?;
-        Ok(context.into())
-    }
 }

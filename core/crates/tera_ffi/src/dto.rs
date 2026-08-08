@@ -19,12 +19,12 @@ use radroots_mobile_core::runtime::{
     info::{AppInfo, RuntimeBuildInfo, RuntimeInfo},
     product_surface::{
         AddCommandType, CardLifecycleState, CreateAsk, CreateEvent, CreateFoodAvailability,
-        CreatePhotoUpdate, CreateUpdate, LocalNetwork, MeSnapshot, MediaReference,
-        MediaVerificationState, Phase1AddCommand, Phase1CancellationPolicy, Phase1DraftStatus,
-        Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState, Phase1QueuePolicy,
-        Phase1RelaySatisfaction, ProfileSummary, SearchResult, SearchResultType, SupportingProfile,
-        ThreadEntry, TodayCard, TodayCardType, TodayPage, TodayProjectionUpdate,
-        TodayRefreshReceipt,
+        CreatePhotoUpdate, CreateUpdate, LocalNetwork, LocalNetworkRelayPolicy, MeSnapshot,
+        MediaReference, MediaVerificationState, Phase1AddCommand, Phase1CancellationPolicy,
+        Phase1DraftStatus, Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState,
+        Phase1QueuePolicy, Phase1RelaySatisfaction, ProfileSummary, SearchResult, SearchResultType,
+        SupportingProfile, ThreadEntry, TodayCard, TodayCardType, TodayPage, TodayProjectionUpdate,
+        TodayRefreshReceipt, TodayRelaySyncState, TodaySyncReceipt,
     },
     sdk::{
         SdkCapabilityRecord, SdkRelayStatusRecord, SdkRelayStatusReportRecord, SdkShutdownRecord,
@@ -210,14 +210,24 @@ impl TryFrom<FfiLocalNetworkRecord> for LocalNetwork {
     type Error = RadrootsAppError;
 
     fn try_from(value: FfiLocalNetworkRecord) -> Result<Self, Self::Error> {
-        require_schema(value.schema_version)?;
-        LocalNetwork::new(
-            value.id,
-            value.label,
-            value.relay_urls,
-            value.locality,
-            value.followed_authors,
-            value.generation,
+        value.try_into_with_relay_policy(LocalNetworkRelayPolicy::Public)
+    }
+}
+
+impl FfiLocalNetworkRecord {
+    pub(crate) fn try_into_with_relay_policy(
+        self,
+        relay_policy: LocalNetworkRelayPolicy,
+    ) -> Result<LocalNetwork, RadrootsAppError> {
+        require_schema(self.schema_version)?;
+        LocalNetwork::new_for_relay_policy(
+            self.id,
+            self.label,
+            self.relay_urls,
+            self.locality,
+            self.followed_authors,
+            self.generation,
+            relay_policy,
         )
         .map_err(|_| RadrootsAppError::invalid_argument("invalid_local_network"))
     }
@@ -492,6 +502,43 @@ pub struct FfiTodayRefreshRecord {
     pub thread_entries: u64,
     pub content_generation: u64,
     pub changed: bool,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiTodayRelaySyncState {
+    Complete,
+    Partial,
+    Offline,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiTodaySyncRecord {
+    pub schema_version: u16,
+    pub relay_state: FfiTodayRelaySyncState,
+    pub pages_fetched: u16,
+    pub events_observed: u64,
+    pub events_admitted: u64,
+    pub events_rejected: u64,
+    pub projection: FfiTodayRefreshRecord,
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+impl From<TodaySyncReceipt> for FfiTodaySyncRecord {
+    fn from(value: TodaySyncReceipt) -> Self {
+        Self {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            relay_state: match value.relay_state {
+                TodayRelaySyncState::Complete => FfiTodayRelaySyncState::Complete,
+                TodayRelaySyncState::Partial => FfiTodayRelaySyncState::Partial,
+                TodayRelaySyncState::Offline => FfiTodayRelaySyncState::Offline,
+            },
+            pages_fetched: value.pages_fetched,
+            events_observed: value.events_observed,
+            events_admitted: value.events_admitted,
+            events_rejected: value.events_rejected,
+            projection: value.projection.into(),
+        }
+    }
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]

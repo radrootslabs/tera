@@ -69,6 +69,19 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert_eq!(simulator.relays[0].access, "read_write");
     assert!(
         runtime
+            .phase1_local_network(FfiLocalNetworkRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                id: "simulator".to_owned(),
+                label: "Simulator".to_owned(),
+                relay_urls: vec!["ws://127.0.0.1:7447".to_owned()],
+                locality: None,
+                followed_authors: vec![],
+                generation: 1,
+            })
+            .is_ok()
+    );
+    assert!(
+        runtime
             .configure_simulator_relays(vec!["wss://relay.example".to_owned()])
             .is_err()
     );
