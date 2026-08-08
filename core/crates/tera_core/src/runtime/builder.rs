@@ -181,6 +181,16 @@ mod tests {
                 .host_kind,
             "simulator"
         );
+        let evidence = runtime
+            .sdk_blossom_evidence()
+            .expect("Blossom evidence")
+            .expect("configured evidence");
+        assert_eq!(evidence.schema_version, 1);
+        assert_eq!(evidence.state, "configured_unobserved");
+        assert_eq!(evidence.last_successful_state, "configured_unobserved");
+        assert_eq!(evidence.transport_security, "development_cleartext");
+        assert!(evidence.observed_at_unix_ms.is_none());
+        assert!(evidence.error_code.is_none());
         assert!(
             runtime
                 .configure_blossom(

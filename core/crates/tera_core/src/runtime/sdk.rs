@@ -51,6 +51,23 @@ pub struct SdkBlossomConfigurationRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SdkBlossomEvidenceRecord {
+    pub schema_version: u16,
+    pub origin: String,
+    pub config_fingerprint: String,
+    pub state: String,
+    pub last_successful_state: String,
+    pub transport_security: String,
+    pub observed_at_unix_ms: Option<u64>,
+    pub http_status: Option<u16>,
+    pub error_code: Option<String>,
+    pub error_phase: Option<String>,
+    pub retryable: bool,
+    pub possible_orphan: bool,
+    pub attempts: u8,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdkShutdownRecord {
     pub state: String,
     pub already_closed: bool,
@@ -199,6 +216,34 @@ impl RadrootsRuntime {
         )
     }
 
+    /// Returns the latest passive Blossom evidence without network I/O.
+    #[cfg(feature = "mobile-social")]
+    pub fn sdk_blossom_evidence(
+        &self,
+    ) -> Result<Option<SdkBlossomEvidenceRecord>, RadrootsAppError> {
+        let evidence = self
+            .client
+            .blossom()
+            .map_err(RadrootsAppError::from_sdk)?
+            .and_then(radroots_sdk::transport::BlossomSlot::evidence);
+        Ok(evidence.map(sdk_blossom_evidence_record))
+    }
+
+    /// Explicitly probes the primary Blossom origin without mutation or authorization.
+    #[cfg(feature = "mobile-social")]
+    pub async fn probe_blossom(&self) -> Result<SdkBlossomEvidenceRecord, RadrootsAppError> {
+        let blossom = self
+            .client
+            .blossom()
+            .map_err(RadrootsAppError::from_sdk)?
+            .ok_or_else(|| RadrootsAppError::runtime("blossom_endpoint_not_configured"))?;
+        blossom
+            .probe(radroots_sdk::transport::BlossomCancellation::default())
+            .await
+            .map(sdk_blossom_evidence_record)
+            .map_err(|error| RadrootsAppError::runtime(error.code()))
+    }
+
     /// Returns passive relay evidence without DNS, socket, or probe work.
     #[cfg(feature = "mobile-social")]
     pub fn sdk_relay_status(&self) -> Result<Option<SdkRelayStatusReportRecord>, RadrootsAppError> {
@@ -232,6 +277,76 @@ impl RadrootsRuntime {
                 })
                 .collect(),
         }))
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+fn sdk_blossom_evidence_record(
+    value: radroots_sdk::transport::BlossomEndpointEvidence,
+) -> SdkBlossomEvidenceRecord {
+    SdkBlossomEvidenceRecord {
+        schema_version: value.schema_version(),
+        origin: value.origin().to_owned(),
+        config_fingerprint: value.config_fingerprint().to_hex(),
+        state: blossom_evidence_label(value.state()).to_owned(),
+        last_successful_state: blossom_evidence_label(value.last_successful_state()).to_owned(),
+        transport_security: blossom_transport_security_label(value.transport_security()).to_owned(),
+        observed_at_unix_ms: value.observed_at_unix_ms(),
+        http_status: value.http_status(),
+        error_code: value.error_code().map(str::to_owned),
+        error_phase: value
+            .error_phase()
+            .map(blossom_phase_label)
+            .map(str::to_owned),
+        retryable: value.retryable(),
+        possible_orphan: value.possible_orphan(),
+        attempts: value.attempts(),
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn blossom_evidence_label(
+    value: radroots_sdk::transport::BlossomEvidenceState,
+) -> &'static str {
+    match value {
+        radroots_sdk::transport::BlossomEvidenceState::ConfiguredUnobserved => {
+            "configured_unobserved"
+        }
+        radroots_sdk::transport::BlossomEvidenceState::DnsPolicyValidated => "dns_policy_validated",
+        radroots_sdk::transport::BlossomEvidenceState::TlsHttpObserved => "tls_http_observed",
+        radroots_sdk::transport::BlossomEvidenceState::UploadVerified => "upload_verified",
+        radroots_sdk::transport::BlossomEvidenceState::RetrievalVerified => "retrieval_verified",
+        radroots_sdk::transport::BlossomEvidenceState::RetryableFailure => "retryable_failure",
+        radroots_sdk::transport::BlossomEvidenceState::TerminalFailure => "terminal_failure",
+        _ => "unknown",
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn blossom_transport_security_label(
+    value: radroots_sdk::transport::BlossomTransportSecurity,
+) -> &'static str {
+    match value {
+        radroots_sdk::transport::BlossomTransportSecurity::PublicWebPki => "public_webpki",
+        radroots_sdk::transport::BlossomTransportSecurity::DevelopmentTls => "development_tls",
+        radroots_sdk::transport::BlossomTransportSecurity::DevelopmentCleartext => {
+            "development_cleartext"
+        }
+        _ => "unknown",
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn blossom_phase_label(value: radroots_sdk::transport::BlossomPhase) -> &'static str {
+    match value {
+        radroots_sdk::transport::BlossomPhase::Configuration => "configuration",
+        radroots_sdk::transport::BlossomPhase::Probe => "probe",
+        radroots_sdk::transport::BlossomPhase::Authorization => "authorization",
+        radroots_sdk::transport::BlossomPhase::Upload => "upload",
+        radroots_sdk::transport::BlossomPhase::Descriptor => "descriptor",
+        radroots_sdk::transport::BlossomPhase::Retrieval => "retrieval",
+        radroots_sdk::transport::BlossomPhase::Verification => "verification",
+        _ => "unknown",
     }
 }
 
