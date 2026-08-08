@@ -147,6 +147,24 @@ fn card(
     };
     let tags = event.tags_as_vec();
     let title = tag_value(&tags, &["title", "name"]);
+    let location = matches!(
+        card_type,
+        TodayCardType::Event | TodayCardType::FoodAvailability
+    )
+    .then(|| tag_value(&tags, &["location"]))
+    .flatten();
+    let price = matches!(card_type, TodayCardType::FoodAvailability)
+        .then(|| tag_values(&tags, "price"))
+        .flatten();
+    let price_amount = price.as_ref().and_then(|values| values.first().cloned());
+    let price_currency = price.as_ref().and_then(|values| values.get(1).cloned());
+    let price_unit = matches!(card_type, TodayCardType::FoodAvailability)
+        .then(|| tag_value(&tags, &["radroots:price_unit"]))
+        .flatten();
+    let quantity = matches!(card_type, TodayCardType::FoodAvailability)
+        .then(|| tag_values(&tags, "radroots:quantity"))
+        .flatten()
+        .and_then(|values| values.first().cloned());
     let (effective_at, event_start, event_end) = match card_type {
         TodayCardType::Event => {
             let start = tag_time(&tags, "start").unwrap_or_else(|| event.created_at_u64());
@@ -175,6 +193,11 @@ fn card(
         effective_at,
         event_start,
         event_end,
+        location,
+        price_amount,
+        price_currency,
+        price_unit,
+        quantity,
         context_rank: context.rank,
         inclusion_reason: context.reason.to_owned(),
         media,
@@ -189,6 +212,12 @@ fn tag_value(tags: &[Vec<String>], names: &[&str]) -> Option<String> {
             .contains(&tag.first()?.as_str())
             .then(|| tag.get(1).cloned())
             .flatten()
+    })
+}
+
+fn tag_values(tags: &[Vec<String>], name: &str) -> Option<Vec<String>> {
+    tags.iter().find_map(|tag| {
+        (tag.first().map(String::as_str) == Some(name) && tag.len() > 1).then(|| tag[1..].to_vec())
     })
 }
 
@@ -338,6 +367,13 @@ mod tests {
         }
     }
 
+    fn card(event: RadrootsAdmittedEvent) -> ClassifiedCard {
+        match classify_admitted_event(&event, context()) {
+            ProductEventClassification::Card(card) => *card,
+            other => panic!("expected card, got {other:?}"),
+        }
+    }
+
     #[test]
     fn exact_five_card_classifier_precedence_is_protocol_structural() {
         assert_eq!(
@@ -400,6 +436,44 @@ mod tests {
             )),
             TodayCardType::FoodAvailability
         );
+    }
+
+    #[test]
+    fn event_and_food_cards_preserve_required_rendering_fields() {
+        let event = card(admitted(
+            31_923,
+            vec![
+                vec!["d", "market-2026"],
+                vec!["title", "Saturday market"],
+                vec!["start", "2000000100"],
+                vec!["D", "23148"],
+                vec!["location", "Town square"],
+            ],
+            "Farm market",
+        ));
+        assert_eq!(event.location.as_deref(), Some("Town square"));
+        assert_eq!(event.price_amount, None);
+
+        let food = card(admitted(
+            30_402,
+            vec![
+                vec!["d", "carrots"],
+                vec!["title", "Carrots"],
+                vec!["summary", "Fresh bunches"],
+                vec!["published_at", "1999999999"],
+                vec!["location", "Saanich"],
+                vec!["price", "3", "CAD"],
+                vec!["radroots:price_unit", "lb"],
+                vec!["radroots:quantity", "12", "lb"],
+                vec!["status", "active"],
+            ],
+            "Carrots available",
+        ));
+        assert_eq!(food.location.as_deref(), Some("Saanich"));
+        assert_eq!(food.price_amount.as_deref(), Some("3"));
+        assert_eq!(food.price_currency.as_deref(), Some("CAD"));
+        assert_eq!(food.price_unit.as_deref(), Some("lb"));
+        assert_eq!(food.quantity.as_deref(), Some("12"));
     }
 
     #[test]
