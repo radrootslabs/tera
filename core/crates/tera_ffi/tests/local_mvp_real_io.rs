@@ -7,12 +7,13 @@ use nostr_relay_builder::MockRelay;
 use nostr_sdk::Client;
 use radroots_blossom::Sha256;
 use radroots_mobile_ffi::{
-    FfiAddCommandType, FfiAddDraftInput, FfiBlossomUploadInput, FfiCancellationPolicy,
-    FfiEventTimingKind, FfiLocalNetworkRecord, FfiMediaStage, FfiOutboxState,
-    FfiPreparedMediaInput, FfiQueuePolicyRecord, FfiRelaySatisfaction, FfiRetractionDraftInput,
-    FfiTodayCardType, FfiTodayProjectionUpdate, FfiTodayRelaySyncState, HostSigningOutcome,
-    HostSigningRequest, HostSigningResult, MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability,
-    RadrootsHostSigner, RadrootsRuntime, SignerAvailabilityRecord, SignerStatusRecord,
+    FfiAddCommandType, FfiAddDraftInput, FfiBlossomEndpointAuthority, FfiBlossomHostKind,
+    FfiBlossomUploadInput, FfiCancellationPolicy, FfiEventTimingKind, FfiLocalNetworkRecord,
+    FfiMediaStage, FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord,
+    FfiRelaySatisfaction, FfiRetractionDraftInput, FfiTodayCardType, FfiTodayProjectionUpdate,
+    FfiTodayRelaySyncState, HostSigningOutcome, HostSigningRequest, HostSigningResult,
+    MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsHostSigner, RadrootsRuntime,
+    SignerAvailabilityRecord, SignerStatusRecord,
 };
 use secp256k1::{Keypair, Message, Secp256k1, SecretKey};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -507,7 +508,12 @@ fn configure_simulator(runtime: &RadrootsRuntime, relay_url: &str, blossom_origi
         .configure_simulator_relays(vec![relay_url.to_owned()])
         .expect("simulator relay profile");
     runtime
-        .configure_simulator_blossom(vec![blossom_origin.to_owned()])
+        .configure_blossom(
+            FfiBlossomHostKind::Simulator,
+            FfiBlossomEndpointAuthority::LoopbackDevelopment,
+            blossom_origin.to_owned(),
+            vec![],
+        )
         .expect("simulator Blossom profile");
 }
 
@@ -579,7 +585,7 @@ fn food_input(content: &str, identifier: &str) -> FfiAddDraftInput {
 }
 
 fn prepared_media(
-    origin: &str,
+    _origin: &str,
     bytes: &[u8],
     file: &std::fs::File,
     alt: &str,
@@ -589,7 +595,6 @@ fn prepared_media(
         schema_version: MOBILE_FFI_SCHEMA_VERSION,
         opaque_reference: format!("media:{hash}"),
         file_descriptor: u64::try_from(file.as_raw_fd()).expect("nonnegative media descriptor"),
-        url: format!("{origin}/{hash}.png"),
         sha256: hash,
         media_type: "image/png".to_owned(),
         byte_size: u64::try_from(bytes.len()).expect("media size"),
@@ -754,7 +759,12 @@ async fn prove_corrupted_media_fails(
 ) {
     let corrupt = BlossomServer::spawn(bytes.to_vec(), true).await;
     runtime
-        .configure_simulator_blossom(vec![corrupt.origin.clone()])
+        .configure_blossom(
+            FfiBlossomHostKind::Simulator,
+            FfiBlossomEndpointAuthority::LoopbackDevelopment,
+            corrupt.origin.clone(),
+            vec![],
+        )
         .expect("corrupt test Blossom profile");
     let media = prepared_media(
         &corrupt.origin,

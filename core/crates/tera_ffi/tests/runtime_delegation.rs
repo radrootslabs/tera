@@ -1,8 +1,9 @@
 use radroots_mobile_ffi::{
-    FfiAddCommandType, FfiAddDraftInput, FfiBlossomUploadInput, FfiCancellationPolicy,
-    FfiDraftKind, FfiLocalNetworkRecord, FfiOutboxState, FfiPreparedMediaInput,
-    FfiQueuePolicyRecord, FfiRelaySatisfaction, FfiRetractionDraftInput, FfiTodayCardType,
-    FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError,
+    FfiAddCommandType, FfiAddDraftInput, FfiBlossomEndpointAuthority, FfiBlossomHostKind,
+    FfiBlossomUploadInput, FfiCancellationPolicy, FfiDraftKind, FfiLocalNetworkRecord,
+    FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord, FfiRelaySatisfaction,
+    FfiRetractionDraftInput, FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION,
+    RadrootsAppError,
 };
 
 mod support;
@@ -102,17 +103,37 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     );
 
     runtime
-        .configure_public_blossom(vec!["https://media.example".to_owned()])
+        .configure_blossom(
+            FfiBlossomHostKind::PhysicalDevice,
+            FfiBlossomEndpointAuthority::PublicWebPki,
+            "https://media.example".to_owned(),
+            vec!["https://fallback.example".to_owned()],
+        )
         .expect("public Blossom");
-    assert_eq!(
-        runtime.sdk_blossom_profile().expect("Blossom profile"),
-        Some("public".to_owned())
-    );
+    let blossom = runtime
+        .sdk_blossom_configuration()
+        .expect("Blossom configuration")
+        .expect("configured Blossom");
+    assert_eq!(blossom.host_kind, "physical_device");
+    assert_eq!(blossom.endpoint_authority, "public_webpki");
+    assert_eq!(blossom.primary_origin, "https://media.example");
+    assert_eq!(blossom.fallback_origins, ["https://fallback.example"]);
+    assert_eq!(blossom.config_fingerprint.len(), 64);
     runtime
-        .configure_simulator_blossom(vec!["http://127.0.0.1:3100".to_owned()])
+        .configure_blossom(
+            FfiBlossomHostKind::Simulator,
+            FfiBlossomEndpointAuthority::LoopbackDevelopment,
+            "http://127.0.0.1:3100".to_owned(),
+            vec![],
+        )
         .expect("simulator Blossom");
     runtime
-        .configure_device_blossom(vec!["https://10.0.0.5:3100".to_owned()])
+        .configure_blossom(
+            FfiBlossomHostKind::PhysicalDevice,
+            FfiBlossomEndpointAuthority::PrivateNetworkDevelopment,
+            "https://10.0.0.5:3100".to_owned(),
+            vec![],
+        )
         .expect("device Blossom");
 
     assert_eq!(
@@ -368,7 +389,6 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
             opaque_reference: "media:unused".to_owned(),
             file_descriptor: 0,
-            url: "https://media.example/unused.png".to_owned(),
             sha256: "00".repeat(32),
             media_type: "image/png".to_owned(),
             byte_size: 1,

@@ -7,7 +7,8 @@ use crate::dto::PreparedMedia;
 use crate::signer::HostSignerAdapter;
 use crate::subscription::SubscriptionHub;
 use crate::{
-    FfiAddDraftInput, FfiAddSchemaRecord, FfiBlossomUploadInput, FfiCapabilityRecord,
+    FfiAddDraftInput, FfiAddSchemaRecord, FfiBlossomConfigurationRecord,
+    FfiBlossomEndpointAuthority, FfiBlossomHostKind, FfiBlossomUploadInput, FfiCapabilityRecord,
     FfiCardAddParityRecord, FfiDraftStatusRecord, FfiIdentityStatusRecord, FfiLocalNetworkRecord,
     FfiMeRecord, FfiQueuePolicyRecord, FfiRelayStatusReportRecord, FfiRetractionDraftInput,
     FfiRuntimeChangeKind, FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord,
@@ -164,8 +165,13 @@ impl RadrootsRuntime {
             .map_err(Into::into)
     }
 
-    pub fn sdk_blossom_profile(&self) -> Result<Option<String>, RadrootsAppError> {
-        self.inner.sdk_blossom_profile().map_err(Into::into)
+    pub fn sdk_blossom_configuration(
+        &self,
+    ) -> Result<Option<FfiBlossomConfigurationRecord>, RadrootsAppError> {
+        self.inner
+            .sdk_blossom_configuration()
+            .map(|value| value.map(Into::into))
+            .map_err(Into::into)
     }
 
     pub fn subscribe_changes(
@@ -208,28 +214,20 @@ impl RadrootsRuntime {
         Ok(())
     }
 
-    pub fn configure_public_blossom(&self, origins: Vec<String>) -> Result<(), RadrootsAppError> {
-        self.inner
-            .configure_public_blossom(origins)
-            .map_err(RadrootsAppError::from)?;
-        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
-        Ok(())
-    }
-
-    pub fn configure_simulator_blossom(
+    pub fn configure_blossom(
         &self,
-        origins: Vec<String>,
+        host_kind: FfiBlossomHostKind,
+        endpoint_authority: FfiBlossomEndpointAuthority,
+        primary_origin: String,
+        fallback_origins: Vec<String>,
     ) -> Result<(), RadrootsAppError> {
         self.inner
-            .configure_simulator_blossom(origins)
-            .map_err(RadrootsAppError::from)?;
-        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
-        Ok(())
-    }
-
-    pub fn configure_device_blossom(&self, origins: Vec<String>) -> Result<(), RadrootsAppError> {
-        self.inner
-            .configure_device_blossom(origins)
+            .configure_blossom(
+                host_kind.into(),
+                endpoint_authority.into(),
+                primary_origin,
+                fallback_origins,
+            )
             .map_err(RadrootsAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
         Ok(())
@@ -363,7 +361,13 @@ impl RadrootsRuntime {
         input: FfiAddDraftInput,
         authored_at_unix_s: u64,
     ) -> Result<(), RadrootsAppError> {
-        input.command_and_media(authored_at_unix_s).map(|_| ())
+        let blossom = self
+            .inner
+            .sdk_blossom_slot()
+            .map_err(RadrootsAppError::from)?;
+        input
+            .command_and_media(authored_at_unix_s, blossom.as_ref())
+            .map(|_| ())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -375,7 +379,12 @@ impl RadrootsRuntime {
         expected_revision: Option<u64>,
         persisted_at_unix_ms: u64,
     ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
-        let (command, media, form) = input.command_media_and_form(authored_at_unix_s)?;
+        let blossom = self
+            .inner
+            .sdk_blossom_slot()
+            .map_err(RadrootsAppError::from)?;
+        let (command, media, form) =
+            input.command_media_and_form(authored_at_unix_s, blossom.as_ref())?;
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner

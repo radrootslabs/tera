@@ -3,7 +3,7 @@
 #[cfg(unix)]
 use std::os::unix::fs::FileExt;
 
-use radroots_blossom::{BlobDescriptor, BlobUrl, MediaType, Sha256};
+use radroots_blossom::{BlobDescriptor, MediaType, Sha256};
 use radroots_event::{
     calendar::{AuthoredCalendarDateEvent, AuthoredCalendarTimeEvent, CalendarDate},
     food::availability::{
@@ -28,8 +28,8 @@ use radroots_mobile_core::runtime::{
         TodayRefreshReceipt, TodayRelaySyncState, TodaySyncReceipt,
     },
     sdk::{
-        SdkCapabilityRecord, SdkRelayStatusRecord, SdkRelayStatusReportRecord, SdkShutdownRecord,
-        SdkStorageStatusRecord,
+        SdkBlossomConfigurationRecord, SdkCapabilityRecord, SdkRelayStatusRecord,
+        SdkRelayStatusReportRecord, SdkShutdownRecord, SdkStorageStatusRecord,
     },
 };
 
@@ -838,7 +838,6 @@ pub struct FfiPreparedMediaInput {
     pub schema_version: u16,
     pub opaque_reference: String,
     pub file_descriptor: u64,
-    pub url: String,
     pub sha256: String,
     pub media_type: String,
     pub byte_size: u64,
@@ -904,14 +903,16 @@ impl FfiAddDraftInput {
     pub(crate) fn command_and_media(
         self,
         authored_at_unix_s: u64,
+        blossom: Option<&radroots_sdk::transport::BlossomSlot>,
     ) -> Result<(Phase1AddCommand, Vec<Phase1MediaPrerequisite>), RadrootsAppError> {
-        self.command_media_and_form(authored_at_unix_s)
+        self.command_media_and_form(authored_at_unix_s, blossom)
             .map(|(command, media, _)| (command, media))
     }
 
     pub(crate) fn command_media_and_form(
         self,
         authored_at_unix_s: u64,
+        blossom: Option<&radroots_sdk::transport::BlossomSlot>,
     ) -> Result<
         (
             Phase1AddCommand,
@@ -929,19 +930,30 @@ impl FfiAddDraftInput {
             .iter()
             .cloned()
             .map(PreparedMedia::try_from)
-            .collect::<Result<Vec<_>, _>>()?;
+            .map(|media| {
+                media.and_then(|media| {
+                    let blossom = blossom.ok_or_else(|| {
+                        RadrootsAppError::invalid_argument("blossom_not_configured")
+                    })?;
+                    media.bind(blossom)
+                })
+            })
+            .collect::<Result<Vec<BoundPreparedMedia>, _>>()?;
         let prerequisites = prepared
             .iter()
             .map(|value| {
-                Phase1MediaPrerequisite::new(value.opaque_reference.clone(), &value.descriptor)
+                Phase1MediaPrerequisite::new(
+                    value.media.opaque_reference.clone(),
+                    &value.descriptor,
+                )
             })
             .collect::<Result<Vec<_>, _>>()
             .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_reference"))?;
         let post_images = prepared
             .iter()
-            .map(PreparedMedia::post_image)
+            .map(BoundPreparedMedia::post_image)
             .collect::<Result<Vec<_>, _>>()?;
-        let form = self.form_snapshot();
+        let form = self.form_snapshot(&prepared);
         let command = match self.command_type {
             FfiAddCommandType::CreateUpdate => {
                 reject_media(&prepared)?;
@@ -974,7 +986,7 @@ impl FfiAddDraftInput {
         Ok((command, prerequisites, form))
     }
 
-    fn form_snapshot(&self) -> Phase1DraftFormSnapshot {
+    fn form_snapshot(&self, prepared: &[BoundPreparedMedia]) -> Phase1DraftFormSnapshot {
         Phase1DraftFormSnapshot {
             command_type: match self.command_type {
                 FfiAddCommandType::CreateUpdate => AddCommandType::CreateUpdate,
@@ -1003,19 +1015,18 @@ impl FfiAddDraftInput {
             quantity: self.quantity.clone(),
             food_published_at_unix_s: self.food_published_at_unix_s,
             food_status: self.food_status.clone(),
-            media: self
-                .media
+            media: prepared
                 .iter()
                 .map(|value| Phase1DraftMediaSnapshot {
-                    opaque_reference: value.opaque_reference.clone(),
-                    url: value.url.clone(),
-                    sha256: value.sha256.clone(),
-                    media_type: value.media_type.clone(),
-                    byte_size: value.byte_size,
-                    width: value.width,
-                    height: value.height,
-                    alt: value.alt.clone(),
-                    prepared_at_unix_s: value.prepared_at_unix_s,
+                    opaque_reference: value.media.opaque_reference.clone(),
+                    url: value.descriptor.url().as_str().to_owned(),
+                    sha256: value.media.sha256.to_hex(),
+                    media_type: value.media.media_type.as_str().to_owned(),
+                    byte_size: value.media.byte_size,
+                    width: value.media.width,
+                    height: value.media.height,
+                    alt: value.media.alt.clone(),
+                    prepared_at_unix_s: value.media.prepared_at_unix_s,
                 })
                 .collect(),
         }
@@ -1024,12 +1035,19 @@ impl FfiAddDraftInput {
 
 pub(crate) struct PreparedMedia {
     opaque_reference: String,
-    descriptor: radroots_blossom::ByteVerifiedDescriptor,
+    sha256: Sha256,
+    byte_size: u64,
+    prepared_at_unix_s: u64,
     bytes: std::sync::Arc<[u8]>,
     media_type: MediaType,
     width: u32,
     height: u32,
     alt: String,
+}
+
+struct BoundPreparedMedia {
+    media: PreparedMedia,
+    descriptor: radroots_blossom::ByteVerifiedDescriptor,
 }
 
 impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
@@ -1055,21 +1073,32 @@ impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
         let bytes = read_media_file_descriptor(value.file_descriptor, value.byte_size, byte_size)?;
         let media_type = MediaType::parse(&value.media_type)
             .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_type"))?;
-        let descriptor = BlobDescriptor::new(
-            BlobUrl::parse(&value.url)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_url"))?,
-            Sha256::from_hex(&value.sha256)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_digest"))?,
-            value.byte_size,
+        let sha256 = Sha256::from_hex(&value.sha256)
+            .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_digest"))?;
+        if Sha256::digest(&bytes) != sha256 {
+            return Err(RadrootsAppError::invalid_argument(
+                "media_verification_failed",
+            ));
+        }
+        let dimensions =
+            radroots_sdk::transport::BlossomImageDimensions::new(value.width, value.height)
+                .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?;
+        let verified_at_unix_ms = value
+            .prepared_at_unix_s
+            .checked_mul(1_000)
+            .ok_or_else(|| RadrootsAppError::invalid_argument("invalid_media_reference"))?;
+        radroots_sdk::transport::BlossomUploadRequest::new(
+            bytes.clone().into(),
             media_type.clone(),
-            value.prepared_at_unix_s,
+            dimensions,
+            verified_at_unix_ms,
         )
-        .and_then(BlobDescriptor::approve_reference)
-        .and_then(|descriptor| descriptor.verify_bytes(&bytes, &media_type))
         .map_err(|_| RadrootsAppError::invalid_argument("media_verification_failed"))?;
         Ok(Self {
             opaque_reference: value.opaque_reference,
-            descriptor,
+            sha256,
+            byte_size: value.byte_size,
+            prepared_at_unix_s: value.prepared_at_unix_s,
             bytes: bytes.into(),
             media_type,
             width: value.width,
@@ -1115,21 +1144,6 @@ fn read_media_file_descriptor(
 }
 
 impl PreparedMedia {
-    fn authored_image(&self) -> Result<AuthoredImage, RadrootsAppError> {
-        AuthoredImage::try_from_verified_descriptor(self.descriptor.clone())
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_media"))
-    }
-
-    fn post_image(&self) -> Result<AuthoredPostImage, RadrootsAppError> {
-        AuthoredPostImage::new(
-            self.authored_image()?,
-            PostImageDimensions::new(self.width, self.height)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?,
-            self.alt.clone(),
-        )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_image"))
-    }
-
     pub(crate) fn upload_request(
         &self,
         verified_at_unix_ms: u64,
@@ -1138,7 +1152,6 @@ impl PreparedMedia {
             radroots_sdk::transport::BlossomImageDimensions::new(self.width, self.height)
                 .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?;
         radroots_sdk::transport::BlossomUploadRequest::new(
-            self.descriptor.url().as_blob_url().clone(),
             std::sync::Arc::clone(&self.bytes),
             self.media_type.clone(),
             dimensions,
@@ -1146,11 +1159,55 @@ impl PreparedMedia {
         )
         .map_err(|_| RadrootsAppError::invalid_argument("invalid_blossom_upload"))
     }
+
+    fn bind(
+        self,
+        blossom: &radroots_sdk::transport::BlossomSlot,
+    ) -> Result<BoundPreparedMedia, RadrootsAppError> {
+        let verified_at_unix_ms = self
+            .prepared_at_unix_s
+            .checked_mul(1_000)
+            .ok_or_else(|| RadrootsAppError::invalid_argument("invalid_media_reference"))?;
+        let transaction = blossom
+            .prepare_upload(self.upload_request(verified_at_unix_ms)?)
+            .map_err(|error| RadrootsAppError::invalid_argument(error.code()))?;
+        let descriptor = BlobDescriptor::new(
+            transaction.expected_url().clone(),
+            self.sha256,
+            self.byte_size,
+            self.media_type.clone(),
+            self.prepared_at_unix_s,
+        )
+        .and_then(BlobDescriptor::approve_reference)
+        .and_then(|descriptor| descriptor.verify_bytes(&self.bytes, &self.media_type))
+        .map_err(|_| RadrootsAppError::invalid_argument("media_verification_failed"))?;
+        Ok(BoundPreparedMedia {
+            media: self,
+            descriptor,
+        })
+    }
+}
+
+impl BoundPreparedMedia {
+    fn authored_image(&self) -> Result<AuthoredImage, RadrootsAppError> {
+        AuthoredImage::try_from_verified_descriptor(self.descriptor.clone())
+            .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_media"))
+    }
+
+    fn post_image(&self) -> Result<AuthoredPostImage, RadrootsAppError> {
+        AuthoredPostImage::new(
+            self.authored_image()?,
+            PostImageDimensions::new(self.media.width, self.media.height)
+                .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?,
+            self.media.alt.clone(),
+        )
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_image"))
+    }
 }
 
 fn event_command(
     input: &FfiAddDraftInput,
-    image: Option<&PreparedMedia>,
+    image: Option<&BoundPreparedMedia>,
 ) -> Result<CreateEvent, RadrootsAppError> {
     if input.media.len() > 1 {
         return Err(RadrootsAppError::invalid_argument("event_image_limit"));
@@ -1233,7 +1290,7 @@ fn event_command(
 fn food_command(
     input: FfiAddDraftInput,
     authored_at_unix_s: u64,
-    media: &[PreparedMedia],
+    media: &[BoundPreparedMedia],
 ) -> Result<CreateFoodAvailability, RadrootsAppError> {
     let unit = FoodUnit::parse(required(input.unit.as_deref(), "food_unit_required")?)
         .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_unit"))?;
@@ -1242,7 +1299,7 @@ fn food_command(
         .map(|image| {
             Ok(FoodAvailabilityImage::new(
                 image.authored_image()?,
-                FoodImageDimensions::new(image.width, image.height)
+                FoodImageDimensions::new(image.media.width, image.media.height)
                     .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?,
             ))
         })
@@ -1286,7 +1343,7 @@ fn food_command(
     Ok(CreateFoodAvailability::new(details))
 }
 
-fn reject_media(media: &[PreparedMedia]) -> Result<(), RadrootsAppError> {
+fn reject_media(media: &[BoundPreparedMedia]) -> Result<(), RadrootsAppError> {
     if media.is_empty() {
         Ok(())
     } else {
@@ -1296,7 +1353,7 @@ fn reject_media(media: &[PreparedMedia]) -> Result<(), RadrootsAppError> {
 
 fn content_with_media_references(
     mut content: String,
-    media: &[PreparedMedia],
+    media: &[BoundPreparedMedia],
 ) -> Result<String, RadrootsAppError> {
     if content.trim().is_empty() {
         return Err(RadrootsAppError::invalid_argument("content_required"));
@@ -1759,6 +1816,66 @@ pub struct FfiRelayStatusReportRecord {
     pub relays: Vec<FfiRelayStatusRecord>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiBlossomHostKind {
+    Native,
+    Simulator,
+    PhysicalDevice,
+}
+
+impl From<FfiBlossomHostKind> for radroots_sdk::transport::BlossomHostKind {
+    fn from(value: FfiBlossomHostKind) -> Self {
+        match value {
+            FfiBlossomHostKind::Native => Self::Native,
+            FfiBlossomHostKind::Simulator => Self::Simulator,
+            FfiBlossomHostKind::PhysicalDevice => Self::PhysicalDevice,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiBlossomEndpointAuthority {
+    PublicWebPki,
+    LoopbackDevelopment,
+    PrivateNetworkDevelopment,
+}
+
+impl From<FfiBlossomEndpointAuthority> for radroots_sdk::transport::BlossomEndpointAuthority {
+    fn from(value: FfiBlossomEndpointAuthority) -> Self {
+        match value {
+            FfiBlossomEndpointAuthority::PublicWebPki => Self::PublicWebPki,
+            FfiBlossomEndpointAuthority::LoopbackDevelopment => Self::LoopbackDevelopment,
+            FfiBlossomEndpointAuthority::PrivateNetworkDevelopment => {
+                Self::PrivateNetworkDevelopment
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiBlossomConfigurationRecord {
+    pub schema_version: u16,
+    pub host_kind: String,
+    pub endpoint_authority: String,
+    pub primary_origin: String,
+    pub fallback_origins: Vec<String>,
+    pub config_fingerprint: String,
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+impl From<SdkBlossomConfigurationRecord> for FfiBlossomConfigurationRecord {
+    fn from(value: SdkBlossomConfigurationRecord) -> Self {
+        Self {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            host_kind: value.host_kind,
+            endpoint_authority: value.endpoint_authority,
+            primary_origin: value.primary_origin,
+            fallback_origins: value.fallback_origins,
+            config_fingerprint: value.config_fingerprint,
+        }
+    }
+}
+
 #[cfg_attr(coverage_nightly, coverage(off))]
 impl From<SdkRelayStatusReportRecord> for FfiRelayStatusReportRecord {
     fn from(value: SdkRelayStatusReportRecord) -> Self {
@@ -1818,6 +1935,29 @@ mod tests {
 
     use super::*;
 
+    fn png(width: u32, height: u32) -> Vec<u8> {
+        let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        bytes.extend_from_slice(&width.to_be_bytes());
+        bytes.extend_from_slice(&height.to_be_bytes());
+        bytes
+    }
+
+    fn blossom_slot() -> radroots_sdk::transport::BlossomSlot {
+        let profile = radroots_sdk::transport::BlossomProfile::new(
+            radroots_sdk::transport::BlossomHostKind::Simulator,
+            radroots_sdk::transport::BlossomEndpointAuthority::LoopbackDevelopment,
+            "http://127.0.0.1:3000",
+            std::iter::empty::<&str>(),
+        )
+        .unwrap();
+        let slot = radroots_sdk::transport::BlossomSlot::new();
+        slot.configure(radroots_sdk::transport::BlossomConfig::from_profile(
+            profile,
+        ))
+        .unwrap();
+        slot
+    }
+
     fn photo_input(file_descriptor: u64, bytes: &[u8], digest: String) -> FfiAddDraftInput {
         FfiAddDraftInput {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
@@ -1843,9 +1983,8 @@ mod tests {
                 schema_version: MOBILE_FFI_SCHEMA_VERSION,
                 opaque_reference: "media:carrots-01".to_owned(),
                 file_descriptor,
-                url: format!("https://blossom.example/{digest}.jpg"),
                 sha256: digest,
-                media_type: "image/jpeg".to_owned(),
+                media_type: "image/png".to_owned(),
                 byte_size: bytes.len() as u64,
                 width: 2,
                 height: 2,
@@ -1883,13 +2022,13 @@ mod tests {
     #[test]
     fn exact_five_add_inputs_build_their_typed_core_commands() {
         let (update, media) = text_input(FfiAddCommandType::CreateUpdate)
-            .command_and_media(1_800_000_000)
+            .command_and_media(1_800_000_000, None)
             .expect("update");
         assert!(matches!(update, Phase1AddCommand::CreateUpdate(_)));
         assert!(media.is_empty());
 
         let (ask, media) = text_input(FfiAddCommandType::CreateAsk)
-            .command_and_media(1_800_000_000)
+            .command_and_media(1_800_000_000, None)
             .expect("ask");
         assert!(matches!(ask, Phase1AddCommand::CreateAsk(_)));
         assert!(media.is_empty());
@@ -1902,7 +2041,7 @@ mod tests {
         all_day.event_start_date = Some("2026-08-08".to_owned());
         all_day.event_end_date = Some("2026-08-09".to_owned());
         let (event, media) = all_day
-            .command_and_media(1_800_000_000)
+            .command_and_media(1_800_000_000, None)
             .expect("all-day event");
         assert!(matches!(event, Phase1AddCommand::CreateEvent(_)));
         assert!(media.is_empty());
@@ -1914,16 +2053,18 @@ mod tests {
         timed.event_start_unix_s = Some(1_800_000_000);
         timed.event_end_unix_s = Some(1_800_003_600);
         timed.event_timezone = Some("America/Vancouver".to_owned());
-        let (event, media) = timed.command_and_media(1_800_000_000).expect("timed event");
+        let (event, media) = timed
+            .command_and_media(1_800_000_000, None)
+            .expect("timed event");
         assert!(matches!(event, Phase1AddCommand::CreateEvent(_)));
         assert!(media.is_empty());
 
-        let bytes = b"verified-food-image";
+        let bytes = png(2, 2);
         let mut file = tempfile::NamedTempFile::new().expect("media file");
-        file.write_all(bytes).expect("write media");
+        file.write_all(&bytes).expect("write media");
         file.flush().expect("flush media");
-        let digest = Sha256::digest(bytes).to_hex();
-        let mut food = photo_input(file.as_file().as_raw_fd() as u64, bytes, digest);
+        let digest = Sha256::digest(&bytes).to_hex();
+        let mut food = photo_input(file.as_file().as_raw_fd() as u64, &bytes, digest);
         food.command_type = FfiAddCommandType::CreateFoodAvailability;
         food.identifier = Some("carrots-2026-08".to_owned());
         food.title = Some("Carrots".to_owned());
@@ -1934,8 +2075,9 @@ mod tests {
         food.unit = Some("bunch".to_owned());
         food.quantity = Some("12".to_owned());
         food.food_status = Some("active".to_owned());
+        let blossom = blossom_slot();
         let (food, media) = food
-            .command_and_media(1_800_000_000)
+            .command_and_media(1_800_000_000, Some(&blossom))
             .expect("food availability");
         assert!(matches!(food, Phase1AddCommand::CreateFoodAvailability(_)));
         assert_eq!(media.len(), 1);
@@ -1947,7 +2089,7 @@ mod tests {
         wrong_schema.schema_version = MOBILE_FFI_SCHEMA_VERSION + 1;
         assert_eq!(
             wrong_schema
-                .command_and_media(1_800_000_000)
+                .command_and_media(1_800_000_000, None)
                 .expect_err("schema")
                 .report()
                 .code,
@@ -1955,7 +2097,7 @@ mod tests {
         );
         assert_eq!(
             text_input(FfiAddCommandType::CreateUpdate)
-                .command_and_media(0)
+                .command_and_media(0, None)
                 .expect_err("authored time")
                 .report()
                 .code,
@@ -1963,7 +2105,7 @@ mod tests {
         );
         assert_eq!(
             text_input(FfiAddCommandType::CreateEvent)
-                .command_and_media(1_800_000_000)
+                .command_and_media(1_800_000_000, None)
                 .expect_err("event identity")
                 .report()
                 .code,
@@ -1972,7 +2114,7 @@ mod tests {
         let mut food = text_input(FfiAddCommandType::CreateFoodAvailability);
         food.unit = Some("crate".to_owned());
         assert_eq!(
-            food.command_and_media(1_800_000_000)
+            food.command_and_media(1_800_000_000, None)
                 .expect_err("food unit")
                 .report()
                 .code,
@@ -1982,39 +2124,41 @@ mod tests {
 
     #[test]
     fn prepared_media_accepts_only_the_exact_bounded_file_descriptor_bytes() {
-        let bytes = b"normalized-image-bytes";
+        let bytes = png(2, 2);
         let mut file = tempfile::NamedTempFile::new().expect("media file");
-        file.write_all(bytes).expect("write media");
+        file.write_all(&bytes).expect("write media");
         file.flush().expect("flush media");
-        let digest = Sha256::digest(bytes).to_hex();
-        let input = photo_input(file.as_file().as_raw_fd() as u64, bytes, digest.clone());
+        let digest = Sha256::digest(&bytes).to_hex();
+        let input = photo_input(file.as_file().as_raw_fd() as u64, &bytes, digest.clone());
+        let blossom = blossom_slot();
 
         let (command, media) = input
-            .command_and_media(1_800_000_000)
+            .command_and_media(1_800_000_000, Some(&blossom))
             .expect("verified media input");
         assert!(matches!(command, Phase1AddCommand::CreatePhotoUpdate(_)));
         assert_eq!(media.len(), 1);
         assert_eq!(
             media[0].url(),
-            format!("https://blossom.example/{digest}.jpg")
+            format!("http://127.0.0.1:3000/{digest}.png")
         );
     }
 
     #[test]
     fn prepared_media_rejects_digest_tamper_and_path_like_references() {
-        let bytes = b"normalized-image-bytes";
+        let bytes = png(2, 2);
         let mut file = tempfile::NamedTempFile::new().expect("media file");
-        file.write_all(bytes).expect("write media");
+        file.write_all(&bytes).expect("write media");
         file.flush().expect("flush media");
 
         let tampered = photo_input(
             file.as_file().as_raw_fd() as u64,
-            bytes,
+            &bytes,
             Sha256::digest(b"other").to_hex(),
         );
+        let blossom = blossom_slot();
         assert_eq!(
             tampered
-                .command_and_media(1_800_000_000)
+                .command_and_media(1_800_000_000, Some(&blossom))
                 .expect_err("digest mismatch")
                 .report()
                 .code,
@@ -2023,13 +2167,13 @@ mod tests {
 
         let mut path_like = photo_input(
             file.as_file().as_raw_fd() as u64,
-            bytes,
-            Sha256::digest(bytes).to_hex(),
+            &bytes,
+            Sha256::digest(&bytes).to_hex(),
         );
         path_like.media[0].opaque_reference = "file:/private/media.jpg".to_owned();
         assert_eq!(
             path_like
-                .command_and_media(1_800_000_000)
+                .command_and_media(1_800_000_000, Some(&blossom))
                 .expect_err("path-like reference")
                 .report()
                 .code,
@@ -2045,7 +2189,6 @@ mod tests {
         file.flush().expect("flush media");
         let digest = Sha256::digest(bytes).to_hex();
         let mut input = photo_input(file.as_file().as_raw_fd() as u64, bytes, digest.clone());
-        input.media[0].url = format!("https://blossom.example/{digest}.png");
         input.media[0].media_type = "image/png".to_owned();
 
         let prepared = PreparedMedia::try_from(input.media.remove(0)).expect("prepared media");
@@ -2061,12 +2204,12 @@ mod tests {
 
     #[test]
     fn media_validation_executes_every_bounded_shape_guard() {
-        let bytes = b"bounded-media";
+        let bytes = png(2, 2);
         let mut file = tempfile::NamedTempFile::new().expect("media file");
-        file.write_all(bytes).expect("write media");
+        file.write_all(&bytes).expect("write media");
         file.flush().expect("flush media");
-        let digest = Sha256::digest(bytes).to_hex();
-        let valid = photo_input(file.as_file().as_raw_fd() as u64, bytes, digest).media[0].clone();
+        let digest = Sha256::digest(&bytes).to_hex();
+        let valid = photo_input(file.as_file().as_raw_fd() as u64, &bytes, digest).media[0].clone();
 
         let mut invalid_values = Vec::new();
         let mut value = valid.clone();
@@ -2130,7 +2273,7 @@ mod tests {
         minimal_date.title = Some("Minimal date".to_owned());
         minimal_date.event_timing = Some(FfiEventTimingKind::AllDay);
         minimal_date.event_start_date = Some("2026-08-08".to_owned());
-        assert!(minimal_date.command_and_media(1_800_000_000).is_ok());
+        assert!(minimal_date.command_and_media(1_800_000_000, None).is_ok());
 
         let mut minimal_time = text_input(FfiAddCommandType::CreateEvent);
         minimal_time.content.clear();
@@ -2138,27 +2281,33 @@ mod tests {
         minimal_time.title = Some("Minimal time".to_owned());
         minimal_time.event_timing = Some(FfiEventTimingKind::Timed);
         minimal_time.event_start_unix_s = Some(1_800_000_000);
-        assert!(minimal_time.command_and_media(1_800_000_000).is_ok());
+        assert!(minimal_time.command_and_media(1_800_000_000, None).is_ok());
 
-        let bytes = b"event-image";
+        let bytes = png(2, 2);
         let mut file = tempfile::NamedTempFile::new().expect("media file");
-        file.write_all(bytes).expect("write media");
+        file.write_all(&bytes).expect("write media");
         file.flush().expect("flush media");
-        let digest = Sha256::digest(bytes).to_hex();
-        let mut event = photo_input(file.as_file().as_raw_fd() as u64, bytes, digest);
+        let digest = Sha256::digest(&bytes).to_hex();
+        let mut event = photo_input(file.as_file().as_raw_fd() as u64, &bytes, digest);
         event.command_type = FfiAddCommandType::CreateEvent;
         event.identifier = Some("event-image".to_owned());
         event.title = Some("Event image".to_owned());
         event.event_timing = Some(FfiEventTimingKind::Timed);
         event.event_start_unix_s = Some(1_800_000_000);
-        assert!(event.clone().command_and_media(1_800_000_000).is_ok());
+        let blossom = blossom_slot();
+        assert!(
+            event
+                .clone()
+                .command_and_media(1_800_000_000, Some(&blossom))
+                .is_ok()
+        );
 
         let mut second = event.media[0].clone();
         second.opaque_reference = "media:event-image-two".to_owned();
         event.media.push(second);
         assert_eq!(
             event
-                .command_and_media(1_800_000_000)
+                .command_and_media(1_800_000_000, Some(&blossom))
                 .expect_err("event media limit")
                 .report()
                 .code,
@@ -2168,13 +2317,17 @@ mod tests {
 
     #[test]
     fn content_references_and_identifier_decoding_cover_all_outcomes() {
-        let bytes = b"post-image";
+        let bytes = png(2, 2);
         let mut file = tempfile::NamedTempFile::new().expect("media file");
-        file.write_all(bytes).expect("write media");
+        file.write_all(&bytes).expect("write media");
         file.flush().expect("flush media");
-        let digest = Sha256::digest(bytes).to_hex();
-        let input = photo_input(file.as_file().as_raw_fd() as u64, bytes, digest);
-        let prepared = PreparedMedia::try_from(input.media[0].clone()).expect("prepared media");
+        let digest = Sha256::digest(&bytes).to_hex();
+        let input = photo_input(file.as_file().as_raw_fd() as u64, &bytes, digest);
+        let blossom = blossom_slot();
+        let prepared = PreparedMedia::try_from(input.media[0].clone())
+            .expect("prepared media")
+            .bind(&blossom)
+            .expect("bound media");
         let url = prepared.descriptor.url().as_str().to_owned();
 
         assert_eq!(
@@ -2214,7 +2367,7 @@ mod tests {
         update.media.push(input.media[0].clone());
         assert_eq!(
             update
-                .command_and_media(1_800_000_000)
+                .command_and_media(1_800_000_000, Some(&blossom))
                 .expect_err("update media")
                 .report()
                 .code,
@@ -2224,7 +2377,7 @@ mod tests {
         over_limit.media = vec![input.media[0].clone(); 21];
         assert_eq!(
             over_limit
-                .command_and_media(1_800_000_000)
+                .command_and_media(1_800_000_000, None)
                 .expect_err("media count")
                 .report()
                 .code,
