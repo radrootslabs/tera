@@ -1,8 +1,8 @@
 use radroots_mobile_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiBlossomUploadInput, FfiCancellationPolicy,
-    FfiLocalNetworkRecord, FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord,
-    FfiRelaySatisfaction, FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION,
-    RadrootsAppError,
+    FfiDraftKind, FfiLocalNetworkRecord, FfiOutboxState, FfiPreparedMediaInput,
+    FfiQueuePolicyRecord, FfiRelaySatisfaction, FfiRetractionDraftInput, FfiTodayCardType,
+    FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError,
 };
 
 mod support;
@@ -269,6 +269,11 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .await
         .expect("saved draft");
     assert_eq!(saved.state, FfiOutboxState::Draft);
+    assert_eq!(saved.kind, FfiDraftKind::Add);
+    assert_eq!(
+        saved.form.as_ref().map(|form| form.content.as_str()),
+        Some("Farm stand opens at noon")
+    );
     assert_eq!(
         runtime
             .phase1_draft_status(draft_id.clone())
@@ -311,6 +316,48 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .await
         .expect("cancelled draft");
     assert_eq!(cancelled.state, FfiOutboxState::Cancelled);
+
+    let retraction_id = "0a".repeat(16);
+    let retraction = runtime
+        .phase1_save_retraction_draft(
+            retraction_id.clone(),
+            FfiRetractionDraftInput {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                command_type: FfiAddCommandType::CreateUpdate,
+                target_card_id: "c".repeat(64),
+                target_event_id: "a".repeat(64),
+                target_kind: 1,
+                target_address: None,
+                reason: "Replaced with a corrected copy".to_owned(),
+            },
+            1_800_000_005,
+            1_800_000_005_000,
+        )
+        .await
+        .expect("saved retraction");
+    assert_eq!(retraction.kind, FfiDraftKind::Retraction);
+    assert_eq!(retraction.card_id, "c".repeat(64));
+    assert!(retraction.form.is_none());
+    let queued_retraction = runtime
+        .phase1_queue_draft(
+            retraction_id.clone(),
+            retraction.revision,
+            FfiQueuePolicyRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                relay_urls: vec!["wss://write.example".to_owned()],
+                satisfaction: FfiRelaySatisfaction::AllAccepted,
+                delivery_deadline_unix_ms: 1_800_100_000_000,
+                cancellation: FfiCancellationPolicy::LocalCooperative,
+            },
+            1_800_000_006_000,
+        )
+        .await
+        .expect("queued retraction");
+    let cancelled_retraction = runtime
+        .phase1_cancel_draft(retraction_id, queued_retraction.revision, 1_800_000_007_000)
+        .await
+        .expect("cancelled retraction");
+    assert_eq!(cancelled_retraction.state, FfiOutboxState::Cancelled);
 
     let upload = FfiBlossomUploadInput {
         schema_version: MOBILE_FFI_SCHEMA_VERSION + 1,

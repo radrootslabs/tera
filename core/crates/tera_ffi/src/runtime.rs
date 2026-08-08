@@ -9,11 +9,11 @@ use crate::subscription::SubscriptionHub;
 use crate::{
     FfiAddDraftInput, FfiAddSchemaRecord, FfiBlossomUploadInput, FfiCapabilityRecord,
     FfiCardAddParityRecord, FfiDraftStatusRecord, FfiIdentityStatusRecord, FfiLocalNetworkRecord,
-    FfiMeRecord, FfiQueuePolicyRecord, FfiRelayStatusReportRecord, FfiRuntimeChangeKind,
-    FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord, FfiStorageStatusRecord,
-    FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate, FfiTodayRefreshRecord,
-    FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner, RadrootsRuntimeObserver, add_schemas,
-    decode_id,
+    FfiMeRecord, FfiQueuePolicyRecord, FfiRelayStatusReportRecord, FfiRetractionDraftInput,
+    FfiRuntimeChangeKind, FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord,
+    FfiStorageStatusRecord, FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate,
+    FfiTodayRefreshRecord, FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner,
+    RadrootsRuntimeObserver, add_schemas, decode_id,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
@@ -375,16 +375,70 @@ impl RadrootsRuntime {
         expected_revision: Option<u64>,
         persisted_at_unix_ms: u64,
     ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
-        let (command, media) = input.command_and_media(authored_at_unix_s)?;
+        let (command, media, form) = input.command_media_and_form(authored_at_unix_s)?;
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
-            .phase1_save_draft(
+            .phase1_save_draft_with_form(
                 decoded_id,
                 command,
                 authored_at_unix_s,
                 media,
+                form,
                 expected_revision,
+                persisted_at_unix_ms,
+            )
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_save_retraction_draft(
+        &self,
+        draft_id: String,
+        input: FfiRetractionDraftInput,
+        authored_at_unix_s: u64,
+        persisted_at_unix_ms: u64,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION {
+            return Err(RadrootsAppError::invalid_argument(
+                "unsupported_schema_version",
+            ));
+        }
+        let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
+        let command_type = match input.command_type {
+            crate::FfiAddCommandType::CreateUpdate => {
+                radroots_mobile_core::runtime::product_surface::AddCommandType::CreateUpdate
+            }
+            crate::FfiAddCommandType::CreatePhotoUpdate => {
+                radroots_mobile_core::runtime::product_surface::AddCommandType::CreatePhotoUpdate
+            }
+            crate::FfiAddCommandType::CreateAsk => {
+                radroots_mobile_core::runtime::product_surface::AddCommandType::CreateAsk
+            }
+            crate::FfiAddCommandType::CreateEvent => {
+                radroots_mobile_core::runtime::product_surface::AddCommandType::CreateEvent
+            }
+            crate::FfiAddCommandType::CreateFoodAvailability => {
+                radroots_mobile_core::runtime::product_surface::AddCommandType::CreateFoodAvailability
+            }
+        };
+        let card_id =
+            radroots_mobile_core::runtime::product_surface::CardId::parse(&input.target_card_id)
+                .map_err(|_| RadrootsAppError::invalid_argument("invalid_card_id"))?;
+        let status = self
+            .inner
+            .phase1_save_retraction_draft(
+                decoded_id,
+                command_type,
+                card_id,
+                &input.target_event_id,
+                input.target_kind,
+                input.target_address.as_deref(),
+                &input.reason,
+                authored_at_unix_s,
                 persisted_at_unix_ms,
             )
             .await
@@ -464,6 +518,22 @@ impl RadrootsRuntime {
         let status = self
             .inner
             .phase1_sign_queued_draft(decoded_id, expected_revision)
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_advance_draft(
+        &self,
+        draft_id: String,
+        expected_revision: u64,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
+        let status = self
+            .inner
+            .phase1_advance_draft(decoded_id, expected_revision)
             .await
             .map_err(RadrootsAppError::from)?;
         self.subscriptions

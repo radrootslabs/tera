@@ -21,6 +21,7 @@ use radroots_mobile_core::runtime::{
         AddCommandType, CardLifecycleState, CreateAsk, CreateEvent, CreateFoodAvailability,
         CreatePhotoUpdate, CreateUpdate, LocalNetwork, LocalNetworkRelayPolicy, MeSnapshot,
         MediaReference, MediaVerificationState, Phase1AddCommand, Phase1CancellationPolicy,
+        Phase1DraftEventTiming, Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot,
         Phase1DraftStatus, Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState,
         Phase1QueuePolicy, Phase1RelaySatisfaction, ProfileSummary, SearchResult, SearchResultType,
         SupportingProfile, ThreadEntry, TodayCard, TodayCardType, TodayPage, TodayProjectionUpdate,
@@ -865,6 +866,17 @@ pub struct FfiAddDraftInput {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiRetractionDraftInput {
+    pub schema_version: u16,
+    pub command_type: FfiAddCommandType,
+    pub target_card_id: String,
+    pub target_event_id: String,
+    pub target_kind: u32,
+    pub target_address: Option<String>,
+    pub reason: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiBlossomUploadInput {
     pub schema_version: u16,
     pub draft_id: String,
@@ -886,6 +898,21 @@ impl FfiAddDraftInput {
         self,
         authored_at_unix_s: u64,
     ) -> Result<(Phase1AddCommand, Vec<Phase1MediaPrerequisite>), RadrootsAppError> {
+        self.command_media_and_form(authored_at_unix_s)
+            .map(|(command, media, _)| (command, media))
+    }
+
+    pub(crate) fn command_media_and_form(
+        self,
+        authored_at_unix_s: u64,
+    ) -> Result<
+        (
+            Phase1AddCommand,
+            Vec<Phase1MediaPrerequisite>,
+            Phase1DraftFormSnapshot,
+        ),
+        RadrootsAppError,
+    > {
         require_schema(self.schema_version)?;
         if authored_at_unix_s == 0 || self.media.len() > 20 {
             return Err(RadrootsAppError::invalid_argument("invalid_add_draft"));
@@ -907,6 +934,7 @@ impl FfiAddDraftInput {
             .iter()
             .map(PreparedMedia::post_image)
             .collect::<Result<Vec<_>, _>>()?;
+        let form = self.form_snapshot();
         let command = match self.command_type {
             FfiAddCommandType::CreateUpdate => {
                 reject_media(&prepared)?;
@@ -936,7 +964,53 @@ impl FfiAddDraftInput {
                 food_command(self, authored_at_unix_s, &prepared)?,
             ),
         };
-        Ok((command, prerequisites))
+        Ok((command, prerequisites, form))
+    }
+
+    fn form_snapshot(&self) -> Phase1DraftFormSnapshot {
+        Phase1DraftFormSnapshot {
+            command_type: match self.command_type {
+                FfiAddCommandType::CreateUpdate => AddCommandType::CreateUpdate,
+                FfiAddCommandType::CreatePhotoUpdate => AddCommandType::CreatePhotoUpdate,
+                FfiAddCommandType::CreateAsk => AddCommandType::CreateAsk,
+                FfiAddCommandType::CreateEvent => AddCommandType::CreateEvent,
+                FfiAddCommandType::CreateFoodAvailability => AddCommandType::CreateFoodAvailability,
+            },
+            content: self.content.clone(),
+            identifier: self.identifier.clone(),
+            title: self.title.clone(),
+            summary: self.summary.clone(),
+            location: self.location.clone(),
+            event_timing: self.event_timing.map(|value| match value {
+                FfiEventTimingKind::AllDay => Phase1DraftEventTiming::AllDay,
+                FfiEventTimingKind::Timed => Phase1DraftEventTiming::Timed,
+            }),
+            event_start_date: self.event_start_date.clone(),
+            event_end_date: self.event_end_date.clone(),
+            event_start_unix_s: self.event_start_unix_s,
+            event_end_unix_s: self.event_end_unix_s,
+            event_timezone: self.event_timezone.clone(),
+            price_amount: self.price_amount.clone(),
+            currency: self.currency.clone(),
+            unit: self.unit.clone(),
+            quantity: self.quantity.clone(),
+            food_status: self.food_status.clone(),
+            media: self
+                .media
+                .iter()
+                .map(|value| Phase1DraftMediaSnapshot {
+                    opaque_reference: value.opaque_reference.clone(),
+                    url: value.url.clone(),
+                    sha256: value.sha256.clone(),
+                    media_type: value.media_type.clone(),
+                    byte_size: value.byte_size,
+                    width: value.width,
+                    height: value.height,
+                    alt: value.alt.clone(),
+                    prepared_at_unix_s: value.prepared_at_unix_s,
+                })
+                .collect(),
+        }
     }
 }
 
@@ -1320,6 +1394,107 @@ pub enum FfiOutboxState {
     Complete,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiDraftKind {
+    Add,
+    Retraction,
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+impl From<Phase1DraftKind> for FfiDraftKind {
+    fn from(value: Phase1DraftKind) -> Self {
+        match value {
+            Phase1DraftKind::Add => Self::Add,
+            Phase1DraftKind::Retraction => Self::Retraction,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiDraftFormMediaRecord {
+    pub schema_version: u16,
+    pub opaque_reference: String,
+    pub url: String,
+    pub sha256: String,
+    pub media_type: String,
+    pub byte_size: u64,
+    pub width: u32,
+    pub height: u32,
+    pub alt: String,
+    pub prepared_at_unix_s: u64,
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+impl From<&Phase1DraftMediaSnapshot> for FfiDraftFormMediaRecord {
+    fn from(value: &Phase1DraftMediaSnapshot) -> Self {
+        Self {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            opaque_reference: value.opaque_reference.clone(),
+            url: value.url.clone(),
+            sha256: value.sha256.clone(),
+            media_type: value.media_type.clone(),
+            byte_size: value.byte_size,
+            width: value.width,
+            height: value.height,
+            alt: value.alt.clone(),
+            prepared_at_unix_s: value.prepared_at_unix_s,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiDraftFormRecord {
+    pub schema_version: u16,
+    pub command_type: FfiAddCommandType,
+    pub content: String,
+    pub identifier: Option<String>,
+    pub title: Option<String>,
+    pub summary: Option<String>,
+    pub location: Option<String>,
+    pub event_timing: Option<FfiEventTimingKind>,
+    pub event_start_date: Option<String>,
+    pub event_end_date: Option<String>,
+    pub event_start_unix_s: Option<u64>,
+    pub event_end_unix_s: Option<u64>,
+    pub event_timezone: Option<String>,
+    pub price_amount: Option<String>,
+    pub currency: Option<String>,
+    pub unit: Option<String>,
+    pub quantity: Option<String>,
+    pub food_status: Option<String>,
+    pub media: Vec<FfiDraftFormMediaRecord>,
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+impl From<&Phase1DraftFormSnapshot> for FfiDraftFormRecord {
+    fn from(value: &Phase1DraftFormSnapshot) -> Self {
+        Self {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            command_type: value.command_type.into(),
+            content: value.content.clone(),
+            identifier: value.identifier.clone(),
+            title: value.title.clone(),
+            summary: value.summary.clone(),
+            location: value.location.clone(),
+            event_timing: value.event_timing.map(|value| match value {
+                Phase1DraftEventTiming::AllDay => FfiEventTimingKind::AllDay,
+                Phase1DraftEventTiming::Timed => FfiEventTimingKind::Timed,
+            }),
+            event_start_date: value.event_start_date.clone(),
+            event_end_date: value.event_end_date.clone(),
+            event_start_unix_s: value.event_start_unix_s,
+            event_end_unix_s: value.event_end_unix_s,
+            event_timezone: value.event_timezone.clone(),
+            price_amount: value.price_amount.clone(),
+            currency: value.currency.clone(),
+            unit: value.unit.clone(),
+            quantity: value.quantity.clone(),
+            food_status: value.food_status.clone(),
+            media: value.media.iter().map(Into::into).collect(),
+        }
+    }
+}
+
 #[cfg_attr(coverage_nightly, coverage(off))]
 impl From<Phase1OutboxState> for FfiOutboxState {
     fn from(value: Phase1OutboxState) -> Self {
@@ -1347,7 +1522,9 @@ pub struct FfiDraftStatusRecord {
     pub draft_id: String,
     pub revision: u64,
     pub author_public_key: String,
+    pub kind: FfiDraftKind,
     pub command_type: FfiAddCommandType,
+    pub form: Option<FfiDraftFormRecord>,
     pub state: FfiOutboxState,
     pub card_id: String,
     pub operation_id: Option<String>,
@@ -1367,7 +1544,9 @@ impl From<Phase1DraftStatus> for FfiDraftStatusRecord {
             draft_id: hex::encode(draft.draft_id().as_bytes()),
             revision: draft.revision().get(),
             author_public_key: hex::encode(draft.author()),
+            kind: value.kind().into(),
             command_type: value.command_type().into(),
+            form: value.form().map(Into::into),
             state: value.state().into(),
             card_id: value.card_id().to_hex(),
             operation_id: draft.operation_id().map(|id| hex::encode(id.as_bytes())),
