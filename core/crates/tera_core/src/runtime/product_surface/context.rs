@@ -35,6 +35,15 @@ pub enum LocalNetworkError {
     DuplicateAuthor,
 }
 
+/// Host environment whose destination policy governs LocalNetwork relays.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum LocalNetworkRelayPolicy {
+    Public,
+    Simulator,
+    Device,
+}
+
 impl LocalNetwork {
     pub fn new(
         id: String,
@@ -43,6 +52,28 @@ impl LocalNetwork {
         locality: Option<String>,
         followed_authors: Vec<String>,
         generation: u64,
+    ) -> Result<Self, LocalNetworkError> {
+        Self::new_for_relay_policy(
+            id,
+            label,
+            relay_urls,
+            locality,
+            followed_authors,
+            generation,
+            LocalNetworkRelayPolicy::Public,
+        )
+    }
+
+    /// Constructs a context under the exact host relay destination policy.
+    #[allow(clippy::too_many_arguments)]
+    pub fn new_for_relay_policy(
+        id: String,
+        label: String,
+        relay_urls: Vec<String>,
+        locality: Option<String>,
+        followed_authors: Vec<String>,
+        generation: u64,
+        relay_policy: LocalNetworkRelayPolicy,
     ) -> Result<Self, LocalNetworkError> {
         validate_text(&id, "id")?;
         validate_text(&label, "label")?;
@@ -58,8 +89,15 @@ impl LocalNetwork {
             if relay.is_empty() || relay.len() > RELAY_URL_MAX_BYTES {
                 return Err(LocalNetworkError::InvalidRelay);
             }
-            let relay = RelayUrl::parse(relay, RelayUrlPolicy::Public)
-                .map_err(|_| LocalNetworkError::InvalidRelay)?;
+            let relay = RelayUrl::parse(
+                relay,
+                match relay_policy {
+                    LocalNetworkRelayPolicy::Public => RelayUrlPolicy::Public,
+                    LocalNetworkRelayPolicy::Simulator => RelayUrlPolicy::Local,
+                    LocalNetworkRelayPolicy::Device => RelayUrlPolicy::PrivateNetwork,
+                },
+            )
+            .map_err(|_| LocalNetworkError::InvalidRelay)?;
             if !relays.insert(relay.clone()) {
                 return Err(LocalNetworkError::DuplicateRelay);
             }
@@ -369,5 +407,41 @@ mod tests {
             ),
             Err(LocalNetworkError::InvalidRelay)
         ));
+        assert!(
+            LocalNetwork::new_for_relay_policy(
+                "id".into(),
+                "label".into(),
+                vec!["ws://127.0.0.1:7447".into()],
+                None,
+                vec![],
+                0,
+                LocalNetworkRelayPolicy::Simulator,
+            )
+            .is_ok()
+        );
+        assert!(
+            LocalNetwork::new_for_relay_policy(
+                "id".into(),
+                "label".into(),
+                vec!["wss://192.168.1.7:7447".into()],
+                None,
+                vec![],
+                0,
+                LocalNetworkRelayPolicy::Device,
+            )
+            .is_ok()
+        );
+        assert!(
+            LocalNetwork::new_for_relay_policy(
+                "id".into(),
+                "label".into(),
+                vec!["ws://192.168.1.7:7447".into()],
+                None,
+                vec![],
+                0,
+                LocalNetworkRelayPolicy::Device,
+            )
+            .is_err()
+        );
     }
 }

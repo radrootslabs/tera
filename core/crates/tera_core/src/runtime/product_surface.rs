@@ -21,7 +21,7 @@ pub use authoring::{
 };
 pub use context::{
     ContextAdmission, ContextRank, LocalNetwork, LocalNetworkAdmission, LocalNetworkError,
-    LocalityEvidence,
+    LocalNetworkRelayPolicy, LocalityEvidence,
 };
 pub use cursor::{CursorError, CursorScope, TodayCursor, TodayCursorPosition};
 pub use identity::{CARD_ID_SCHEMA_VERSION, CardId, CardIdError, CardSourceIdentity};
@@ -43,6 +43,8 @@ pub use ranking::{RankError, TODAY_RANK_SCHEMA_VERSION, TimeRelevance, TodayRank
 pub use today::{
     TodayError, TodayIngestReceipt, TodayPageRequest, TodayProjectionUpdate, TodayRefreshReceipt,
 };
+#[cfg(feature = "mobile-social")]
+pub use today::{TodayRelaySyncState, TodaySyncReceipt};
 
 use super::RadrootsRuntime;
 

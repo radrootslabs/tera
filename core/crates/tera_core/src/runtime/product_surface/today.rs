@@ -19,6 +19,19 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+#[cfg(feature = "mobile-social")]
+use radroots_event::admission::ContractValidatedEvent;
+#[cfg(feature = "mobile-social")]
+use radroots_sync::{
+    PullRequest,
+    ingest::{AdmissionDecision, AdmissionPolicy},
+    pull::PullTermination,
+};
+#[cfg(feature = "mobile-social")]
+use radroots_transport::{
+    Target, outcome::FetchTargetState, source::FetchSelector, target::TargetSet,
+};
+
 use super::{
     CardId, CardLifecycleState, ClassifiedCard, CursorError, CursorScope, LocalAuthorOverlay,
     LocalNetwork, LocalityEvidence, MeSnapshot, MediaReference, MediaVerificationState,
@@ -33,6 +46,12 @@ const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 1;
 const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 1;
 const TODAY_PAGE_LIMIT_MAX: u16 = 100;
 const TODAY_SEARCH_LIMIT_MAX: u16 = 100;
+#[cfg(feature = "mobile-social")]
+const TODAY_SYNC_PAGE_LIMIT: u16 = 500;
+#[cfg(feature = "mobile-social")]
+const TODAY_SYNC_MAX_PAGES: u16 = 8;
+#[cfg(feature = "mobile-social")]
+const TODAY_SYNC_KINDS: [u32; 7] = [0, 1, 5, 1111, 30_402, 31_922, 31_923];
 const PROJECTION_GENERATION_DOMAIN: &[u8] = b"radroots.today-projection.v1\0";
 const PROJECTION_CONTENT_DOMAIN: &[u8] = b"radroots.today-content-generation.v1\0";
 const PROJECTION_DOCUMENT_KEY_DOMAIN: &[u8] = b"radroots.today-document-key.v1\0";
@@ -63,6 +82,27 @@ pub struct TodayIngestReceipt {
     pub event_id: String,
     pub disposition: String,
     pub source_sequence: u64,
+    pub projection: TodayRefreshReceipt,
+}
+
+#[cfg(feature = "mobile-social")]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub enum TodayRelaySyncState {
+    Complete,
+    Partial,
+    Offline,
+}
+
+#[cfg(feature = "mobile-social")]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TodaySyncReceipt {
+    pub relay_state: TodayRelaySyncState,
+    pub pages_fetched: u16,
+    pub events_observed: u64,
+    pub events_admitted: u64,
+    pub events_rejected: u64,
     pub projection: TodayRefreshReceipt,
 }
 
@@ -157,6 +197,72 @@ struct FrozenTodaySnapshot {
 }
 
 impl RadrootsRuntime {
+    /// Pulls bounded Today-relevant relay pages, canonically admits valid
+    /// observations, and materializes the selected LocalNetwork projection.
+    #[cfg(feature = "mobile-social")]
+    pub async fn phase1_sync_today(
+        &self,
+        context: &LocalNetwork,
+        now_unix_seconds: u64,
+        update: TodayProjectionUpdate,
+    ) -> Result<TodaySyncReceipt, TodayError> {
+        if now_unix_seconds == 0 {
+            return Err(TodayError::InvalidRequest);
+        }
+        let targets = context
+            .relay_urls
+            .iter()
+            .map(Target::nostr_relay)
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| TodayError::InvalidRequest)?;
+        let targets = TargetSet::new(targets).map_err(|_| TodayError::InvalidRequest)?;
+        let selector = FetchSelector::all()
+            .with_kinds(TODAY_SYNC_KINDS.to_vec())
+            .map_err(|_| TodayError::InvalidRequest)?;
+        let request = PullRequest::new(targets, TODAY_SYNC_PAGE_LIMIT, TODAY_SYNC_MAX_PAGES)
+            .map_err(|_| TodayError::RuntimeUnavailable)?
+            .with_selector(selector);
+        let sync = self
+            .client
+            .sync()
+            .map_err(|_| TodayError::RuntimeUnavailable)?
+            .ok_or(TodayError::RuntimeUnavailable)?;
+        let pull = sync
+            .pull(request, &TodayAdmissionPolicy)
+            .await
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let projection = self
+            .phase1_refresh_today(context, now_unix_seconds, update)
+            .await?;
+        let events_admitted = pull
+            .ingest_outcomes()
+            .iter()
+            .filter(|outcome| outcome.is_ok())
+            .count() as u64;
+        let events_observed = u64::try_from(pull.events_observed()).unwrap_or(u64::MAX);
+        let events_rejected = events_observed.saturating_sub(events_admitted);
+        let target_complete = !pull.target_outcomes().is_empty()
+            && pull
+                .target_outcomes()
+                .iter()
+                .all(|outcome| outcome.state() == FetchTargetState::Complete);
+        let relay_state = match pull.termination() {
+            PullTermination::Complete if target_complete => TodayRelaySyncState::Complete,
+            PullTermination::SourceFailed if pull.pages_fetched() == 0 => {
+                TodayRelaySyncState::Offline
+            }
+            _ => TodayRelaySyncState::Partial,
+        };
+        Ok(TodaySyncReceipt {
+            relay_state,
+            pages_fetched: pull.pages_fetched(),
+            events_observed,
+            events_admitted,
+            events_rejected,
+            projection,
+        })
+    }
+
     /// Durably admits one already verified and visibility-authorized relay observation,
     /// then advances the selected LocalNetwork projection.
     pub async fn phase1_ingest_visible(
@@ -541,6 +647,27 @@ impl RadrootsRuntime {
         }
         state.content_generation = content_generation(&state)?;
         store_state(storage, context, generation, &state).await
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+struct TodayAdmissionPolicy;
+
+#[cfg(feature = "mobile-social")]
+impl AdmissionPolicy for TodayAdmissionPolicy {
+    fn policy_id(&self) -> &'static str {
+        "radroots.mobile.today.v1"
+    }
+
+    fn decide(&self, event: &ContractValidatedEvent) -> AdmissionDecision {
+        let admitted = verify_nip01_event(event.event().clone())
+            .ok()
+            .and_then(|event| admit_verified_event(event).ok());
+        if admitted.is_some() {
+            AdmissionDecision::Visible
+        } else {
+            AdmissionDecision::Reject
+        }
     }
 }
 
@@ -1121,6 +1248,9 @@ fn decode<T: for<'de> Deserialize<'de>>(value: &[u8]) -> Result<T, TodayError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(feature = "mobile-social")]
+    use std::sync::{Arc, Mutex, RwLock, atomic::AtomicBool};
+
     use nostr::secp256k1::Message;
     use nostr::{Keys, SECP256K1};
     use radroots_event::{
@@ -1129,6 +1259,12 @@ mod tests {
         wire::{Nip01EventWire, compute_canonical_nip01_event_id},
     };
     use radroots_event_codec::verify::Nip01SignatureVerifier;
+    #[cfg(feature = "mobile-social")]
+    use radroots_transport::{
+        Error as TransportError, EventSource, FetchPage, FetchRequest, SourceStatus,
+        outcome::{FetchTargetOutcome, FetchTargetState},
+        source::NextPage,
+    };
     use radroots_transport::{
         Target, TransportId,
         source::{EventProvenance, ObservedEvent},
@@ -1137,6 +1273,48 @@ mod tests {
     const SECRET: &str = "10c5304d6c9ae3a1a16f7860f1cc8f5e3a76225a2663b3a989a0d775919b7df5";
 
     struct Allow;
+
+    #[cfg(feature = "mobile-social")]
+    struct TodaySource {
+        event: SignedEvent,
+        requested_kinds: Mutex<Vec<Vec<u32>>>,
+    }
+
+    #[cfg(feature = "mobile-social")]
+    impl EventSource for TodaySource {
+        fn status(
+            &self,
+        ) -> radroots_transport::BoxFuture<'_, Result<SourceStatus, TransportError>> {
+            Box::pin(async { unreachable!("Today sync does not inspect source status") })
+        }
+
+        fn fetch(
+            &self,
+            request: FetchRequest,
+        ) -> radroots_transport::BoxFuture<'_, Result<FetchPage, TransportError>> {
+            Box::pin(async move {
+                self.requested_kinds
+                    .lock()
+                    .expect("requested kinds")
+                    .push(request.selector().kinds().to_vec());
+                let target = request.target_set().targets()[0].clone();
+                let provenance = EventProvenance::new(
+                    TransportId::NOSTR,
+                    target.fingerprint().clone(),
+                    2_000_000_100_000,
+                )?;
+                FetchPage::for_request(
+                    &request,
+                    vec![ObservedEvent::new(self.event.clone(), provenance)],
+                    vec![FetchTargetOutcome::new(
+                        target.fingerprint().clone(),
+                        FetchTargetState::Complete,
+                    )],
+                    NextPage::Complete,
+                )
+            })
+        }
+    }
 
     impl AdmissionPolicy for Allow {
         type Error = core::convert::Infallible;
@@ -1290,6 +1468,54 @@ mod tests {
             .phase1_ingest_visible(visible_admission(event, at * 1_000), context, at)
             .await
             .expect("ingest")
+    }
+
+    #[cfg(feature = "mobile-social")]
+    #[tokio::test]
+    async fn relay_sync_fetches_the_exact_today_selector_and_projects_real_events() {
+        let source = Arc::new(TodaySource {
+            event: signed(1, Vec::new(), "Fresh from the field", 2_000_000_000),
+            requested_kinds: Mutex::new(Vec::new()),
+        });
+        let client = radroots_sdk::ClientBuilder::memory_default()
+            .source(source.clone())
+            .host_sync(radroots_sdk::sync::HostPolicy::standard())
+            .build()
+            .expect("client");
+        let runtime = RadrootsRuntime {
+            client,
+            started_unix_ms: 1,
+            shutting_down: AtomicBool::new(false),
+            platform_app: RwLock::new(None),
+            store_public_key: None,
+        };
+        let context = context(None, 1);
+
+        let receipt = runtime
+            .phase1_sync_today(&context, 2_000_000_200, TodayProjectionUpdate::Incremental)
+            .await
+            .expect("Today sync");
+        assert_eq!(receipt.relay_state, TodayRelaySyncState::Complete);
+        assert_eq!(receipt.pages_fetched, 1);
+        assert_eq!(receipt.events_observed, 1);
+        assert_eq!(receipt.events_admitted, 1);
+        assert_eq!(receipt.events_rejected, 0);
+        assert_eq!(receipt.projection.visible_cards, 1);
+        assert_eq!(
+            source
+                .requested_kinds
+                .lock()
+                .expect("requested kinds")
+                .as_slice(),
+            &[TODAY_SYNC_KINDS.to_vec()]
+        );
+        let page = runtime
+            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+            .await
+            .expect("Today page");
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].card.card_type, TodayCardType::Update);
+        assert_eq!(page.items[0].card.content, "Fresh from the field");
     }
 
     #[tokio::test]
