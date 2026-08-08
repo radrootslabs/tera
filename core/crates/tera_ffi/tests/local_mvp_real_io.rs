@@ -233,6 +233,13 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
                 .await
                 .expect("upload and re-fetch exact media");
             assert_eq!(uploaded.media[0].stage, FfiMediaStage::Verified);
+            let evidence = publisher
+                .sdk_blossom_evidence()
+                .expect("Blossom evidence")
+                .expect("configured evidence");
+            assert_eq!(evidence.state, "retrieval_verified");
+            assert_eq!(evidence.last_successful_state, "retrieval_verified");
+            assert!(evidence.error_code.is_none());
             uploaded
         } else {
             saved
@@ -812,6 +819,18 @@ async fn prove_corrupted_media_fails(
         .expect("durable corrupt-media status");
     assert_eq!(failed.media[0].stage, FfiMediaStage::Failed);
     assert!(failed.media[0].possible_orphan);
+    let evidence = runtime
+        .sdk_blossom_evidence()
+        .expect("Blossom evidence")
+        .expect("configured evidence");
+    assert_eq!(evidence.state, "terminal_failure");
+    assert_eq!(evidence.last_successful_state, "upload_verified");
+    assert_eq!(
+        evidence.error_code.as_deref(),
+        Some("blossom_retrieved_bytes_mismatch")
+    );
+    assert_eq!(evidence.error_phase.as_deref(), Some("verification"));
+    assert!(evidence.possible_orphan);
     corrupt.finish().await;
 }
 

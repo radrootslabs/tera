@@ -119,6 +119,17 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert_eq!(blossom.primary_origin, "https://media.example");
     assert_eq!(blossom.fallback_origins, ["https://fallback.example"]);
     assert_eq!(blossom.config_fingerprint.len(), 64);
+    let evidence = runtime
+        .sdk_blossom_evidence()
+        .expect("Blossom evidence")
+        .expect("configured evidence");
+    assert_eq!(evidence.schema_version, 1);
+    assert_eq!(evidence.origin, "https://media.example");
+    assert_eq!(evidence.config_fingerprint, blossom.config_fingerprint);
+    assert_eq!(evidence.state, "configured_unobserved");
+    assert_eq!(evidence.transport_security, "public_webpki");
+    assert!(evidence.observed_at_unix_ms.is_none());
+    assert!(evidence.error_code.is_none());
     runtime
         .configure_blossom(
             FfiBlossomHostKind::Simulator,

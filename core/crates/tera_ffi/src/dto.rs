@@ -28,8 +28,9 @@ use radroots_mobile_core::runtime::{
         TodayRefreshReceipt, TodayRelaySyncState, TodaySyncReceipt,
     },
     sdk::{
-        SdkBlossomConfigurationRecord, SdkCapabilityRecord, SdkRelayStatusRecord,
-        SdkRelayStatusReportRecord, SdkShutdownRecord, SdkStorageStatusRecord,
+        SdkBlossomConfigurationRecord, SdkBlossomEvidenceRecord, SdkCapabilityRecord,
+        SdkRelayStatusRecord, SdkRelayStatusReportRecord, SdkShutdownRecord,
+        SdkStorageStatusRecord,
     },
 };
 
@@ -1862,6 +1863,23 @@ pub struct FfiBlossomConfigurationRecord {
     pub config_fingerprint: String,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiBlossomEvidenceRecord {
+    pub schema_version: u16,
+    pub origin: String,
+    pub config_fingerprint: String,
+    pub state: String,
+    pub last_successful_state: String,
+    pub transport_security: String,
+    pub observed_at_unix_ms: Option<u64>,
+    pub http_status: Option<u16>,
+    pub error_code: Option<String>,
+    pub error_phase: Option<String>,
+    pub retryable: bool,
+    pub possible_orphan: bool,
+    pub attempts: u8,
+}
+
 #[cfg_attr(coverage_nightly, coverage(off))]
 impl From<SdkBlossomConfigurationRecord> for FfiBlossomConfigurationRecord {
     fn from(value: SdkBlossomConfigurationRecord) -> Self {
@@ -1872,6 +1890,27 @@ impl From<SdkBlossomConfigurationRecord> for FfiBlossomConfigurationRecord {
             primary_origin: value.primary_origin,
             fallback_origins: value.fallback_origins,
             config_fingerprint: value.config_fingerprint,
+        }
+    }
+}
+
+#[cfg_attr(coverage_nightly, coverage(off))]
+impl From<SdkBlossomEvidenceRecord> for FfiBlossomEvidenceRecord {
+    fn from(value: SdkBlossomEvidenceRecord) -> Self {
+        Self {
+            schema_version: value.schema_version,
+            origin: value.origin,
+            config_fingerprint: value.config_fingerprint,
+            state: value.state,
+            last_successful_state: value.last_successful_state,
+            transport_security: value.transport_security,
+            observed_at_unix_ms: value.observed_at_unix_ms,
+            http_status: value.http_status,
+            error_code: value.error_code,
+            error_phase: value.error_phase,
+            retryable: value.retryable,
+            possible_orphan: value.possible_orphan,
+            attempts: value.attempts,
         }
     }
 }

@@ -8,13 +8,14 @@ use crate::signer::HostSignerAdapter;
 use crate::subscription::SubscriptionHub;
 use crate::{
     FfiAddDraftInput, FfiAddSchemaRecord, FfiBlossomConfigurationRecord,
-    FfiBlossomEndpointAuthority, FfiBlossomHostKind, FfiBlossomUploadInput, FfiCapabilityRecord,
-    FfiCardAddParityRecord, FfiDraftStatusRecord, FfiIdentityStatusRecord, FfiLocalNetworkRecord,
-    FfiMeRecord, FfiQueuePolicyRecord, FfiRelayStatusReportRecord, FfiRetractionDraftInput,
-    FfiRuntimeChangeKind, FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord,
-    FfiStorageStatusRecord, FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate,
-    FfiTodayRefreshRecord, FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner,
-    RadrootsRuntimeObserver, add_schemas, decode_id,
+    FfiBlossomEndpointAuthority, FfiBlossomEvidenceRecord, FfiBlossomHostKind,
+    FfiBlossomUploadInput, FfiCapabilityRecord, FfiCardAddParityRecord, FfiDraftStatusRecord,
+    FfiIdentityStatusRecord, FfiLocalNetworkRecord, FfiMeRecord, FfiQueuePolicyRecord,
+    FfiRelayStatusReportRecord, FfiRetractionDraftInput, FfiRuntimeChangeKind,
+    FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord, FfiStorageStatusRecord,
+    FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate, FfiTodayRefreshRecord,
+    FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner, RadrootsRuntimeObserver, add_schemas,
+    decode_id,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
@@ -172,6 +173,26 @@ impl RadrootsRuntime {
             .sdk_blossom_configuration()
             .map(|value| value.map(Into::into))
             .map_err(Into::into)
+    }
+
+    pub fn sdk_blossom_evidence(
+        &self,
+    ) -> Result<Option<FfiBlossomEvidenceRecord>, RadrootsAppError> {
+        self.inner
+            .sdk_blossom_evidence()
+            .map(|value| value.map(Into::into))
+            .map_err(Into::into)
+    }
+
+    pub async fn probe_blossom(&self) -> Result<FfiBlossomEvidenceRecord, RadrootsAppError> {
+        let evidence = self
+            .inner
+            .probe_blossom()
+            .await
+            .map(Into::into)
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
+        Ok(evidence)
     }
 
     pub fn subscribe_changes(
