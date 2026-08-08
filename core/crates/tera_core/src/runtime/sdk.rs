@@ -42,6 +42,15 @@ pub struct SdkRelayStatusReportRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SdkBlossomConfigurationRecord {
+    pub host_kind: String,
+    pub endpoint_authority: String,
+    pub primary_origin: String,
+    pub fallback_origins: Vec<String>,
+    pub config_fingerprint: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdkShutdownRecord {
     pub state: String,
     pub already_closed: bool,
@@ -122,33 +131,23 @@ impl RadrootsRuntime {
             .map_err(RadrootsAppError::from_sdk)
     }
 
-    /// Installs explicit public TLS Blossom origins without probing them.
+    /// Installs one canonical inert Blossom configuration without probing it.
     #[cfg(feature = "mobile-social")]
-    pub fn configure_public_blossom(&self, origins: Vec<String>) -> Result<(), RadrootsAppError> {
-        self.configure_blossom_profile(
-            radroots_sdk::transport::BlossomProfile::public(origins)
-                .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
-        )
-    }
-
-    /// Installs exact-loopback simulator Blossom origins without probing them.
-    #[cfg(feature = "mobile-social")]
-    pub fn configure_simulator_blossom(
+    pub fn configure_blossom(
         &self,
-        origins: Vec<String>,
+        host_kind: radroots_sdk::transport::BlossomHostKind,
+        endpoint_authority: radroots_sdk::transport::BlossomEndpointAuthority,
+        primary_origin: String,
+        fallback_origins: Vec<String>,
     ) -> Result<(), RadrootsAppError> {
         self.configure_blossom_profile(
-            radroots_sdk::transport::BlossomProfile::simulator(origins)
-                .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
-        )
-    }
-
-    /// Installs explicit physical-device TLS Blossom origins without probing them.
-    #[cfg(feature = "mobile-social")]
-    pub fn configure_device_blossom(&self, origins: Vec<String>) -> Result<(), RadrootsAppError> {
-        self.configure_blossom_profile(
-            radroots_sdk::transport::BlossomProfile::device(origins)
-                .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
+            radroots_sdk::transport::BlossomProfile::new(
+                host_kind,
+                endpoint_authority,
+                primary_origin,
+                fallback_origins,
+            )
+            .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
         )
     }
 
@@ -164,23 +163,40 @@ impl RadrootsRuntime {
             .map_err(RadrootsAppError::from_sdk)
     }
 
-    /// Returns the inert Blossom environment profile, when configured.
+    /// Returns the configured adapter slot for Rust-owned media binding.
     #[cfg(feature = "mobile-social")]
-    pub fn sdk_blossom_profile(&self) -> Result<Option<String>, RadrootsAppError> {
-        let profile = self
+    pub fn sdk_blossom_slot(
+        &self,
+    ) -> Result<Option<radroots_sdk::transport::BlossomSlot>, RadrootsAppError> {
+        self.client
+            .blossom()
+            .map(|slot| slot.cloned())
+            .map_err(RadrootsAppError::from_sdk)
+    }
+
+    /// Returns the complete inert Blossom configuration, when configured.
+    #[cfg(feature = "mobile-social")]
+    pub fn sdk_blossom_configuration(
+        &self,
+    ) -> Result<Option<SdkBlossomConfigurationRecord>, RadrootsAppError> {
+        let configuration = self
             .client
             .blossom()
             .map_err(RadrootsAppError::from_sdk)?
-            .and_then(radroots_sdk::transport::BlossomSlot::profile_kind);
-        Ok(profile.map(|profile| {
-            match profile {
-                radroots_sdk::transport::BlossomProfileKind::Public => "public",
-                radroots_sdk::transport::BlossomProfileKind::Simulator => "simulator_local",
-                radroots_sdk::transport::BlossomProfileKind::Device => "device_development",
-                _ => "unknown",
-            }
-            .to_owned()
-        }))
+            .and_then(radroots_sdk::transport::BlossomSlot::configuration);
+        Ok(
+            configuration.map(|(profile, fingerprint)| SdkBlossomConfigurationRecord {
+                host_kind: blossom_host_kind_label(profile.host_kind()).to_owned(),
+                endpoint_authority: blossom_authority_label(profile.authority()).to_owned(),
+                primary_origin: profile.primary().origin().to_owned(),
+                fallback_origins: profile
+                    .fallbacks()
+                    .iter()
+                    .map(|endpoint| endpoint.origin().to_owned())
+                    .collect(),
+                config_fingerprint: fingerprint.to_hex(),
+            }),
+        )
     }
 
     /// Returns passive relay evidence without DNS, socket, or probe work.
@@ -216,6 +232,32 @@ impl RadrootsRuntime {
                 })
                 .collect(),
         }))
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn blossom_host_kind_label(value: radroots_sdk::transport::BlossomHostKind) -> &'static str {
+    match value {
+        radroots_sdk::transport::BlossomHostKind::Native => "native",
+        radroots_sdk::transport::BlossomHostKind::Simulator => "simulator",
+        radroots_sdk::transport::BlossomHostKind::PhysicalDevice => "physical_device",
+        _ => "unknown",
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+const fn blossom_authority_label(
+    value: radroots_sdk::transport::BlossomEndpointAuthority,
+) -> &'static str {
+    match value {
+        radroots_sdk::transport::BlossomEndpointAuthority::PublicWebPki => "public_webpki",
+        radroots_sdk::transport::BlossomEndpointAuthority::LoopbackDevelopment => {
+            "loopback_development"
+        }
+        radroots_sdk::transport::BlossomEndpointAuthority::PrivateNetworkDevelopment => {
+            "private_network_development"
+        }
+        _ => "unknown",
     }
 }
 

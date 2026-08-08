@@ -1291,7 +1291,15 @@ impl RadrootsRuntime {
         transfer_cancellation: radroots_sdk::transport::BlossomCancellation,
         updated_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
-        let url = request.expected_url().as_str().to_owned();
+        let blossom = self
+            .client
+            .blossom()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?
+            .ok_or(Phase1DraftError::OperationUnavailable)?;
+        let transaction = blossom
+            .prepare_upload(request)
+            .map_err(|_| Phase1DraftError::Operation)?;
+        let url = transaction.expected_url().as_str().to_owned();
         let uploading = self
             .phase1_update_draft_media(
                 draft_id,
@@ -1303,13 +1311,8 @@ impl RadrootsRuntime {
             )
             .await?;
         let revision = uploading.draft().revision().get();
-        let blossom = self
-            .client
-            .blossom()
-            .map_err(|_| Phase1DraftError::OperationUnavailable)?
-            .ok_or(Phase1DraftError::OperationUnavailable)?;
         let claim = match blossom.authored_upload_claim(
-            &request,
+            &transaction,
             authorization_content,
             authorization_created_at_unix_s,
             authorization_lifetime_seconds,
@@ -1353,7 +1356,7 @@ impl RadrootsRuntime {
             }
         };
         match blossom
-            .upload(request, authorization, transfer_cancellation)
+            .upload(transaction, authorization, transfer_cancellation)
             .await
         {
             Ok(receipt) => {

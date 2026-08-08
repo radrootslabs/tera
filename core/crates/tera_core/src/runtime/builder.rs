@@ -165,21 +165,39 @@ mod tests {
         );
         assert!(
             runtime
-                .configure_simulator_blossom(vec!["http://127.0.0.1:3000".to_owned()])
+                .configure_blossom(
+                    radroots_sdk::transport::BlossomHostKind::Simulator,
+                    radroots_sdk::transport::BlossomEndpointAuthority::LoopbackDevelopment,
+                    "http://127.0.0.1:3000".to_owned(),
+                    vec![],
+                )
                 .is_ok()
         );
         assert_eq!(
-            runtime.sdk_blossom_profile().expect("Blossom profile"),
-            Some("simulator_local".to_owned())
+            runtime
+                .sdk_blossom_configuration()
+                .expect("Blossom profile")
+                .expect("configured")
+                .host_kind,
+            "simulator"
         );
         assert!(
             runtime
-                .configure_public_blossom(vec!["http://127.0.0.1:3000".to_owned()])
+                .configure_blossom(
+                    radroots_sdk::transport::BlossomHostKind::PhysicalDevice,
+                    radroots_sdk::transport::BlossomEndpointAuthority::PublicWebPki,
+                    "http://127.0.0.1:3000".to_owned(),
+                    vec![],
+                )
                 .is_err()
         );
         assert_eq!(
-            runtime.sdk_blossom_profile().expect("unchanged profile"),
-            Some("simulator_local".to_owned())
+            runtime
+                .sdk_blossom_configuration()
+                .expect("unchanged profile")
+                .expect("configured")
+                .host_kind,
+            "simulator"
         );
         runtime.shutdown().await.expect("shutdown");
     }
