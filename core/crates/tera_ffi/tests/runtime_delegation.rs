@@ -39,9 +39,9 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert_eq!(public.read_availability, "unavailable");
     assert_eq!(public.write_availability, "unavailable");
     assert_eq!(public.relays.len(), 1);
-    assert_eq!(public.relays[0].access, "read_only");
+    assert_eq!(public.relays[0].access, "read_write");
     assert_eq!(public.relays[0].read_state, "unobserved");
-    assert_eq!(public.relays[0].write_state, "unsupported");
+    assert_eq!(public.relays[0].write_state, "unobserved");
 
     runtime
         .configure_public_relays(vec!["wss://write.example".to_owned()])
