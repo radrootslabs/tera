@@ -61,6 +61,7 @@ pub struct SdkBlossomEvidenceRecord {
     pub observed_at_unix_ms: Option<u64>,
     pub http_status: Option<u16>,
     pub error_code: Option<String>,
+    pub server_error_code: Option<String>,
     pub error_phase: Option<String>,
     pub retryable: bool,
     pub possible_orphan: bool,
@@ -294,6 +295,7 @@ fn sdk_blossom_evidence_record(
         observed_at_unix_ms: value.observed_at_unix_ms(),
         http_status: value.http_status(),
         error_code: value.error_code().map(str::to_owned),
+        server_error_code: value.server_error_code().map(str::to_owned),
         error_phase: value
             .error_phase()
             .map(blossom_phase_label)
