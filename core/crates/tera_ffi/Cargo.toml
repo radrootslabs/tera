@@ -32,7 +32,7 @@ tracing = { workspace = true }
 tracing-appender = { workspace = true }
 tracing-subscriber = { workspace = true }
 thiserror = { workspace = true }
-uniffi = { workspace = true }
+uniffi = { workspace = true, features = ["tokio"] }
 
 [target.'cfg(unix)'.dependencies]
 rustix = { workspace = true }
