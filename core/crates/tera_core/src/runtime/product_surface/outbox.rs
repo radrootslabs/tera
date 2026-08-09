@@ -884,15 +884,7 @@ impl RadrootsRuntime {
             media.failure_code = None;
         }
         media.validate()?;
-        let next_stage = match stage {
-            Phase1MediaStage::Pending | Phase1MediaStage::Preparing => {
-                AuthoredDraftStage::MediaPreparing
-            }
-            Phase1MediaStage::Uploading
-            | Phase1MediaStage::Verified
-            | Phase1MediaStage::Failed
-            | Phase1MediaStage::Orphaned => AuthoredDraftStage::MediaUploading,
-        };
+        let next_stage = draft_stage_for_media(&payload.media);
         let next = head
             .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
             .map_err(|_| Phase1DraftError::RevisionConflict)?;
@@ -946,13 +938,9 @@ impl RadrootsRuntime {
         media.verified_at_unix_ms = Some(receipt.verified_at_unix_ms());
         media.orphan = None;
         media.validate()?;
+        let next_stage = draft_stage_for_media(&payload.media);
         let next = head
-            .successor(
-                payload.encode()?,
-                AuthoredDraftStage::MediaUploading,
-                None,
-                updated_at_unix_ms,
-            )
+            .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
             .map_err(|_| Phase1DraftError::RevisionConflict)?;
         let receipt = storage
             .append_authored_draft(next, Some(expected))
@@ -1016,13 +1004,9 @@ impl RadrootsRuntime {
             recorded_at_unix_ms: updated_at_unix_ms,
         });
         media.validate()?;
+        let next_stage = draft_stage_for_media(&payload.media);
         let next = head
-            .successor(
-                payload.encode()?,
-                AuthoredDraftStage::MediaUploading,
-                None,
-                updated_at_unix_ms,
-            )
+            .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
             .map_err(|_| Phase1DraftError::RevisionConflict)?;
         let receipt = storage
             .append_authored_draft(next, Some(expected))
