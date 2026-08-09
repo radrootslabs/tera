@@ -43,7 +43,7 @@ pub struct RadrootsRuntime {
     subscriptions: Arc<SubscriptionHub>,
 }
 
-#[cfg_attr(not(coverage_nightly), uniffi::export)]
+#[cfg_attr(not(coverage_nightly), uniffi::export(async_runtime = "tokio"))]
 impl RadrootsRuntime {
     #[cfg_attr(not(coverage_nightly), uniffi::constructor)]
     pub async fn new(
