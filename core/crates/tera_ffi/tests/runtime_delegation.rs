@@ -123,13 +123,14 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .sdk_blossom_evidence()
         .expect("Blossom evidence")
         .expect("configured evidence");
-    assert_eq!(evidence.schema_version, 1);
+    assert_eq!(evidence.schema_version, 2);
     assert_eq!(evidence.origin, "https://media.example");
     assert_eq!(evidence.config_fingerprint, blossom.config_fingerprint);
     assert_eq!(evidence.state, "configured_unobserved");
     assert_eq!(evidence.transport_security, "public_webpki");
     assert!(evidence.observed_at_unix_ms.is_none());
     assert!(evidence.error_code.is_none());
+    assert!(evidence.server_error_code.is_none());
     runtime
         .configure_blossom(
             FfiBlossomHostKind::Simulator,
