@@ -233,6 +233,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
                 .await
                 .expect("upload and re-fetch exact media");
             assert_eq!(uploaded.media[0].stage, FfiMediaStage::Verified);
+            assert_eq!(uploaded.state, FfiOutboxState::MediaPreparing);
             let evidence = publisher
                 .sdk_blossom_evidence()
                 .expect("Blossom evidence")
@@ -818,6 +819,7 @@ async fn prove_corrupted_media_fails(
         .await
         .expect("durable corrupt-media status");
     assert_eq!(failed.media[0].stage, FfiMediaStage::Failed);
+    assert_eq!(failed.state, FfiOutboxState::MediaPreparing);
     assert!(failed.media[0].possible_orphan);
     let evidence = runtime
         .sdk_blossom_evidence()
