@@ -35,6 +35,7 @@ thiserror = { workspace = true }
 uniffi = { workspace = true, features = ["tokio"] }
 
 [target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
 rustix = { workspace = true }
 
 [dev-dependencies]
