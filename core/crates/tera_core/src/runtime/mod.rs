@@ -25,6 +25,8 @@ pub struct RadrootsRuntime {
     pub(crate) shutting_down: AtomicBool,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
     pub(crate) store_public_key: Option<PublicKey>,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) settings_lock: tokio::sync::Mutex<()>,
 }
 
 impl RadrootsRuntime {
@@ -73,6 +75,8 @@ impl RadrootsRuntime {
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
             store_public_key,
+            #[cfg(feature = "mobile-social")]
+            settings_lock: tokio::sync::Mutex::new(()),
         })
     }
 

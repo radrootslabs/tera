@@ -1498,6 +1498,7 @@ mod tests {
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
             store_public_key: None,
+            settings_lock: tokio::sync::Mutex::new(()),
         };
         let context = context(None, 1);
 
