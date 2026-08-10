@@ -803,6 +803,13 @@ impl MobileSettings {
         self.local_storage = local_storage;
         self
     }
+
+    fn validate(&self) -> Result<(), SettingsError> {
+        if self.relays.environment() != self.blossom.environment() {
+            return Err(SettingsError::NetworkEnvironmentMismatch);
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -816,6 +823,7 @@ impl ReplaceMobileSettings {
         if expected_revision == 0 || settings.revision != expected_revision {
             return Err(SettingsError::RevisionConflict);
         }
+        settings.validate()?;
         Ok(Self {
             expected_revision,
             settings,
@@ -845,6 +853,8 @@ pub enum SettingsError {
     InvalidBlossomEndpoint,
     #[error("Blossom endpoint count is invalid")]
     InvalidBlossomEndpointCount,
+    #[error("relay and Blossom network environments do not match")]
+    NetworkEnvironmentMismatch,
     #[error("media cache byte quota is invalid")]
     InvalidMediaCacheBytes,
     #[error("media cache artifact quota is invalid")]
@@ -872,6 +882,7 @@ impl SettingsError {
             Self::DuplicateRelayEndpoint => "duplicate_relay_endpoint",
             Self::InvalidBlossomEndpoint => "invalid_blossom_endpoint",
             Self::InvalidBlossomEndpointCount => "invalid_blossom_endpoint_count",
+            Self::NetworkEnvironmentMismatch => "network_environment_mismatch",
             Self::InvalidMediaCacheBytes => "invalid_media_cache_bytes",
             Self::InvalidMediaCacheArtifacts => "invalid_media_cache_artifacts",
             Self::RevisionConflict => "settings_revision_conflict",
@@ -1129,14 +1140,16 @@ impl TryFrom<StoredSettingsV1> for MobileSettings {
         if value.schema_version != MOBILE_SETTINGS_SCHEMA_VERSION || value.revision == 0 {
             return Err(SettingsError::CorruptDocument);
         }
-        Ok(Self {
+        let settings = Self {
             revision: value.revision,
             identity: value.identity.try_into()?,
             relays: value.relays.try_into()?,
             blossom: value.blossom.try_into()?,
             media_network: value.media_network,
             local_storage: value.local_storage.try_into()?,
-        })
+        };
+        settings.validate()?;
+        Ok(settings)
     }
 }
 
@@ -1147,7 +1160,7 @@ impl TryFrom<StoredSettingsV0> for MobileSettings {
         if value.schema_version != 0 || value.revision == 0 {
             return Err(SettingsError::CorruptDocument);
         }
-        Ok(Self {
+        let settings = Self {
             revision: value.revision,
             identity: value.identity.try_into()?,
             relays: value.relays.try_into()?,
@@ -1161,7 +1174,9 @@ impl TryFrom<StoredSettingsV0> for MobileSettings {
                 value.media_cache_bytes,
                 value.media_cache_artifacts,
             )?,
-        })
+        };
+        settings.validate()?;
+        Ok(settings)
     }
 }
 
@@ -1501,6 +1516,15 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(conflict, SettingsError::RevisionConflict);
+    }
+
+    #[test]
+    fn settings_reject_mixed_network_environments() {
+        let settings = MobileSettings::default().with_blossom(BlossomPreferences::simulator_default());
+        assert_eq!(
+            ReplaceMobileSettings::new(settings.revision(), settings).unwrap_err(),
+            SettingsError::NetworkEnvironmentMismatch
+        );
     }
 
     #[tokio::test]

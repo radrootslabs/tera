@@ -1,6 +1,7 @@
 use radroots_sdk::capability::{Availability, Maturity};
 
 use super::RadrootsRuntime;
+use super::product_surface::{BlossomPreferences, RelayPreferences};
 use crate::RadrootsAppError;
 
 #[derive(Clone, Debug)]
@@ -155,6 +156,19 @@ impl RadrootsRuntime {
             .map_err(RadrootsAppError::from_sdk)
     }
 
+    /// Installs the exact validated relay preferences persisted by the mobile product.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_relay_preferences(
+        &self,
+        preferences: &RelayPreferences,
+    ) -> Result<(), RadrootsAppError> {
+        self.configure_relay_profile(
+            preferences
+                .sdk_profile()
+                .map_err(|error| RadrootsAppError::runtime(error.code()))?,
+        )
+    }
+
     /// Installs one canonical inert Blossom configuration without probing it.
     #[cfg(feature = "mobile-social")]
     pub fn configure_blossom(
@@ -185,6 +199,19 @@ impl RadrootsRuntime {
                 profile,
             ))
             .map_err(RadrootsAppError::from_sdk)
+    }
+
+    /// Installs the exact validated Blossom preferences persisted by the mobile product.
+    #[cfg(feature = "mobile-social")]
+    pub fn configure_blossom_preferences(
+        &self,
+        preferences: &BlossomPreferences,
+    ) -> Result<(), RadrootsAppError> {
+        self.configure_blossom_profile(
+            preferences
+                .sdk_profile()
+                .map_err(|error| RadrootsAppError::runtime(error.code()))?,
+        )
     }
 
     /// Returns the configured adapter slot for Rust-owned media binding.
