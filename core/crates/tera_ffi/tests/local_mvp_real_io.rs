@@ -829,7 +829,7 @@ async fn prove_corrupted_media_fails(
     assert_eq!(evidence.last_successful_state, "upload_verified");
     assert_eq!(
         evidence.error_code.as_deref(),
-        Some("blossom_retrieved_bytes_mismatch")
+        Some("blossom_response_hash_mismatch")
     );
     assert_eq!(evidence.error_phase.as_deref(), Some("verification"));
     assert!(evidence.possible_orphan);

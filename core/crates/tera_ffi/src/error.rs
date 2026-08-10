@@ -148,6 +148,13 @@ impl From<TodayError> for RadrootsAppError {
             }
             TodayError::RuntimeUnavailable => ("today_runtime_unavailable", true, &["retry"][..]),
             TodayError::InboundMedia(_) => ("today_media_invalid", false, &["retry_media"][..]),
+            TodayError::InboundRetrieval(error) => {
+                if error.retryable() {
+                    ("today_media_retrieval_failed", true, &["retry_media"][..])
+                } else {
+                    ("today_media_retrieval_failed", false, &["review_media"][..])
+                }
+            }
             TodayError::CorruptProjection | TodayError::Serialization | TodayError::Storage(_) => {
                 ("today_state_failed", true, &["rebuild", "retry"][..])
             }
