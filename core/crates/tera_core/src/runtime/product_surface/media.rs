@@ -6,11 +6,15 @@
 //! an actual byte commitment and bound to the active retrieval configuration.
 
 use std::collections::BTreeMap;
+#[cfg(feature = "mobile-social")]
+use std::path::{Path, PathBuf};
 
 use radroots_blossom::{BlobUrl, MediaType, Sha256, descriptor::ByteCommitment};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256 as Sha256Hasher};
 use thiserror::Error;
+#[cfg(feature = "mobile-social")]
+use tokio::io::AsyncWriteExt;
 
 const MEDIA_REFERENCE_SCHEMA_VERSION: u16 = 1;
 const MEDIA_RECEIPT_SCHEMA_VERSION: u16 = 1;
@@ -18,7 +22,11 @@ const MEDIA_CACHE_SCHEMA_VERSION: u16 = 1;
 const MEDIA_URL_MAX_BYTES: usize = 8_192;
 const MEDIA_ALT_MAX_BYTES: usize = 2_048;
 const MEDIA_FAILURE_CODE_MAX_BYTES: usize = 96;
+const MEDIA_DIMENSION_MAX_EDGE: u32 = 16_384;
+const MEDIA_DIMENSION_MAX_PIXELS: u64 = 100_000_000;
 const MEDIA_REFERENCE_FINGERPRINT_DOMAIN: &[u8] = b"radroots.inbound-media-reference.v1\0";
+#[cfg(feature = "mobile-social")]
+const MEDIA_CACHE_EXTENSIONS: &[&str] = &["gif", "jpg", "png", "webp"];
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(transparent)]
@@ -400,6 +408,9 @@ impl Phase1VerifiedMediaReceipt {
             .ok_or(Phase1InboundMediaError::InvalidReference)?
             .as_str()
             .to_owned();
+        if canonical_extension(commitment.media_type()) != Some(extension.as_str()) {
+            return Err(Phase1InboundMediaError::MetadataMismatch);
+        }
         if canonical_final_url.hash_path().hash() != commitment.sha256() {
             return Err(Phase1InboundMediaError::MetadataMismatch);
         }
@@ -480,6 +491,10 @@ impl Phase1VerifiedMediaReceipt {
                 .extension()
                 .is_none_or(|value| value.as_str() != self.extension)
             || !canonical_media_type(&self.media_type)
+            || MediaType::parse(&self.media_type)
+                .ok()
+                .and_then(|value| canonical_extension(&value))
+                != Some(self.extension.as_str())
             || validate_dimensions(Some(self.width), Some(self.height)).is_err()
         {
             return Err(Phase1InboundMediaError::CorruptReceipt);
@@ -513,6 +528,64 @@ impl Phase1VerifiedMediaReceipt {
 
     pub fn extension(&self) -> &str {
         self.extension.as_str()
+    }
+
+    pub const fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub const fn height(&self) -> u32 {
+        self.height
+    }
+
+    pub const fn verified_at_unix_ms(&self) -> u64 {
+        self.verified_at_unix_ms
+    }
+}
+
+/// One immutable exact-byte artifact in the authenticated user's local cache.
+#[cfg(feature = "mobile-social")]
+#[derive(Clone, Eq, PartialEq)]
+pub struct Phase1LocalMediaArtifact {
+    artifact_id: Phase1MediaArtifactId,
+    local_path: PathBuf,
+    byte_size: u64,
+    media_type: String,
+    width: u32,
+    height: u32,
+}
+
+#[cfg(feature = "mobile-social")]
+impl std::fmt::Debug for Phase1LocalMediaArtifact {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("Phase1LocalMediaArtifact")
+            .field("artifact_id", &self.artifact_id)
+            .field("local_path", &"<redacted>")
+            .field("byte_size", &self.byte_size)
+            .field("media_type", &self.media_type)
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish()
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+impl Phase1LocalMediaArtifact {
+    pub const fn artifact_id(&self) -> Phase1MediaArtifactId {
+        self.artifact_id
+    }
+
+    pub fn local_path(&self) -> &Path {
+        self.local_path.as_path()
+    }
+
+    pub const fn byte_size(&self) -> u64 {
+        self.byte_size
+    }
+
+    pub fn media_type(&self) -> &str {
+        self.media_type.as_str()
     }
 
     pub const fn width(&self) -> u32 {
@@ -800,7 +873,7 @@ impl Phase1MediaCacheIndex {
         {
             return Err(Phase1InboundMediaError::ArtifactCollision);
         }
-        self.entries.insert(key, entry);
+        self.entries.insert(key.clone(), entry);
         let mut evicted = Vec::new();
         while self.entries.len() > policy.max_artifacts as usize
             || self.total_bytes()? > policy.max_bytes
@@ -808,6 +881,7 @@ impl Phase1MediaCacheIndex {
             let oldest = self
                 .entries
                 .iter()
+                .filter(|(candidate, _)| candidate.as_str() != key)
                 .min_by_key(|(key, entry)| (entry.last_accessed_at_unix_ms, key.as_str()))
                 .map(|(key, _)| key.clone())
                 .ok_or(Phase1InboundMediaError::CorruptState)?;
@@ -969,6 +1043,190 @@ pub enum Phase1InboundMediaError {
     CorruptState,
     #[error("inbound media schema version is unsupported")]
     UnsupportedSchema,
+    #[error("inbound media cache directory is unavailable")]
+    CacheUnavailable,
+    #[error("inbound media cache filesystem operation failed")]
+    CacheIo,
+    #[error("inbound media cache artifact is corrupt")]
+    CorruptArtifact,
+}
+
+#[cfg(feature = "mobile-social")]
+pub(crate) async fn write_verified_artifact(
+    directory: &Path,
+    receipt: &Phase1VerifiedMediaReceipt,
+    bytes: &[u8],
+) -> Result<Phase1LocalMediaArtifact, Phase1InboundMediaError> {
+    receipt.validate_intrinsic()?;
+    if bytes.len() as u64 != receipt.byte_size
+        || Sha256::digest(bytes).to_hex() != receipt.observed_sha256
+    {
+        return Err(Phase1InboundMediaError::CorruptArtifact);
+    }
+    ensure_cache_directory(directory).await?;
+    let final_path = artifact_path(directory, receipt.artifact_id, receipt.extension.as_str())?;
+    match tokio::fs::symlink_metadata(&final_path).await {
+        Ok(_) => {
+            verify_artifact_file(&final_path, receipt).await?;
+            return Ok(local_artifact(final_path, receipt));
+        }
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+    }
+
+    let temporary_path = directory.join(format!(
+        ".{}.{}.tmp",
+        receipt.artifact_id.to_hex(),
+        uuid::Uuid::new_v4().simple()
+    ));
+    let mut temporary = tokio::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(&temporary_path)
+        .await
+        .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+    let write_result = async {
+        temporary
+            .write_all(bytes)
+            .await
+            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+        temporary
+            .flush()
+            .await
+            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+        temporary
+            .sync_all()
+            .await
+            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+        drop(temporary);
+        match tokio::fs::hard_link(&temporary_path, &final_path).await {
+            Ok(()) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+                verify_artifact_file(&final_path, receipt).await?;
+            }
+            Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+        }
+        tokio::fs::remove_file(&temporary_path)
+            .await
+            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+        sync_cache_directory(directory).await?;
+        verify_artifact_file(&final_path, receipt).await
+    }
+    .await;
+    if write_result.is_err() {
+        let _ = tokio::fs::remove_file(&temporary_path).await;
+    }
+    write_result?;
+    Ok(local_artifact(final_path, receipt))
+}
+
+#[cfg(feature = "mobile-social")]
+pub(crate) async fn remove_artifact_files(
+    directory: &Path,
+    artifact_id: Phase1MediaArtifactId,
+) -> Result<(), Phase1InboundMediaError> {
+    ensure_cache_directory(directory).await?;
+    for extension in MEDIA_CACHE_EXTENSIONS {
+        let path = artifact_path(directory, artifact_id, extension)?;
+        match tokio::fs::symlink_metadata(&path).await {
+            Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
+                return Err(Phase1InboundMediaError::CorruptArtifact);
+            }
+            Ok(_) => tokio::fs::remove_file(path)
+                .await
+                .map_err(|_| Phase1InboundMediaError::CacheIo)?,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+            Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+        }
+    }
+    sync_cache_directory(directory).await
+}
+
+#[cfg(feature = "mobile-social")]
+pub(crate) async fn verified_artifact(
+    directory: &Path,
+    receipt: &Phase1VerifiedMediaReceipt,
+) -> Result<Phase1LocalMediaArtifact, Phase1InboundMediaError> {
+    receipt.validate_intrinsic()?;
+    ensure_cache_directory(directory).await?;
+    let path = artifact_path(directory, receipt.artifact_id, receipt.extension.as_str())?;
+    verify_artifact_file(&path, receipt).await?;
+    Ok(local_artifact(path, receipt))
+}
+
+#[cfg(feature = "mobile-social")]
+async fn ensure_cache_directory(directory: &Path) -> Result<(), Phase1InboundMediaError> {
+    match tokio::fs::create_dir(directory).await {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
+        Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+    }
+    let metadata = tokio::fs::symlink_metadata(directory)
+        .await
+        .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(Phase1InboundMediaError::CorruptArtifact);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "mobile-social")]
+fn artifact_path(
+    directory: &Path,
+    artifact_id: Phase1MediaArtifactId,
+    extension: &str,
+) -> Result<PathBuf, Phase1InboundMediaError> {
+    if !MEDIA_CACHE_EXTENSIONS.contains(&extension) {
+        return Err(Phase1InboundMediaError::CorruptArtifact);
+    }
+    Ok(directory.join(format!("{}.{}", artifact_id.to_hex(), extension)))
+}
+
+#[cfg(feature = "mobile-social")]
+async fn verify_artifact_file(
+    path: &Path,
+    receipt: &Phase1VerifiedMediaReceipt,
+) -> Result<(), Phase1InboundMediaError> {
+    let metadata = tokio::fs::symlink_metadata(path)
+        .await
+        .map_err(|_| Phase1InboundMediaError::CorruptArtifact)?;
+    if metadata.file_type().is_symlink()
+        || !metadata.is_file()
+        || metadata.len() != receipt.byte_size
+    {
+        return Err(Phase1InboundMediaError::CorruptArtifact);
+    }
+    let bytes = tokio::fs::read(path)
+        .await
+        .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+    if Sha256::digest(bytes.as_slice()).to_hex() != receipt.observed_sha256 {
+        return Err(Phase1InboundMediaError::CorruptArtifact);
+    }
+    Ok(())
+}
+
+#[cfg(feature = "mobile-social")]
+async fn sync_cache_directory(directory: &Path) -> Result<(), Phase1InboundMediaError> {
+    let directory = directory.to_path_buf();
+    tokio::task::spawn_blocking(move || std::fs::File::open(directory)?.sync_all())
+        .await
+        .map_err(|_| Phase1InboundMediaError::CacheIo)?
+        .map_err(|_| Phase1InboundMediaError::CacheIo)
+}
+
+#[cfg(feature = "mobile-social")]
+fn local_artifact(
+    local_path: PathBuf,
+    receipt: &Phase1VerifiedMediaReceipt,
+) -> Phase1LocalMediaArtifact {
+    Phase1LocalMediaArtifact {
+        artifact_id: receipt.artifact_id,
+        local_path,
+        byte_size: receipt.byte_size,
+        media_type: receipt.media_type.clone(),
+        width: receipt.width,
+        height: receipt.height,
+    }
 }
 
 fn validate_url_text(value: &str) -> Result<(), Phase1InboundMediaError> {
@@ -985,13 +1243,31 @@ fn canonical_media_type(value: &str) -> bool {
     MediaType::parse(value).is_ok_and(|parsed| parsed.to_string() == value)
 }
 
+fn canonical_extension(media_type: &MediaType) -> Option<&'static str> {
+    match media_type.as_str() {
+        "image/gif" => Some("gif"),
+        "image/jpeg" => Some("jpg"),
+        "image/png" => Some("png"),
+        "image/webp" => Some("webp"),
+        _ => None,
+    }
+}
+
 fn validate_dimensions(
     width: Option<u32>,
     height: Option<u32>,
 ) -> Result<(), Phase1InboundMediaError> {
     match (width, height) {
         (None, None) => Ok(()),
-        (Some(width), Some(height)) if width != 0 && height != 0 => Ok(()),
+        (Some(width), Some(height))
+            if width != 0
+                && height != 0
+                && width <= MEDIA_DIMENSION_MAX_EDGE
+                && height <= MEDIA_DIMENSION_MAX_EDGE
+                && u64::from(width) * u64::from(height) <= MEDIA_DIMENSION_MAX_PIXELS =>
+        {
+            Ok(())
+        }
         _ => Err(Phase1InboundMediaError::InvalidDimensions),
     }
 }
@@ -1237,5 +1513,54 @@ mod tests {
         entry["byteSize"] = serde_json::json!(0);
         let corrupt: Phase1MediaCacheIndex = serde_json::from_value(cache_value).unwrap();
         assert_eq!(corrupt.status(), Err(Phase1InboundMediaError::CorruptState));
+    }
+
+    #[cfg(feature = "mobile-social")]
+    #[tokio::test]
+    async fn atomic_artifact_writes_converge_and_corruption_fails_closed() {
+        let bytes = b"GIF89a\x02\0\x03\0";
+        let hash = Sha256::digest(bytes).to_hex();
+        let structural = Phase1StructuralMediaReference::new(
+            format!("https://media.example/{hash}.gif"),
+            Some(hash.clone()),
+            Some("image/gif".to_owned()),
+            Some(2),
+            Some(3),
+            Some(bytes.len() as u64),
+            None,
+        )
+        .unwrap();
+        let receipt = Phase1VerifiedMediaReceipt::from_commitment(
+            &structural,
+            BlobUrl::parse(&format!("https://media.example/{hash}.gif")).unwrap(),
+            &ByteCommitment::from_bytes(bytes, MediaType::parse("image/gif").unwrap()),
+            2,
+            3,
+            configuration(4),
+            1,
+        )
+        .unwrap();
+        let root = tempfile::tempdir().unwrap();
+        let directory = root.path().join("cache");
+        let (left, right) = tokio::join!(
+            write_verified_artifact(&directory, &receipt, bytes),
+            write_verified_artifact(&directory, &receipt, bytes),
+        );
+        let left = left.unwrap();
+        let right = right.unwrap();
+        assert_eq!(left, right);
+        assert_eq!(tokio::fs::read(left.local_path()).await.unwrap(), bytes);
+        assert_eq!(
+            std::fs::read_dir(&directory).unwrap().count(),
+            1,
+            "no temporary file survives a converged write"
+        );
+        tokio::fs::write(left.local_path(), b"GIF89a\x03\0\x03\0")
+            .await
+            .unwrap();
+        assert_eq!(
+            verified_artifact(&directory, &receipt).await,
+            Err(Phase1InboundMediaError::CorruptArtifact)
+        );
     }
 }

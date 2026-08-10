@@ -2732,6 +2732,7 @@ mod tests {
             None,
             None,
             None,
+            None,
         )
         .unwrap()
     }
@@ -2740,6 +2741,7 @@ mod tests {
         RadrootsRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
+            None,
             None,
             Some(profile),
             None,
@@ -2755,6 +2757,7 @@ mod tests {
         RadrootsRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
+            None,
             Some(std::sync::Arc::new(signer)),
             None,
             None,
@@ -3095,6 +3098,7 @@ mod tests {
         let runtime = RadrootsRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
+            None,
             Some(std::sync::Arc::new(signer)),
             Some(profile),
             None,

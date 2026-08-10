@@ -8,6 +8,8 @@ pub mod store;
 use chrono::Utc;
 use radroots_identity::PublicKey;
 use radroots_sdk::{Client, ClientBuilder};
+#[cfg(feature = "mobile-social")]
+use std::path::PathBuf;
 use std::sync::{
     RwLock,
     atomic::{AtomicBool, Ordering},
@@ -27,12 +29,17 @@ pub struct RadrootsRuntime {
     pub(crate) store_public_key: Option<PublicKey>,
     #[cfg(feature = "mobile-social")]
     pub(crate) settings_lock: tokio::sync::Mutex<()>,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) inbound_media_directory: Option<PathBuf>,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) inbound_media_lock: tokio::sync::Mutex<()>,
 }
 
 impl RadrootsRuntime {
     pub(crate) fn from_client_builder(
         builder: ClientBuilder,
         store_public_key: Option<PublicKey>,
+        #[cfg(feature = "mobile-social")] inbound_media_directory: Option<PathBuf>,
         #[cfg(feature = "mobile-social")] signer: Option<
             std::sync::Arc<dyn radroots_signing::Signer>,
         >,
@@ -77,6 +84,10 @@ impl RadrootsRuntime {
             store_public_key,
             #[cfg(feature = "mobile-social")]
             settings_lock: tokio::sync::Mutex::new(()),
+            #[cfg(feature = "mobile-social")]
+            inbound_media_directory,
+            #[cfg(feature = "mobile-social")]
+            inbound_media_lock: tokio::sync::Mutex::new(()),
         })
     }
 
@@ -84,6 +95,8 @@ impl RadrootsRuntime {
     pub(crate) fn test_memory() -> Result<Self, RadrootsAppError> {
         Self::from_client_builder(
             ClientBuilder::memory_default(),
+            None,
+            #[cfg(feature = "mobile-social")]
             None,
             #[cfg(feature = "mobile-social")]
             None,

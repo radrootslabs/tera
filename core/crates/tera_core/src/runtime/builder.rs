@@ -62,12 +62,16 @@ impl RuntimeBuilder {
         }
         self.store.validate_host_filesystem()?;
         let options = self.store.sqlite_options()?;
+        #[cfg(feature = "mobile-social")]
+        let inbound_media_directory = self.store.owner_directory().join("inbound_media.v1");
         let builder = radroots_sdk::ClientBuilder::sqlite(options)
             .await
             .map_err(RadrootsAppError::from_sdk)?;
         RadrootsRuntime::from_client_builder(
             builder,
             Some(self.store.public_key()),
+            #[cfg(feature = "mobile-social")]
+            Some(inbound_media_directory),
             #[cfg(feature = "mobile-social")]
             self.signer,
             #[cfg(feature = "mobile-social")]

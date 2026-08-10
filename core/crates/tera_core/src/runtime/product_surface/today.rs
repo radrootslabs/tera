@@ -20,7 +20,13 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 #[cfg(feature = "mobile-social")]
+use radroots_blossom::{BlobUrl, MediaType};
+#[cfg(feature = "mobile-social")]
 use radroots_event::admission::ContractValidatedEvent;
+#[cfg(feature = "mobile-social")]
+use radroots_sdk::transport::{
+    BlossomCancellation, BlossomError, BlossomImageDimensions, BlossomInboundRequest,
+};
 #[cfg(feature = "mobile-social")]
 use radroots_sync::{
     PullRequest,
@@ -32,17 +38,20 @@ use radroots_transport::{
     Target, outcome::FetchTargetState, source::FetchSelector, target::TargetSet,
 };
 
+#[cfg(feature = "mobile-social")]
+use super::Phase1LocalMediaArtifact;
 use super::{
     CardId, CardLifecycleState, ClassifiedCard, CursorError, CursorScope, LocalAuthorOverlay,
     LocalNetwork, LocalityEvidence, MeSnapshot, MediaReference, Phase1InboundMediaError,
     Phase1InboundMediaFailure, Phase1InboundMediaPending, Phase1InboundMediaState,
-    Phase1MediaArtifactId, Phase1MediaCacheIndex, Phase1MediaCachePolicy, Phase1MediaCacheStatus,
+    Phase1MediaArtifactId, Phase1MediaCacheIndex, Phase1MediaCacheStatus,
     Phase1MediaConfigurationFingerprint, Phase1StructuralMediaReference,
-    Phase1VerifiedMediaReceipt, ProductEventClassification, ProfileSummary, SearchResult,
-    SearchResultType, SupportingProfile, ThreadEntry, ThreadReference, TimeRelevance, TodayCard,
-    TodayCardType, TodayCursor, TodayCursorPosition, TodayPage, TodayRank, TodayRankInput,
-    classify_admitted_event,
+    ProductEventClassification, ProfileSummary, SearchResult, SearchResultType, SupportingProfile,
+    ThreadEntry, ThreadReference, TimeRelevance, TodayCard, TodayCardType, TodayCursor,
+    TodayCursorPosition, TodayPage, TodayRank, TodayRankInput, classify_admitted_event,
 };
+#[cfg(any(feature = "mobile-social", test))]
+use super::{Phase1MediaCachePolicy, Phase1VerifiedMediaReceipt};
 use crate::runtime::RadrootsRuntime;
 
 const TODAY_PROJECTION_ID: &str = "radroots.today.v1";
@@ -159,6 +168,9 @@ pub enum TodayError {
     Serialization,
     #[error(transparent)]
     InboundMedia(#[from] Phase1InboundMediaError),
+    #[cfg(feature = "mobile-social")]
+    #[error(transparent)]
+    InboundRetrieval(#[from] BlossomError),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -627,7 +639,8 @@ impl RadrootsRuntime {
 
     /// Atomically binds exact-byte evidence to the matching reference and
     /// admits its content-addressed cache entry under the active LRU quota.
-    pub async fn phase1_commit_media_receipt(
+    #[cfg(any(feature = "mobile-social", test))]
+    pub(crate) async fn phase1_commit_media_receipt(
         &self,
         context: &LocalNetwork,
         reference_fingerprint: [u8; 32],
@@ -690,6 +703,8 @@ impl RadrootsRuntime {
         context: &LocalNetwork,
         artifact_id: Phase1MediaArtifactId,
     ) -> Result<bool, TodayError> {
+        #[cfg(feature = "mobile-social")]
+        let _guard = self.inbound_media_lock.lock().await;
         let storage = self
             .client
             .storage()
@@ -703,6 +718,10 @@ impl RadrootsRuntime {
         if cache_changed || references_changed {
             persist_media_state(storage, context, generation, &mut state).await?;
         }
+        #[cfg(feature = "mobile-social")]
+        if let Some(directory) = self.inbound_media_directory.as_deref() {
+            super::media::remove_artifact_files(directory, artifact_id).await?;
+        }
         Ok(cache_changed || references_changed)
     }
 
@@ -713,6 +732,8 @@ impl RadrootsRuntime {
         context: &LocalNetwork,
         configuration: Phase1MediaConfigurationFingerprint,
     ) -> Result<Vec<Phase1MediaArtifactId>, TodayError> {
+        #[cfg(feature = "mobile-social")]
+        let _guard = self.inbound_media_lock.lock().await;
         let storage = self
             .client
             .storage()
@@ -729,6 +750,12 @@ impl RadrootsRuntime {
             });
             persist_media_state(storage, context, generation, &mut state).await?;
         }
+        #[cfg(feature = "mobile-social")]
+        if let Some(directory) = self.inbound_media_directory.as_deref() {
+            for artifact_id in &removed {
+                super::media::remove_artifact_files(directory, *artifact_id).await?;
+            }
+        }
         Ok(removed)
     }
 
@@ -744,6 +771,198 @@ impl RadrootsRuntime {
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
         state.media_cache.status().map_err(TodayError::from)
+    }
+
+    /// Resolves one renderable artifact only after rechecking the exact local
+    /// file. Missing or corrupt bytes atomically revoke all matching receipts.
+    #[cfg(feature = "mobile-social")]
+    pub async fn phase1_verified_media_artifact(
+        &self,
+        context: &LocalNetwork,
+        artifact_id: Phase1MediaArtifactId,
+        observed_at_unix_ms: u64,
+    ) -> Result<Option<Phase1LocalMediaArtifact>, TodayError> {
+        let _guard = self.inbound_media_lock.lock().await;
+        let directory = self
+            .inbound_media_directory
+            .as_deref()
+            .ok_or(Phase1InboundMediaError::CacheUnavailable)?;
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let generation = projection_generation()?;
+        let mut state = load_state(storage, context, generation)
+            .await?
+            .ok_or(TodayError::ProjectionMissing)?;
+        let Some(receipt) = verified_receipt(&state, artifact_id) else {
+            return Ok(None);
+        };
+        match super::media::verified_artifact(directory, &receipt).await {
+            Ok(artifact) => {
+                if state.media_cache.touch(artifact_id, observed_at_unix_ms)? {
+                    persist_media_state(storage, context, generation, &mut state).await?;
+                }
+                Ok(Some(artifact))
+            }
+            Err(error) => {
+                state.media_cache.invalidate_artifact(artifact_id);
+                invalidate_artifact_references(&mut state, artifact_id);
+                persist_media_state(storage, context, generation, &mut state).await?;
+                let _ = super::media::remove_artifact_files(directory, artifact_id).await;
+                Err(error.into())
+            }
+        }
+    }
+
+    /// Completes one bounded BUD-01 retrieval, exact-byte verification, and
+    /// atomic content-addressed cache commit under the configured Blossom slot.
+    #[cfg(feature = "mobile-social")]
+    pub async fn phase1_retrieve_media(
+        &self,
+        context: &LocalNetwork,
+        reference_fingerprint: [u8; 32],
+        operation_id: [u8; 16],
+        policy: Phase1MediaCachePolicy,
+        cancellation: BlossomCancellation,
+    ) -> Result<Phase1LocalMediaArtifact, TodayError> {
+        let _guard = self.inbound_media_lock.lock().await;
+        let directory = self
+            .inbound_media_directory
+            .as_deref()
+            .ok_or(Phase1InboundMediaError::CacheUnavailable)?;
+        let blossom = self
+            .client
+            .blossom()
+            .map_err(|_| TodayError::RuntimeUnavailable)?
+            .cloned()
+            .ok_or(TodayError::RuntimeUnavailable)?;
+        let sdk_configuration = blossom
+            .config_fingerprint()
+            .ok_or(TodayError::RuntimeUnavailable)?;
+        let configuration =
+            Phase1MediaConfigurationFingerprint::new(*sdk_configuration.as_bytes())?;
+        let structural = load_structural_reference(self, context, reference_fingerprint).await?;
+        let started_at_unix_ms = inbound_now_unix_ms()?;
+        self.phase1_begin_media_retrieval(
+            context,
+            reference_fingerprint,
+            Phase1InboundMediaPending::new(operation_id, configuration, started_at_unix_ms)?,
+        )
+        .await?;
+        let request = match inbound_request(&structural) {
+            Ok(request) => request,
+            Err(error) => {
+                record_inbound_failure(
+                    self,
+                    context,
+                    reference_fingerprint,
+                    operation_id,
+                    "invalid_reference",
+                    false,
+                )
+                .await;
+                return Err(error);
+            }
+        };
+        let sdk_receipt = match blossom.retrieve(request, cancellation).await {
+            Ok(receipt) => receipt,
+            Err(error) => {
+                record_inbound_failure(
+                    self,
+                    context,
+                    reference_fingerprint,
+                    operation_id,
+                    error.code().trim_start_matches("blossom_"),
+                    error.retryable(),
+                )
+                .await;
+                return Err(error.into());
+            }
+        };
+        if sdk_receipt.config_fingerprint() != sdk_configuration {
+            record_inbound_failure(
+                self,
+                context,
+                reference_fingerprint,
+                operation_id,
+                "configuration_changed",
+                false,
+            )
+            .await;
+            return Err(Phase1InboundMediaError::ConfigurationMismatch.into());
+        }
+        let dimensions = sdk_receipt.dimensions();
+        let receipt = match Phase1VerifiedMediaReceipt::from_commitment(
+            &structural,
+            sdk_receipt.final_url().clone(),
+            sdk_receipt.commitment(),
+            dimensions.width(),
+            dimensions.height(),
+            configuration,
+            sdk_receipt.verified_at_unix_ms(),
+        ) {
+            Ok(receipt) => receipt,
+            Err(error) => {
+                record_inbound_failure(
+                    self,
+                    context,
+                    reference_fingerprint,
+                    operation_id,
+                    "verification_failed",
+                    false,
+                )
+                .await;
+                return Err(error.into());
+            }
+        };
+        let artifact =
+            match super::media::write_verified_artifact(directory, &receipt, sdk_receipt.bytes())
+                .await
+            {
+                Ok(artifact) => artifact,
+                Err(error) => {
+                    record_inbound_failure(
+                        self,
+                        context,
+                        reference_fingerprint,
+                        operation_id,
+                        "cache_write_failed",
+                        true,
+                    )
+                    .await;
+                    return Err(error.into());
+                }
+            };
+        let evicted = match self
+            .phase1_commit_media_receipt(
+                context,
+                reference_fingerprint,
+                operation_id,
+                receipt,
+                policy,
+                sdk_receipt.verified_at_unix_ms(),
+            )
+            .await
+        {
+            Ok(evicted) => evicted,
+            Err(error) => {
+                record_inbound_failure(
+                    self,
+                    context,
+                    reference_fingerprint,
+                    operation_id,
+                    "cache_commit_failed",
+                    true,
+                )
+                .await;
+                return Err(error);
+            }
+        };
+        for artifact_id in evicted {
+            super::media::remove_artifact_files(directory, artifact_id).await?;
+        }
+        Ok(artifact)
     }
 
     /// Persists active-author delivery state as a local-only Today overlay.
@@ -790,6 +1009,88 @@ impl RadrootsRuntime {
         state.content_generation = content_generation(&state)?;
         store_state(storage, context, generation, &state).await
     }
+}
+
+#[cfg(feature = "mobile-social")]
+async fn load_structural_reference(
+    runtime: &RadrootsRuntime,
+    context: &LocalNetwork,
+    reference_fingerprint: [u8; 32],
+) -> Result<Phase1StructuralMediaReference, TodayError> {
+    let storage = runtime
+        .client
+        .storage()
+        .map_err(|_| TodayError::RuntimeUnavailable)?;
+    let state = load_state(storage, context, projection_generation()?)
+        .await?
+        .ok_or(TodayError::ProjectionMissing)?;
+    state
+        .cards
+        .iter()
+        .flat_map(|projected| projected.card.media.iter())
+        .chain(
+            state
+                .profiles
+                .values()
+                .flat_map(|profile| [&profile.picture, &profile.banner].into_iter().flatten()),
+        )
+        .find(|media| media.structural().fingerprint() == &reference_fingerprint)
+        .map(|media| media.structural().clone())
+        .ok_or(TodayError::InvalidRequest)
+}
+
+#[cfg(feature = "mobile-social")]
+fn inbound_request(
+    structural: &Phase1StructuralMediaReference,
+) -> Result<BlossomInboundRequest, TodayError> {
+    let url = BlobUrl::parse(structural.source_url())
+        .map_err(|_| Phase1InboundMediaError::InvalidReference)?;
+    let media_type = structural
+        .expected_media_type()
+        .map(MediaType::parse)
+        .transpose()
+        .map_err(|_| Phase1InboundMediaError::InvalidMediaType)?;
+    let dimensions = match (structural.expected_width(), structural.expected_height()) {
+        (Some(width), Some(height)) => Some(BlossomImageDimensions::new(width, height)?),
+        (None, None) => None,
+        _ => return Err(Phase1InboundMediaError::InvalidDimensions.into()),
+    };
+    BlossomInboundRequest::new(url, media_type, structural.expected_byte_size(), dimensions)
+        .map_err(TodayError::from)
+}
+
+#[cfg(feature = "mobile-social")]
+fn inbound_now_unix_ms() -> Result<u64, TodayError> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|duration| u64::try_from(duration.as_millis()).ok())
+        .filter(|value| *value != 0)
+        .ok_or(TodayError::RuntimeUnavailable)
+}
+
+#[cfg(feature = "mobile-social")]
+async fn record_inbound_failure(
+    runtime: &RadrootsRuntime,
+    context: &LocalNetwork,
+    reference_fingerprint: [u8; 32],
+    operation_id: [u8; 16],
+    safe_code: &str,
+    retryable: bool,
+) {
+    let Ok(failed_at_unix_ms) = inbound_now_unix_ms() else {
+        return;
+    };
+    let Ok(failure) =
+        Phase1InboundMediaFailure::new(operation_id, safe_code, retryable, failed_at_unix_ms)
+    else {
+        return;
+    };
+    let _ = runtime
+        .phase1_fail_media_retrieval(context, reference_fingerprint, failure)
+        .await;
 }
 
 #[cfg(feature = "mobile-social")]
@@ -947,6 +1248,29 @@ fn invalidate_artifact_references(
         refresh_thread_profiles(state);
     }
     changed
+}
+
+#[cfg(feature = "mobile-social")]
+fn verified_receipt(
+    state: &TodayProjectionState,
+    artifact_id: Phase1MediaArtifactId,
+) -> Option<Phase1VerifiedMediaReceipt> {
+    state
+        .cards
+        .iter()
+        .flat_map(|projected| projected.card.media.iter())
+        .chain(
+            state
+                .profiles
+                .values()
+                .flat_map(|profile| [&profile.picture, &profile.banner].into_iter().flatten()),
+        )
+        .find_map(|media| match media.retrieval() {
+            Phase1InboundMediaState::Verified(receipt) if receipt.artifact_id() == artifact_id => {
+                Some((**receipt).clone())
+            }
+            _ => None,
+        })
 }
 
 async fn persist_media_state(
@@ -1691,6 +2015,10 @@ mod tests {
     use super::*;
     #[cfg(feature = "mobile-social")]
     use std::sync::{Arc, Mutex, RwLock, atomic::AtomicBool};
+    #[cfg(feature = "mobile-social")]
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+    #[cfg(feature = "mobile-social")]
+    use tokio::net::TcpListener;
 
     use nostr::secp256k1::Message;
     use nostr::{Keys, SECP256K1};
@@ -2026,6 +2354,42 @@ mod tests {
     }
 
     #[cfg(feature = "mobile-social")]
+    fn png(width: u32, height: u32) -> Vec<u8> {
+        let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+        bytes.extend_from_slice(&width.to_be_bytes());
+        bytes.extend_from_slice(&height.to_be_bytes());
+        bytes
+    }
+
+    #[cfg(feature = "mobile-social")]
+    async fn serve_one_blob(listener: TcpListener, bytes: Vec<u8>) {
+        let (mut stream, _) = listener.accept().await.expect("accept");
+        let mut request = Vec::new();
+        while !request.windows(4).any(|value| value == b"\r\n\r\n") {
+            let mut chunk = [0_u8; 1024];
+            let read = stream.read(&mut chunk).await.expect("request read");
+            assert_ne!(read, 0);
+            request.extend_from_slice(&chunk[..read]);
+            assert!(request.len() <= 64 * 1024);
+        }
+        let headers = String::from_utf8_lossy(&request);
+        assert!(headers.starts_with("GET /"));
+        assert!(
+            headers
+                .to_ascii_lowercase()
+                .contains("accept-encoding: identity")
+        );
+        assert!(!headers.to_ascii_lowercase().contains("authorization:"));
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: image/png\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+            bytes.len()
+        );
+        stream.write_all(response.as_bytes()).await.expect("head");
+        stream.write_all(&bytes).await.expect("body");
+        stream.shutdown().await.expect("close");
+    }
+
+    #[cfg(feature = "mobile-social")]
     #[tokio::test]
     async fn relay_sync_fetches_the_exact_today_selector_and_projects_real_events() {
         let source = Arc::new(TodaySource {
@@ -2044,6 +2408,8 @@ mod tests {
             platform_app: RwLock::new(None),
             store_public_key: None,
             settings_lock: tokio::sync::Mutex::new(()),
+            inbound_media_directory: None,
+            inbound_media_lock: tokio::sync::Mutex::new(()),
         };
         let context = context(None, 1);
 
@@ -2751,6 +3117,165 @@ mod tests {
             Phase1InboundMediaState::Unavailable
         ));
         reopened.shutdown().await.expect("shutdown reopened");
+    }
+
+    #[cfg(feature = "mobile-social")]
+    #[tokio::test]
+    async fn hardened_retrieval_atomically_writes_and_invalidates_the_local_artifact() {
+        use crate::runtime::{
+            builder::RuntimeBuilder,
+            store::{MobileUserStoreConfig, ProtectedDataAvailability},
+        };
+        use radroots_sdk::transport::{
+            BlossomCancellation, BlossomConfig, BlossomEndpointAuthority, BlossomHostKind,
+            BlossomProfile,
+        };
+
+        let bytes = png(2, 3);
+        let hash = BlossomSha256::digest(bytes.as_slice()).to_hex();
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind");
+        let origin = format!("http://{}", listener.local_addr().expect("address"));
+        let url = format!("{origin}/{hash}.png");
+        let server = tokio::spawn(serve_one_blob(listener, bytes.clone()));
+        let root = tempfile::tempdir().expect("root");
+        let public_key = keys().public_key().to_string();
+        let store = MobileUserStoreConfig::from_encoded(
+            root.path(),
+            &public_key,
+            "6161616161616161616161616161616161616161616161616161616161616161",
+            2_000_000_000_000,
+            ProtectedDataAvailability::Available,
+        )
+        .expect("store");
+        std::fs::create_dir_all(store.owner_directory()).expect("owner directory");
+        let owner_directory = store.owner_directory().to_path_buf();
+        let blossom = BlossomConfig::from_profile(
+            BlossomProfile::new(
+                BlossomHostKind::Simulator,
+                BlossomEndpointAuthority::LoopbackDevelopment,
+                origin,
+                std::iter::empty::<String>(),
+            )
+            .expect("profile"),
+        )
+        .with_network_policy(
+            std::time::Duration::from_millis(100),
+            std::time::Duration::from_millis(100),
+            1,
+            std::time::Duration::from_millis(1),
+        )
+        .expect("network policy");
+        let runtime = RuntimeBuilder::new(store)
+            .blossom_config(blossom)
+            .build()
+            .await
+            .expect("runtime");
+        let context = context(None, 1);
+        ingest(
+            &runtime,
+            &context,
+            signed(
+                0,
+                Vec::new(),
+                &format!(r#"{{"name":"retrieved","picture":"{url}"}}"#),
+                2_000_000_000,
+            ),
+            2_000_000_100,
+        )
+        .await;
+        let picture = runtime
+            .phase1_me(&context, &public_key, 2_000_000_200)
+            .await
+            .expect("me")
+            .profile
+            .expect("profile")
+            .picture
+            .expect("picture");
+        let artifact = runtime
+            .phase1_retrieve_media(
+                &context,
+                *picture.structural().fingerprint(),
+                [9; 16],
+                Phase1MediaCachePolicy::new(1_024, 8).unwrap(),
+                BlossomCancellation::default(),
+            )
+            .await
+            .expect("verified retrieval");
+        server.await.expect("server");
+        assert!(
+            artifact
+                .local_path()
+                .starts_with(owner_directory.join("inbound_media.v1"))
+        );
+        assert_eq!(tokio::fs::read(artifact.local_path()).await.unwrap(), bytes);
+        assert!(
+            !tokio::fs::symlink_metadata(artifact.local_path())
+                .await
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
+        let verified = runtime
+            .phase1_me(&context, &public_key, 2_000_000_201)
+            .await
+            .expect("verified me")
+            .profile
+            .expect("verified profile")
+            .picture
+            .expect("verified picture");
+        assert!(matches!(
+            verified.retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
+        let mut corrupt = bytes.clone();
+        let last = corrupt.len() - 1;
+        corrupt[last] ^= 1;
+        tokio::fs::write(artifact.local_path(), corrupt)
+            .await
+            .expect("corrupt cached bytes");
+        assert!(matches!(
+            runtime
+                .phase1_verified_media_artifact(
+                    &context,
+                    artifact.artifact_id(),
+                    2_000_000_203_000,
+                )
+                .await,
+            Err(TodayError::InboundMedia(
+                Phase1InboundMediaError::CorruptArtifact
+            ))
+        ));
+        assert!(!artifact.local_path().exists());
+        let current_configuration = runtime
+            .phase1_media_cache_status(&context)
+            .await
+            .unwrap()
+            .configuration
+            .expect("configuration");
+        let replacement_bytes = if current_configuration.as_bytes() == &[1; 32] {
+            [2; 32]
+        } else {
+            [1; 32]
+        };
+        let replacement_configuration =
+            Phase1MediaConfigurationFingerprint::new(replacement_bytes).unwrap();
+        runtime
+            .phase1_invalidate_media_configuration(&context, replacement_configuration)
+            .await
+            .expect("invalidate configuration");
+        let unavailable = runtime
+            .phase1_me(&context, &public_key, 2_000_000_202)
+            .await
+            .expect("unavailable me")
+            .profile
+            .expect("unavailable profile")
+            .picture
+            .expect("unavailable picture");
+        assert!(matches!(
+            unavailable.retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+        runtime.shutdown().await.expect("shutdown");
     }
 
     #[tokio::test]

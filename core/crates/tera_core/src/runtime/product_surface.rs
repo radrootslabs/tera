@@ -28,6 +28,8 @@ pub use context::{
 };
 pub use cursor::{CursorError, CursorScope, TodayCursor, TodayCursorPosition};
 pub use identity::{CARD_ID_SCHEMA_VERSION, CardId, CardIdError, CardSourceIdentity};
+#[cfg(feature = "mobile-social")]
+pub use media::Phase1LocalMediaArtifact;
 pub use media::{
     MediaReference, Phase1InboundMediaError, Phase1InboundMediaFailure, Phase1InboundMediaPending,
     Phase1InboundMediaState, Phase1MediaArtifactId, Phase1MediaCacheIndex, Phase1MediaCachePolicy,
