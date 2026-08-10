@@ -34,10 +34,14 @@ use radroots_transport::{
 
 use super::{
     CardId, CardLifecycleState, ClassifiedCard, CursorError, CursorScope, LocalAuthorOverlay,
-    LocalNetwork, LocalityEvidence, MeSnapshot, MediaReference, MediaVerificationState,
-    ProductEventClassification, ProfileSummary, SearchResult, SearchResultType, SupportingProfile,
-    ThreadEntry, ThreadReference, TimeRelevance, TodayCard, TodayCardType, TodayCursor,
-    TodayCursorPosition, TodayPage, TodayRank, TodayRankInput, classify_admitted_event,
+    LocalNetwork, LocalityEvidence, MeSnapshot, MediaReference, Phase1InboundMediaError,
+    Phase1InboundMediaFailure, Phase1InboundMediaPending, Phase1InboundMediaState,
+    Phase1MediaArtifactId, Phase1MediaCacheIndex, Phase1MediaCachePolicy, Phase1MediaCacheStatus,
+    Phase1MediaConfigurationFingerprint, Phase1StructuralMediaReference,
+    Phase1VerifiedMediaReceipt, ProductEventClassification, ProfileSummary, SearchResult,
+    SearchResultType, SupportingProfile, ThreadEntry, ThreadReference, TimeRelevance, TodayCard,
+    TodayCardType, TodayCursor, TodayCursorPosition, TodayPage, TodayRank, TodayRankInput,
+    classify_admitted_event,
 };
 use crate::runtime::RadrootsRuntime;
 
@@ -153,6 +157,8 @@ pub enum TodayError {
     Storage(#[from] radroots_storage::Error),
     #[error("today projection serialization failed")]
     Serialization,
+    #[error(transparent)]
+    InboundMedia(#[from] Phase1InboundMediaError),
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -182,6 +188,8 @@ struct TodayProjectionState {
     profiles: BTreeMap<String, ProfileSummary>,
     thread: Vec<ThreadEntry>,
     overlays: BTreeMap<String, LocalAuthorOverlay>,
+    #[serde(default)]
+    media_cache: Phase1MediaCacheIndex,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -313,15 +321,7 @@ impl RadrootsRuntime {
         let generation = projection_generation()?;
         let projection_id = projection_id()?;
         let key = projection_document_key(context);
-        let prior = ProjectionStore::projection_document(
-            storage,
-            projection_id.clone(),
-            generation,
-            key.clone(),
-        )
-        .await?
-        .map(|document| decode_state(document.value()))
-        .transpose()?;
+        let prior = load_state(storage, context, generation).await?;
 
         if update == TodayProjectionUpdate::Incremental
             && prior
@@ -334,7 +334,11 @@ impl RadrootsRuntime {
 
         let visible = query_all_visible(storage).await?;
         let local_media = prior.as_ref().map(local_media_evidence).unwrap_or_default();
-        let overlays = prior.map_or_else(BTreeMap::new, |state| state.overlays);
+        let overlays = prior
+            .as_ref()
+            .map_or_else(BTreeMap::new, |state| state.overlays.clone());
+        let media_cache =
+            prior.map_or_else(Phase1MediaCacheIndex::default, |state| state.media_cache);
         let mut state = project_state(
             context,
             event_status.generation().as_bytes(),
@@ -342,6 +346,7 @@ impl RadrootsRuntime {
             visible,
             overlays,
         )?;
+        state.media_cache = media_cache;
         apply_local_media_evidence(&mut state, &local_media);
         state.content_generation = content_generation(&state)?;
         let encoded = encode(&state)?;
@@ -421,9 +426,13 @@ impl RadrootsRuntime {
                 return Err(CursorError::Stale.into());
             }
             let position = TodayCursor::decode(cursor, &scope)?;
-            let snapshot = load_snapshot(storage, projection_id, algorithm_generation, &scope)
+            let mut snapshot = load_snapshot(storage, projection_id, algorithm_generation, &scope)
                 .await?
                 .ok_or(TodayError::SnapshotMissing)?;
+            let current = load_state(storage, context, algorithm_generation)
+                .await?
+                .ok_or(TodayError::ProjectionMissing)?;
+            sanitize_snapshot_media(&mut snapshot, &current.media_cache);
             (scope, snapshot, Some(position.rank))
         } else {
             let as_of = request
@@ -558,16 +567,14 @@ impl RadrootsRuntime {
         })
     }
 
-    /// Updates local byte-verification evidence without changing card classification.
-    pub async fn phase1_set_media_verification(
+    /// Starts one typed retrieval for every occurrence of the exact structural
+    /// reference. URL equality alone is deliberately insufficient.
+    pub async fn phase1_begin_media_retrieval(
         &self,
         context: &LocalNetwork,
-        url: &str,
-        verification: MediaVerificationState,
+        reference_fingerprint: [u8; 32],
+        pending: Phase1InboundMediaPending,
     ) -> Result<bool, TodayError> {
-        if url.is_empty() || url.len() > 8_192 || url.chars().any(char::is_control) {
-            return Err(TodayError::InvalidRequest);
-        }
         let storage = self
             .client
             .storage()
@@ -576,32 +583,167 @@ impl RadrootsRuntime {
         let mut state = load_state(storage, context, generation)
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
-        let mut changed = false;
-        for projected in &mut state.cards {
-            for media in &mut projected.card.media {
-                if media.url == url && media.verification != verification {
-                    media.verification = verification;
-                    changed = true;
-                }
-            }
+        let mut trial = state.clone();
+        let prior_configuration = trial.media_cache.status()?.configuration;
+        if prior_configuration.is_some_and(|value| value != pending.configuration()) {
+            return Err(Phase1InboundMediaError::ConfigurationMismatch.into());
         }
-        for profile in state.profiles.values_mut() {
-            for media in [&mut profile.picture, &mut profile.banner]
-                .into_iter()
-                .flatten()
-            {
-                if media.url == url && media.verification != verification {
-                    media.verification = verification;
-                    changed = true;
-                }
-            }
-        }
+        trial
+            .media_cache
+            .invalidate_configuration(pending.configuration());
+        let changed = mutate_matching_media(&mut trial, reference_fingerprint, |media| {
+            media.begin(pending.clone())
+        })?;
         if changed {
-            refresh_thread_profiles(&mut state);
-            state.content_generation = content_generation(&state)?;
-            store_state(storage, context, generation, &state).await?;
+            state = trial;
+            persist_media_state(storage, context, generation, &mut state).await?;
         }
         Ok(changed)
+    }
+
+    /// Records a bounded, safe retrieval failure for the active operation.
+    pub async fn phase1_fail_media_retrieval(
+        &self,
+        context: &LocalNetwork,
+        reference_fingerprint: [u8; 32],
+        failure: Phase1InboundMediaFailure,
+    ) -> Result<bool, TodayError> {
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let generation = projection_generation()?;
+        let mut state = load_state(storage, context, generation)
+            .await?
+            .ok_or(TodayError::ProjectionMissing)?;
+        let changed = mutate_matching_media(&mut state, reference_fingerprint, |media| {
+            media.fail(failure.clone())
+        })?;
+        if changed {
+            persist_media_state(storage, context, generation, &mut state).await?;
+        }
+        Ok(changed)
+    }
+
+    /// Atomically binds exact-byte evidence to the matching reference and
+    /// admits its content-addressed cache entry under the active LRU quota.
+    pub async fn phase1_commit_media_receipt(
+        &self,
+        context: &LocalNetwork,
+        reference_fingerprint: [u8; 32],
+        operation_id: [u8; 16],
+        receipt: Phase1VerifiedMediaReceipt,
+        policy: Phase1MediaCachePolicy,
+        cached_at_unix_ms: u64,
+    ) -> Result<Vec<Phase1MediaArtifactId>, TodayError> {
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let generation = projection_generation()?;
+        let mut state = load_state(storage, context, generation)
+            .await?
+            .ok_or(TodayError::ProjectionMissing)?;
+        let mut trial = state.clone();
+        let changed = mutate_matching_media(&mut trial, reference_fingerprint, |media| {
+            media.verify(operation_id, receipt.clone())
+        })?;
+        if !changed {
+            return Err(TodayError::InvalidRequest);
+        }
+        let evicted = trial
+            .media_cache
+            .admit(&receipt, policy, cached_at_unix_ms)?;
+        for artifact_id in &evicted {
+            invalidate_artifact_references(&mut trial, *artifact_id);
+        }
+        state = trial;
+        persist_media_state(storage, context, generation, &mut state).await?;
+        Ok(evicted)
+    }
+
+    /// Records one successful local artifact access for deterministic LRU.
+    pub async fn phase1_touch_media_artifact(
+        &self,
+        context: &LocalNetwork,
+        artifact_id: Phase1MediaArtifactId,
+        observed_at_unix_ms: u64,
+    ) -> Result<bool, TodayError> {
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let generation = projection_generation()?;
+        let mut state = load_state(storage, context, generation)
+            .await?
+            .ok_or(TodayError::ProjectionMissing)?;
+        let changed = state.media_cache.touch(artifact_id, observed_at_unix_ms)?;
+        if changed {
+            persist_media_state(storage, context, generation, &mut state).await?;
+        }
+        Ok(changed)
+    }
+
+    /// Invalidates a missing, corrupt, or explicitly evicted local artifact.
+    pub async fn phase1_invalidate_media_artifact(
+        &self,
+        context: &LocalNetwork,
+        artifact_id: Phase1MediaArtifactId,
+    ) -> Result<bool, TodayError> {
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let generation = projection_generation()?;
+        let mut state = load_state(storage, context, generation)
+            .await?
+            .ok_or(TodayError::ProjectionMissing)?;
+        let cache_changed = state.media_cache.invalidate_artifact(artifact_id);
+        let references_changed = invalidate_artifact_references(&mut state, artifact_id);
+        if cache_changed || references_changed {
+            persist_media_state(storage, context, generation, &mut state).await?;
+        }
+        Ok(cache_changed || references_changed)
+    }
+
+    /// Clears all trust derived under an obsolete endpoint/network/cache
+    /// configuration and records the new configuration generation.
+    pub async fn phase1_invalidate_media_configuration(
+        &self,
+        context: &LocalNetwork,
+        configuration: Phase1MediaConfigurationFingerprint,
+    ) -> Result<Vec<Phase1MediaArtifactId>, TodayError> {
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let generation = projection_generation()?;
+        let mut state = load_state(storage, context, generation)
+            .await?
+            .ok_or(TodayError::ProjectionMissing)?;
+        let prior_configuration = state.media_cache.status()?.configuration;
+        let removed = state.media_cache.invalidate_configuration(configuration);
+        if prior_configuration != Some(configuration) {
+            for_each_media_mut(&mut state, |media| {
+                media.invalidate();
+            });
+            persist_media_state(storage, context, generation, &mut state).await?;
+        }
+        Ok(removed)
+    }
+
+    pub async fn phase1_media_cache_status(
+        &self,
+        context: &LocalNetwork,
+    ) -> Result<Phase1MediaCacheStatus, TodayError> {
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let state = load_state(storage, context, projection_generation()?)
+            .await?
+            .ok_or(TodayError::ProjectionMissing)?;
+        state.media_cache.status().map_err(TodayError::from)
     }
 
     /// Persists active-author delivery state as a local-only Today overlay.
@@ -709,18 +851,20 @@ fn refresh_receipt(
     }
 }
 
-fn local_media_evidence(state: &TodayProjectionState) -> BTreeMap<String, MediaVerificationState> {
+fn local_media_evidence(
+    state: &TodayProjectionState,
+) -> BTreeMap<[u8; 32], Phase1InboundMediaState> {
     let mut evidence = state
         .cards
         .iter()
         .flat_map(|projected| projected.card.media.iter())
-        .filter(|media| media.verification != MediaVerificationState::Unavailable)
-        .map(|media| (media.url.clone(), media.verification))
+        .filter(|media| !matches!(media.retrieval(), Phase1InboundMediaState::Unavailable))
+        .map(|media| (*media.structural().fingerprint(), media.retrieval().clone()))
         .collect::<BTreeMap<_, _>>();
     for profile in state.profiles.values() {
         for media in [&profile.picture, &profile.banner].into_iter().flatten() {
-            if media.verification != MediaVerificationState::Unavailable {
-                evidence.insert(media.url.clone(), media.verification);
+            if !matches!(media.retrieval(), Phase1InboundMediaState::Unavailable) {
+                evidence.insert(*media.structural().fingerprint(), media.retrieval().clone());
             }
         }
     }
@@ -729,13 +873,26 @@ fn local_media_evidence(state: &TodayProjectionState) -> BTreeMap<String, MediaV
 
 fn apply_local_media_evidence(
     state: &mut TodayProjectionState,
-    evidence: &BTreeMap<String, MediaVerificationState>,
+    evidence: &BTreeMap<[u8; 32], Phase1InboundMediaState>,
+) {
+    let cache = state.media_cache.clone();
+    for_each_media_mut(state, |media| {
+        if let Some(retrieval) = evidence.get(media.structural().fingerprint())
+            && media.restore(retrieval.clone(), &cache).is_err()
+        {
+            media.invalidate();
+        }
+    });
+    refresh_thread_profiles(state);
+}
+
+fn for_each_media_mut(
+    state: &mut TodayProjectionState,
+    mut action: impl FnMut(&mut MediaReference),
 ) {
     for projected in &mut state.cards {
         for media in &mut projected.card.media {
-            if let Some(verification) = evidence.get(&media.url) {
-                media.verification = *verification;
-            }
+            action(media);
         }
     }
     for profile in state.profiles.values_mut() {
@@ -743,12 +900,65 @@ fn apply_local_media_evidence(
             .into_iter()
             .flatten()
         {
-            if let Some(verification) = evidence.get(&media.url) {
-                media.verification = *verification;
-            }
+            action(media);
         }
     }
+}
+
+fn mutate_matching_media(
+    state: &mut TodayProjectionState,
+    reference_fingerprint: [u8; 32],
+    mut action: impl FnMut(&mut MediaReference) -> Result<(), Phase1InboundMediaError>,
+) -> Result<bool, TodayError> {
+    let mut found = false;
+    let mut failure = None;
+    for_each_media_mut(state, |media| {
+        if failure.is_none() && media.structural().fingerprint() == &reference_fingerprint {
+            found = true;
+            if let Err(error) = action(media) {
+                failure = Some(error);
+            }
+        }
+    });
+    if let Some(error) = failure {
+        return Err(error.into());
+    }
+    if found {
+        refresh_thread_profiles(state);
+    }
+    Ok(found)
+}
+
+fn invalidate_artifact_references(
+    state: &mut TodayProjectionState,
+    artifact_id: Phase1MediaArtifactId,
+) -> bool {
+    let mut changed = false;
+    for_each_media_mut(state, |media| {
+        if matches!(
+            media.retrieval(),
+            Phase1InboundMediaState::Verified(receipt) if receipt.artifact_id() == artifact_id
+        ) {
+            media.invalidate();
+            changed = true;
+        }
+    });
+    if changed {
+        refresh_thread_profiles(state);
+    }
+    changed
+}
+
+async fn persist_media_state(
+    storage: &dyn radroots_storage::Storage,
+    context: &LocalNetwork,
+    generation: ProjectionGeneration,
+    state: &mut TodayProjectionState,
+) -> Result<(), TodayError> {
     refresh_thread_profiles(state);
+    validate_media_state(state)?;
+    state.content_generation = content_generation(state)?;
+    store_state(storage, context, generation, state).await
 }
 
 fn refresh_thread_profiles(state: &mut TodayProjectionState) {
@@ -836,6 +1046,7 @@ fn project_state(
         profiles,
         thread,
         overlays,
+        media_cache: Phase1MediaCacheIndex::default(),
     })
 }
 
@@ -851,10 +1062,12 @@ fn profile_summary(admitted: &RadrootsAdmittedEvent) -> Result<ProfileSummary, T
         about: metadata.about().map(str::to_owned),
         picture: metadata
             .picture()
-            .map(|value| unverified_media(value.as_str())),
+            .map(|value| unverified_media(value.as_str()))
+            .transpose()?,
         banner: metadata
             .banner()
-            .map(|value| unverified_media(value.as_str())),
+            .map(|value| unverified_media(value.as_str()))
+            .transpose()?,
         nip05: metadata.nip05().map(|value| value.as_str().to_owned()),
         website: typed_profile_extra(metadata.raw_fields(), "website"),
         lightning_address: typed_profile_extra(metadata.raw_fields(), "lud16"),
@@ -871,17 +1084,17 @@ fn typed_profile_extra(fields: &BTreeMap<String, serde_json::Value>, key: &str) 
         .map(str::to_owned)
 }
 
-fn unverified_media(url: &str) -> MediaReference {
-    MediaReference {
-        url: url.to_owned(),
-        sha256: blossom_digest(url),
-        media_type: None,
-        width: None,
-        height: None,
-        byte_size: None,
-        alt: None,
-        verification: MediaVerificationState::Unavailable,
-    }
+fn unverified_media(url: &str) -> Result<MediaReference, TodayError> {
+    MediaReference::new(Phase1StructuralMediaReference::new(
+        url,
+        blossom_digest(url),
+        None,
+        None,
+        None,
+        None,
+        None,
+    )?)
+    .map_err(TodayError::from)
 }
 
 fn reply_entry(admitted: &RadrootsAdmittedEvent) -> Result<ThreadEntry, TodayError> {
@@ -1098,15 +1311,21 @@ async fn load_state(
     context: &LocalNetwork,
     generation: ProjectionGeneration,
 ) -> Result<Option<TodayProjectionState>, TodayError> {
-    ProjectionStore::projection_document(
+    let document = ProjectionStore::projection_document(
         storage,
         projection_id()?,
         generation,
         projection_document_key(context),
     )
-    .await?
-    .map(|document| decode_state(document.value()))
-    .transpose()
+    .await?;
+    let Some(document) = document else {
+        return Ok(None);
+    };
+    let (state, migrated) = decode_state_document(document.value())?;
+    if migrated {
+        store_state(storage, context, generation, &state).await?;
+    }
+    Ok(Some(state))
 }
 
 async fn store_state(
@@ -1165,23 +1384,235 @@ async fn load_snapshot(
         .transpose()
 }
 
+#[cfg(test)]
 fn decode_state(value: &[u8]) -> Result<TodayProjectionState, TodayError> {
-    let state: TodayProjectionState = decode(value)?;
+    decode_state_document(value).map(|(state, _)| state)
+}
+
+fn decode_state_document(value: &[u8]) -> Result<(TodayProjectionState, bool), TodayError> {
+    if let Ok(state) = serde_json::from_slice::<TodayProjectionState>(value)
+        && state.schema_version == TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION
+        && state.content_generation != 0
+        && content_generation(&state)? == state.content_generation
+        && validate_media_state(&state).is_ok()
+    {
+        return Ok((state, false));
+    }
+    let state = migrate_legacy_state(value)?;
     if state.schema_version != TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION
         || state.content_generation == 0
         || content_generation(&state)? != state.content_generation
+        || validate_media_state(&state).is_err()
     {
         return Err(TodayError::CorruptProjection);
     }
-    Ok(state)
+    Ok((state, true))
+}
+
+fn validate_media_state(state: &TodayProjectionState) -> Result<(), Phase1InboundMediaError> {
+    state.media_cache.status()?;
+    for projected in &state.cards {
+        for media in &projected.card.media {
+            media.validate()?;
+            if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
+                && !state.media_cache.contains(receipt)
+            {
+                return Err(Phase1InboundMediaError::CorruptState);
+            }
+        }
+    }
+    for profile in state.profiles.values() {
+        for media in [&profile.picture, &profile.banner].into_iter().flatten() {
+            media.validate()?;
+            if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
+                && !state.media_cache.contains(receipt)
+            {
+                return Err(Phase1InboundMediaError::CorruptState);
+            }
+        }
+    }
+    if state
+        .thread
+        .iter()
+        .any(|entry| entry.author_profile.as_ref() != state.profiles.get(&entry.author_pubkey))
+    {
+        return Err(Phase1InboundMediaError::CorruptState);
+    }
+    Ok(())
+}
+
+fn sanitize_snapshot_media(snapshot: &mut FrozenTodaySnapshot, cache: &Phase1MediaCacheIndex) {
+    for item in &mut snapshot.items {
+        for media in &mut item.card.media {
+            if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
+                && !cache.contains(receipt)
+            {
+                media.invalidate();
+            }
+        }
+        if let Some(profile) = &mut item.author_profile {
+            for media in [&mut profile.picture, &mut profile.banner]
+                .into_iter()
+                .flatten()
+            {
+                if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
+                    && !cache.contains(receipt)
+                {
+                    media.invalidate();
+                }
+            }
+        }
+        for entry in &mut item.thread {
+            if let Some(profile) = &mut entry.author_profile {
+                for media in [&mut profile.picture, &mut profile.banner]
+                    .into_iter()
+                    .flatten()
+                {
+                    if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
+                        && !cache.contains(receipt)
+                    {
+                        media.invalidate();
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn decode_snapshot(value: &[u8]) -> Result<FrozenTodaySnapshot, TodayError> {
-    let snapshot: FrozenTodaySnapshot = decode(value)?;
+    let snapshot: FrozenTodaySnapshot = match serde_json::from_slice(value) {
+        Ok(snapshot) => snapshot,
+        Err(_) => {
+            let mut legacy: serde_json::Value = decode(value)?;
+            migrate_legacy_media_values(&mut legacy)?;
+            serde_json::from_value(legacy).map_err(|_| TodayError::CorruptProjection)?
+        }
+    };
     if snapshot.schema_version != TODAY_SNAPSHOT_SCHEMA_VERSION {
         return Err(TodayError::CorruptProjection);
     }
     Ok(snapshot)
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct LegacyMediaReference {
+    url: String,
+    sha256: Option<String>,
+    media_type: Option<String>,
+    width: Option<u32>,
+    height: Option<u32>,
+    byte_size: Option<u64>,
+    alt: Option<String>,
+    verification: LegacyMediaVerificationState,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "PascalCase")]
+enum LegacyMediaVerificationState {
+    Pending,
+    Verified,
+    Failed,
+    Unavailable,
+}
+
+fn migrate_legacy_state(value: &[u8]) -> Result<TodayProjectionState, TodayError> {
+    verify_legacy_content_generation(value)?;
+    let mut legacy: serde_json::Value = decode(value)?;
+    migrate_legacy_media_values(&mut legacy)?;
+    let object = legacy
+        .as_object_mut()
+        .ok_or(TodayError::CorruptProjection)?;
+    if object.contains_key("mediaCache") {
+        return Err(TodayError::CorruptProjection);
+    }
+    object.insert(
+        "mediaCache".to_owned(),
+        serde_json::to_value(Phase1MediaCacheIndex::default())
+            .map_err(|_| TodayError::Serialization)?,
+    );
+    object.insert("contentGeneration".to_owned(), serde_json::json!(0));
+    let mut state: TodayProjectionState =
+        serde_json::from_value(legacy).map_err(|_| TodayError::CorruptProjection)?;
+    state.content_generation = content_generation(&state)?;
+    Ok(state)
+}
+
+fn verify_legacy_content_generation(value: &[u8]) -> Result<(), TodayError> {
+    let parsed: serde_json::Value = decode(value)?;
+    let expected = parsed
+        .get("contentGeneration")
+        .and_then(serde_json::Value::as_u64)
+        .filter(|value| *value != 0)
+        .ok_or(TodayError::CorruptProjection)?;
+    if parsed
+        .get("schemaVersion")
+        .and_then(serde_json::Value::as_u64)
+        != Some(u64::from(TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION))
+    {
+        return Err(TodayError::CorruptProjection);
+    }
+    let marker = b"\"contentGeneration\":";
+    let starts = value
+        .windows(marker.len())
+        .enumerate()
+        .filter_map(|(index, bytes)| (bytes == marker).then_some(index))
+        .collect::<Vec<_>>();
+    let [start] = starts.as_slice() else {
+        return Err(TodayError::CorruptProjection);
+    };
+    let number_start = start + marker.len();
+    let number_end = value[number_start..]
+        .iter()
+        .position(|byte| !byte.is_ascii_digit())
+        .map(|offset| number_start + offset)
+        .ok_or(TodayError::CorruptProjection)?;
+    if number_end == number_start {
+        return Err(TodayError::CorruptProjection);
+    }
+    let mut canonical = Vec::with_capacity(value.len());
+    canonical.extend_from_slice(&value[..number_start]);
+    canonical.push(b'0');
+    canonical.extend_from_slice(&value[number_end..]);
+    let digest = Sha256::digest([PROJECTION_CONTENT_DOMAIN, canonical.as_slice()].concat());
+    let observed = u64::from_be_bytes(digest[..8].try_into().expect("digest prefix")).max(1);
+    (observed == expected)
+        .then_some(())
+        .ok_or(TodayError::CorruptProjection)
+}
+
+fn migrate_legacy_media_values(value: &mut serde_json::Value) -> Result<(), TodayError> {
+    match value {
+        serde_json::Value::Array(values) => {
+            for value in values {
+                migrate_legacy_media_values(value)?;
+            }
+        }
+        serde_json::Value::Object(object)
+            if object.contains_key("verification") && object.contains_key("url") =>
+        {
+            let legacy: LegacyMediaReference =
+                serde_json::from_value(value.clone()).map_err(|_| TodayError::CorruptProjection)?;
+            let _legacy_verification = legacy.verification;
+            let migrated = MediaReference::legacy_unavailable(
+                legacy.url,
+                legacy.sha256,
+                legacy.media_type,
+                legacy.width,
+                legacy.height,
+                legacy.byte_size,
+                legacy.alt,
+            )?;
+            *value = serde_json::to_value(migrated).map_err(|_| TodayError::Serialization)?;
+        }
+        serde_json::Value::Object(object) => {
+            for value in object.values_mut() {
+                migrate_legacy_media_values(value)?;
+            }
+        }
+        _ => {}
+    }
+    Ok(())
 }
 
 fn content_generation(state: &TodayProjectionState) -> Result<u64, TodayError> {
@@ -1263,6 +1694,9 @@ mod tests {
 
     use nostr::secp256k1::Message;
     use nostr::{Keys, SECP256K1};
+    use radroots_blossom::{
+        BlobUrl, MediaType, Sha256 as BlossomSha256, descriptor::ByteCommitment,
+    };
     use radroots_event::{
         SignedEvent,
         admission::{AdmissionPolicy, RawEvent, VisibilityPolicy},
@@ -1480,6 +1914,117 @@ mod tests {
             .expect("ingest")
     }
 
+    #[allow(clippy::too_many_arguments)]
+    async fn verify_inbound_media(
+        runtime: &RadrootsRuntime,
+        context: &LocalNetwork,
+        source_url: &str,
+        bytes: &[u8],
+        media_type: &str,
+        width: u32,
+        height: u32,
+        operation_id: [u8; 16],
+    ) {
+        let storage = runtime.client.storage().expect("storage");
+        let state = load_state(storage, context, projection_generation().unwrap())
+            .await
+            .unwrap()
+            .expect("projection");
+        let reference = state
+            .cards
+            .iter()
+            .flat_map(|value| value.card.media.iter())
+            .chain(
+                state
+                    .profiles
+                    .values()
+                    .flat_map(|profile| [&profile.picture, &profile.banner].into_iter().flatten()),
+            )
+            .find(|media| media.structural().source_url() == source_url)
+            .expect("structural media")
+            .structural()
+            .clone();
+        let configuration = Phase1MediaConfigurationFingerprint::new([9; 32]).unwrap();
+        runtime
+            .phase1_begin_media_retrieval(
+                context,
+                *reference.fingerprint(),
+                Phase1InboundMediaPending::new(operation_id, configuration, 10).unwrap(),
+            )
+            .await
+            .expect("begin retrieval");
+        let commitment = ByteCommitment::from_bytes(bytes, MediaType::parse(media_type).unwrap());
+        let receipt = Phase1VerifiedMediaReceipt::from_commitment(
+            &reference,
+            BlobUrl::parse(source_url).unwrap(),
+            &commitment,
+            width,
+            height,
+            configuration,
+            11,
+        )
+        .expect("byte receipt");
+        runtime
+            .phase1_commit_media_receipt(
+                context,
+                *reference.fingerprint(),
+                operation_id,
+                receipt,
+                Phase1MediaCachePolicy::new(1_024, 8).unwrap(),
+                12,
+            )
+            .await
+            .expect("commit receipt");
+    }
+
+    fn downgrade_media_to_legacy(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Array(values) => {
+                for value in values {
+                    downgrade_media_to_legacy(value);
+                }
+            }
+            serde_json::Value::Object(object)
+                if object.contains_key("structural") && object.contains_key("retrieval") =>
+            {
+                let structural = object
+                    .get("structural")
+                    .and_then(serde_json::Value::as_object)
+                    .expect("structural object");
+                *value = serde_json::json!({
+                    "url": structural.get("sourceUrl").cloned().unwrap(),
+                    "sha256": structural.get("expectedSha256").cloned().unwrap(),
+                    "mediaType": structural.get("expectedMediaType").cloned().unwrap(),
+                    "width": structural.get("expectedWidth").cloned().unwrap(),
+                    "height": structural.get("expectedHeight").cloned().unwrap(),
+                    "byteSize": structural.get("expectedByteSize").cloned().unwrap(),
+                    "alt": structural.get("alt").cloned().unwrap(),
+                    "verification": "Verified",
+                });
+            }
+            serde_json::Value::Object(object) => {
+                for value in object.values_mut() {
+                    downgrade_media_to_legacy(value);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn legacy_state_bytes(state: &TodayProjectionState) -> Vec<u8> {
+        let mut value = serde_json::to_value(state).expect("state value");
+        let object = value.as_object_mut().expect("state object");
+        object.remove("mediaCache").expect("new cache field");
+        object.insert("contentGeneration".to_owned(), serde_json::json!(0));
+        downgrade_media_to_legacy(&mut value);
+        let canonical = serde_json::to_vec(&value).expect("legacy canonical");
+        let digest =
+            sha2::Sha256::digest([PROJECTION_CONTENT_DOMAIN, canonical.as_slice()].concat());
+        let generation = u64::from_be_bytes(digest[..8].try_into().expect("digest prefix")).max(1);
+        value["contentGeneration"] = serde_json::json!(generation);
+        serde_json::to_vec(&value).expect("legacy state")
+    }
+
     #[cfg(feature = "mobile-social")]
     #[tokio::test]
     async fn relay_sync_fetches_the_exact_today_selector_and_projects_real_events() {
@@ -1587,7 +2132,9 @@ mod tests {
         let runtime = RadrootsRuntime::test_memory().expect("runtime");
         let context = context(Some("victoria"), 7);
         let author = keys().public_key().to_string();
-        let profile_url = "https://blob.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg";
+        let profile_bytes = b"profile picture";
+        let profile_digest = BlossomSha256::digest(profile_bytes).to_hex();
+        let profile_url = format!("https://blob.example/{profile_digest}.jpg");
         let profile = signed(
             0,
             Vec::new(),
@@ -1598,7 +2145,8 @@ mod tests {
         );
         ingest(&runtime, &context, profile, 2_000_000_100).await;
 
-        let digest = "b".repeat(64);
+        let photo_bytes = b"photo";
+        let digest = BlossomSha256::digest(photo_bytes).to_hex();
         let photo_url = format!("https://blob.example/{digest}.jpg");
         let photo_content = format!("Fresh field photo {photo_url}");
         let photo = signed_owned(
@@ -1611,7 +2159,7 @@ mod tests {
                     format!("x {digest}"),
                     "m image/jpeg".into(),
                     "dim 120x80".into(),
-                    "size 345".into(),
+                    format!("size {}", photo_bytes.len()),
                     "alt Fresh field photo".into(),
                 ],
             ],
@@ -1688,26 +2236,28 @@ mod tests {
         );
         ingest(&runtime, &context, comment, 2_000_000_105).await;
 
-        assert!(
-            runtime
-                .phase1_set_media_verification(
-                    &context,
-                    &photo_url,
-                    MediaVerificationState::Verified,
-                )
-                .await
-                .expect("media evidence")
-        );
-        assert!(
-            runtime
-                .phase1_set_media_verification(
-                    &context,
-                    profile_url,
-                    MediaVerificationState::Verified,
-                )
-                .await
-                .expect("profile media evidence")
-        );
+        verify_inbound_media(
+            &runtime,
+            &context,
+            &photo_url,
+            photo_bytes,
+            "image/jpeg",
+            120,
+            80,
+            [1; 16],
+        )
+        .await;
+        verify_inbound_media(
+            &runtime,
+            &context,
+            &profile_url,
+            profile_bytes,
+            "image/jpeg",
+            24,
+            24,
+            [2; 16],
+        )
+        .await;
         let live = runtime
             .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_200))
             .await
@@ -1719,10 +2269,10 @@ mod tests {
             .find(|card| card.card.card_type == TodayCardType::PhotoUpdate)
             .unwrap_or_else(|| panic!("photo card missing from {:#?}", live.items));
         assert_eq!(card.card.card_type, TodayCardType::PhotoUpdate);
-        assert_eq!(
-            card.card.media[0].verification,
-            MediaVerificationState::Verified
-        );
+        assert!(matches!(
+            card.card.media[0].retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
         assert_eq!(card.thread.len(), 1);
         assert_eq!(
             live.items
@@ -1739,14 +2289,14 @@ mod tests {
             profile.lightning_address.as_deref(),
             Some("moss@example.com")
         );
-        assert_eq!(
+        assert!(matches!(
             profile
                 .picture
                 .as_ref()
                 .expect("profile picture")
-                .verification,
-            MediaVerificationState::Verified
-        );
+                .retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
 
         runtime
             .phase1_set_local_author_overlay(
@@ -1799,19 +2349,19 @@ mod tests {
             .iter()
             .find(|card| card.card.card_type == TodayCardType::PhotoUpdate)
             .expect("rebuilt photo");
-        assert_eq!(
-            rebuilt_photo.card.media[0].verification,
-            MediaVerificationState::Verified
-        );
-        assert_eq!(
+        assert!(matches!(
+            rebuilt_photo.card.media[0].retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
+        assert!(matches!(
             rebuilt_photo
                 .author_profile
                 .as_ref()
                 .and_then(|profile| profile.picture.as_ref())
                 .expect("rebuilt profile picture")
-                .verification,
-            MediaVerificationState::Verified
-        );
+                .retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
         assert_eq!(
             rebuilt_photo
                 .local_overlay
@@ -1820,6 +2370,176 @@ mod tests {
             Some("delivered")
         );
         assert_eq!(rebuilt_photo.thread.len(), 1);
+
+        let photo_reference = rebuilt_photo.card.media[0].structural().clone();
+        let photo_receipt = match rebuilt_photo.card.media[0].retrieval() {
+            Phase1InboundMediaState::Verified(receipt) => (**receipt).clone(),
+            state => panic!("unexpected photo state: {state:?}"),
+        };
+        let profile_artifact = match rebuilt_photo
+            .author_profile
+            .as_ref()
+            .and_then(|profile| profile.picture.as_ref())
+            .expect("profile picture before eviction")
+            .retrieval()
+        {
+            Phase1InboundMediaState::Verified(receipt) => receipt.artifact_id(),
+            state => panic!("unexpected profile state: {state:?}"),
+        };
+        runtime
+            .phase1_begin_media_retrieval(
+                &context,
+                *photo_reference.fingerprint(),
+                Phase1InboundMediaPending::new(
+                    [3; 16],
+                    Phase1MediaConfigurationFingerprint::new([9; 32]).unwrap(),
+                    30,
+                )
+                .unwrap(),
+            )
+            .await
+            .expect("repeat retrieval");
+        let evicted = runtime
+            .phase1_commit_media_receipt(
+                &context,
+                *photo_reference.fingerprint(),
+                [3; 16],
+                photo_receipt,
+                Phase1MediaCachePolicy::new(1_024, 1).unwrap(),
+                31,
+            )
+            .await
+            .expect("quota commit");
+        assert_eq!(evicted, vec![profile_artifact]);
+        let quota_page = runtime
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_203))
+            .await
+            .expect("quota page");
+        let quota_photo = quota_page
+            .items
+            .iter()
+            .find(|card| card.card.card_type == TodayCardType::PhotoUpdate)
+            .expect("quota photo");
+        assert!(matches!(
+            quota_photo.card.media[0].retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
+        assert!(matches!(
+            quota_photo
+                .author_profile
+                .as_ref()
+                .and_then(|profile| profile.picture.as_ref())
+                .expect("evicted profile picture")
+                .retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+
+        let removed = runtime
+            .phase1_invalidate_media_configuration(
+                &context,
+                Phase1MediaConfigurationFingerprint::new([8; 32]).unwrap(),
+            )
+            .await
+            .expect("configuration invalidation");
+        assert_eq!(removed.len(), 1);
+        let invalidated = runtime
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_203))
+            .await
+            .expect("page after configuration change");
+        let invalidated_photo = invalidated
+            .items
+            .iter()
+            .find(|card| card.card.card_type == TodayCardType::PhotoUpdate)
+            .expect("invalidated photo");
+        assert!(matches!(
+            invalidated_photo.card.media[0].retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+        assert!(matches!(
+            invalidated_photo
+                .author_profile
+                .as_ref()
+                .and_then(|profile| profile.picture.as_ref())
+                .expect("invalidated profile picture")
+                .retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+    }
+
+    #[tokio::test]
+    async fn legacy_enum_only_media_migrates_to_unavailable_and_repersists() {
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let context = context(None, 1);
+        let bytes = b"legacy profile";
+        let hash = BlossomSha256::digest(bytes).to_hex();
+        let url = format!("https://blob.example/{hash}.jpg");
+        ingest(
+            &runtime,
+            &context,
+            signed(
+                0,
+                Vec::new(),
+                &format!(r#"{{"name":"legacy","picture":"{url}"}}"#),
+                2_000_000_000,
+            ),
+            2_000_000_100,
+        )
+        .await;
+        let storage = runtime.client.storage().expect("storage");
+        let generation = projection_generation().unwrap();
+        let state = load_state(storage, &context, generation)
+            .await
+            .unwrap()
+            .expect("state");
+        let legacy = legacy_state_bytes(&state);
+        ProjectionStore::put_projection_document(
+            storage,
+            projection_id().unwrap(),
+            generation,
+            ProjectionDocument::new(projection_document_key(&context), legacy.clone()).unwrap(),
+        )
+        .await
+        .unwrap();
+
+        let migrated = load_state(storage, &context, generation)
+            .await
+            .unwrap()
+            .expect("migrated state");
+        let picture = migrated
+            .profiles
+            .values()
+            .next()
+            .and_then(|profile| profile.picture.as_ref())
+            .expect("picture");
+        assert!(matches!(
+            picture.retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+        assert_eq!(migrated.media_cache.status().unwrap().artifacts, 0);
+        let stored = ProjectionStore::projection_document(
+            storage,
+            projection_id().unwrap(),
+            generation,
+            projection_document_key(&context),
+        )
+        .await
+        .unwrap()
+        .expect("repersisted state");
+        let text = std::str::from_utf8(stored.value()).unwrap();
+        assert!(!text.contains("\"verification\""));
+        assert!(text.contains("\"mediaCache\""));
+
+        let mut tampered: serde_json::Value = serde_json::from_slice(&legacy).unwrap();
+        tampered["profiles"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .next()
+            .unwrap()["name"] = serde_json::json!("tampered");
+        assert!(matches!(
+            decode_state(&serde_json::to_vec(&tampered).unwrap()),
+            Err(TodayError::CorruptProjection)
+        ));
     }
 
     #[tokio::test]
@@ -1936,6 +2656,104 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn sqlite_reopen_preserves_receipts_and_missing_artifacts_fail_closed() {
+        use crate::runtime::{
+            builder::RuntimeBuilder,
+            store::{MobileUserStoreConfig, ProtectedDataAvailability},
+        };
+
+        let root = tempfile::tempdir().expect("root");
+        let public_key = keys().public_key().to_string();
+        let store = MobileUserStoreConfig::from_encoded(
+            root.path(),
+            &public_key,
+            "4141414141414141414141414141414141414141414141414141414141414141",
+            2_000_000_000_000,
+            ProtectedDataAvailability::Available,
+        )
+        .expect("store");
+        std::fs::create_dir_all(store.owner_directory()).expect("owner directory");
+        let context = context(None, 1);
+        let runtime = RuntimeBuilder::new(store.clone())
+            .build()
+            .await
+            .expect("runtime");
+        let bytes = b"sqlite profile";
+        let hash = BlossomSha256::digest(bytes).to_hex();
+        let url = format!("https://blob.example/{hash}.jpg");
+        ingest(
+            &runtime,
+            &context,
+            signed(
+                0,
+                Vec::new(),
+                &format!(r#"{{"name":"sqlite","picture":"{url}"}}"#),
+                2_000_000_000,
+            ),
+            2_000_000_100,
+        )
+        .await;
+        verify_inbound_media(
+            &runtime,
+            &context,
+            &url,
+            bytes,
+            "image/jpeg",
+            20,
+            20,
+            [6; 16],
+        )
+        .await;
+        assert_eq!(
+            runtime
+                .phase1_media_cache_status(&context)
+                .await
+                .unwrap()
+                .artifacts,
+            1
+        );
+        runtime.shutdown().await.expect("shutdown");
+
+        let reopened = RuntimeBuilder::new(store).build().await.expect("reopen");
+        let profile = reopened
+            .phase1_me(&context, &public_key, 2_000_000_200)
+            .await
+            .unwrap()
+            .profile
+            .expect("profile");
+        let picture = profile.picture.expect("picture");
+        let artifact_id = match picture.retrieval() {
+            Phase1InboundMediaState::Verified(receipt) => receipt.artifact_id(),
+            state => panic!("unexpected state: {state:?}"),
+        };
+        assert!(
+            reopened
+                .phase1_invalidate_media_artifact(&context, artifact_id)
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            reopened
+                .phase1_media_cache_status(&context)
+                .await
+                .unwrap()
+                .artifacts,
+            0
+        );
+        let profile = reopened
+            .phase1_me(&context, &public_key, 2_000_000_201)
+            .await
+            .unwrap()
+            .profile
+            .expect("profile after invalidation");
+        assert!(matches!(
+            profile.picture.unwrap().retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+        reopened.shutdown().await.expect("shutdown reopened");
+    }
+
+    #[tokio::test]
     async fn fail_closed_requests_cursors_overlays_and_projection_guards_are_executable() {
         let mut runtime = RadrootsRuntime::test_memory().expect("runtime");
         let context = context(None, 1);
@@ -2010,20 +2828,17 @@ mod tests {
                 .await,
             Err(TodayError::InvalidRequest)
         ));
-        for url in ["", &"x".repeat(8_193), "bad\nurl"] {
-            assert!(matches!(
-                runtime
-                    .phase1_set_media_verification(&context, url, MediaVerificationState::Verified,)
-                    .await,
-                Err(TodayError::InvalidRequest)
-            ));
-        }
         assert!(
             !runtime
-                .phase1_set_media_verification(
+                .phase1_begin_media_retrieval(
                     &context,
-                    "https://blob.example/missing.jpg",
-                    MediaVerificationState::Verified,
+                    [3; 32],
+                    Phase1InboundMediaPending::new(
+                        [4; 16],
+                        Phase1MediaConfigurationFingerprint::new([5; 32]).unwrap(),
+                        1,
+                    )
+                    .unwrap(),
                 )
                 .await
                 .expect("unmatched media")

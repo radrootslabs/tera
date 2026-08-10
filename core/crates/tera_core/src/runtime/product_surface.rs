@@ -8,6 +8,7 @@ mod authoring;
 mod context;
 mod cursor;
 mod identity;
+mod media;
 mod model;
 #[cfg(feature = "mobile-social")]
 mod outbox;
@@ -27,12 +28,17 @@ pub use context::{
 };
 pub use cursor::{CursorError, CursorScope, TodayCursor, TodayCursorPosition};
 pub use identity::{CARD_ID_SCHEMA_VERSION, CardId, CardIdError, CardSourceIdentity};
+pub use media::{
+    MediaReference, Phase1InboundMediaError, Phase1InboundMediaFailure, Phase1InboundMediaPending,
+    Phase1InboundMediaState, Phase1MediaArtifactId, Phase1MediaCacheIndex, Phase1MediaCachePolicy,
+    Phase1MediaCacheStatus, Phase1MediaConfigurationFingerprint, Phase1StructuralMediaReference,
+    Phase1VerifiedMediaReceipt,
+};
 pub use model::{
     AddCommandType, CANONICAL_ADD_COMMAND_TYPES, CANONICAL_CARD_ADD_PARITY,
     CANONICAL_TODAY_CARD_TYPES, CardAddParity, CardLifecycleState, ClassifiedCard,
-    LocalAuthorOverlay, MeSnapshot, MediaReference, MediaVerificationState, ProfileSummary,
-    SearchResult, SearchResultType, SupportingProfile, ThreadEntry, ThreadReference, TodayCard,
-    TodayCardType, TodayPage,
+    LocalAuthorOverlay, MeSnapshot, ProfileSummary, SearchResult, SearchResultType,
+    SupportingProfile, ThreadEntry, ThreadReference, TodayCard, TodayCardType, TodayPage,
 };
 #[cfg(feature = "mobile-social")]
 pub use outbox::{

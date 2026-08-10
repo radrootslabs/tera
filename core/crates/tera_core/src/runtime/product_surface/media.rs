@@ -1,0 +1,1241 @@
+//! Typed inbound-media trust, receipt, and bounded cache metadata.
+//!
+//! Structural Nostr references are intentionally distinct from locally
+//! verified artifacts. A caller cannot represent renderable media with a URL
+//! and a boolean: the `Verified` state always contains a receipt derived from
+//! an actual byte commitment and bound to the active retrieval configuration.
+
+use std::collections::BTreeMap;
+
+use radroots_blossom::{BlobUrl, MediaType, Sha256, descriptor::ByteCommitment};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256 as Sha256Hasher};
+use thiserror::Error;
+
+const MEDIA_REFERENCE_SCHEMA_VERSION: u16 = 1;
+const MEDIA_RECEIPT_SCHEMA_VERSION: u16 = 1;
+const MEDIA_CACHE_SCHEMA_VERSION: u16 = 1;
+const MEDIA_URL_MAX_BYTES: usize = 8_192;
+const MEDIA_ALT_MAX_BYTES: usize = 2_048;
+const MEDIA_FAILURE_CODE_MAX_BYTES: usize = 96;
+const MEDIA_REFERENCE_FINGERPRINT_DOMAIN: &[u8] = b"radroots.inbound-media-reference.v1\0";
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
+pub struct Phase1MediaConfigurationFingerprint([u8; 32]);
+
+impl Phase1MediaConfigurationFingerprint {
+    pub fn new(value: [u8; 32]) -> Result<Self, Phase1InboundMediaError> {
+        (value != [0; 32])
+            .then_some(Self(value))
+            .ok_or(Phase1InboundMediaError::InvalidConfiguration)
+    }
+
+    pub fn parse(value: &str) -> Result<Self, Phase1InboundMediaError> {
+        let decoded =
+            hex::decode(value).map_err(|_| Phase1InboundMediaError::InvalidConfiguration)?;
+        let bytes: [u8; 32] = decoded
+            .try_into()
+            .map_err(|_| Phase1InboundMediaError::InvalidConfiguration)?;
+        Self::new(bytes)
+    }
+
+    pub const fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    pub fn to_hex(self) -> String {
+        hex::encode(self.0)
+    }
+
+    fn validate(self) -> Result<(), Phase1InboundMediaError> {
+        Self::new(self.0).map(|_| ())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(transparent)]
+pub struct Phase1MediaArtifactId([u8; 32]);
+
+impl Phase1MediaArtifactId {
+    pub fn parse(value: &str) -> Result<Self, Phase1InboundMediaError> {
+        let hash = Sha256::from_hex(value).map_err(|_| Phase1InboundMediaError::InvalidDigest)?;
+        Ok(Self(*hash.as_bytes()))
+    }
+
+    pub const fn from_sha256(value: Sha256) -> Self {
+        Self(*value.as_bytes())
+    }
+
+    pub const fn as_bytes(&self) -> &[u8; 32] {
+        &self.0
+    }
+
+    pub fn to_hex(self) -> String {
+        hex::encode(self.0)
+    }
+}
+
+/// Signed-event media facts. These facts do not imply that any bytes were
+/// fetched, trusted, stored, or rendered.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Phase1StructuralMediaReference {
+    schema_version: u16,
+    source_url: String,
+    expected_sha256: Option<String>,
+    expected_media_type: Option<String>,
+    expected_width: Option<u32>,
+    expected_height: Option<u32>,
+    expected_byte_size: Option<u64>,
+    alt: Option<String>,
+    fingerprint: [u8; 32],
+}
+
+impl Phase1StructuralMediaReference {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        source_url: impl Into<String>,
+        expected_sha256: Option<String>,
+        expected_media_type: Option<String>,
+        expected_width: Option<u32>,
+        expected_height: Option<u32>,
+        expected_byte_size: Option<u64>,
+        alt: Option<String>,
+    ) -> Result<Self, Phase1InboundMediaError> {
+        let source_url = source_url.into();
+        validate_url_text(&source_url)?;
+        let parsed =
+            url::Url::parse(&source_url).map_err(|_| Phase1InboundMediaError::InvalidReference)?;
+        if !matches!(parsed.scheme(), "http" | "https")
+            || parsed.host_str().is_none()
+            || !parsed.username().is_empty()
+            || parsed.password().is_some()
+            || parsed.as_str() != source_url
+        {
+            return Err(Phase1InboundMediaError::InvalidReference);
+        }
+        let path_digest = BlobUrl::parse(&source_url)
+            .ok()
+            .map(|value| value.hash_path().hash().to_hex());
+        let expected_sha256 = match expected_sha256 {
+            Some(value) => {
+                let digest =
+                    Sha256::from_hex(&value).map_err(|_| Phase1InboundMediaError::InvalidDigest)?;
+                if digest.to_hex() != value
+                    || path_digest
+                        .as_deref()
+                        .is_some_and(|path| digest.to_hex() != path)
+                {
+                    return Err(Phase1InboundMediaError::MetadataMismatch);
+                }
+                Some(value)
+            }
+            None => path_digest,
+        };
+        let expected_media_type = expected_media_type
+            .map(|value| {
+                MediaType::parse(&value)
+                    .map(|parsed| parsed.to_string())
+                    .map_err(|_| Phase1InboundMediaError::InvalidMediaType)
+            })
+            .transpose()?;
+        validate_dimensions(expected_width, expected_height)?;
+        if expected_byte_size == Some(0) {
+            return Err(Phase1InboundMediaError::InvalidByteSize);
+        }
+        if alt.as_deref().is_some_and(|value| {
+            value.len() > MEDIA_ALT_MAX_BYTES || value.chars().any(char::is_control)
+        }) {
+            return Err(Phase1InboundMediaError::InvalidAlt);
+        }
+        let mut value = Self {
+            schema_version: MEDIA_REFERENCE_SCHEMA_VERSION,
+            source_url: parsed.to_string(),
+            expected_sha256,
+            expected_media_type,
+            expected_width,
+            expected_height,
+            expected_byte_size,
+            alt,
+            fingerprint: [0; 32],
+        };
+        value.fingerprint = value.derive_fingerprint();
+        Ok(value)
+    }
+
+    fn validate(&self) -> Result<(), Phase1InboundMediaError> {
+        if self.schema_version != MEDIA_REFERENCE_SCHEMA_VERSION {
+            return Err(Phase1InboundMediaError::UnsupportedSchema);
+        }
+        let canonical = Self::new(
+            self.source_url.clone(),
+            self.expected_sha256.clone(),
+            self.expected_media_type.clone(),
+            self.expected_width,
+            self.expected_height,
+            self.expected_byte_size,
+            self.alt.clone(),
+        )?;
+        (canonical == *self)
+            .then_some(())
+            .ok_or(Phase1InboundMediaError::CorruptState)
+    }
+
+    fn derive_fingerprint(&self) -> [u8; 32] {
+        let mut digest = Sha256Hasher::new();
+        digest.update(MEDIA_REFERENCE_FINGERPRINT_DOMAIN);
+        digest.update(self.source_url.as_bytes());
+        update_optional(&mut digest, self.expected_sha256.as_deref());
+        update_optional(&mut digest, self.expected_media_type.as_deref());
+        update_optional_u64(&mut digest, self.expected_width.map(u64::from));
+        update_optional_u64(&mut digest, self.expected_height.map(u64::from));
+        update_optional_u64(&mut digest, self.expected_byte_size);
+        update_optional(&mut digest, self.alt.as_deref());
+        digest.finalize().into()
+    }
+
+    pub fn source_url(&self) -> &str {
+        self.source_url.as_str()
+    }
+
+    pub fn expected_sha256(&self) -> Option<&str> {
+        self.expected_sha256.as_deref()
+    }
+
+    pub fn expected_media_type(&self) -> Option<&str> {
+        self.expected_media_type.as_deref()
+    }
+
+    pub const fn expected_width(&self) -> Option<u32> {
+        self.expected_width
+    }
+
+    pub const fn expected_height(&self) -> Option<u32> {
+        self.expected_height
+    }
+
+    pub const fn expected_byte_size(&self) -> Option<u64> {
+        self.expected_byte_size
+    }
+
+    pub fn alt(&self) -> Option<&str> {
+        self.alt.as_deref()
+    }
+
+    pub const fn fingerprint(&self) -> &[u8; 32] {
+        &self.fingerprint
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Phase1InboundMediaPending {
+    operation_id: [u8; 16],
+    configuration: Phase1MediaConfigurationFingerprint,
+    started_at_unix_ms: u64,
+}
+
+impl Phase1InboundMediaPending {
+    pub fn new(
+        operation_id: [u8; 16],
+        configuration: Phase1MediaConfigurationFingerprint,
+        started_at_unix_ms: u64,
+    ) -> Result<Self, Phase1InboundMediaError> {
+        configuration.validate()?;
+        if operation_id == [0; 16] || started_at_unix_ms == 0 {
+            return Err(Phase1InboundMediaError::InvalidOperation);
+        }
+        Ok(Self {
+            operation_id,
+            configuration,
+            started_at_unix_ms,
+        })
+    }
+
+    pub const fn operation_id(&self) -> &[u8; 16] {
+        &self.operation_id
+    }
+
+    pub const fn configuration(&self) -> Phase1MediaConfigurationFingerprint {
+        self.configuration
+    }
+
+    pub const fn started_at_unix_ms(&self) -> u64 {
+        self.started_at_unix_ms
+    }
+
+    fn validate(&self) -> Result<(), Phase1InboundMediaError> {
+        Self::new(
+            self.operation_id,
+            self.configuration,
+            self.started_at_unix_ms,
+        )
+        .map(|_| ())
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Phase1InboundMediaFailure {
+    operation_id: [u8; 16],
+    safe_code: String,
+    retryable: bool,
+    failed_at_unix_ms: u64,
+}
+
+impl Phase1InboundMediaFailure {
+    pub fn new(
+        operation_id: [u8; 16],
+        safe_code: impl Into<String>,
+        retryable: bool,
+        failed_at_unix_ms: u64,
+    ) -> Result<Self, Phase1InboundMediaError> {
+        let safe_code = safe_code.into();
+        if operation_id == [0; 16]
+            || failed_at_unix_ms == 0
+            || safe_code.is_empty()
+            || safe_code.len() > MEDIA_FAILURE_CODE_MAX_BYTES
+            || !safe_code
+                .bytes()
+                .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
+        {
+            return Err(Phase1InboundMediaError::InvalidFailure);
+        }
+        Ok(Self {
+            operation_id,
+            safe_code,
+            retryable,
+            failed_at_unix_ms,
+        })
+    }
+
+    pub fn safe_code(&self) -> &str {
+        self.safe_code.as_str()
+    }
+
+    pub const fn retryable(&self) -> bool {
+        self.retryable
+    }
+
+    fn validate(&self) -> Result<(), Phase1InboundMediaError> {
+        Self::new(
+            self.operation_id,
+            self.safe_code.clone(),
+            self.retryable,
+            self.failed_at_unix_ms,
+        )
+        .map(|_| ())
+    }
+}
+
+/// Exact-byte verification evidence. Construction requires a byte commitment,
+/// binds every signed expected field, and derives the artifact identity from
+/// the observed digest rather than caller input.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Phase1VerifiedMediaReceipt {
+    schema_version: u16,
+    reference_fingerprint: [u8; 32],
+    source_url: String,
+    canonical_final_url: String,
+    expected_sha256: String,
+    observed_sha256: String,
+    byte_size: u64,
+    media_type: String,
+    extension: String,
+    width: u32,
+    height: u32,
+    artifact_id: Phase1MediaArtifactId,
+    configuration: Phase1MediaConfigurationFingerprint,
+    verified_at_unix_ms: u64,
+}
+
+impl Phase1VerifiedMediaReceipt {
+    pub fn from_commitment(
+        reference: &Phase1StructuralMediaReference,
+        canonical_final_url: BlobUrl,
+        commitment: &ByteCommitment,
+        width: u32,
+        height: u32,
+        configuration: Phase1MediaConfigurationFingerprint,
+        verified_at_unix_ms: u64,
+    ) -> Result<Self, Phase1InboundMediaError> {
+        reference.validate()?;
+        configuration.validate()?;
+        if verified_at_unix_ms == 0 {
+            return Err(Phase1InboundMediaError::InvalidVerificationTime);
+        }
+        BlobUrl::parse(reference.source_url())
+            .and_then(BlobUrl::approve)
+            .map_err(|_| Phase1InboundMediaError::InvalidReference)?;
+        canonical_final_url
+            .clone()
+            .approve()
+            .map_err(|_| Phase1InboundMediaError::InvalidReference)?;
+        validate_dimensions(Some(width), Some(height))?;
+        let observed_sha256 = commitment.sha256().to_hex();
+        let expected_sha256 = reference
+            .expected_sha256()
+            .ok_or(Phase1InboundMediaError::MissingDigest)?;
+        if observed_sha256 != expected_sha256
+            || reference
+                .expected_byte_size()
+                .is_some_and(|value| value != commitment.size())
+            || reference
+                .expected_media_type()
+                .is_some_and(|value| value != commitment.media_type().to_string())
+            || reference
+                .expected_width()
+                .is_some_and(|value| value != width)
+            || reference
+                .expected_height()
+                .is_some_and(|value| value != height)
+        {
+            return Err(Phase1InboundMediaError::MetadataMismatch);
+        }
+        let extension = canonical_final_url
+            .hash_path()
+            .extension()
+            .ok_or(Phase1InboundMediaError::InvalidReference)?
+            .as_str()
+            .to_owned();
+        if canonical_final_url.hash_path().hash() != commitment.sha256() {
+            return Err(Phase1InboundMediaError::MetadataMismatch);
+        }
+        let receipt = Self {
+            schema_version: MEDIA_RECEIPT_SCHEMA_VERSION,
+            reference_fingerprint: *reference.fingerprint(),
+            source_url: reference.source_url().to_owned(),
+            canonical_final_url: canonical_final_url.to_string(),
+            expected_sha256: expected_sha256.to_owned(),
+            observed_sha256,
+            byte_size: commitment.size(),
+            media_type: commitment.media_type().to_string(),
+            extension,
+            width,
+            height,
+            artifact_id: Phase1MediaArtifactId::from_sha256(commitment.sha256()),
+            configuration,
+            verified_at_unix_ms,
+        };
+        receipt.validate(reference)?;
+        Ok(receipt)
+    }
+
+    fn validate(
+        &self,
+        reference: &Phase1StructuralMediaReference,
+    ) -> Result<(), Phase1InboundMediaError> {
+        self.validate_intrinsic()?;
+        if self.reference_fingerprint != *reference.fingerprint()
+            || self.source_url != reference.source_url()
+            || reference.expected_sha256() != Some(self.expected_sha256.as_str())
+        {
+            return Err(Phase1InboundMediaError::CorruptReceipt);
+        }
+        BlobUrl::parse(reference.source_url())
+            .and_then(BlobUrl::approve)
+            .map_err(|_| Phase1InboundMediaError::CorruptReceipt)?;
+        if reference
+            .expected_byte_size()
+            .is_some_and(|value| value != self.byte_size)
+            || reference
+                .expected_media_type()
+                .is_some_and(|value| value != self.media_type)
+            || reference
+                .expected_width()
+                .is_some_and(|value| value != self.width)
+            || reference
+                .expected_height()
+                .is_some_and(|value| value != self.height)
+        {
+            return Err(Phase1InboundMediaError::CorruptReceipt);
+        }
+        Ok(())
+    }
+
+    fn validate_intrinsic(&self) -> Result<(), Phase1InboundMediaError> {
+        if self.schema_version != MEDIA_RECEIPT_SCHEMA_VERSION
+            || self.expected_sha256 != self.observed_sha256
+            || self.expected_sha256 != self.artifact_id.to_hex()
+            || self.byte_size == 0
+            || self.verified_at_unix_ms == 0
+        {
+            return Err(Phase1InboundMediaError::CorruptReceipt);
+        }
+        self.configuration
+            .validate()
+            .map_err(|_| Phase1InboundMediaError::CorruptReceipt)?;
+        let final_url = BlobUrl::parse(&self.canonical_final_url)
+            .map_err(|_| Phase1InboundMediaError::CorruptReceipt)?;
+        final_url
+            .clone()
+            .approve()
+            .map_err(|_| Phase1InboundMediaError::CorruptReceipt)?;
+        if final_url.to_string() != self.canonical_final_url
+            || final_url.hash_path().hash().to_hex() != self.observed_sha256
+            || final_url
+                .hash_path()
+                .extension()
+                .is_none_or(|value| value.as_str() != self.extension)
+            || !canonical_media_type(&self.media_type)
+            || validate_dimensions(Some(self.width), Some(self.height)).is_err()
+        {
+            return Err(Phase1InboundMediaError::CorruptReceipt);
+        }
+        Ok(())
+    }
+
+    pub const fn artifact_id(&self) -> Phase1MediaArtifactId {
+        self.artifact_id
+    }
+
+    pub const fn configuration(&self) -> Phase1MediaConfigurationFingerprint {
+        self.configuration
+    }
+
+    pub fn canonical_final_url(&self) -> &str {
+        self.canonical_final_url.as_str()
+    }
+
+    pub fn observed_sha256(&self) -> &str {
+        self.observed_sha256.as_str()
+    }
+
+    pub const fn byte_size(&self) -> u64 {
+        self.byte_size
+    }
+
+    pub fn media_type(&self) -> &str {
+        self.media_type.as_str()
+    }
+
+    pub fn extension(&self) -> &str {
+        self.extension.as_str()
+    }
+
+    pub const fn width(&self) -> u32 {
+        self.width
+    }
+
+    pub const fn height(&self) -> u32 {
+        self.height
+    }
+}
+
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", tag = "state", content = "evidence")]
+pub enum Phase1InboundMediaState {
+    #[default]
+    Unavailable,
+    Pending(Phase1InboundMediaPending),
+    Failed(Phase1InboundMediaFailure),
+    Verified(Box<Phase1VerifiedMediaReceipt>),
+}
+
+/// Public media model: signed structure plus local retrieval evidence.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct MediaReference {
+    structural: Phase1StructuralMediaReference,
+    retrieval: Phase1InboundMediaState,
+}
+
+impl MediaReference {
+    pub fn new(
+        structural: Phase1StructuralMediaReference,
+    ) -> Result<Self, Phase1InboundMediaError> {
+        structural.validate()?;
+        Ok(Self {
+            structural,
+            retrieval: Phase1InboundMediaState::Unavailable,
+        })
+    }
+
+    pub(crate) fn legacy_unavailable(
+        source_url: String,
+        expected_sha256: Option<String>,
+        expected_media_type: Option<String>,
+        expected_width: Option<u32>,
+        expected_height: Option<u32>,
+        expected_byte_size: Option<u64>,
+        alt: Option<String>,
+    ) -> Result<Self, Phase1InboundMediaError> {
+        Self::new(Phase1StructuralMediaReference::new(
+            source_url,
+            expected_sha256,
+            expected_media_type,
+            expected_width,
+            expected_height,
+            expected_byte_size,
+            alt,
+        )?)
+    }
+
+    pub fn structural(&self) -> &Phase1StructuralMediaReference {
+        &self.structural
+    }
+
+    pub const fn retrieval(&self) -> &Phase1InboundMediaState {
+        &self.retrieval
+    }
+
+    pub(crate) fn validate(&self) -> Result<(), Phase1InboundMediaError> {
+        self.structural.validate()?;
+        match &self.retrieval {
+            Phase1InboundMediaState::Unavailable => Ok(()),
+            Phase1InboundMediaState::Pending(value) => value.validate(),
+            Phase1InboundMediaState::Failed(value) => value.validate(),
+            Phase1InboundMediaState::Verified(value) => value.validate(&self.structural),
+        }
+    }
+
+    pub(crate) fn restore(
+        &mut self,
+        retrieval: Phase1InboundMediaState,
+        cache: &Phase1MediaCacheIndex,
+    ) -> Result<(), Phase1InboundMediaError> {
+        let mut candidate = self.clone();
+        candidate.retrieval = retrieval;
+        candidate.validate()?;
+        if let Phase1InboundMediaState::Verified(receipt) = &candidate.retrieval
+            && !cache.contains(receipt)
+        {
+            candidate.retrieval = Phase1InboundMediaState::Unavailable;
+        }
+        *self = candidate;
+        Ok(())
+    }
+
+    pub fn begin(
+        &mut self,
+        pending: Phase1InboundMediaPending,
+    ) -> Result<(), Phase1InboundMediaError> {
+        self.structural.validate()?;
+        pending.validate()?;
+        self.retrieval = Phase1InboundMediaState::Pending(pending);
+        Ok(())
+    }
+
+    pub fn fail(
+        &mut self,
+        failure: Phase1InboundMediaFailure,
+    ) -> Result<(), Phase1InboundMediaError> {
+        failure.validate()?;
+        match &self.retrieval {
+            Phase1InboundMediaState::Pending(pending)
+                if pending.operation_id == failure.operation_id =>
+            {
+                self.retrieval = Phase1InboundMediaState::Failed(failure);
+                Ok(())
+            }
+            _ => Err(Phase1InboundMediaError::OperationMismatch),
+        }
+    }
+
+    pub fn verify(
+        &mut self,
+        operation_id: [u8; 16],
+        receipt: Phase1VerifiedMediaReceipt,
+    ) -> Result<(), Phase1InboundMediaError> {
+        let Phase1InboundMediaState::Pending(pending) = &self.retrieval else {
+            return Err(Phase1InboundMediaError::OperationMismatch);
+        };
+        if pending.operation_id != operation_id || pending.configuration != receipt.configuration {
+            return Err(Phase1InboundMediaError::OperationMismatch);
+        }
+        receipt.validate(&self.structural)?;
+        self.retrieval = Phase1InboundMediaState::Verified(Box::new(receipt));
+        Ok(())
+    }
+
+    pub fn invalidate(&mut self) -> Option<Phase1MediaArtifactId> {
+        let artifact = match &self.retrieval {
+            Phase1InboundMediaState::Verified(receipt) => Some(receipt.artifact_id),
+            _ => None,
+        };
+        self.retrieval = Phase1InboundMediaState::Unavailable;
+        artifact
+    }
+
+    pub fn is_renderable_with(
+        &self,
+        cache: &Phase1MediaCacheIndex,
+        configuration: Phase1MediaConfigurationFingerprint,
+    ) -> bool {
+        match &self.retrieval {
+            Phase1InboundMediaState::Verified(receipt)
+                if receipt.configuration == configuration =>
+            {
+                cache.contains(receipt)
+            }
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Phase1MediaCachePolicy {
+    max_bytes: u64,
+    max_artifacts: u32,
+}
+
+impl Phase1MediaCachePolicy {
+    pub fn new(max_bytes: u64, max_artifacts: u32) -> Result<Self, Phase1InboundMediaError> {
+        if max_bytes == 0 || max_artifacts == 0 {
+            return Err(Phase1InboundMediaError::InvalidCachePolicy);
+        }
+        Ok(Self {
+            max_bytes,
+            max_artifacts,
+        })
+    }
+
+    pub const fn max_bytes(&self) -> u64 {
+        self.max_bytes
+    }
+
+    pub const fn max_artifacts(&self) -> u32 {
+        self.max_artifacts
+    }
+}
+
+impl Default for Phase1MediaCachePolicy {
+    fn default() -> Self {
+        Self {
+            max_bytes: 256 * 1024 * 1024,
+            max_artifacts: 2_000,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+struct Phase1MediaCacheEntry {
+    artifact_id: Phase1MediaArtifactId,
+    byte_size: u64,
+    media_type: String,
+    extension: String,
+    width: u32,
+    height: u32,
+    cached_at_unix_ms: u64,
+    last_accessed_at_unix_ms: u64,
+}
+
+impl Phase1MediaCacheEntry {
+    fn from_receipt(
+        receipt: &Phase1VerifiedMediaReceipt,
+        cached_at_unix_ms: u64,
+    ) -> Result<Self, Phase1InboundMediaError> {
+        if cached_at_unix_ms < receipt.verified_at_unix_ms {
+            return Err(Phase1InboundMediaError::InvalidCacheObservation);
+        }
+        Ok(Self {
+            artifact_id: receipt.artifact_id,
+            byte_size: receipt.byte_size,
+            media_type: receipt.media_type.clone(),
+            extension: receipt.extension.clone(),
+            width: receipt.width,
+            height: receipt.height,
+            cached_at_unix_ms,
+            last_accessed_at_unix_ms: cached_at_unix_ms,
+        })
+    }
+
+    fn matches(&self, receipt: &Phase1VerifiedMediaReceipt) -> bool {
+        self.artifact_id == receipt.artifact_id
+            && self.byte_size == receipt.byte_size
+            && self.media_type == receipt.media_type
+            && self.extension == receipt.extension
+            && self.width == receipt.width
+            && self.height == receipt.height
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct Phase1MediaCacheIndex {
+    schema_version: u16,
+    configuration: Option<Phase1MediaConfigurationFingerprint>,
+    entries: BTreeMap<String, Phase1MediaCacheEntry>,
+}
+
+impl Default for Phase1MediaCacheIndex {
+    fn default() -> Self {
+        Self {
+            schema_version: MEDIA_CACHE_SCHEMA_VERSION,
+            configuration: None,
+            entries: BTreeMap::new(),
+        }
+    }
+}
+
+impl Phase1MediaCacheIndex {
+    pub fn admit(
+        &mut self,
+        receipt: &Phase1VerifiedMediaReceipt,
+        policy: Phase1MediaCachePolicy,
+        cached_at_unix_ms: u64,
+    ) -> Result<Vec<Phase1MediaArtifactId>, Phase1InboundMediaError> {
+        self.validate()?;
+        receipt.validate_intrinsic()?;
+        if receipt.byte_size > policy.max_bytes {
+            return Err(Phase1InboundMediaError::CacheQuotaExceeded);
+        }
+        if self
+            .configuration
+            .is_some_and(|value| value != receipt.configuration)
+        {
+            return Err(Phase1InboundMediaError::ConfigurationMismatch);
+        }
+        self.configuration = Some(receipt.configuration);
+        let key = receipt.artifact_id.to_hex();
+        let entry = Phase1MediaCacheEntry::from_receipt(receipt, cached_at_unix_ms)?;
+        if self
+            .entries
+            .get(&key)
+            .is_some_and(|existing| !existing.matches(receipt))
+        {
+            return Err(Phase1InboundMediaError::ArtifactCollision);
+        }
+        self.entries.insert(key, entry);
+        let mut evicted = Vec::new();
+        while self.entries.len() > policy.max_artifacts as usize
+            || self.total_bytes()? > policy.max_bytes
+        {
+            let oldest = self
+                .entries
+                .iter()
+                .min_by_key(|(key, entry)| (entry.last_accessed_at_unix_ms, key.as_str()))
+                .map(|(key, _)| key.clone())
+                .ok_or(Phase1InboundMediaError::CorruptState)?;
+            let removed = self
+                .entries
+                .remove(&oldest)
+                .ok_or(Phase1InboundMediaError::CorruptState)?;
+            evicted.push(removed.artifact_id);
+        }
+        Ok(evicted)
+    }
+
+    pub fn contains(&self, receipt: &Phase1VerifiedMediaReceipt) -> bool {
+        self.schema_version == MEDIA_CACHE_SCHEMA_VERSION
+            && self.configuration == Some(receipt.configuration)
+            && self
+                .entries
+                .get(&receipt.artifact_id.to_hex())
+                .is_some_and(|entry| entry.matches(receipt))
+    }
+
+    pub fn touch(
+        &mut self,
+        artifact_id: Phase1MediaArtifactId,
+        observed_at_unix_ms: u64,
+    ) -> Result<bool, Phase1InboundMediaError> {
+        if observed_at_unix_ms == 0 {
+            return Err(Phase1InboundMediaError::InvalidCacheObservation);
+        }
+        let Some(entry) = self.entries.get_mut(&artifact_id.to_hex()) else {
+            return Ok(false);
+        };
+        entry.last_accessed_at_unix_ms = entry.last_accessed_at_unix_ms.max(observed_at_unix_ms);
+        Ok(true)
+    }
+
+    pub fn invalidate_artifact(&mut self, artifact_id: Phase1MediaArtifactId) -> bool {
+        self.entries.remove(&artifact_id.to_hex()).is_some()
+    }
+
+    pub fn invalidate_configuration(
+        &mut self,
+        configuration: Phase1MediaConfigurationFingerprint,
+    ) -> Vec<Phase1MediaArtifactId> {
+        if self
+            .configuration
+            .is_none_or(|current| current == configuration)
+        {
+            self.configuration = Some(configuration);
+            return Vec::new();
+        }
+        let removed = self
+            .entries
+            .values()
+            .map(|entry| entry.artifact_id)
+            .collect();
+        self.entries.clear();
+        self.configuration = Some(configuration);
+        removed
+    }
+
+    pub fn artifact_count(&self) -> u32 {
+        self.entries.len().try_into().unwrap_or(u32::MAX)
+    }
+
+    pub fn total_bytes(&self) -> Result<u64, Phase1InboundMediaError> {
+        self.entries.values().try_fold(0_u64, |total, entry| {
+            total
+                .checked_add(entry.byte_size)
+                .ok_or(Phase1InboundMediaError::CorruptState)
+        })
+    }
+
+    fn validate(&self) -> Result<(), Phase1InboundMediaError> {
+        if self.schema_version != MEDIA_CACHE_SCHEMA_VERSION
+            || (self.configuration.is_none() && !self.entries.is_empty())
+            || self.entries.iter().any(|(key, entry)| {
+                key != &entry.artifact_id.to_hex()
+                    || key != &hex::encode(entry.artifact_id.as_bytes())
+                    || entry.byte_size == 0
+                    || entry.cached_at_unix_ms == 0
+                    || entry.last_accessed_at_unix_ms < entry.cached_at_unix_ms
+                    || !canonical_media_type(&entry.media_type)
+                    || entry.extension.is_empty()
+                    || validate_dimensions(Some(entry.width), Some(entry.height)).is_err()
+            })
+        {
+            return Err(Phase1InboundMediaError::CorruptState);
+        }
+        if self
+            .configuration
+            .is_some_and(|value| value.validate().is_err())
+        {
+            return Err(Phase1InboundMediaError::CorruptState);
+        }
+        self.total_bytes().map(|_| ())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Phase1MediaCacheStatus {
+    pub artifacts: u32,
+    pub bytes: u64,
+    pub configuration: Option<Phase1MediaConfigurationFingerprint>,
+}
+
+impl Phase1MediaCacheIndex {
+    pub fn status(&self) -> Result<Phase1MediaCacheStatus, Phase1InboundMediaError> {
+        self.validate()?;
+        Ok(Phase1MediaCacheStatus {
+            artifacts: self.artifact_count(),
+            bytes: self.total_bytes()?,
+            configuration: self.configuration,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Error, Eq, PartialEq)]
+pub enum Phase1InboundMediaError {
+    #[error("inbound media reference is invalid")]
+    InvalidReference,
+    #[error("inbound media digest is invalid")]
+    InvalidDigest,
+    #[error("inbound media reference requires a digest")]
+    MissingDigest,
+    #[error("inbound media type is invalid")]
+    InvalidMediaType,
+    #[error("inbound media dimensions are invalid")]
+    InvalidDimensions,
+    #[error("inbound media byte size is invalid")]
+    InvalidByteSize,
+    #[error("inbound media alternative text is invalid")]
+    InvalidAlt,
+    #[error("inbound media metadata does not match verified bytes")]
+    MetadataMismatch,
+    #[error("inbound media operation is invalid")]
+    InvalidOperation,
+    #[error("inbound media operation identity does not match")]
+    OperationMismatch,
+    #[error("inbound media failure evidence is invalid")]
+    InvalidFailure,
+    #[error("inbound media configuration is invalid")]
+    InvalidConfiguration,
+    #[error("inbound media configuration changed")]
+    ConfigurationMismatch,
+    #[error("inbound media verification time is invalid")]
+    InvalidVerificationTime,
+    #[error("inbound media cache policy is invalid")]
+    InvalidCachePolicy,
+    #[error("inbound media cache observation is invalid")]
+    InvalidCacheObservation,
+    #[error("inbound media artifact exceeds cache quota")]
+    CacheQuotaExceeded,
+    #[error("inbound media artifact identity collides with different metadata")]
+    ArtifactCollision,
+    #[error("inbound media receipt is corrupt")]
+    CorruptReceipt,
+    #[error("inbound media state is corrupt")]
+    CorruptState,
+    #[error("inbound media schema version is unsupported")]
+    UnsupportedSchema,
+}
+
+fn validate_url_text(value: &str) -> Result<(), Phase1InboundMediaError> {
+    if value.is_empty()
+        || value.len() > MEDIA_URL_MAX_BYTES
+        || value.chars().any(|character| character.is_control())
+    {
+        return Err(Phase1InboundMediaError::InvalidReference);
+    }
+    Ok(())
+}
+
+fn canonical_media_type(value: &str) -> bool {
+    MediaType::parse(value).is_ok_and(|parsed| parsed.to_string() == value)
+}
+
+fn validate_dimensions(
+    width: Option<u32>,
+    height: Option<u32>,
+) -> Result<(), Phase1InboundMediaError> {
+    match (width, height) {
+        (None, None) => Ok(()),
+        (Some(width), Some(height)) if width != 0 && height != 0 => Ok(()),
+        _ => Err(Phase1InboundMediaError::InvalidDimensions),
+    }
+}
+
+fn update_optional(digest: &mut Sha256Hasher, value: Option<&str>) {
+    match value {
+        Some(value) => {
+            digest.update([1]);
+            digest.update((value.len() as u64).to_be_bytes());
+            digest.update(value.as_bytes());
+        }
+        None => digest.update([0]),
+    }
+}
+
+fn update_optional_u64(digest: &mut Sha256Hasher, value: Option<u64>) {
+    match value {
+        Some(value) => {
+            digest.update([1]);
+            digest.update(value.to_be_bytes());
+        }
+        None => digest.update([0]),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HASH: &str = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
+
+    fn reference(alt: Option<&str>) -> Phase1StructuralMediaReference {
+        Phase1StructuralMediaReference::new(
+            format!("https://media.example/{HASH}.jpg"),
+            Some(HASH.to_owned()),
+            Some("image/jpeg".to_owned()),
+            Some(2),
+            Some(3),
+            Some(5),
+            alt.map(str::to_owned),
+        )
+        .expect("reference")
+    }
+
+    fn configuration(value: u8) -> Phase1MediaConfigurationFingerprint {
+        Phase1MediaConfigurationFingerprint::new([value; 32]).expect("configuration")
+    }
+
+    fn receipt(
+        reference: &Phase1StructuralMediaReference,
+        configuration: Phase1MediaConfigurationFingerprint,
+    ) -> Phase1VerifiedMediaReceipt {
+        let commitment =
+            ByteCommitment::from_bytes(b"hello", MediaType::parse("image/jpeg").unwrap());
+        Phase1VerifiedMediaReceipt::from_commitment(
+            reference,
+            BlobUrl::parse(&format!("https://cdn.example/{HASH}.jpg")).unwrap(),
+            &commitment,
+            2,
+            3,
+            configuration,
+            10,
+        )
+        .expect("receipt")
+    }
+
+    #[test]
+    fn structural_reference_is_canonical_and_metadata_sensitive() {
+        let first = reference(Some("Harvest"));
+        let second = reference(Some("Harvest detail"));
+        assert_ne!(first.fingerprint(), second.fingerprint());
+        assert_eq!(first.expected_sha256(), Some(HASH));
+        assert!(
+            Phase1StructuralMediaReference::new(
+                format!("https://media.example/{}.jpg", "a".repeat(64)),
+                Some(HASH.to_owned()),
+                Some("image/jpeg".to_owned()),
+                Some(2),
+                Some(3),
+                Some(5),
+                None,
+            )
+            .is_err()
+        );
+        let interoperable = Phase1StructuralMediaReference::new(
+            "https://cdn.example/harvest.jpg",
+            Some(HASH.to_owned()),
+            Some("image/jpeg".to_owned()),
+            Some(2),
+            Some(3),
+            Some(5),
+            None,
+        )
+        .expect("non-Blossom NIP-92 reference remains structural");
+        assert!(
+            Phase1VerifiedMediaReceipt::from_commitment(
+                &interoperable,
+                BlobUrl::parse(&format!("https://cdn.example/{HASH}.jpg")).unwrap(),
+                &ByteCommitment::from_bytes(b"hello", MediaType::parse("image/jpeg").unwrap()),
+                2,
+                3,
+                configuration(1),
+                1,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn verified_state_requires_matching_operation_bytes_and_configuration() {
+        let structural = reference(None);
+        let mut media = MediaReference::new(structural.clone()).unwrap();
+        let pending = Phase1InboundMediaPending::new([7; 16], configuration(3), 9).unwrap();
+        media.begin(pending).unwrap();
+        assert_eq!(
+            media.verify([8; 16], receipt(&structural, configuration(3))),
+            Err(Phase1InboundMediaError::OperationMismatch)
+        );
+        media
+            .verify([7; 16], receipt(&structural, configuration(3)))
+            .unwrap();
+        assert!(matches!(
+            media.retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
+    }
+
+    #[test]
+    fn receipt_rejects_hash_size_type_and_dimension_mismatch() {
+        let expected = reference(None);
+        let wrong_bytes =
+            ByteCommitment::from_bytes(b"other", MediaType::parse("image/jpeg").unwrap());
+        assert!(
+            Phase1VerifiedMediaReceipt::from_commitment(
+                &expected,
+                BlobUrl::parse(&format!("https://cdn.example/{}.jpg", wrong_bytes.sha256()))
+                    .unwrap(),
+                &wrong_bytes,
+                2,
+                3,
+                configuration(1),
+                1,
+            )
+            .is_err()
+        );
+        let commitment =
+            ByteCommitment::from_bytes(b"hello", MediaType::parse("image/png").unwrap());
+        assert!(
+            Phase1VerifiedMediaReceipt::from_commitment(
+                &expected,
+                BlobUrl::parse(&format!("https://cdn.example/{HASH}.jpg")).unwrap(),
+                &commitment,
+                2,
+                3,
+                configuration(1),
+                1,
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn cache_is_content_addressed_bounded_lru_and_configuration_scoped() {
+        let config = configuration(4);
+        let first_reference = reference(None);
+        let first = receipt(&first_reference, config);
+        let second_hash = Sha256::digest(b"world").to_hex();
+        let second_reference = Phase1StructuralMediaReference::new(
+            format!("https://media.example/{second_hash}.jpg"),
+            Some(second_hash.clone()),
+            Some("image/jpeg".to_owned()),
+            Some(2),
+            Some(3),
+            Some(5),
+            None,
+        )
+        .unwrap();
+        let second_commitment =
+            ByteCommitment::from_bytes(b"world", MediaType::parse("image/jpeg").unwrap());
+        let second = Phase1VerifiedMediaReceipt::from_commitment(
+            &second_reference,
+            BlobUrl::parse(&format!("https://cdn.example/{second_hash}.jpg")).unwrap(),
+            &second_commitment,
+            2,
+            3,
+            config,
+            11,
+        )
+        .unwrap();
+        let mut cache = Phase1MediaCacheIndex::default();
+        let policy = Phase1MediaCachePolicy::new(5, 1).unwrap();
+        assert!(cache.admit(&first, policy, 10).unwrap().is_empty());
+        let evicted = cache.admit(&second, policy, 11).unwrap();
+        assert_eq!(evicted, vec![first.artifact_id()]);
+        assert!(!cache.contains(&first));
+        assert!(cache.contains(&second));
+        assert_eq!(cache.status().unwrap().artifacts, 1);
+        assert_eq!(
+            cache.admit(&second, policy, 12),
+            Ok(Vec::new()),
+            "idempotent cache admission remains bounded"
+        );
+        assert_eq!(
+            cache.admit(&receipt(&first_reference, configuration(5)), policy, 13,),
+            Err(Phase1InboundMediaError::ConfigurationMismatch)
+        );
+        assert_eq!(
+            cache.invalidate_configuration(configuration(5)),
+            vec![second.artifact_id()]
+        );
+        assert_eq!(cache.status().unwrap().artifacts, 0);
+    }
+
+    #[test]
+    fn persisted_receipt_and_cache_tamper_fail_closed() {
+        let structural = reference(None);
+        let config = configuration(7);
+        let mut media = MediaReference::new(structural.clone()).unwrap();
+        media
+            .begin(Phase1InboundMediaPending::new([8; 16], config, 1).unwrap())
+            .unwrap();
+        let verified = receipt(&structural, config);
+        media.verify([8; 16], verified.clone()).unwrap();
+        let mut media_value = serde_json::to_value(&media).unwrap();
+        media_value["retrieval"]["evidence"]["observedSha256"] = serde_json::json!("a".repeat(64));
+        let corrupt: MediaReference = serde_json::from_value(media_value).unwrap();
+        assert_eq!(
+            corrupt.validate(),
+            Err(Phase1InboundMediaError::CorruptReceipt)
+        );
+
+        let mut cache = Phase1MediaCacheIndex::default();
+        cache
+            .admit(&verified, Phase1MediaCachePolicy::new(10, 1).unwrap(), 12)
+            .unwrap();
+        let mut cache_value = serde_json::to_value(cache).unwrap();
+        let entry = cache_value["entries"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .next()
+            .unwrap();
+        entry["byteSize"] = serde_json::json!(0);
+        let corrupt: Phase1MediaCacheIndex = serde_json::from_value(cache_value).unwrap();
+        assert_eq!(corrupt.status(), Err(Phase1InboundMediaError::CorruptState));
+    }
+}

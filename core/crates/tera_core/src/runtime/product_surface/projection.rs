@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use super::{
     CardId, CardLifecycleState, CardSourceIdentity, ClassifiedCard, ContextAdmission,
-    LocalNetworkAdmission, MediaReference, MediaVerificationState, SupportingProfile,
+    LocalNetworkAdmission, MediaReference, Phase1StructuralMediaReference, SupportingProfile,
     TodayCardType,
 };
 
@@ -254,16 +254,15 @@ fn post_media(
         .iter()
         .filter_map(|media| {
             let dimensions = media.dimensions();
-            Some(MediaReference {
-                url: media.url()?.to_owned(),
-                sha256: media.sha256().map(str::to_owned),
-                media_type: media.media_type().map(str::to_owned),
-                width: dimensions.map(|value| value.width()),
-                height: dimensions.map(|value| value.height()),
-                byte_size: media.size(),
-                alt: media.alt().map(str::to_owned),
-                verification: MediaVerificationState::Unavailable,
-            })
+            media_reference(
+                media.url()?,
+                media.sha256().map(str::to_owned),
+                media.media_type().map(str::to_owned),
+                dimensions.map(|value| value.width()),
+                dimensions.map(|value| value.height()),
+                media.size(),
+                media.alt().map(str::to_owned),
+            )
         })
         .collect()
 }
@@ -276,16 +275,15 @@ fn food_media(
         .iter()
         .filter_map(|media| {
             let dimensions = media.dimensions();
-            Some(MediaReference {
-                url: media.url()?.to_owned(),
-                sha256: blossom_digest(media.url()?),
-                media_type: None,
-                width: dimensions.map(|value| value.width()),
-                height: dimensions.map(|value| value.height()),
-                byte_size: None,
-                alt: None,
-                verification: MediaVerificationState::Unavailable,
-            })
+            media_reference(
+                media.url()?,
+                blossom_digest(media.url()?),
+                None,
+                dimensions.map(|value| value.width()),
+                dimensions.map(|value| value.height()),
+                None,
+                None,
+            )
         })
         .collect()
 }
@@ -294,18 +292,24 @@ fn calendar_media(tags: Vec<Vec<String>>) -> Vec<MediaReference> {
     tags.into_iter()
         .find(|tag| tag.first().map(String::as_str) == Some("image"))
         .and_then(|tag| tag.get(1).cloned())
-        .map(|url| MediaReference {
-            sha256: blossom_digest(&url),
-            url,
-            media_type: None,
-            width: None,
-            height: None,
-            byte_size: None,
-            alt: None,
-            verification: MediaVerificationState::Unavailable,
-        })
+        .and_then(|url| media_reference(&url, blossom_digest(&url), None, None, None, None, None))
         .into_iter()
         .collect()
+}
+
+#[allow(clippy::too_many_arguments)]
+fn media_reference(
+    url: &str,
+    sha256: Option<String>,
+    media_type: Option<String>,
+    width: Option<u32>,
+    height: Option<u32>,
+    byte_size: Option<u64>,
+    alt: Option<String>,
+) -> Option<MediaReference> {
+    Phase1StructuralMediaReference::new(url, sha256, media_type, width, height, byte_size, alt)
+        .and_then(MediaReference::new)
+        .ok()
 }
 
 fn blossom_digest(url: &str) -> Option<String> {

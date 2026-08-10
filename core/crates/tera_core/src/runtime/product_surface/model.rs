@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use super::{CardId, ContextRank, TodayRank};
+use super::{CardId, ContextRank, MediaReference, TodayRank};
 
 /// The closed Phase 1 top-level Today taxonomy.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize)]
@@ -91,30 +91,6 @@ pub enum SupportingProfile {
     Reply,
     Comment,
     Deletion,
-}
-
-/// Local media verification never changes the canonical card type.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub enum MediaVerificationState {
-    Pending,
-    Verified,
-    Failed,
-    Unavailable,
-}
-
-/// Structural media metadata plus its separate local verification state.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct MediaReference {
-    pub url: String,
-    pub sha256: Option<String>,
-    pub media_type: Option<String>,
-    pub width: Option<u32>,
-    pub height: Option<u32>,
-    pub byte_size: Option<u64>,
-    pub alt: Option<String>,
-    pub verification: MediaVerificationState,
 }
 
 /// Tolerant profile attribution attached to cards and Me results.
@@ -271,17 +247,5 @@ mod tests {
             serde_json::to_string(&CANONICAL_TODAY_CARD_TYPES).expect("cards"),
             r#"["Update","PhotoUpdate","Ask","Event","FoodAvailability"]"#
         );
-    }
-
-    #[test]
-    fn media_state_is_independent_from_card_type() {
-        for state in [
-            MediaVerificationState::Pending,
-            MediaVerificationState::Verified,
-            MediaVerificationState::Failed,
-            MediaVerificationState::Unavailable,
-        ] {
-            assert!(!serde_json::to_string(&state).expect("state").is_empty());
-        }
     }
 }
