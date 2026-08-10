@@ -85,6 +85,7 @@ impl RuntimeBuilder {
 #[cfg(test)]
 mod tests {
     use super::RuntimeBuilder;
+    use crate::runtime::sdk::SdkRelayAccessRecord;
     use crate::runtime::store::{MobileUserStoreConfig, ProtectedDataAvailability};
 
     const PUBLIC_KEY: &str = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
@@ -128,7 +129,7 @@ mod tests {
             assert_eq!(report.state, "configured");
             assert_eq!(report.relays.len(), 1);
             assert_eq!(report.relays[0].relay_url, "wss://radroots.org");
-            assert_eq!(report.relays[0].access, "read_write");
+            assert_eq!(report.relays[0].access, SdkRelayAccessRecord::ReadWrite);
             assert_eq!(report.relays[0].read_state, "unobserved");
             assert_eq!(report.relays[0].write_state, "unobserved");
         }
@@ -154,7 +155,7 @@ mod tests {
             .expect("configured profile");
         assert_eq!(report.profile, "simulator_local");
         assert_eq!(report.relays.len(), 1);
-        assert_eq!(report.relays[0].access, "read_write");
+        assert_eq!(report.relays[0].access, SdkRelayAccessRecord::ReadWrite);
         assert!(
             runtime
                 .configure_public_relays(vec!["ws://127.0.0.1:8080".to_owned()])

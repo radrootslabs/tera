@@ -47,10 +47,11 @@ pub use outbox::{
     Phase1AddIntent, Phase1CancellationPolicy, Phase1DraftError, Phase1DraftEventTiming,
     Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot, Phase1DraftStatus,
     Phase1ExistingDraft, Phase1MediaOrphanRecord, Phase1MediaPrerequisite, Phase1MediaStage,
-    Phase1OutboxState, Phase1ProfileStatus, Phase1QueueIntent, Phase1QueuePolicy,
-    Phase1RelaySatisfaction, Phase1ReviseIntent, Phase1RevisionPhase, Phase1RevisionPolicy,
-    Phase1RevisionStatus, Phase1RevisionTarget, Phase1UploadIntent, Phase1UploadPlan,
-    phase1_new_addressable_identifier, phase1_new_operation_id, phase1_operation_now_unix_ms,
+    Phase1NativeUploadJob, Phase1OutboxState, Phase1ProfileStatus, Phase1QueueIntent,
+    Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1ReviseIntent, Phase1RevisionPhase,
+    Phase1RevisionPolicy, Phase1RevisionStatus, Phase1RevisionTarget, Phase1UploadIntent,
+    Phase1UploadPlan, phase1_new_addressable_identifier, phase1_new_operation_id,
+    phase1_operation_now_unix_ms,
 };
 pub use projection::{ProductEventClassification, ProductEventExclusion, classify_admitted_event};
 pub use ranking::{RankError, TODAY_RANK_SCHEMA_VERSION, TimeRelevance, TodayRank, TodayRankInput};

@@ -21,9 +21,15 @@ pub struct SdkStorageStatusRecord {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SdkRelayAccessRecord {
+    ReadOnly,
+    ReadWrite,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdkRelayStatusRecord {
     pub relay_url: String,
-    pub access: String,
+    pub access: SdkRelayAccessRecord,
     pub read_state: String,
     pub write_state: String,
     pub read_last_attempt_unix_ms: Option<u64>,
@@ -264,11 +270,10 @@ impl RadrootsRuntime {
                 .map(|relay| SdkRelayStatusRecord {
                     relay_url: relay.endpoint().url().to_string(),
                     access: if relay.endpoint().access().can_write() {
-                        "read_write"
+                        SdkRelayAccessRecord::ReadWrite
                     } else {
-                        "read_only"
-                    }
-                    .to_owned(),
+                        SdkRelayAccessRecord::ReadOnly
+                    },
                     read_state: relay_evidence_label(relay.read().state()).to_owned(),
                     write_state: relay_evidence_label(relay.write().state()).to_owned(),
                     read_last_attempt_unix_ms: relay.read().last_attempt_unix_ms(),

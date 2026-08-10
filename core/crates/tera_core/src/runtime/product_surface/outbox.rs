@@ -557,6 +557,39 @@ pub struct Phase1UploadPlan {
     pub updated_at_unix_ms: u64,
 }
 
+/// Immutable Rust-authorized upload job handed to a native background
+/// transfer implementation after the durable draft enters `media_uploading`.
+#[derive(Clone)]
+pub struct Phase1NativeUploadJob {
+    operation_id: [u8; 16],
+    remote_url: String,
+    authorization_header: String,
+    expected_sha256: String,
+    media_type: String,
+    byte_size: u64,
+}
+
+impl Phase1NativeUploadJob {
+    pub const fn operation_id(&self) -> [u8; 16] {
+        self.operation_id
+    }
+    pub fn remote_url(&self) -> &str {
+        self.remote_url.as_str()
+    }
+    pub fn authorization_header(&self) -> &str {
+        self.authorization_header.as_str()
+    }
+    pub fn expected_sha256(&self) -> &str {
+        self.expected_sha256.as_str()
+    }
+    pub fn media_type(&self) -> &str {
+        self.media_type.as_str()
+    }
+    pub const fn byte_size(&self) -> u64 {
+        self.byte_size
+    }
+}
+
 /// Existing published card selected for one lossless revision operation.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -588,6 +621,29 @@ impl Phase1RevisionTarget {
         };
         value.validate()?;
         Ok(value)
+    }
+
+    /// Builds a revision target from its canonical source identity while
+    /// keeping Nostr kind parsing inside the Rust protocol boundary.
+    pub fn from_source(
+        command_type: AddCommandType,
+        card_id: CardId,
+        source_event_id: impl Into<String>,
+        source_address: Option<String>,
+        author_public_key: impl Into<String>,
+    ) -> Result<Self, Phase1DraftError> {
+        let source_kind = match source_address.as_deref() {
+            Some(address) => parse_address(address)?.0,
+            None => 1,
+        };
+        Self::new(
+            command_type,
+            card_id,
+            source_event_id,
+            source_kind,
+            source_address,
+            author_public_key,
+        )
     }
 
     fn validate(&self) -> Result<(), Phase1DraftError> {
@@ -867,6 +923,7 @@ pub struct Phase1DraftStatus {
     state: Phase1OutboxState,
     card_id: CardId,
     push: Option<PushStatus>,
+    revision_policy: Option<Phase1RevisionPolicy>,
 }
 
 impl Phase1DraftStatus {
@@ -893,6 +950,9 @@ impl Phase1DraftStatus {
     }
     pub const fn push(&self) -> Option<&PushStatus> {
         self.push.as_ref()
+    }
+    pub const fn revision_policy(&self) -> Option<Phase1RevisionPolicy> {
+        self.revision_policy
     }
 }
 
@@ -1430,6 +1490,137 @@ impl RadrootsRuntime {
             plan.updated_at_unix_ms,
         )
         .await
+    }
+
+    /// Persists the upload transition and returns one immutable native job.
+    /// The authorization header is deliberately absent from durable draft
+    /// state and must never be persisted by the host.
+    pub async fn phase1_prepare_native_upload(
+        &self,
+        intent: Phase1UploadIntent,
+    ) -> Result<(Phase1DraftStatus, Phase1NativeUploadJob), Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let plan = Phase1UploadPlan::derive(now_unix_ms, phase1_random_id()?, phase1_random_id()?)?;
+        let request = radroots_sdk::transport::BlossomUploadRequest::new(
+            intent.bytes,
+            intent.media_type,
+            intent.dimensions,
+            now_unix_ms,
+        )
+        .map_err(|_| Phase1DraftError::InvalidMedia)?;
+        let blossom = self
+            .client
+            .blossom()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?
+            .ok_or(Phase1DraftError::OperationUnavailable)?;
+        let transaction = blossom
+            .prepare_upload(request)
+            .map_err(|_| Phase1DraftError::Operation)?;
+        let remote_url = transaction.expected_url().as_str().to_owned();
+        let content = radroots_blossom::authorization::AuthorizationContent::parse(
+            &plan.authorization_content,
+        )
+        .map_err(|_| Phase1DraftError::InvalidMedia)?;
+        let claim = blossom
+            .authored_upload_claim(
+                &transaction,
+                content,
+                plan.authorization_created_at_unix_s,
+                plan.authorization_lifetime_seconds,
+            )
+            .map_err(|_| Phase1DraftError::Operation)?;
+        let authorization = self
+            .phase1_authorize_blossom_upload(
+                plan.operation_id,
+                plan.artifact_id,
+                claim,
+                plan.signing_deadline_unix_ms,
+                plan.cancellation,
+            )
+            .await?;
+        let uploading = self
+            .phase1_update_draft_media(
+                intent.draft_id,
+                intent.expected_revision,
+                remote_url.as_str(),
+                Phase1MediaStage::Uploading,
+                None,
+                now_unix_ms,
+            )
+            .await?;
+        Ok((
+            uploading,
+            Phase1NativeUploadJob {
+                operation_id: plan.operation_id,
+                remote_url,
+                authorization_header: authorization.into_string(),
+                expected_sha256: transaction.request().sha256().to_string(),
+                media_type: transaction.request().media_type().as_str().to_owned(),
+                byte_size: transaction.request().byte_size(),
+            },
+        ))
+    }
+
+    /// Verifies a native BUD-02 response and canonical BUD-01 retrieval before
+    /// advancing the durable media prerequisite.
+    pub async fn phase1_complete_native_upload(
+        &self,
+        intent: Phase1UploadIntent,
+        status_code: u16,
+        response_media_type: Option<&str>,
+        response_content_encoding: Option<&str>,
+        response_body: &[u8],
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let request = radroots_sdk::transport::BlossomUploadRequest::new(
+            intent.bytes,
+            intent.media_type,
+            intent.dimensions,
+            now_unix_ms,
+        )
+        .map_err(|_| Phase1DraftError::InvalidMedia)?;
+        let blossom = self
+            .client
+            .blossom()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?
+            .ok_or(Phase1DraftError::OperationUnavailable)?;
+        let transaction = blossom
+            .prepare_upload(request)
+            .map_err(|_| Phase1DraftError::Operation)?;
+        let url = transaction.expected_url().as_str().to_owned();
+        match blossom
+            .complete_native_upload(
+                transaction,
+                status_code,
+                response_media_type,
+                response_content_encoding,
+                response_body,
+                radroots_sdk::transport::BlossomCancellation::default(),
+            )
+            .await
+        {
+            Ok(receipt) => {
+                self.phase1_complete_draft_media(
+                    intent.draft_id,
+                    intent.expected_revision,
+                    url.as_str(),
+                    receipt,
+                    now_unix_ms,
+                )
+                .await
+            }
+            Err(error) => {
+                self.phase1_fail_draft_media(
+                    intent.draft_id,
+                    intent.expected_revision,
+                    url.as_str(),
+                    &error,
+                    now_unix_ms,
+                )
+                .await?;
+                Err(Phase1DraftError::Operation)
+            }
+        }
     }
 
     /// Cancels local work with a Rust-owned transition timestamp.
@@ -2653,6 +2844,7 @@ impl RadrootsRuntime {
             .target_card_id
             .map(Ok)
             .unwrap_or_else(|| card_id(payload.command_type, integrity.plan()))?;
+        let revision_policy = payload.revision.as_ref().map(|value| value.policy);
         let push = self.push_status_for(&draft).await?;
         if draft.stage() == AuthoredDraftStage::Queued && push.is_none() {
             return Err(Phase1DraftError::Corrupt);
@@ -2667,6 +2859,7 @@ impl RadrootsRuntime {
             state,
             card_id,
             push,
+            revision_policy,
         })
     }
 
@@ -3377,11 +3570,10 @@ mod tests {
         let identifier = "market:summer:2026";
         let source = CardSourceIdentity::address(31_923, AUTHOR, identifier).unwrap();
         let target_card = CardId::derive(TodayCardType::Event, &source);
-        let target = Phase1RevisionTarget::new(
+        let target = Phase1RevisionTarget::from_source(
             AddCommandType::CreateEvent,
             target_card,
             "b".repeat(64),
-            31_923,
             Some(format!("31923:{AUTHOR}:{identifier}")),
             AUTHOR,
         )
