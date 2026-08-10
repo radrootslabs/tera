@@ -22,9 +22,9 @@ use radroots_mobile_core::runtime::{
     product_surface::{
         AddCommandType, CardLifecycleState, CreateAsk, CreateEvent, CreateFoodAvailability,
         CreatePhotoUpdate, CreateUpdate, LocalNetwork, LocalNetworkRelayPolicy, MeSnapshot,
-        MediaReference, MediaVerificationState, Phase1AddCommand, Phase1CancellationPolicy,
-        Phase1DraftEventTiming, Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot,
-        Phase1DraftStatus, Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState,
+        MediaReference, Phase1AddCommand, Phase1CancellationPolicy, Phase1DraftEventTiming,
+        Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot, Phase1DraftStatus,
+        Phase1InboundMediaState, Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState,
         Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1UploadIntent, ProfileSummary,
         SearchResult, SearchResultType, SupportingProfile, ThreadEntry, TodayCard, TodayCardType,
         TodayPage, TodayProjectionUpdate, TodayRefreshReceipt, TodayRelaySyncState,
@@ -262,13 +262,13 @@ pub enum FfiMediaVerificationState {
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
-impl From<MediaVerificationState> for FfiMediaVerificationState {
-    fn from(value: MediaVerificationState) -> Self {
+impl From<&Phase1InboundMediaState> for FfiMediaVerificationState {
+    fn from(value: &Phase1InboundMediaState) -> Self {
         match value {
-            MediaVerificationState::Pending => Self::Pending,
-            MediaVerificationState::Verified => Self::Verified,
-            MediaVerificationState::Failed => Self::Failed,
-            MediaVerificationState::Unavailable => Self::Unavailable,
+            Phase1InboundMediaState::Pending(_) => Self::Pending,
+            Phase1InboundMediaState::Verified(_) => Self::Verified,
+            Phase1InboundMediaState::Failed(_) => Self::Failed,
+            Phase1InboundMediaState::Unavailable => Self::Unavailable,
         }
     }
 }
@@ -289,16 +289,17 @@ pub struct FfiMediaReferenceRecord {
 #[cfg_attr(coverage_nightly, coverage(off))]
 impl From<MediaReference> for FfiMediaReferenceRecord {
     fn from(value: MediaReference) -> Self {
+        let structural = value.structural();
         Self {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            url: value.url,
-            sha256: value.sha256,
-            media_type: value.media_type,
-            width: value.width,
-            height: value.height,
-            byte_size: value.byte_size,
-            alt: value.alt,
-            verification: value.verification.into(),
+            url: structural.source_url().to_owned(),
+            sha256: structural.expected_sha256().map(str::to_owned),
+            media_type: structural.expected_media_type().map(str::to_owned),
+            width: structural.expected_width(),
+            height: structural.expected_height(),
+            byte_size: structural.expected_byte_size(),
+            alt: structural.alt().map(str::to_owned),
+            verification: value.retrieval().into(),
         }
     }
 }

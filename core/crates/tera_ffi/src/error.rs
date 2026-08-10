@@ -147,6 +147,7 @@ impl From<TodayError> for RadrootsAppError {
                 ("today_cursor_invalid", true, &["restart_pagination"][..])
             }
             TodayError::RuntimeUnavailable => ("today_runtime_unavailable", true, &["retry"][..]),
+            TodayError::InboundMedia(_) => ("today_media_invalid", false, &["retry_media"][..]),
             TodayError::CorruptProjection | TodayError::Serialization | TodayError::Storage(_) => {
                 ("today_state_failed", true, &["rebuild", "retry"][..])
             }
