@@ -549,6 +549,7 @@ impl Phase1VerifiedMediaReceipt {
 pub struct Phase1LocalMediaArtifact {
     artifact_id: Phase1MediaArtifactId,
     local_path: PathBuf,
+    bytes: Vec<u8>,
     byte_size: u64,
     media_type: String,
     width: u32,
@@ -578,6 +579,10 @@ impl Phase1LocalMediaArtifact {
 
     pub fn local_path(&self) -> &Path {
         self.local_path.as_path()
+    }
+
+    pub fn bytes(&self) -> &[u8] {
+        self.bytes.as_slice()
     }
 
     pub const fn byte_size(&self) -> u64 {
@@ -1067,8 +1072,8 @@ pub(crate) async fn write_verified_artifact(
     let final_path = artifact_path(directory, receipt.artifact_id, receipt.extension.as_str())?;
     match tokio::fs::symlink_metadata(&final_path).await {
         Ok(_) => {
-            verify_artifact_file(&final_path, receipt).await?;
-            return Ok(local_artifact(final_path, receipt));
+            let verified_bytes = verify_artifact_file(&final_path, receipt).await?;
+            return Ok(local_artifact(final_path, receipt, verified_bytes));
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
         Err(_) => return Err(Phase1InboundMediaError::CacheIo),
@@ -1116,8 +1121,8 @@ pub(crate) async fn write_verified_artifact(
     if write_result.is_err() {
         let _ = tokio::fs::remove_file(&temporary_path).await;
     }
-    write_result?;
-    Ok(local_artifact(final_path, receipt))
+    let verified_bytes = write_result?;
+    Ok(local_artifact(final_path, receipt, verified_bytes))
 }
 
 #[cfg(feature = "mobile-social")]
@@ -1150,8 +1155,8 @@ pub(crate) async fn verified_artifact(
     receipt.validate_intrinsic()?;
     ensure_cache_directory(directory).await?;
     let path = artifact_path(directory, receipt.artifact_id, receipt.extension.as_str())?;
-    verify_artifact_file(&path, receipt).await?;
-    Ok(local_artifact(path, receipt))
+    let verified_bytes = verify_artifact_file(&path, receipt).await?;
+    Ok(local_artifact(path, receipt, verified_bytes))
 }
 
 #[cfg(feature = "mobile-social")]
@@ -1186,7 +1191,7 @@ fn artifact_path(
 async fn verify_artifact_file(
     path: &Path,
     receipt: &Phase1VerifiedMediaReceipt,
-) -> Result<(), Phase1InboundMediaError> {
+) -> Result<Vec<u8>, Phase1InboundMediaError> {
     let metadata = tokio::fs::symlink_metadata(path)
         .await
         .map_err(|_| Phase1InboundMediaError::CorruptArtifact)?;
@@ -1202,7 +1207,7 @@ async fn verify_artifact_file(
     if Sha256::digest(bytes.as_slice()).to_hex() != receipt.observed_sha256 {
         return Err(Phase1InboundMediaError::CorruptArtifact);
     }
-    Ok(())
+    Ok(bytes)
 }
 
 #[cfg(feature = "mobile-social")]
@@ -1218,10 +1223,12 @@ async fn sync_cache_directory(directory: &Path) -> Result<(), Phase1InboundMedia
 fn local_artifact(
     local_path: PathBuf,
     receipt: &Phase1VerifiedMediaReceipt,
+    bytes: Vec<u8>,
 ) -> Phase1LocalMediaArtifact {
     Phase1LocalMediaArtifact {
         artifact_id: receipt.artifact_id,
         local_path,
+        bytes,
         byte_size: receipt.byte_size,
         media_type: receipt.media_type.clone(),
         width: receipt.width,
@@ -1549,6 +1556,7 @@ mod tests {
         let left = left.unwrap();
         let right = right.unwrap();
         assert_eq!(left, right);
+        assert_eq!(left.bytes(), bytes);
         assert_eq!(tokio::fs::read(left.local_path()).await.unwrap(), bytes);
         assert_eq!(
             std::fs::read_dir(&directory).unwrap().count(),

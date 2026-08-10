@@ -3209,6 +3209,7 @@ mod tests {
                 .starts_with(owner_directory.join("inbound_media.v1"))
         );
         assert_eq!(tokio::fs::read(artifact.local_path()).await.unwrap(), bytes);
+        assert_eq!(artifact.bytes(), bytes);
         assert!(
             !tokio::fs::symlink_metadata(artifact.local_path())
                 .await

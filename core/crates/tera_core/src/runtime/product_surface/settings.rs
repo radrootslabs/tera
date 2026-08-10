@@ -1520,7 +1520,8 @@ mod tests {
 
     #[test]
     fn settings_reject_mixed_network_environments() {
-        let settings = MobileSettings::default().with_blossom(BlossomPreferences::simulator_default());
+        let settings =
+            MobileSettings::default().with_blossom(BlossomPreferences::simulator_default());
         assert_eq!(
             ReplaceMobileSettings::new(settings.revision(), settings).unwrap_err(),
             SettingsError::NetworkEnvironmentMismatch
