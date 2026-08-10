@@ -191,6 +191,15 @@ impl From<Phase1DraftError> for RadrootsAppError {
                 ("authoring_failed", true, &["retry", "inspect_outbox"][..])
             }
             Phase1DraftError::Corrupt => ("draft_corrupt", false, &["recover_draft"][..]),
+            Phase1DraftError::ClockUnavailable => {
+                ("operation_clock_unavailable", true, &["retry"][..])
+            }
+            Phase1DraftError::DeadlineOverflow => ("operation_deadline_overflow", false, &[][..]),
+            Phase1DraftError::NoWritableRelay => (
+                "writable_relay_unavailable",
+                true,
+                &["configure_relay", "retry"][..],
+            ),
         };
         Self::failure(
             code,

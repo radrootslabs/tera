@@ -25,9 +25,10 @@ use radroots_mobile_core::runtime::{
         MediaReference, MediaVerificationState, Phase1AddCommand, Phase1CancellationPolicy,
         Phase1DraftEventTiming, Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot,
         Phase1DraftStatus, Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState,
-        Phase1QueuePolicy, Phase1RelaySatisfaction, ProfileSummary, SearchResult, SearchResultType,
-        SupportingProfile, ThreadEntry, TodayCard, TodayCardType, TodayPage, TodayProjectionUpdate,
-        TodayRefreshReceipt, TodayRelaySyncState, TodaySyncReceipt,
+        Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1UploadIntent, ProfileSummary,
+        SearchResult, SearchResultType, SupportingProfile, ThreadEntry, TodayCard, TodayCardType,
+        TodayPage, TodayProjectionUpdate, TodayRefreshReceipt, TodayRelaySyncState,
+        TodaySyncReceipt,
     },
     sdk::{
         SdkBlossomConfigurationRecord, SdkBlossomEvidenceRecord, SdkCapabilityRecord,
@@ -902,6 +903,15 @@ pub struct FfiBlossomUploadInput {
     pub updated_at_unix_ms: u64,
 }
 
+/// Minimal host input for a Rust-planned exact-byte upload attempt.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiBlossomUploadIntent {
+    pub schema_version: u16,
+    pub draft_id: String,
+    pub expected_revision: u64,
+    pub media: FfiPreparedMediaInput,
+}
+
 impl FfiAddDraftInput {
     pub(crate) fn command_and_media(
         self,
@@ -1154,6 +1164,22 @@ fn read_media_file_descriptor(
 }
 
 impl PreparedMedia {
+    pub(crate) fn into_upload_intent(
+        self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+    ) -> Result<Phase1UploadIntent, RadrootsAppError> {
+        Phase1UploadIntent::new(
+            draft_id,
+            expected_revision,
+            self.bytes,
+            self.media_type,
+            self.width,
+            self.height,
+        )
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_blossom_upload"))
+    }
+
     pub(crate) fn upload_request(
         &self,
         verified_at_unix_ms: u64,

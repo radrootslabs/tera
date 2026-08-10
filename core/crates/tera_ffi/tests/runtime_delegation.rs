@@ -1,6 +1,6 @@
 use radroots_mobile_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiBlossomEndpointAuthority, FfiBlossomHostKind,
-    FfiBlossomUploadInput, FfiCancellationPolicy, FfiDraftKind, FfiLocalNetworkRecord,
+    FfiBlossomUploadIntent, FfiCancellationPolicy, FfiDraftKind, FfiLocalNetworkRecord,
     FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord, FfiRelaySatisfaction,
     FfiRetractionDraftInput, FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION,
     RadrootsAppError,
@@ -291,17 +291,12 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     runtime
         .phase1_validate_add_draft(add.clone(), 1_800_000_001)
         .expect("valid draft");
-    let draft_id = "07".repeat(16);
     let saved = runtime
-        .phase1_save_draft(
-            draft_id.clone(),
-            add,
-            1_800_000_001,
-            None,
-            1_800_000_001_000,
-        )
+        .phase1_save_add_intent(add, None, None)
         .await
         .expect("saved draft");
+    let draft_id = saved.draft_id.clone();
+    assert_eq!(draft_id.len(), 32);
     assert_eq!(saved.state, FfiOutboxState::Draft);
     assert_eq!(saved.kind, FfiDraftKind::Add);
     assert_eq!(
@@ -325,28 +320,17 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         1
     );
     let queued = runtime
-        .phase1_queue_draft(
-            draft_id.clone(),
-            saved.revision,
-            FfiQueuePolicyRecord {
-                schema_version: MOBILE_FFI_SCHEMA_VERSION,
-                relay_urls: vec!["wss://write.example".to_owned()],
-                satisfaction: FfiRelaySatisfaction::AllAccepted,
-                delivery_deadline_unix_ms: 1_800_100_000_000,
-                cancellation: FfiCancellationPolicy::LocalCooperative,
-            },
-            1_800_000_002_000,
-        )
+        .phase1_queue_add_intent(draft_id.clone(), saved.revision)
         .await
         .expect("queued draft");
     assert_eq!(queued.state, FfiOutboxState::Queued);
     let recovered = runtime
-        .phase1_recover_draft_queue(draft_id.clone(), 1_800_000_003_000)
+        .phase1_recover_add_intent(draft_id.clone())
         .await
         .expect("recovered queue");
     assert_eq!(recovered.revision, queued.revision);
     let cancelled = runtime
-        .phase1_cancel_draft(draft_id.clone(), recovered.revision, 1_800_000_004_000)
+        .phase1_cancel_add_intent(draft_id.clone(), recovered.revision)
         .await
         .expect("cancelled draft");
     assert_eq!(cancelled.state, FfiOutboxState::Cancelled);
@@ -393,7 +377,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .expect("cancelled retraction");
     assert_eq!(cancelled_retraction.state, FfiOutboxState::Cancelled);
 
-    let upload = FfiBlossomUploadInput {
+    let upload = FfiBlossomUploadIntent {
         schema_version: MOBILE_FFI_SCHEMA_VERSION + 1,
         draft_id,
         expected_revision: cancelled.revision,
@@ -409,18 +393,9 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             alt: "unused".to_owned(),
             prepared_at_unix_s: 1_800_000_000,
         },
-        authorization_content: "Upload exact image".to_owned(),
-        authorization_created_at_unix_s: 1_800_000_000,
-        authorization_lifetime_seconds: 60,
-        operation_id: "08".repeat(16),
-        artifact_id: "09".repeat(16),
-        signing_deadline_unix_ms: 1_800_000_100_000,
-        signing_cancellation: FfiCancellationPolicy::LocalCooperative,
-        verified_at_unix_ms: 1_800_000_000_000,
-        updated_at_unix_ms: 1_800_000_005_000,
     };
     let upload_error = runtime
-        .phase1_upload_draft_media(upload.clone())
+        .phase1_upload_add_media_intent(upload.clone())
         .await
         .expect_err("unsupported upload schema");
     assert_eq!(upload_error.report().code, "unsupported_schema_version");
@@ -429,7 +404,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     invalid_id_upload.draft_id = "not-a-draft-id".to_owned();
     assert_eq!(
         runtime
-            .phase1_upload_draft_media(invalid_id_upload)
+            .phase1_upload_add_media_intent(invalid_id_upload)
             .await
             .expect_err("invalid draft id")
             .report()

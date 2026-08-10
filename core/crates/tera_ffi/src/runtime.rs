@@ -1,7 +1,9 @@
 use std::sync::Arc;
 
-use radroots_mobile_core::runtime::product_surface::LocalNetworkRelayPolicy;
-use radroots_mobile_core::runtime::product_surface::TodayPageRequest;
+use radroots_mobile_core::runtime::product_surface::{
+    LocalNetworkRelayPolicy, Phase1AddIntent, Phase1ExistingDraft, Phase1QueueIntent,
+    TodayPageRequest, phase1_new_addressable_identifier, phase1_operation_now_unix_ms,
+};
 
 use crate::dto::PreparedMedia;
 use crate::signer::HostSignerAdapter;
@@ -9,13 +11,13 @@ use crate::subscription::SubscriptionHub;
 use crate::{
     FfiAddDraftInput, FfiAddSchemaRecord, FfiBlossomConfigurationRecord,
     FfiBlossomEndpointAuthority, FfiBlossomEvidenceRecord, FfiBlossomHostKind,
-    FfiBlossomUploadInput, FfiCapabilityRecord, FfiCardAddParityRecord, FfiDraftStatusRecord,
-    FfiIdentityStatusRecord, FfiLocalNetworkRecord, FfiMeRecord, FfiQueuePolicyRecord,
-    FfiRelayStatusReportRecord, FfiRetractionDraftInput, FfiRuntimeChangeKind,
-    FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord, FfiStorageStatusRecord,
-    FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate, FfiTodayRefreshRecord,
-    FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner, RadrootsRuntimeObserver, add_schemas,
-    decode_id,
+    FfiBlossomUploadInput, FfiBlossomUploadIntent, FfiCapabilityRecord, FfiCardAddParityRecord,
+    FfiDraftStatusRecord, FfiIdentityStatusRecord, FfiLocalNetworkRecord, FfiMeRecord,
+    FfiQueuePolicyRecord, FfiRelayStatusReportRecord, FfiRetractionDraftInput,
+    FfiRuntimeChangeKind, FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord,
+    FfiStorageStatusRecord, FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate,
+    FfiTodayRefreshRecord, FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner,
+    RadrootsRuntimeObserver, add_schemas, decode_id,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
@@ -391,6 +393,55 @@ impl RadrootsRuntime {
             .map(|_| ())
     }
 
+    /// Saves one new or existing Add form while Rust owns all identity and
+    /// timestamp policy. Addressable identifiers are generated when omitted.
+    pub async fn phase1_save_add_intent(
+        &self,
+        mut input: FfiAddDraftInput,
+        existing_draft_id: Option<String>,
+        expected_revision: Option<u64>,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        if input.identifier.is_none()
+            && matches!(
+                input.command_type,
+                crate::FfiAddCommandType::CreateEvent
+                    | crate::FfiAddCommandType::CreateFoodAvailability
+            )
+        {
+            input.identifier = Some(phase1_new_addressable_identifier());
+        }
+        let authored_at_unix_s =
+            phase1_operation_now_unix_ms().map_err(RadrootsAppError::from)? / 1_000;
+        let blossom = self
+            .inner
+            .sdk_blossom_slot()
+            .map_err(RadrootsAppError::from)?;
+        let (command, media, form) =
+            input.command_media_and_form(authored_at_unix_s, blossom.as_ref())?;
+        let existing = match (existing_draft_id, expected_revision) {
+            (Some(draft_id), Some(revision)) => Some(
+                Phase1ExistingDraft::new(decode_id(&draft_id, "invalid_draft_id")?, revision)
+                    .map_err(RadrootsAppError::from)?,
+            ),
+            (None, None) => None,
+            _ => {
+                return Err(RadrootsAppError::invalid_argument("invalid_existing_draft"));
+            }
+        };
+        let status = self
+            .inner
+            .phase1_save_add_intent(
+                Phase1AddIntent::new(command, media, form, existing)
+                    .map_err(RadrootsAppError::from)?,
+            )
+            .await
+            .map_err(RadrootsAppError::from)?;
+        let draft_id = hex::encode(status.draft().draft_id().as_bytes());
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
+        Ok(status.into())
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub async fn phase1_save_draft(
         &self,
@@ -523,6 +574,25 @@ impl RadrootsRuntime {
         Ok(status.into())
     }
 
+    /// Queues with the Rust-owned active relay and settlement policy.
+    pub async fn phase1_queue_add_intent(
+        &self,
+        draft_id: String,
+        expected_revision: u64,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
+        let intent = Phase1QueueIntent::new(decoded_id, expected_revision)
+            .map_err(RadrootsAppError::from)?;
+        let status = self
+            .inner
+            .phase1_queue_add_intent(intent)
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
+        Ok(status.into())
+    }
+
     pub async fn phase1_recover_draft_queue(
         &self,
         draft_id: String,
@@ -532,6 +602,21 @@ impl RadrootsRuntime {
         let status = self
             .inner
             .phase1_recover_draft_queue(decoded_id, recovered_at_unix_ms)
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_recover_add_intent(
+        &self,
+        draft_id: String,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
+        let status = self
+            .inner
+            .phase1_recover_add_intent(decoded_id)
             .await
             .map_err(RadrootsAppError::from)?;
         self.subscriptions
@@ -614,6 +699,32 @@ impl RadrootsRuntime {
         Ok(status.into())
     }
 
+    /// Runs a Rust-planned BUD-11/BUD-02/BUD-01 upload attempt. The host
+    /// supplies only the selected bounded file handle and draft revision.
+    pub async fn phase1_upload_add_media_intent(
+        &self,
+        input: FfiBlossomUploadIntent,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION {
+            return Err(RadrootsAppError::invalid_argument(
+                "unsupported_schema_version",
+            ));
+        }
+        let draft_id = decode_id(&input.draft_id, "invalid_draft_id")?;
+        let intent = PreparedMedia::try_from(input.media)?
+            .into_upload_intent(draft_id, input.expected_revision)?;
+        let status = self
+            .inner
+            .phase1_upload_add_media_intent(intent)
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Media, Some(input.draft_id.clone()));
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(input.draft_id));
+        Ok(status.into())
+    }
+
     pub async fn phase1_cancel_draft(
         &self,
         draft_id: String,
@@ -624,6 +735,22 @@ impl RadrootsRuntime {
         let status = self
             .inner
             .phase1_cancel_draft(decoded_id, expected_revision, cancelled_at_unix_ms)
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_cancel_add_intent(
+        &self,
+        draft_id: String,
+        expected_revision: u64,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
+        let status = self
+            .inner
+            .phase1_cancel_add_intent(decoded_id, expected_revision)
             .await
             .map_err(RadrootsAppError::from)?;
         self.subscriptions
