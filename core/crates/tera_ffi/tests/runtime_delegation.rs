@@ -3,8 +3,9 @@ use radroots_mobile_ffi::{
     FfiBlossomUploadIntent, FfiCancellationPolicy, FfiDraftKind, FfiIdentityCommandKind,
     FfiIdentityCommandRecord, FfiIdentityLockState, FfiLocalNetworkRecord, FfiOutboxState,
     FfiPreparedMediaInput, FfiProfileMetadataInputRecord, FfiQueuePolicyRecord,
-    FfiRelaySatisfaction, FfiRetractionDraftInput, FfiRevisionInputRecord, FfiRevisionPhase,
-    FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError,
+    FfiRelayAccessRecord, FfiRelaySatisfaction, FfiRetractionDraftInput, FfiRevisionInputRecord,
+    FfiRevisionPhase, FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION,
+    RadrootsAppError,
 };
 
 mod support;
@@ -40,7 +41,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert_eq!(public.read_availability, "unavailable");
     assert_eq!(public.write_availability, "unavailable");
     assert_eq!(public.relays.len(), 1);
-    assert_eq!(public.relays[0].access, "read_write");
+    assert_eq!(public.relays[0].access, FfiRelayAccessRecord::ReadWrite);
     assert_eq!(public.relays[0].read_state, "unobserved");
     assert_eq!(public.relays[0].write_state, "unobserved");
 
@@ -52,7 +53,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .expect("relay status")
         .expect("public profile");
     assert_eq!(public.relays.len(), 2);
-    assert_eq!(public.relays[1].access, "read_write");
+    assert_eq!(public.relays[1].access, FfiRelayAccessRecord::ReadWrite);
     assert!(
         runtime
             .configure_public_relays(vec!["ws://127.0.0.1:7447".to_owned()])
@@ -68,7 +69,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .expect("simulator profile");
     assert_eq!(simulator.profile, "simulator_local");
     assert_eq!(simulator.relays.len(), 1);
-    assert_eq!(simulator.relays[0].access, "read_write");
+    assert_eq!(simulator.relays[0].access, FfiRelayAccessRecord::ReadWrite);
     assert!(
         runtime
             .phase1_local_network(FfiLocalNetworkRecord {
@@ -183,6 +184,22 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     for (index, item) in parity.iter().enumerate() {
         assert_eq!(item.command_type, schemas[index].command_type);
     }
+    assert_eq!(
+        schemas[1]
+            .fields
+            .iter()
+            .find(|field| field.id == "media")
+            .and_then(|field| field.max_items),
+        Some(20)
+    );
+    assert_eq!(
+        schemas[3]
+            .fields
+            .iter()
+            .find(|field| field.id == "media")
+            .and_then(|field| field.max_items),
+        Some(1)
+    );
     let local_network = runtime
         .phase1_local_network(FfiLocalNetworkRecord {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
@@ -484,10 +501,8 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     let revision = runtime
         .phase1_save_revision_intent(FfiRevisionInputRecord {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            command_type: FfiAddCommandType::CreateUpdate,
             card_id,
             source_event_id,
-            source_kind: 1,
             source_address: None,
             author_public_key: support::PUBLIC_KEY.to_owned(),
             replacement: FfiAddDraftInput {
@@ -517,6 +532,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .expect("save lossless revision intent");
     assert_eq!(revision.phase, FfiRevisionPhase::ReplacementPending);
     assert_eq!(revision.operation_id, revision.replacement.draft_id);
+    assert!(revision.replacement.is_revision);
     let cancelled_revision = runtime
         .phase1_cancel_revision(revision.operation_id.clone())
         .await

@@ -491,10 +491,8 @@ impl From<Phase1ProfileStatus> for FfiProfileStatusRecord {
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct FfiRevisionInputRecord {
     pub schema_version: u16,
-    pub command_type: crate::FfiAddCommandType,
     pub card_id: String,
     pub source_event_id: String,
-    pub source_kind: u32,
     pub source_address: Option<String>,
     pub author_public_key: String,
     pub replacement: FfiAddDraftInput,
@@ -503,12 +501,11 @@ pub struct FfiRevisionInputRecord {
 impl FfiRevisionInputRecord {
     pub(crate) fn target(&self) -> Result<Phase1RevisionTarget, RadrootsAppError> {
         require_schema(self.schema_version)?;
-        Phase1RevisionTarget::new(
-            self.command_type.into(),
+        Phase1RevisionTarget::from_source(
+            self.replacement.command_type.into(),
             radroots_mobile_core::runtime::product_surface::CardId::parse(&self.card_id)
                 .map_err(|_| RadrootsAppError::invalid_argument("invalid_card_id"))?,
             self.source_event_id.clone(),
-            self.source_kind,
             self.source_address.clone(),
             self.author_public_key.clone(),
         )

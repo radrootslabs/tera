@@ -733,6 +733,75 @@ impl RadrootsRuntime {
         Ok(status.into())
     }
 
+    /// Persists the upload transition before returning an immutable native
+    /// background-transfer job.
+    pub async fn phase1_prepare_add_media_background(
+        &self,
+        input: crate::FfiBlossomUploadIntent,
+    ) -> Result<crate::FfiNativeUploadJobRecord, RadrootsAppError> {
+        if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION {
+            return Err(RadrootsAppError::invalid_argument(
+                "unsupported_schema_version",
+            ));
+        }
+        let draft_id = decode_id(&input.draft_id, "invalid_draft_id")?;
+        let intent = PreparedMedia::try_from(input.media)?
+            .into_upload_intent(draft_id, input.expected_revision)?;
+        let (status, job) = self
+            .inner
+            .phase1_prepare_native_upload(intent)
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Media, Some(input.draft_id.clone()));
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(input.draft_id));
+        Ok(crate::FfiNativeUploadJobRecord {
+            schema_version: crate::MOBILE_FFI_SCHEMA_VERSION,
+            operation_id: hex::encode(job.operation_id()),
+            draft: status.into(),
+            remote_url: job.remote_url().to_owned(),
+            authorization_header: job.authorization_header().to_owned(),
+            expected_sha256: job.expected_sha256().to_owned(),
+            media_type: job.media_type().to_owned(),
+            byte_size: job.byte_size(),
+        })
+    }
+
+    /// Accepts only bounded native HTTP evidence; Rust performs descriptor and
+    /// exact-byte retrieval verification before advancing durable state.
+    pub async fn phase1_complete_add_media_background(
+        &self,
+        input: crate::FfiNativeUploadCompletionInput,
+    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+        if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION
+            || input.response_body.len() > 16_384
+        {
+            return Err(RadrootsAppError::invalid_argument(
+                "invalid_native_upload_completion",
+            ));
+        }
+        let draft_id = decode_id(&input.draft_id, "invalid_draft_id")?;
+        let intent = PreparedMedia::try_from(input.media)?
+            .into_upload_intent(draft_id, input.expected_revision)?;
+        let status = self
+            .inner
+            .phase1_complete_native_upload(
+                intent,
+                input.status_code,
+                input.response_media_type.as_deref(),
+                input.response_content_encoding.as_deref(),
+                input.response_body.as_slice(),
+            )
+            .await
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Media, Some(input.draft_id.clone()));
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(input.draft_id));
+        Ok(status.into())
+    }
+
     pub async fn phase1_cancel_draft(
         &self,
         draft_id: String,

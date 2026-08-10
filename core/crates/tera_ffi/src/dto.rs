@@ -32,7 +32,7 @@ use radroots_mobile_core::runtime::{
     },
     sdk::{
         SdkBlossomConfigurationRecord, SdkBlossomEvidenceRecord, SdkCapabilityRecord,
-        SdkRelayStatusRecord, SdkRelayStatusReportRecord, SdkShutdownRecord,
+        SdkRelayAccessRecord, SdkRelayStatusRecord, SdkRelayStatusReportRecord, SdkShutdownRecord,
         SdkStorageStatusRecord,
     },
 };
@@ -658,6 +658,7 @@ pub struct FfiAddFieldRecord {
     pub required: bool,
     pub choices: Vec<String>,
     pub max_bytes: Option<u64>,
+    pub max_items: Option<u16>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
@@ -681,7 +682,19 @@ pub fn add_schemas() -> Vec<FfiAddSchemaRecord> {
             required,
             choices: choices.iter().map(|value| (*value).to_owned()).collect(),
             max_bytes,
+            max_items: None,
         };
+    let media_field = |label: &str, required: bool, max_items| FfiAddFieldRecord {
+        max_items: Some(max_items),
+        ..field(
+            "media",
+            label,
+            Kind::Media,
+            required,
+            &[],
+            Some(MEDIA_FILE_MAX_BYTES),
+        )
+    };
     vec![
         FfiAddSchemaRecord {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
@@ -709,14 +722,7 @@ pub fn add_schemas() -> Vec<FfiAddSchemaRecord> {
                     &[],
                     Some(65_535),
                 ),
-                field(
-                    "media",
-                    "Photos",
-                    Kind::Media,
-                    true,
-                    &[],
-                    Some(MEDIA_FILE_MAX_BYTES),
-                ),
+                media_field("Photos", true, 20),
             ],
         },
         FfiAddSchemaRecord {
@@ -732,14 +738,7 @@ pub fn add_schemas() -> Vec<FfiAddSchemaRecord> {
                     &[],
                     Some(65_535),
                 ),
-                field(
-                    "media",
-                    "Photos",
-                    Kind::Media,
-                    false,
-                    &[],
-                    Some(MEDIA_FILE_MAX_BYTES),
-                ),
+                media_field("Photos", false, 20),
             ],
         },
         FfiAddSchemaRecord {
@@ -767,14 +766,7 @@ pub fn add_schemas() -> Vec<FfiAddSchemaRecord> {
                     &[],
                     Some(256),
                 ),
-                field(
-                    "media",
-                    "Photo",
-                    Kind::Media,
-                    false,
-                    &[],
-                    Some(MEDIA_FILE_MAX_BYTES),
-                ),
+                media_field("Photo", false, 1),
             ],
         },
         FfiAddSchemaRecord {
@@ -821,14 +813,7 @@ pub fn add_schemas() -> Vec<FfiAddSchemaRecord> {
                     &[],
                     Some(64),
                 ),
-                field(
-                    "media",
-                    "Photos",
-                    Kind::Media,
-                    false,
-                    &[],
-                    Some(MEDIA_FILE_MAX_BYTES),
-                ),
+                media_field("Photos", false, 20),
             ],
         },
     ]
@@ -913,6 +898,32 @@ pub struct FfiBlossomUploadIntent {
     pub draft_id: String,
     pub expected_revision: u64,
     pub media: FfiPreparedMediaInput,
+}
+
+/// Secret-bearing native job. Hosts may use the authorization header for the
+/// immediate OS request but must not persist it in application metadata.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiNativeUploadJobRecord {
+    pub schema_version: u16,
+    pub operation_id: String,
+    pub draft: FfiDraftStatusRecord,
+    pub remote_url: String,
+    pub authorization_header: String,
+    pub expected_sha256: String,
+    pub media_type: String,
+    pub byte_size: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiNativeUploadCompletionInput {
+    pub schema_version: u16,
+    pub draft_id: String,
+    pub expected_revision: u64,
+    pub media: FfiPreparedMediaInput,
+    pub status_code: u16,
+    pub response_media_type: Option<String>,
+    pub response_content_encoding: Option<String>,
+    pub response_body: Vec<u8>,
 }
 
 impl FfiAddDraftInput {
@@ -1647,6 +1658,7 @@ pub struct FfiDraftStatusRecord {
     pub updated_at_unix_ms: u64,
     pub media: Vec<FfiDraftMediaRecord>,
     pub settlement: Option<FfiOperationSettlementRecord>,
+    pub is_revision: bool,
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -1669,6 +1681,7 @@ impl From<Phase1DraftStatus> for FfiDraftStatusRecord {
             updated_at_unix_ms: draft.updated_at_unix_ms(),
             media: value.media().iter().map(Into::into).collect(),
             settlement: settlement.map(Into::into),
+            is_revision: value.revision_policy().is_some(),
         }
     }
 }
@@ -1822,11 +1835,17 @@ impl From<SdkStorageStatusRecord> for FfiStorageStatusRecord {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiRelayAccessRecord {
+    ReadOnly,
+    ReadWrite,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiRelayStatusRecord {
     pub schema_version: u16,
     pub relay_url: String,
-    pub access: String,
+    pub access: FfiRelayAccessRecord,
     pub read_state: String,
     pub write_state: String,
     pub read_last_attempt_unix_ms: Option<u64>,
@@ -1841,7 +1860,10 @@ impl From<SdkRelayStatusRecord> for FfiRelayStatusRecord {
         Self {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
             relay_url: value.relay_url,
-            access: value.access,
+            access: match value.access {
+                SdkRelayAccessRecord::ReadOnly => FfiRelayAccessRecord::ReadOnly,
+                SdkRelayAccessRecord::ReadWrite => FfiRelayAccessRecord::ReadWrite,
+            },
             read_state: value.read_state,
             write_state: value.write_state,
             read_last_attempt_unix_ms: value.read_last_attempt_unix_ms,
