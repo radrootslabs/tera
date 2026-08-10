@@ -124,9 +124,9 @@ mod tests {
             assert_eq!(report.state, "configured");
             assert_eq!(report.relays.len(), 1);
             assert_eq!(report.relays[0].relay_url, "wss://radroots.org");
-            assert_eq!(report.relays[0].access, "read_only");
+            assert_eq!(report.relays[0].access, "read_write");
             assert_eq!(report.relays[0].read_state, "unobserved");
-            assert_eq!(report.relays[0].write_state, "unsupported");
+            assert_eq!(report.relays[0].write_state, "unobserved");
         }
         runtime.shutdown().await.expect("shutdown");
     }
