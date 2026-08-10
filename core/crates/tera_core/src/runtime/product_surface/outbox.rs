@@ -56,6 +56,7 @@ const BLOSSOM_AUTHORIZATION_BACKDATE_SECONDS: u64 = 5;
 const BLOSSOM_AUTHORIZATION_LIFETIME_SECONDS: u64 = 5 * 60;
 const BLOSSOM_SIGNING_TIMEOUT_MS: u64 = 60 * 1_000;
 const BLOSSOM_AUTHORIZATION_CONTENT: &str = "Upload exact Radroots image";
+const REVISION_RETRACTION_REASON: &str = "Replaced by a corrected Radroots event";
 
 /// Product intent represented by one durable draft/outbox item.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -555,6 +556,218 @@ pub struct Phase1UploadPlan {
     pub updated_at_unix_ms: u64,
 }
 
+/// Existing published card selected for one lossless revision operation.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct Phase1RevisionTarget {
+    command_type: AddCommandType,
+    card_id: CardId,
+    source_event_id: String,
+    source_kind: u32,
+    source_address: Option<String>,
+    author_public_key: String,
+}
+
+impl Phase1RevisionTarget {
+    pub fn new(
+        command_type: AddCommandType,
+        card_id: CardId,
+        source_event_id: impl Into<String>,
+        source_kind: u32,
+        source_address: Option<String>,
+        author_public_key: impl Into<String>,
+    ) -> Result<Self, Phase1DraftError> {
+        let value = Self {
+            command_type,
+            card_id,
+            source_event_id: source_event_id.into(),
+            source_kind,
+            source_address,
+            author_public_key: author_public_key.into(),
+        };
+        value.validate()?;
+        Ok(value)
+    }
+
+    fn validate(&self) -> Result<(), Phase1DraftError> {
+        let author = PublicKey::from_hex(&self.author_public_key)
+            .map_err(|_| Phase1DraftError::InvalidRevision)?;
+        if author.to_hex() != self.author_public_key {
+            return Err(Phase1DraftError::InvalidRevision);
+        }
+        let event_id = radroots_event::EventId::parse(&self.source_event_id)
+            .map_err(|_| Phase1DraftError::InvalidRevision)?;
+        if event_id.to_hex() != self.source_event_id {
+            return Err(Phase1DraftError::InvalidRevision);
+        }
+        Nip09DeletionEventTarget::parse(&self.source_event_id, self.source_kind)
+            .map_err(|_| Phase1DraftError::InvalidRevision)?;
+        let addressable = matches!(self.source_kind, 30_402 | 31_922 | 31_923);
+        let source = if addressable {
+            let address = self
+                .source_address
+                .as_deref()
+                .ok_or(Phase1DraftError::InvalidRevision)?;
+            Nip09DeletionAddressTarget::parse(address)
+                .map_err(|_| Phase1DraftError::InvalidRevision)?;
+            let (kind, author, _) = parse_address(address)?;
+            if kind != self.source_kind || author != self.author_public_key {
+                return Err(Phase1DraftError::InvalidRevision);
+            }
+            let (_, _, identifier) = parse_address(address)?;
+            if format!("{kind}:{author}:{identifier}") != address {
+                return Err(Phase1DraftError::InvalidRevision);
+            }
+            CardSourceIdentity::address(kind, author, identifier)
+                .map_err(|_| Phase1DraftError::InvalidRevision)?
+        } else if self.source_kind != 1 || self.source_address.is_some() {
+            return Err(Phase1DraftError::InvalidRevision);
+        } else {
+            CardSourceIdentity::Event(event_id)
+        };
+        let command_matches = match self.command_type {
+            AddCommandType::CreateUpdate
+            | AddCommandType::CreatePhotoUpdate
+            | AddCommandType::CreateAsk => self.source_kind == 1,
+            AddCommandType::CreateEvent => matches!(self.source_kind, 31_922 | 31_923),
+            AddCommandType::CreateFoodAvailability => self.source_kind == 30_402,
+        };
+        let card_type = match self.command_type {
+            AddCommandType::CreateUpdate => TodayCardType::Update,
+            AddCommandType::CreatePhotoUpdate => TodayCardType::PhotoUpdate,
+            AddCommandType::CreateAsk => TodayCardType::Ask,
+            AddCommandType::CreateEvent => TodayCardType::Event,
+            AddCommandType::CreateFoodAvailability => TodayCardType::FoodAvailability,
+        };
+        (command_matches && CardId::derive(card_type, &source) == self.card_id)
+            .then_some(())
+            .ok_or(Phase1DraftError::InvalidRevision)
+    }
+
+    pub const fn command_type(&self) -> AddCommandType {
+        self.command_type
+    }
+
+    pub const fn card_id(&self) -> CardId {
+        self.card_id
+    }
+
+    pub fn source_event_id(&self) -> &str {
+        self.source_event_id.as_str()
+    }
+
+    pub const fn source_kind(&self) -> u32 {
+        self.source_kind
+    }
+
+    pub fn source_address(&self) -> Option<&str> {
+        self.source_address.as_deref()
+    }
+}
+
+/// Protocol-correct ordering selected from the source event kind.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Phase1RevisionPolicy {
+    ReplaceThenRetract,
+    AddressableReplacement,
+}
+
+/// One complete replacement intent. The form is the canonical lossless reopen
+/// snapshot; the command is its validated authored representation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Phase1ReviseIntent {
+    target: Phase1RevisionTarget,
+    command: Phase1AddCommand,
+    media: Vec<Phase1MediaPrerequisite>,
+    form: Phase1DraftFormSnapshot,
+}
+
+impl Phase1ReviseIntent {
+    pub fn new(
+        target: Phase1RevisionTarget,
+        command: Phase1AddCommand,
+        media: Vec<Phase1MediaPrerequisite>,
+        form: Phase1DraftFormSnapshot,
+    ) -> Result<Self, Phase1DraftError> {
+        target.validate()?;
+        if media.len() > DRAFT_MEDIA_MAX {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        form.validate(command.command_type(), &media)?;
+        let same_family = match (target.command_type(), command.command_type()) {
+            (
+                AddCommandType::CreateUpdate
+                | AddCommandType::CreatePhotoUpdate
+                | AddCommandType::CreateAsk,
+                AddCommandType::CreateUpdate
+                | AddCommandType::CreatePhotoUpdate
+                | AddCommandType::CreateAsk,
+            ) => true,
+            (left, right) => left == right,
+        };
+        if !same_family {
+            return Err(Phase1DraftError::InvalidRevision);
+        }
+        Ok(Self {
+            target,
+            command,
+            media,
+            form,
+        })
+    }
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Phase1RevisionRecord {
+    target: Phase1RevisionTarget,
+    policy: Phase1RevisionPolicy,
+    retraction_draft_id: Option<[u8; 16]>,
+}
+
+/// Honest aggregate state for a durable revision and its ordered child work.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Phase1RevisionPhase {
+    ReplacementPending,
+    ReplacementFailed,
+    RetractionPending,
+    Complete,
+    PartialEffect,
+    Cancelled,
+}
+
+#[derive(Clone, Debug)]
+pub struct Phase1RevisionStatus {
+    replacement: Phase1DraftStatus,
+    retraction: Option<Phase1DraftStatus>,
+    target: Phase1RevisionTarget,
+    policy: Phase1RevisionPolicy,
+    phase: Phase1RevisionPhase,
+}
+
+impl Phase1RevisionStatus {
+    pub const fn replacement(&self) -> &Phase1DraftStatus {
+        &self.replacement
+    }
+
+    pub const fn retraction(&self) -> Option<&Phase1DraftStatus> {
+        self.retraction.as_ref()
+    }
+
+    pub const fn target(&self) -> &Phase1RevisionTarget {
+        &self.target
+    }
+
+    pub const fn policy(&self) -> Phase1RevisionPolicy {
+        self.policy
+    }
+
+    pub const fn phase(&self) -> Phase1RevisionPhase {
+        self.phase
+    }
+}
+
 impl Phase1UploadPlan {
     fn derive(
         now_unix_ms: u64,
@@ -693,6 +906,8 @@ pub enum Phase1DraftError {
     DeadlineOverflow,
     #[error("no configured relay authorizes publication")]
     NoWritableRelay,
+    #[error("phase 1 revision input or ordering is invalid")]
+    InvalidRevision,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -709,6 +924,8 @@ struct Phase1DraftPayload {
     plan_wire_json: Vec<u8>,
     media: Vec<Phase1MediaPrerequisite>,
     queue: Option<Phase1QueuePolicy>,
+    #[serde(default)]
+    revision: Option<Phase1RevisionRecord>,
 }
 
 impl Phase1DraftPayload {
@@ -727,6 +944,7 @@ impl Phase1DraftPayload {
             plan_wire_json,
             media,
             queue: None,
+            revision: None,
         };
         value.validate()?;
         Ok(value)
@@ -746,6 +964,7 @@ impl Phase1DraftPayload {
             plan_wire_json,
             media: Vec::new(),
             queue: None,
+            revision: None,
         };
         value.validate()?;
         Ok(value)
@@ -765,7 +984,11 @@ impl Phase1DraftPayload {
                 }
             }
             Phase1DraftKind::Retraction => {
-                if self.form.is_some() || self.target_card_id.is_none() || !self.media.is_empty() {
+                if self.form.is_some()
+                    || self.target_card_id.is_none()
+                    || !self.media.is_empty()
+                    || self.revision.is_some()
+                {
                     return Err(Phase1DraftError::Corrupt);
                 }
             }
@@ -773,6 +996,37 @@ impl Phase1DraftPayload {
         let integrity = PlanWireV1::from_json(self.plan_wire_json.as_slice())
             .map_err(|_| Phase1DraftError::Corrupt)?;
         let plan = integrity.plan();
+        if let Some(revision) = &self.revision {
+            revision.target.validate()?;
+            if self.kind != Phase1DraftKind::Add {
+                return Err(Phase1DraftError::Corrupt);
+            }
+            let expected_policy = if revision.target.source_kind == 1 {
+                Phase1RevisionPolicy::ReplaceThenRetract
+            } else {
+                Phase1RevisionPolicy::AddressableReplacement
+            };
+            if revision.policy != expected_policy
+                || (expected_policy == Phase1RevisionPolicy::ReplaceThenRetract)
+                    != revision.retraction_draft_id.is_some()
+            {
+                return Err(Phase1DraftError::Corrupt);
+            }
+            if let Some(child_id) = revision.retraction_draft_id {
+                AuthoredDraftId::new(child_id).map_err(|_| Phase1DraftError::Corrupt)?;
+            }
+            if expected_policy == Phase1RevisionPolicy::AddressableReplacement
+                && (plan.body().kind() != revision.target.source_kind
+                    || card_id(self.command_type, plan)? != revision.target.card_id)
+            {
+                return Err(Phase1DraftError::InvalidRevision);
+            }
+            if expected_policy == Phase1RevisionPolicy::ReplaceThenRetract
+                && plan.body().kind() != 1
+            {
+                return Err(Phase1DraftError::InvalidRevision);
+            }
+        }
         let expected_media = media_urls(plan.body().tags())?;
         let actual_media = self
             .media
@@ -928,6 +1182,246 @@ impl RadrootsRuntime {
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         self.phase1_cancel_draft(draft_id, expected_revision, phase1_operation_now_unix_ms()?)
             .await
+    }
+
+    /// Persists the replacement half of one revision before any retraction can
+    /// exist. Standard kind-1 revisions receive a deterministic child draft ID
+    /// that remains inert until replacement settlement succeeds.
+    pub async fn phase1_save_revision_intent(
+        &self,
+        intent: Phase1ReviseIntent,
+    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let authored_at_unix_s = now_unix_ms / 1_000;
+        let author = self.draft_author()?;
+        if intent.target.author_public_key != hex::encode(author) {
+            return Err(Phase1DraftError::InvalidRevision);
+        }
+        let draft_id = AuthoredDraftId::new(phase1_random_id()?)
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let plan = intent
+            .command
+            .authored_plan(authored_at_unix_s, hex::encode(author))
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let wire = PlanWireV1::from_plan(&plan)
+            .to_json()
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let policy = if intent.target.source_kind == 1 {
+            Phase1RevisionPolicy::ReplaceThenRetract
+        } else {
+            Phase1RevisionPolicy::AddressableReplacement
+        };
+        let retraction_draft_id = match policy {
+            Phase1RevisionPolicy::ReplaceThenRetract => {
+                let child_id = phase1_random_id()?;
+                if child_id == *draft_id.as_bytes() {
+                    return Err(Phase1DraftError::OperationUnavailable);
+                }
+                Some(child_id)
+            }
+            Phase1RevisionPolicy::AddressableReplacement => None,
+        };
+        let mut payload =
+            Phase1DraftPayload::new(&intent.command, wire, intent.media, Some(intent.form))?;
+        payload.revision = Some(Phase1RevisionRecord {
+            target: intent.target,
+            policy,
+            retraction_draft_id,
+        });
+        let bytes = payload.encode()?;
+        let draft = AuthoredDraft::initial(
+            draft_id,
+            author,
+            DRAFT_PAYLOAD_SCHEMA,
+            bytes,
+            draft_stage_for_media(&payload.media),
+            None,
+            now_unix_ms,
+        )
+        .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        self.storage()?
+            .append_authored_draft(draft, None)
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.phase1_revision_status(*draft_id.as_bytes()).await
+    }
+
+    /// Reconstructs the complete ordered revision from durable replacement and
+    /// optional retraction child state after any process boundary.
+    pub async fn phase1_revision_status(
+        &self,
+        replacement_draft_id: [u8; 16],
+    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let replacement = self.phase1_draft_status(replacement_draft_id).await?;
+        let payload = Phase1DraftPayload::decode(replacement.draft())?;
+        let revision = payload.revision.ok_or(Phase1DraftError::InvalidRevision)?;
+        let retraction = match revision.retraction_draft_id {
+            Some(id) => match self.phase1_draft_status(id).await {
+                Ok(status) => {
+                    validate_revision_retraction(&status, &revision.target)?;
+                    Some(status)
+                }
+                Err(Phase1DraftError::NotFound) => None,
+                Err(error) => return Err(error),
+            },
+            None => None,
+        };
+        let phase = revision_phase(&replacement, retraction.as_ref(), revision.policy);
+        Ok(Phase1RevisionStatus {
+            replacement,
+            retraction,
+            target: revision.target,
+            policy: revision.policy,
+            phase,
+        })
+    }
+
+    /// Advances the replacement first and creates the NIP-09 child only after
+    /// all configured replacement delivery targets accepted it.
+    pub async fn phase1_advance_revision(
+        &self,
+        replacement_draft_id: [u8; 16],
+    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let mut status = self.phase1_revision_status(replacement_draft_id).await?;
+        if matches!(
+            status.replacement.state(),
+            Phase1OutboxState::Draft | Phase1OutboxState::ReadyToSign
+        ) {
+            self.phase1_queue_add_intent(Phase1QueueIntent::new(
+                replacement_draft_id,
+                status.replacement.draft().revision().get(),
+            )?)
+            .await?;
+            status = self.phase1_revision_status(replacement_draft_id).await?;
+        }
+        if matches!(
+            status.replacement.state(),
+            Phase1OutboxState::Queued
+                | Phase1OutboxState::Retryable
+                | Phase1OutboxState::PartiallyDelivered
+        ) {
+            self.phase1_advance_draft(
+                replacement_draft_id,
+                status.replacement.draft().revision().get(),
+            )
+            .await?;
+            status = self.phase1_revision_status(replacement_draft_id).await?;
+        }
+        if status.replacement.state() != Phase1OutboxState::Complete
+            || status.policy != Phase1RevisionPolicy::ReplaceThenRetract
+        {
+            return Ok(status);
+        }
+
+        let child_id =
+            revision_child_id(status.replacement.draft())?.ok_or(Phase1DraftError::Corrupt)?;
+        if status.retraction.is_none() {
+            self.phase1_create_revision_retraction(&status.target, child_id)
+                .await?;
+            status = self.phase1_revision_status(replacement_draft_id).await?;
+        }
+        let child = status
+            .retraction
+            .as_ref()
+            .ok_or(Phase1DraftError::Corrupt)?;
+        if matches!(
+            child.state(),
+            Phase1OutboxState::Draft | Phase1OutboxState::ReadyToSign
+        ) {
+            self.phase1_queue_add_intent(Phase1QueueIntent::new(
+                child_id,
+                child.draft().revision().get(),
+            )?)
+            .await?;
+            status = self.phase1_revision_status(replacement_draft_id).await?;
+        }
+        let child = status
+            .retraction
+            .as_ref()
+            .ok_or(Phase1DraftError::Corrupt)?;
+        if matches!(
+            child.state(),
+            Phase1OutboxState::Queued
+                | Phase1OutboxState::Retryable
+                | Phase1OutboxState::PartiallyDelivered
+        ) {
+            self.phase1_advance_draft(child_id, child.draft().revision().get())
+                .await?;
+        }
+        self.phase1_revision_status(replacement_draft_id).await
+    }
+
+    /// Cancels only still-pending work. If a kind-1 replacement is already
+    /// visible, a cancelled child records the deliberate partial effect and
+    /// prevents a later recovery from retracting the original unexpectedly.
+    pub async fn phase1_cancel_revision(
+        &self,
+        replacement_draft_id: [u8; 16],
+    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let mut status = self.phase1_revision_status(replacement_draft_id).await?;
+        if !matches!(
+            status.replacement.state(),
+            Phase1OutboxState::Complete
+                | Phase1OutboxState::Terminal
+                | Phase1OutboxState::Cancelled
+        ) {
+            self.phase1_cancel_add_intent(
+                replacement_draft_id,
+                status.replacement.draft().revision().get(),
+            )
+            .await?;
+            return self.phase1_revision_status(replacement_draft_id).await;
+        }
+        if status.replacement.state() == Phase1OutboxState::Complete
+            && status.policy == Phase1RevisionPolicy::ReplaceThenRetract
+        {
+            let child_id =
+                revision_child_id(status.replacement.draft())?.ok_or(Phase1DraftError::Corrupt)?;
+            if status.retraction.is_none() {
+                self.phase1_create_revision_retraction(&status.target, child_id)
+                    .await?;
+                status = self.phase1_revision_status(replacement_draft_id).await?;
+            }
+            let child = status
+                .retraction
+                .as_ref()
+                .ok_or(Phase1DraftError::Corrupt)?;
+            if !matches!(
+                child.state(),
+                Phase1OutboxState::Complete
+                    | Phase1OutboxState::Terminal
+                    | Phase1OutboxState::Cancelled
+            ) {
+                self.phase1_cancel_add_intent(child_id, child.draft().revision().get())
+                    .await?;
+            }
+        }
+        self.phase1_revision_status(replacement_draft_id).await
+    }
+
+    async fn phase1_create_revision_retraction(
+        &self,
+        target: &Phase1RevisionTarget,
+        draft_id: [u8; 16],
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        match self.phase1_draft_status(draft_id).await {
+            Ok(existing) => return Ok(existing),
+            Err(Phase1DraftError::NotFound) => {}
+            Err(error) => return Err(error),
+        }
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        self.phase1_save_retraction_draft(
+            draft_id,
+            target.command_type,
+            target.card_id,
+            &target.source_event_id,
+            target.source_kind,
+            target.source_address.as_deref(),
+            REVISION_RETRACTION_REASON,
+            now_unix_ms / 1_000,
+            now_unix_ms,
+        )
+        .await
     }
 
     /// Creates or replaces the editable content of one immutable-revision draft.
@@ -2063,6 +2557,80 @@ fn has_delivery_success(push: &PushStatus) -> bool {
     })
 }
 
+fn revision_phase(
+    replacement: &Phase1DraftStatus,
+    retraction: Option<&Phase1DraftStatus>,
+    policy: Phase1RevisionPolicy,
+) -> Phase1RevisionPhase {
+    match replacement.state() {
+        Phase1OutboxState::Cancelled => return Phase1RevisionPhase::Cancelled,
+        Phase1OutboxState::Terminal => return Phase1RevisionPhase::ReplacementFailed,
+        Phase1OutboxState::Complete => {}
+        _ => return Phase1RevisionPhase::ReplacementPending,
+    }
+    if policy == Phase1RevisionPolicy::AddressableReplacement {
+        return Phase1RevisionPhase::Complete;
+    }
+    match retraction.map(Phase1DraftStatus::state) {
+        Some(Phase1OutboxState::Complete) => Phase1RevisionPhase::Complete,
+        Some(Phase1OutboxState::Cancelled | Phase1OutboxState::Terminal) => {
+            Phase1RevisionPhase::PartialEffect
+        }
+        Some(_) | None => Phase1RevisionPhase::RetractionPending,
+    }
+}
+
+fn revision_child_id(draft: &AuthoredDraft) -> Result<Option<[u8; 16]>, Phase1DraftError> {
+    Ok(Phase1DraftPayload::decode(draft)?
+        .revision
+        .ok_or(Phase1DraftError::InvalidRevision)?
+        .retraction_draft_id)
+}
+
+fn validate_revision_retraction(
+    status: &Phase1DraftStatus,
+    target: &Phase1RevisionTarget,
+) -> Result<(), Phase1DraftError> {
+    if status.kind() != Phase1DraftKind::Retraction
+        || status.command_type() != target.command_type
+        || status.card_id() != target.card_id
+    {
+        return Err(Phase1DraftError::Corrupt);
+    }
+    let payload = Phase1DraftPayload::decode(status.draft())?;
+    let plan = PlanWireV1::from_json(payload.plan_wire_json.as_slice())
+        .map_err(|_| Phase1DraftError::Corrupt)?;
+    if plan.plan().body().kind() != 5
+        || !plan.plan().body().tags().iter().any(|tag| {
+            tag.first().map(String::as_str) == Some("e")
+                && tag.get(1).map(String::as_str) == Some(target.source_event_id())
+        })
+        || target.source_address().is_some_and(|address| {
+            !plan.plan().body().tags().iter().any(|tag| {
+                tag.first().map(String::as_str) == Some("a")
+                    && tag.get(1).map(String::as_str) == Some(address)
+            })
+        })
+    {
+        return Err(Phase1DraftError::Corrupt);
+    }
+    Ok(())
+}
+
+fn parse_address(address: &str) -> Result<(u32, &str, &str), Phase1DraftError> {
+    let mut parts = address.splitn(3, ':');
+    let kind = parts
+        .next()
+        .and_then(|value| value.parse::<u32>().ok())
+        .ok_or(Phase1DraftError::InvalidRevision)?;
+    let author = parts.next().ok_or(Phase1DraftError::InvalidRevision)?;
+    let identifier = parts.next().ok_or(Phase1DraftError::InvalidRevision)?;
+    if author.len() != 64 || identifier.is_empty() {
+        return Err(Phase1DraftError::InvalidRevision);
+    }
+    Ok((kind, author, identifier))
+}
+
 fn card_id(
     command_type: AddCommandType,
     plan: &radroots_event_codec::authoring::AuthoredEventPlan,
@@ -2137,9 +2705,13 @@ mod tests {
         CANONICAL_ADD_COMMAND_TYPES, CreateAsk, CreateEvent, CreateFoodAvailability,
         CreatePhotoUpdate, CreateUpdate,
     };
+    use crate::runtime::{
+        builder::RuntimeBuilder,
+        store::{MobileUserStoreConfig, ProtectedDataAvailability},
+    };
     use radroots_blossom::{BlobDescriptor, Sha256 as BlossomSha256};
     use radroots_event::{
-        calendar::{AuthoredCalendarDateEvent, CalendarDate},
+        calendar::{AuthoredCalendarDateEvent, AuthoredCalendarTimeEvent, CalendarDate},
         food::availability::{
             FoodAvailabilityDetails, FoodAvailabilityDetailsParts, FoodAvailabilityStatus,
             FoodContent, FoodCurrency, FoodIdentifier, FoodPrice, FoodPublishedAt, FoodText,
@@ -2339,6 +2911,347 @@ mod tests {
                 .unwrap_err(),
             Phase1DraftError::NoWritableRelay
         );
+    }
+
+    #[tokio::test]
+    async fn addressable_revision_preserves_every_form_field_and_colon_identifier() {
+        let identifier = "market:summer:2026";
+        let source = CardSourceIdentity::address(31_923, AUTHOR, identifier).unwrap();
+        let target_card = CardId::derive(TodayCardType::Event, &source);
+        let target = Phase1RevisionTarget::new(
+            AddCommandType::CreateEvent,
+            target_card,
+            "b".repeat(64),
+            31_923,
+            Some(format!("31923:{AUTHOR}:{identifier}")),
+            AUTHOR,
+        )
+        .unwrap();
+        let event = AuthoredCalendarTimeEvent::new(identifier, "Evening market", 1_900_003_600)
+            .unwrap()
+            .with_end(1_900_007_200)
+            .unwrap()
+            .with_start_tzid("America/Vancouver")
+            .unwrap()
+            .with_end_tzid("America/Vancouver")
+            .unwrap()
+            .with_locations(vec!["Town square".to_owned()])
+            .unwrap()
+            .with_description("Bring reusable bags")
+            .unwrap();
+        let form = Phase1DraftFormSnapshot {
+            command_type: AddCommandType::CreateEvent,
+            content: "Bring reusable bags".to_owned(),
+            identifier: Some(identifier.to_owned()),
+            title: Some("Evening market".to_owned()),
+            summary: Some("Local farms and neighbours".to_owned()),
+            location: Some("Town square".to_owned()),
+            event_timing: Some(Phase1DraftEventTiming::Timed),
+            event_start_date: None,
+            event_end_date: None,
+            event_start_unix_s: Some(1_900_003_600),
+            event_end_unix_s: Some(1_900_007_200),
+            event_timezone: Some("America/Vancouver".to_owned()),
+            price_amount: Some("5".to_owned()),
+            currency: Some("CAD".to_owned()),
+            unit: Some("entry".to_owned()),
+            quantity: Some("100".to_owned()),
+            food_published_at_unix_s: Some(1_900_000_000),
+            food_status: Some("active".to_owned()),
+            media: Vec::new(),
+        };
+        let runtime = runtime();
+        let saved = runtime
+            .phase1_save_revision_intent(
+                Phase1ReviseIntent::new(
+                    target.clone(),
+                    Phase1AddCommand::CreateEvent(CreateEvent::time(event)),
+                    Vec::new(),
+                    form.clone(),
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(saved.policy(), Phase1RevisionPolicy::AddressableReplacement);
+        assert_eq!(saved.phase(), Phase1RevisionPhase::ReplacementPending);
+        assert_eq!(saved.target(), &target);
+        assert_eq!(saved.replacement().card_id(), target_card);
+        assert_eq!(saved.replacement().form(), Some(&form));
+        assert!(saved.retraction().is_none());
+        assert_eq!(
+            parse_address(saved.target().source_address().unwrap())
+                .unwrap()
+                .2,
+            identifier
+        );
+    }
+
+    #[tokio::test]
+    async fn addressable_revision_rejects_identity_change_and_preserves_date_boundary() {
+        let identifier = "winter:market";
+        let target_card = CardId::derive(
+            TodayCardType::Event,
+            &CardSourceIdentity::address(31_922, AUTHOR, identifier).unwrap(),
+        );
+        let target = Phase1RevisionTarget::new(
+            AddCommandType::CreateEvent,
+            target_card,
+            "d".repeat(64),
+            31_922,
+            Some(format!("31922:{AUTHOR}:{identifier}")),
+            AUTHOR,
+        )
+        .unwrap();
+        let form = Phase1DraftFormSnapshot {
+            command_type: AddCommandType::CreateEvent,
+            content: "New Year farm market".to_owned(),
+            identifier: Some(identifier.to_owned()),
+            title: Some("Winter market".to_owned()),
+            summary: None,
+            location: Some("Barn".to_owned()),
+            event_timing: Some(Phase1DraftEventTiming::AllDay),
+            event_start_date: Some("2026-12-31".to_owned()),
+            event_end_date: Some("2027-01-01".to_owned()),
+            event_start_unix_s: None,
+            event_end_unix_s: None,
+            event_timezone: None,
+            price_amount: None,
+            currency: None,
+            unit: None,
+            quantity: None,
+            food_published_at_unix_s: None,
+            food_status: None,
+            media: Vec::new(),
+        };
+        let event = AuthoredCalendarDateEvent::new(
+            identifier,
+            "Winter market",
+            CalendarDate::parse("2026-12-31").unwrap(),
+        )
+        .unwrap()
+        .with_end(CalendarDate::parse("2027-01-01").unwrap())
+        .unwrap()
+        .with_description("New Year farm market")
+        .unwrap()
+        .with_locations(vec!["Barn".to_owned()])
+        .unwrap();
+        let runtime = runtime();
+        let saved = runtime
+            .phase1_save_revision_intent(
+                Phase1ReviseIntent::new(
+                    target.clone(),
+                    Phase1AddCommand::CreateEvent(CreateEvent::date(event)),
+                    Vec::new(),
+                    form.clone(),
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(saved.replacement().form(), Some(&form));
+
+        let changed_identity = AuthoredCalendarDateEvent::new(
+            "different-market",
+            "Winter market",
+            CalendarDate::parse("2026-12-31").unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            runtime
+                .phase1_save_revision_intent(
+                    Phase1ReviseIntent::new(
+                        target,
+                        Phase1AddCommand::CreateEvent(CreateEvent::date(changed_identity)),
+                        Vec::new(),
+                        Phase1DraftFormSnapshot {
+                            identifier: Some("different-market".to_owned()),
+                            ..form
+                        },
+                    )
+                    .unwrap(),
+                )
+                .await
+                .unwrap_err(),
+            Phase1DraftError::InvalidRevision
+        );
+    }
+
+    #[tokio::test]
+    async fn kind_one_revision_never_creates_retraction_before_replacement_acceptance() {
+        let profile = radroots_sdk::transport::RelayProfile::explicit(
+            radroots_sdk::transport::RelayProfileKind::Public,
+            [(
+                "wss://offline.example",
+                radroots_sdk::transport::RelayAccess::ReadWrite,
+            )],
+        )
+        .unwrap();
+        let signer = radroots_nostr::signing::LocalSigner::new(
+            radroots_nostr::key::SecretKey::parse(SECRET).unwrap(),
+        )
+        .unwrap();
+        let runtime = RadrootsRuntime::from_client_builder(
+            ClientBuilder::memory_default(),
+            Some(PublicKey::from_hex(AUTHOR).unwrap()),
+            Some(std::sync::Arc::new(signer)),
+            Some(profile),
+            None,
+        )
+        .unwrap();
+        let source_event_id = "b".repeat(64);
+        let source =
+            CardSourceIdentity::Event(radroots_event::EventId::parse(&source_event_id).unwrap());
+        let target = Phase1RevisionTarget::new(
+            AddCommandType::CreatePhotoUpdate,
+            CardId::derive(TodayCardType::PhotoUpdate, &source),
+            source_event_id,
+            1,
+            None,
+            AUTHOR,
+        )
+        .unwrap();
+        let (command, media) = photo_command();
+        let replacement_content = format!("Harvest photo {}", media.url());
+        let media_form = Phase1DraftMediaSnapshot {
+            opaque_reference: media.local_reference().to_owned(),
+            url: media.url().to_owned(),
+            sha256: media.sha256().to_owned(),
+            media_type: media.media_type().to_owned(),
+            byte_size: media.byte_size(),
+            width: 1200,
+            height: 900,
+            alt: "Harvest".to_owned(),
+            prepared_at_unix_s: 1_784_347_100,
+        };
+        let saved = runtime
+            .phase1_save_revision_intent(
+                Phase1ReviseIntent::new(
+                    target,
+                    command,
+                    vec![media],
+                    Phase1DraftFormSnapshot {
+                        command_type: AddCommandType::CreatePhotoUpdate,
+                        content: replacement_content,
+                        media: vec![media_form],
+                        ..update_form()
+                    },
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        let replacement_id = *saved.replacement().draft().draft_id().as_bytes();
+        assert_eq!(saved.policy(), Phase1RevisionPolicy::ReplaceThenRetract);
+        assert_eq!(saved.replacement().media().len(), 1);
+        assert_eq!(saved.replacement().form().unwrap().media.len(), 1);
+        assert!(saved.retraction().is_none());
+
+        let queued = runtime
+            .phase1_queue_add_intent(
+                Phase1QueueIntent::new(
+                    replacement_id,
+                    saved.replacement().draft().revision().get(),
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        runtime
+            .phase1_sign_queued_draft(replacement_id, queued.draft().revision().get())
+            .await
+            .unwrap();
+        let recovered = runtime
+            .phase1_revision_status(replacement_id)
+            .await
+            .unwrap();
+        assert!(recovered.retraction().is_none());
+        assert_eq!(recovered.phase(), Phase1RevisionPhase::ReplacementPending);
+
+        let cancelled = runtime
+            .phase1_cancel_revision(replacement_id)
+            .await
+            .unwrap();
+        assert_eq!(cancelled.phase(), Phase1RevisionPhase::Cancelled);
+        assert!(cancelled.retraction().is_none());
+    }
+
+    #[tokio::test]
+    async fn revision_coordinator_reopens_from_sqlite_without_losing_ordering() {
+        let root = tempfile::tempdir().unwrap();
+        let store = MobileUserStoreConfig::from_encoded(
+            root.path(),
+            AUTHOR,
+            "0404040404040404040404040404040404040404040404040404040404040404",
+            1_900_000_000_000,
+            ProtectedDataAvailability::Available,
+        )
+        .unwrap();
+        std::fs::create_dir_all(store.owner_directory()).unwrap();
+        let runtime = RuntimeBuilder::new(store.clone()).build().await.unwrap();
+        let source_event_id = "c".repeat(64);
+        let target = Phase1RevisionTarget::new(
+            AddCommandType::CreateAsk,
+            CardId::derive(
+                TodayCardType::Ask,
+                &CardSourceIdentity::Event(
+                    radroots_event::EventId::parse(&source_event_id).unwrap(),
+                ),
+            ),
+            source_event_id,
+            1,
+            None,
+            AUTHOR,
+        )
+        .unwrap();
+        let saved = runtime
+            .phase1_save_revision_intent(
+                Phase1ReviseIntent::new(
+                    target.clone(),
+                    Phase1AddCommand::CreateAsk(
+                        CreateAsk::new("Who has seed potatoes now?", Vec::new()).unwrap(),
+                    ),
+                    Vec::new(),
+                    Phase1DraftFormSnapshot {
+                        command_type: AddCommandType::CreateAsk,
+                        content: "Who has seed potatoes now?".to_owned(),
+                        ..update_form()
+                    },
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        let id = *saved.replacement().draft().draft_id().as_bytes();
+        let queued = runtime
+            .phase1_queue_draft(
+                id,
+                saved.replacement().draft().revision().get(),
+                policy(),
+                saved.replacement().draft().updated_at_unix_ms() + 1,
+            )
+            .await
+            .unwrap();
+        runtime.shutdown().await.unwrap();
+        drop(runtime);
+
+        let reopened = RuntimeBuilder::new(store).build().await.unwrap();
+        let recovered = reopened.phase1_revision_status(id).await.unwrap();
+        assert_eq!(recovered.target(), &target);
+        assert_eq!(recovered.policy(), Phase1RevisionPolicy::ReplaceThenRetract);
+        assert_eq!(recovered.phase(), Phase1RevisionPhase::ReplacementPending);
+        assert_eq!(
+            recovered.replacement().draft().revision(),
+            queued.draft().revision()
+        );
+        assert_eq!(recovered.replacement().state(), Phase1OutboxState::Queued);
+        assert!(recovered.retraction().is_none());
+        assert_eq!(
+            recovered.replacement().form().unwrap().content,
+            "Who has seed potatoes now?"
+        );
+        reopened.shutdown().await.unwrap();
     }
 
     #[tokio::test]

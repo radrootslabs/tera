@@ -40,7 +40,8 @@ pub use outbox::{
     Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot, Phase1DraftStatus,
     Phase1ExistingDraft, Phase1MediaOrphanRecord, Phase1MediaPrerequisite, Phase1MediaStage,
     Phase1OutboxState, Phase1QueueIntent, Phase1QueuePolicy, Phase1RelaySatisfaction,
-    Phase1UploadIntent, Phase1UploadPlan, phase1_new_addressable_identifier,
+    Phase1ReviseIntent, Phase1RevisionPhase, Phase1RevisionPolicy, Phase1RevisionStatus,
+    Phase1RevisionTarget, Phase1UploadIntent, Phase1UploadPlan, phase1_new_addressable_identifier,
     phase1_operation_now_unix_ms,
 };
 pub use projection::{ProductEventClassification, ProductEventExclusion, classify_admitted_event};

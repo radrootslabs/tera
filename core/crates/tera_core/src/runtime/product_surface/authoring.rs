@@ -105,9 +105,9 @@ pub enum Phase1AddCommand {
 /// Standard revision behavior for a Phase 1 authored profile.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Phase1ReplacementPolicy {
-    /// Regular kind-1 events have no edit convention; retract and create are
-    /// independent authored operations whose partial effects remain visible.
-    RetractThenCreate,
+    /// Regular kind-1 events have no edit convention. The corrected event must
+    /// settle before an independent retraction is allowed to begin.
+    CreateThenRetract,
     /// Addressable events replace the current head by reusing their stable `d`.
     AddressableReplacement,
 }
@@ -126,7 +126,7 @@ impl Phase1AddCommand {
     pub const fn replacement_policy(&self) -> Phase1ReplacementPolicy {
         match self {
             Self::CreateUpdate(_) | Self::CreatePhotoUpdate(_) | Self::CreateAsk(_) => {
-                Phase1ReplacementPolicy::RetractThenCreate
+                Phase1ReplacementPolicy::CreateThenRetract
             }
             Self::CreateEvent(_) | Self::CreateFoodAvailability(_) => {
                 Phase1ReplacementPolicy::AddressableReplacement
@@ -247,7 +247,7 @@ mod tests {
         let update = Phase1AddCommand::CreateUpdate(CreateUpdate::new("new post").unwrap());
         assert_eq!(
             update.replacement_policy(),
-            Phase1ReplacementPolicy::RetractThenCreate
+            Phase1ReplacementPolicy::CreateThenRetract
         );
         let event = Phase1AddCommand::CreateEvent(CreateEvent::time(
             AuthoredCalendarTimeEvent::new("farm-tour", "Farm Tour", 1_784_380_800).unwrap(),
