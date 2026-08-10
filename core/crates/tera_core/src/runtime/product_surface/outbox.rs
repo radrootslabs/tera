@@ -1,4 +1,8 @@
-use std::collections::BTreeSet;
+use std::{
+    collections::BTreeSet,
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use radroots_blossom::{
     BlobUrl, ByteVerifiedDescriptor, MediaType, authorization::AuthoredUploadClaim,
@@ -47,6 +51,11 @@ const DRAFT_MEDIA_MAX: usize = 20;
 const DRAFT_LOCAL_REFERENCE_MAX_BYTES: usize = 4_096;
 const DRAFT_FAILURE_CODE_MAX_BYTES: usize = 96;
 const DRAFT_OPERATION_DOMAIN: &[u8] = b"radroots.mobile.phase1-draft-operation.v1\0";
+const ADD_DELIVERY_TIMEOUT_MS: u64 = 24 * 60 * 60 * 1_000;
+const BLOSSOM_AUTHORIZATION_BACKDATE_SECONDS: u64 = 5;
+const BLOSSOM_AUTHORIZATION_LIFETIME_SECONDS: u64 = 5 * 60;
+const BLOSSOM_SIGNING_TIMEOUT_MS: u64 = 60 * 1_000;
+const BLOSSOM_AUTHORIZATION_CONTENT: &str = "Upload exact Radroots image";
 
 /// Product intent represented by one durable draft/outbox item.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -427,6 +436,151 @@ impl Phase1QueuePolicy {
     }
 }
 
+/// Existing durable draft selected for an optimistic replacement.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Phase1ExistingDraft {
+    draft_id: [u8; 16],
+    expected_revision: u64,
+}
+
+impl Phase1ExistingDraft {
+    pub fn new(draft_id: [u8; 16], expected_revision: u64) -> Result<Self, Phase1DraftError> {
+        AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        Ok(Self {
+            draft_id,
+            expected_revision,
+        })
+    }
+}
+
+/// One typed Add save intent. Rust supplies the creation identifier and all
+/// policy timestamps; a caller can only name an existing revision to replace.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Phase1AddIntent {
+    command: Phase1AddCommand,
+    media: Vec<Phase1MediaPrerequisite>,
+    form: Phase1DraftFormSnapshot,
+    existing: Option<Phase1ExistingDraft>,
+}
+
+impl Phase1AddIntent {
+    pub fn new(
+        command: Phase1AddCommand,
+        media: Vec<Phase1MediaPrerequisite>,
+        form: Phase1DraftFormSnapshot,
+        existing: Option<Phase1ExistingDraft>,
+    ) -> Result<Self, Phase1DraftError> {
+        if media.len() > DRAFT_MEDIA_MAX {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        form.validate(command.command_type(), &media)?;
+        Ok(Self {
+            command,
+            media,
+            form,
+            existing,
+        })
+    }
+}
+
+/// Minimal queue intent. Relay selection, settlement, deadline, and
+/// cancellation are derived from the active typed Rust transport profile.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Phase1QueueIntent {
+    draft_id: [u8; 16],
+    expected_revision: u64,
+}
+
+impl Phase1QueueIntent {
+    pub fn new(draft_id: [u8; 16], expected_revision: u64) -> Result<Self, Phase1DraftError> {
+        AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        Ok(Self {
+            draft_id,
+            expected_revision,
+        })
+    }
+}
+
+/// Bounded exact-byte input for one Rust-planned Blossom upload attempt.
+#[derive(Clone)]
+pub struct Phase1UploadIntent {
+    draft_id: [u8; 16],
+    expected_revision: u64,
+    bytes: Arc<[u8]>,
+    media_type: MediaType,
+    dimensions: radroots_sdk::transport::BlossomImageDimensions,
+}
+
+impl Phase1UploadIntent {
+    pub fn new(
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        bytes: Arc<[u8]>,
+        media_type: MediaType,
+        width: u32,
+        height: u32,
+    ) -> Result<Self, Phase1DraftError> {
+        AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        if bytes.is_empty() {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        let dimensions = radroots_sdk::transport::BlossomImageDimensions::new(width, height)
+            .map_err(|_| Phase1DraftError::InvalidMedia)?;
+        Ok(Self {
+            draft_id,
+            expected_revision,
+            bytes,
+            media_type,
+            dimensions,
+        })
+    }
+}
+
+/// Immutable Rust-derived policy for one upload attempt.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Phase1UploadPlan {
+    pub authorization_content: String,
+    pub authorization_created_at_unix_s: u64,
+    pub authorization_lifetime_seconds: u64,
+    pub operation_id: [u8; 16],
+    pub artifact_id: [u8; 16],
+    pub signing_deadline_unix_ms: u64,
+    pub cancellation: Phase1CancellationPolicy,
+    pub updated_at_unix_ms: u64,
+}
+
+impl Phase1UploadPlan {
+    fn derive(
+        now_unix_ms: u64,
+        operation_id: [u8; 16],
+        artifact_id: [u8; 16],
+    ) -> Result<Self, Phase1DraftError> {
+        let now_unix_s = now_unix_ms / 1_000;
+        if now_unix_s == 0 {
+            return Err(Phase1DraftError::ClockUnavailable);
+        }
+        Ok(Self {
+            authorization_content: BLOSSOM_AUTHORIZATION_CONTENT.to_owned(),
+            authorization_created_at_unix_s: now_unix_s
+                .saturating_sub(BLOSSOM_AUTHORIZATION_BACKDATE_SECONDS),
+            authorization_lifetime_seconds: BLOSSOM_AUTHORIZATION_LIFETIME_SECONDS,
+            operation_id,
+            artifact_id,
+            signing_deadline_unix_ms: now_unix_ms
+                .checked_add(BLOSSOM_SIGNING_TIMEOUT_MS)
+                .ok_or(Phase1DraftError::DeadlineOverflow)?,
+            cancellation: Phase1CancellationPolicy::LocalCooperative,
+            updated_at_unix_ms: now_unix_ms,
+        })
+    }
+}
+
 /// Honest aggregate state for a local draft and its durable authored operation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Phase1OutboxState {
@@ -533,6 +687,12 @@ pub enum Phase1DraftError {
     Operation,
     #[error("phase 1 Today overlay failed")]
     Overlay,
+    #[error("phase 1 operation clock is unavailable")]
+    ClockUnavailable,
+    #[error("phase 1 operation deadline overflowed")]
+    DeadlineOverflow,
+    #[error("no configured relay authorizes publication")]
+    NoWritableRelay,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -653,6 +813,123 @@ impl Phase1DraftPayload {
 }
 
 impl RadrootsRuntime {
+    /// Persists one complete Add intent with Rust-owned identity and time.
+    pub async fn phase1_save_add_intent(
+        &self,
+        intent: Phase1AddIntent,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let authored_at_unix_s = now_unix_ms / 1_000;
+        let (draft_id, expected_revision) = match intent.existing {
+            Some(existing) => (existing.draft_id, Some(existing.expected_revision)),
+            None => (phase1_random_id()?, None),
+        };
+        self.phase1_save_draft_with_form(
+            draft_id,
+            intent.command,
+            authored_at_unix_s,
+            intent.media,
+            intent.form,
+            expected_revision,
+            now_unix_ms,
+        )
+        .await
+    }
+
+    /// Freezes the canonical Rust-owned queue policy for the active relay
+    /// profile before preparing the durable outbox operation.
+    pub async fn phase1_queue_add_intent(
+        &self,
+        intent: Phase1QueueIntent,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let report = self
+            .client
+            .nostr_status()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?
+            .ok_or(Phase1DraftError::OperationUnavailable)?;
+        let relay_urls = report
+            .relays()
+            .iter()
+            .filter(|relay| relay.endpoint().access().can_write())
+            .map(|relay| relay.endpoint().url().as_str().to_owned())
+            .collect::<Vec<_>>();
+        if relay_urls.is_empty() {
+            return Err(Phase1DraftError::NoWritableRelay);
+        }
+        let deadline = now_unix_ms
+            .checked_add(ADD_DELIVERY_TIMEOUT_MS)
+            .ok_or(Phase1DraftError::DeadlineOverflow)?;
+        let policy = Phase1QueuePolicy::new(
+            relay_urls,
+            Phase1RelaySatisfaction::AllAccepted,
+            deadline,
+            Phase1CancellationPolicy::LocalCooperative,
+        )?;
+        self.phase1_queue_draft(
+            intent.draft_id,
+            intent.expected_revision,
+            policy,
+            now_unix_ms,
+        )
+        .await
+    }
+
+    /// Resumes a durable queue checkpoint with a Rust-owned recovery time.
+    pub async fn phase1_recover_add_intent(
+        &self,
+        draft_id: [u8; 16],
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        self.phase1_recover_draft_queue(draft_id, phase1_operation_now_unix_ms()?)
+            .await
+    }
+
+    /// Plans authorization, signing, and state timestamps in Rust, then runs
+    /// one complete exact-byte upload attempt.
+    pub async fn phase1_upload_add_media_intent(
+        &self,
+        intent: Phase1UploadIntent,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let plan = Phase1UploadPlan::derive(now_unix_ms, phase1_random_id()?, phase1_random_id()?)?;
+        let request = radroots_sdk::transport::BlossomUploadRequest::new(
+            intent.bytes,
+            intent.media_type,
+            intent.dimensions,
+            now_unix_ms,
+        )
+        .map_err(|_| Phase1DraftError::InvalidMedia)?;
+        let content = radroots_blossom::authorization::AuthorizationContent::parse(
+            &plan.authorization_content,
+        )
+        .map_err(|_| Phase1DraftError::InvalidMedia)?;
+        self.phase1_upload_draft_media(
+            intent.draft_id,
+            intent.expected_revision,
+            request,
+            content,
+            plan.authorization_created_at_unix_s,
+            plan.authorization_lifetime_seconds,
+            plan.operation_id,
+            plan.artifact_id,
+            plan.signing_deadline_unix_ms,
+            plan.cancellation,
+            radroots_sdk::transport::BlossomCancellation::default(),
+            plan.updated_at_unix_ms,
+        )
+        .await
+    }
+
+    /// Cancels local work with a Rust-owned transition timestamp.
+    pub async fn phase1_cancel_add_intent(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        self.phase1_cancel_draft(draft_id, expected_revision, phase1_operation_now_unix_ms()?)
+            .await
+    }
+
     /// Creates or replaces the editable content of one immutable-revision draft.
     #[allow(clippy::too_many_arguments)]
     pub async fn phase1_save_draft(
@@ -1830,6 +2107,29 @@ fn map_overlay_error(_: TodayError) -> Phase1DraftError {
     Phase1DraftError::Overlay
 }
 
+/// Captures the canonical wall-clock input for Rust-owned Phase 1 policy.
+pub fn phase1_operation_now_unix_ms() -> Result<u64, Phase1DraftError> {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .ok()
+        .and_then(|duration| u64::try_from(duration.as_millis()).ok())
+        .filter(|value| *value >= 1_000)
+        .ok_or(Phase1DraftError::ClockUnavailable)
+}
+
+/// Generates a canonical public identifier for an addressable Add form.
+pub fn phase1_new_addressable_identifier() -> String {
+    uuid::Uuid::new_v4().simple().to_string()
+}
+
+fn phase1_random_id() -> Result<[u8; 16], Phase1DraftError> {
+    let value = *uuid::Uuid::new_v4().as_bytes();
+    if value.iter().all(|byte| *byte == 0) {
+        return Err(Phase1DraftError::OperationUnavailable);
+    }
+    Ok(value)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1859,6 +2159,17 @@ mod tests {
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
             None,
+            None,
+        )
+        .unwrap()
+    }
+
+    fn profiled_runtime(profile: radroots_sdk::transport::RelayProfile) -> RadrootsRuntime {
+        RadrootsRuntime::from_client_builder(
+            ClientBuilder::memory_default(),
+            Some(PublicKey::from_hex(AUTHOR).unwrap()),
+            None,
+            Some(profile),
             None,
         )
         .unwrap()
@@ -1914,6 +2225,120 @@ mod tests {
             food_status: None,
             media: Vec::new(),
         }
+    }
+
+    #[test]
+    fn upload_policy_derivation_is_exact_and_bounded() {
+        let plan = Phase1UploadPlan::derive(1_800_000_000_000, [7; 16], [8; 16]).unwrap();
+        assert_eq!(plan.authorization_content, BLOSSOM_AUTHORIZATION_CONTENT);
+        assert_eq!(plan.authorization_created_at_unix_s, 1_799_999_995);
+        assert_eq!(plan.authorization_lifetime_seconds, 300);
+        assert_eq!(plan.operation_id, [7; 16]);
+        assert_eq!(plan.artifact_id, [8; 16]);
+        assert_eq!(plan.signing_deadline_unix_ms, 1_800_000_060_000);
+        assert_eq!(
+            plan.cancellation,
+            Phase1CancellationPolicy::LocalCooperative
+        );
+        assert_eq!(plan.updated_at_unix_ms, 1_800_000_000_000);
+        assert_eq!(
+            Phase1UploadPlan::derive(u64::MAX, [7; 16], [8; 16]).unwrap_err(),
+            Phase1DraftError::DeadlineOverflow
+        );
+    }
+
+    #[tokio::test]
+    async fn add_intent_owns_draft_identity_time_and_writable_relay_policy() {
+        let profile = radroots_sdk::transport::RelayProfile::explicit(
+            radroots_sdk::transport::RelayProfileKind::Public,
+            [
+                (
+                    "wss://read.example",
+                    radroots_sdk::transport::RelayAccess::ReadOnly,
+                ),
+                (
+                    "wss://write.example",
+                    radroots_sdk::transport::RelayAccess::ReadWrite,
+                ),
+            ],
+        )
+        .unwrap();
+        let runtime = profiled_runtime(profile);
+        let saved = runtime
+            .phase1_save_add_intent(
+                Phase1AddIntent::new(
+                    Phase1AddCommand::CreateUpdate(CreateUpdate::new("Harvest update").unwrap()),
+                    Vec::new(),
+                    update_form(),
+                    None,
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_ne!(saved.draft().draft_id().as_bytes(), &[0; 16]);
+        assert!(saved.draft().created_at_unix_ms() >= 1_700_000_000_000);
+
+        let queued = runtime
+            .phase1_queue_add_intent(
+                Phase1QueueIntent::new(
+                    *saved.draft().draft_id().as_bytes(),
+                    saved.draft().revision().get(),
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        let payload = Phase1DraftPayload::decode(queued.draft()).unwrap();
+        let queue = payload.queue.unwrap();
+        assert_eq!(queue.relay_urls, vec!["wss://write.example"]);
+        assert_eq!(queue.satisfaction, Phase1RelaySatisfaction::AllAccepted);
+        assert_eq!(
+            queue.cancellation,
+            Phase1CancellationPolicy::LocalCooperative
+        );
+        assert!(
+            queue.delivery_deadline_unix_ms
+                >= queued.draft().updated_at_unix_ms() + ADD_DELIVERY_TIMEOUT_MS
+        );
+    }
+
+    #[tokio::test]
+    async fn add_queue_intent_fails_closed_without_a_writable_relay() {
+        let profile = radroots_sdk::transport::RelayProfile::explicit(
+            radroots_sdk::transport::RelayProfileKind::Public,
+            [(
+                "wss://read.example",
+                radroots_sdk::transport::RelayAccess::ReadOnly,
+            )],
+        )
+        .unwrap();
+        let runtime = profiled_runtime(profile);
+        let saved = runtime
+            .phase1_save_add_intent(
+                Phase1AddIntent::new(
+                    Phase1AddCommand::CreateUpdate(CreateUpdate::new("Harvest update").unwrap()),
+                    Vec::new(),
+                    update_form(),
+                    None,
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            runtime
+                .phase1_queue_add_intent(
+                    Phase1QueueIntent::new(
+                        *saved.draft().draft_id().as_bytes(),
+                        saved.draft().revision().get(),
+                    )
+                    .unwrap(),
+                )
+                .await
+                .unwrap_err(),
+            Phase1DraftError::NoWritableRelay
+        );
     }
 
     #[tokio::test]

@@ -49,6 +49,7 @@ serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true, features = ["sync"] }
+uuid = { workspace = true, features = ["v4"] }
 
 [dev-dependencies]
 nostr = { workspace = true, features = ["std"] }
