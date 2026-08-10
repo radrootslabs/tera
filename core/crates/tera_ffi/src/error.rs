@@ -200,6 +200,9 @@ impl From<Phase1DraftError> for RadrootsAppError {
                 true,
                 &["configure_relay", "retry"][..],
             ),
+            Phase1DraftError::InvalidRevision => {
+                ("revision_invalid", false, &["review_revision"][..])
+            }
         };
         Self::failure(
             code,
