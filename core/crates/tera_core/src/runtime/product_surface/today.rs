@@ -2408,6 +2408,7 @@ mod tests {
             platform_app: RwLock::new(None),
             store_public_key: None,
             settings_lock: tokio::sync::Mutex::new(()),
+            identity_session: tokio::sync::RwLock::new(None),
             inbound_media_directory: None,
             inbound_media_lock: tokio::sync::Mutex::new(()),
         };

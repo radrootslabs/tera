@@ -887,7 +887,14 @@ impl SettingsError {
 impl RadrootsRuntime {
     pub async fn phase1_settings(&self) -> Result<MobileSettings, SettingsError> {
         let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
-        load_settings(storage).await
+        let mut settings = load_settings(storage).await?;
+        let session = self.identity_session.read().await;
+        if let Some((revision, identity)) = session.as_ref()
+            && *revision == settings.revision
+        {
+            settings.identity = identity.clone();
+        }
+        Ok(settings)
     }
 
     pub async fn phase1_replace_settings(
@@ -896,7 +903,45 @@ impl RadrootsRuntime {
     ) -> Result<SettingsTransition, SettingsError> {
         let _guard = self.settings_lock.lock().await;
         let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
-        replace_settings(storage, command).await
+        let transition = replace_settings(storage, command).await?;
+        *self.identity_session.write().await = None;
+        Ok(transition)
+    }
+
+    /// Applies one secret-free identity transition atomically against the
+    /// current settings revision. Unlock evidence is process-local: it is
+    /// observable for the current runtime but never written to durable state.
+    pub async fn phase1_apply_identity_command(
+        &self,
+        expected_revision: u64,
+        command: IdentityCommand,
+    ) -> Result<SettingsTransition, SettingsError> {
+        let _guard = self.settings_lock.lock().await;
+        let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
+        let mut prior = load_settings(storage).await?;
+        if prior.revision != expected_revision {
+            return Err(SettingsError::RevisionConflict);
+        }
+        if let Some((revision, identity)) = self.identity_session.read().await.as_ref()
+            && *revision == prior.revision
+        {
+            prior.identity = identity.clone();
+        }
+        let next_identity = prior.identity.apply(command.clone())?;
+        if matches!(command, IdentityCommand::Unlock) {
+            *self.identity_session.write().await = Some((prior.revision, next_identity.clone()));
+            return Ok(SettingsTransition {
+                settings: prior.with_identity(next_identity),
+                runtime_restart_required: false,
+                outbox_requeue_required: false,
+                media_cache_invalidation_required: false,
+            });
+        }
+        let command =
+            ReplaceMobileSettings::new(prior.revision, prior.with_identity(next_identity))?;
+        let transition = replace_settings(storage, command).await?;
+        *self.identity_session.write().await = None;
+        Ok(transition)
     }
 }
 
@@ -1456,6 +1501,74 @@ mod tests {
             .await
             .unwrap_err();
         assert_eq!(conflict, SettingsError::RevisionConflict);
+    }
+
+    #[tokio::test]
+    async fn atomic_identity_commands_persist_public_state_but_keep_unlock_process_local() {
+        let runtime = RadrootsRuntime::test_memory().unwrap();
+        let begun = runtime
+            .phase1_apply_identity_command(
+                1,
+                IdentityCommand::BeginImport {
+                    operation_id: "import-1".to_owned(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(begun.settings.revision(), 2);
+        assert_eq!(
+            begun.settings.identity().pending_import_operation_id(),
+            Some("import-1")
+        );
+
+        let completed = runtime
+            .phase1_apply_identity_command(
+                2,
+                IdentityCommand::CompleteImport {
+                    operation_id: "import-1".to_owned(),
+                    identity: IdentityRecord::new(
+                        "primary",
+                        "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                    )
+                    .unwrap(),
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(completed.settings.revision(), 3);
+        assert_eq!(
+            completed.settings.identity().active_identity_id(),
+            Some("primary")
+        );
+
+        let unlocked = runtime
+            .phase1_apply_identity_command(3, IdentityCommand::Unlock)
+            .await
+            .unwrap();
+        assert_eq!(unlocked.settings.revision(), 3);
+        assert_eq!(
+            unlocked.settings.identity().lock_state(),
+            IdentityLockState::Unlocked
+        );
+        assert_eq!(
+            runtime
+                .phase1_settings()
+                .await
+                .unwrap()
+                .identity()
+                .lock_state(),
+            IdentityLockState::Unlocked
+        );
+
+        let locked = runtime
+            .phase1_apply_identity_command(3, IdentityCommand::Lock)
+            .await
+            .unwrap();
+        assert_eq!(locked.settings.revision(), 4);
+        assert_eq!(
+            locked.settings.identity().lock_state(),
+            IdentityLockState::Locked
+        );
     }
 
     #[tokio::test]

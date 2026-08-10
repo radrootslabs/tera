@@ -13,7 +13,7 @@ use radroots_event::{
         AuthoredNip09DeletionRequest, Nip09DeletionAddressTarget, Nip09DeletionEventTarget,
     },
 };
-use radroots_event_codec::authoring::PlanWireV1;
+use radroots_event_codec::authoring::{AuthoredEventPlan, PlanWireV1};
 use radroots_identity::PublicKey;
 use radroots_signing::{
     Actor, AuthoredArtifactId, SigningIntentId, SigningOperationId,
@@ -41,11 +41,12 @@ use thiserror::Error;
 
 use super::{
     AddCommandType, CardId, CardSourceIdentity, LocalAuthorOverlay, LocalNetwork, Phase1AddCommand,
-    TodayCardType, TodayError, phase1_retraction_plan,
+    ProfileMetadataCommand, TodayCardType, TodayError, phase1_retraction_plan,
 };
 use crate::runtime::RadrootsRuntime;
 
 const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
+const PROFILE_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-profile.v1";
 const DRAFT_SCHEMA_VERSION: u16 = 1;
 const DRAFT_MEDIA_MAX: usize = 20;
 const DRAFT_LOCAL_REFERENCE_MAX_BYTES: usize = 4_096;
@@ -746,6 +747,29 @@ pub struct Phase1RevisionStatus {
     phase: Phase1RevisionPhase,
 }
 
+/// Durable kind-0 profile publication state. The profile fields remain inside
+/// the canonical authored plan and are never duplicated in outbox metadata.
+#[derive(Clone, Debug)]
+pub struct Phase1ProfileStatus {
+    draft: AuthoredDraft,
+    state: Phase1OutboxState,
+    push: Option<PushStatus>,
+}
+
+impl Phase1ProfileStatus {
+    pub const fn draft(&self) -> &AuthoredDraft {
+        &self.draft
+    }
+
+    pub const fn state(&self) -> Phase1OutboxState {
+        self.state
+    }
+
+    pub const fn push(&self) -> Option<&PushStatus> {
+        self.push.as_ref()
+    }
+}
+
 impl Phase1RevisionStatus {
     pub const fn replacement(&self) -> &Phase1DraftStatus {
         &self.replacement
@@ -928,6 +952,61 @@ struct Phase1DraftPayload {
     revision: Option<Phase1RevisionRecord>,
 }
 
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct Phase1ProfilePayload {
+    schema_version: u16,
+    plan_wire_json: Vec<u8>,
+    queue: Option<Phase1QueuePolicy>,
+}
+
+impl Phase1ProfilePayload {
+    fn new(plan_wire_json: Vec<u8>) -> Result<Self, Phase1DraftError> {
+        let value = Self {
+            schema_version: DRAFT_SCHEMA_VERSION,
+            plan_wire_json,
+            queue: None,
+        };
+        value.validate()?;
+        Ok(value)
+    }
+
+    fn validate(&self) -> Result<(), Phase1DraftError> {
+        if self.schema_version != DRAFT_SCHEMA_VERSION {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        let plan = PlanWireV1::from_json(self.plan_wire_json.as_slice())
+            .map_err(|_| Phase1DraftError::Corrupt)?;
+        if plan.plan().body().kind() != 0 {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        if let Some(queue) = &self.queue {
+            queue.materialize()?;
+        }
+        Ok(())
+    }
+
+    fn decode(draft: &AuthoredDraft) -> Result<Self, Phase1DraftError> {
+        if draft.payload_schema() != PROFILE_PAYLOAD_SCHEMA {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        let value = serde_json::from_slice::<Self>(draft.payload())
+            .map_err(|_| Phase1DraftError::Corrupt)?;
+        value.validate()?;
+        let plan = PlanWireV1::from_json(value.plan_wire_json.as_slice())
+            .map_err(|_| Phase1DraftError::Corrupt)?;
+        if plan.plan().author().as_bytes() != draft.author() {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        Ok(value)
+    }
+
+    fn encode(&self) -> Result<Vec<u8>, Phase1DraftError> {
+        self.validate()?;
+        serde_json::to_vec(self).map_err(|_| Phase1DraftError::InvalidDraft)
+    }
+}
+
 impl Phase1DraftPayload {
     fn new(
         command: &Phase1AddCommand,
@@ -1067,6 +1146,181 @@ impl Phase1DraftPayload {
 }
 
 impl RadrootsRuntime {
+    /// Persists a strict kind-0 profile intent before any signing or network
+    /// side effect. Identity and timestamps remain Rust-owned.
+    pub async fn phase1_save_profile_metadata(
+        &self,
+        command: ProfileMetadataCommand,
+    ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let author = self.draft_author()?;
+        let draft_id = AuthoredDraftId::new(phase1_random_id()?)
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let plan = AuthoredEventPlan::from_profile(
+            command.authored(),
+            now_unix_ms / 1_000,
+            hex::encode(author),
+        )
+        .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let wire = PlanWireV1::from_plan(&plan)
+            .to_json()
+            .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let payload = Phase1ProfilePayload::new(wire)?;
+        let draft = AuthoredDraft::initial(
+            draft_id,
+            author,
+            PROFILE_PAYLOAD_SCHEMA,
+            payload.encode()?,
+            AuthoredDraftStage::Draft,
+            None,
+            now_unix_ms,
+        )
+        .map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let receipt = self
+            .storage()?
+            .append_authored_draft(draft, None)
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.profile_status_from(receipt.draft().clone()).await
+    }
+
+    pub async fn phase1_profile_status(
+        &self,
+        draft_id: [u8; 16],
+    ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let head = self
+            .storage()?
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        self.profile_status_from(head).await
+    }
+
+    /// Recovers and advances one profile operation through the same durable
+    /// sign/admit/deliver engine used by Add without exposing queue policy.
+    pub async fn phase1_advance_profile(
+        &self,
+        draft_id: [u8; 16],
+    ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let mut status = self.phase1_profile_status(draft_id).await?;
+        if status.draft.stage() == AuthoredDraftStage::Draft {
+            status = self
+                .phase1_queue_profile(draft_id, status.draft.revision().get())
+                .await?;
+        } else if status.draft.stage() == AuthoredDraftStage::ReadyToSign {
+            status = self
+                .finish_profile_queue(status.draft.clone(), phase1_operation_now_unix_ms()?)
+                .await?;
+        }
+        if status.draft.stage() != AuthoredDraftStage::Queued
+            || matches!(
+                status.state,
+                Phase1OutboxState::Complete
+                    | Phase1OutboxState::Terminal
+                    | Phase1OutboxState::Cancelled
+            )
+        {
+            return Ok(status);
+        }
+        let request = profile_push_request(&status.draft)?;
+        let operation_id = request.operation_id();
+        let sync = self.sync()?;
+        let mut push = sync
+            .push_status(operation_id)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)?
+            .ok_or(Phase1DraftError::Corrupt)?;
+        if matches!(
+            push.artifact().signing_state(),
+            SigningState::Planned | SigningState::Retryable
+        ) {
+            sync.sign_prepared(request)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+            push = sync
+                .push_status(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?
+                .ok_or(Phase1DraftError::Corrupt)?;
+        }
+        if push.artifact().signing_state() == SigningState::Signed
+            && matches!(
+                push.artifact().admission_state(),
+                AdmissionState::Pending | AdmissionState::Retryable
+            )
+        {
+            sync.admit_signed(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+            push = sync
+                .push_status(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?
+                .ok_or(Phase1DraftError::Corrupt)?;
+        }
+        if push.artifact().admission_state().is_admitted()
+            && matches!(
+                push.delivery_plan().state(),
+                AuthoredDeliveryState::Pending | AuthoredDeliveryState::Retryable
+            )
+        {
+            sync.deliver_push(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+        }
+        self.phase1_profile_status(draft_id).await
+    }
+
+    pub async fn phase1_cancel_profile(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+    ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        Phase1ProfilePayload::decode(&head)?;
+        if head.stage() == AuthoredDraftStage::Cancelled {
+            return self.profile_status_from(head).await;
+        }
+        if head.revision() != expected {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let push = self.profile_push_status_for(&head).await?;
+        if let Some(status) = push {
+            if status.settlement().is_successful() {
+                return Err(Phase1DraftError::Terminal);
+            }
+            self.sync()?
+                .cancel_push(sync_id_for(&head)?)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+        }
+        let next = head
+            .successor(
+                head.payload().to_vec(),
+                AuthoredDraftStage::Cancelled,
+                head.operation_id(),
+                phase1_operation_now_unix_ms()?,
+            )
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = storage
+            .append_authored_draft(next, Some(expected))
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.profile_status_from(receipt.draft().clone()).await
+    }
+
     /// Persists one complete Add intent with Rust-owned identity and time.
     pub async fn phase1_save_add_intent(
         &self,
@@ -1097,6 +1351,17 @@ impl RadrootsRuntime {
         intent: Phase1QueueIntent,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let policy = self.active_queue_policy(now_unix_ms)?;
+        self.phase1_queue_draft(
+            intent.draft_id,
+            intent.expected_revision,
+            policy,
+            now_unix_ms,
+        )
+        .await
+    }
+
+    fn active_queue_policy(&self, now_unix_ms: u64) -> Result<Phase1QueuePolicy, Phase1DraftError> {
         let report = self
             .client
             .nostr_status()
@@ -1114,19 +1379,12 @@ impl RadrootsRuntime {
         let deadline = now_unix_ms
             .checked_add(ADD_DELIVERY_TIMEOUT_MS)
             .ok_or(Phase1DraftError::DeadlineOverflow)?;
-        let policy = Phase1QueuePolicy::new(
+        Phase1QueuePolicy::new(
             relay_urls,
             Phase1RelaySatisfaction::AllAccepted,
             deadline,
             Phase1CancellationPolicy::LocalCooperative,
-        )?;
-        self.phase1_queue_draft(
-            intent.draft_id,
-            intent.expected_revision,
-            policy,
-            now_unix_ms,
         )
-        .await
     }
 
     /// Resumes a durable queue checkpoint with a Rust-owned recovery time.
@@ -2249,6 +2507,112 @@ impl RadrootsRuntime {
         Ok(status)
     }
 
+    async fn phase1_queue_profile(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+    ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let now_unix_ms = phase1_operation_now_unix_ms()?;
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let mut payload = Phase1ProfilePayload::decode(&head)?;
+        let ready = match head.stage() {
+            AuthoredDraftStage::Draft => {
+                payload.queue = Some(self.active_queue_policy(now_unix_ms)?);
+                let bytes = payload.encode()?;
+                let operation_id = operation_id(draft_id, bytes.as_slice())?;
+                let operation_id = OperationInstanceId::new(*operation_id.as_bytes())
+                    .map_err(|_| Phase1DraftError::InvalidDraft)?;
+                let ready = head
+                    .successor(
+                        bytes,
+                        AuthoredDraftStage::ReadyToSign,
+                        Some(operation_id),
+                        now_unix_ms,
+                    )
+                    .map_err(|_| Phase1DraftError::RevisionConflict)?;
+                storage
+                    .append_authored_draft(ready.clone(), Some(expected))
+                    .await
+                    .map_err(map_draft_storage_error)?;
+                ready
+            }
+            AuthoredDraftStage::ReadyToSign => head,
+            AuthoredDraftStage::Queued => return self.profile_status_from(head).await,
+            AuthoredDraftStage::Cancelled => return Err(Phase1DraftError::Terminal),
+            AuthoredDraftStage::MediaPreparing | AuthoredDraftStage::MediaUploading => {
+                return Err(Phase1DraftError::Corrupt);
+            }
+        };
+        self.finish_profile_queue(ready, now_unix_ms).await
+    }
+
+    async fn finish_profile_queue(
+        &self,
+        ready: AuthoredDraft,
+        queued_at_unix_ms: u64,
+    ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let request = profile_push_request(&ready)?;
+        self.sync()?
+            .prepare_push(request)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)?;
+        let queued = ready
+            .successor(
+                ready.payload().to_vec(),
+                AuthoredDraftStage::Queued,
+                ready.operation_id(),
+                queued_at_unix_ms.max(ready.updated_at_unix_ms()),
+            )
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = self
+            .storage()?
+            .append_authored_draft(queued, Some(ready.revision()))
+            .await
+            .map_err(map_draft_storage_error)?;
+        self.profile_status_from(receipt.draft().clone()).await
+    }
+
+    async fn profile_status_from(
+        &self,
+        draft: AuthoredDraft,
+    ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        if draft.author() != &self.draft_author()? {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        Phase1ProfilePayload::decode(&draft)?;
+        let push = self.profile_push_status_for(&draft).await?;
+        if draft.stage() == AuthoredDraftStage::Queued && push.is_none() {
+            return Err(Phase1DraftError::Corrupt);
+        }
+        let state = aggregate_state(&draft, push.as_ref());
+        Ok(Phase1ProfileStatus { draft, state, push })
+    }
+
+    async fn profile_push_status_for(
+        &self,
+        draft: &AuthoredDraft,
+    ) -> Result<Option<PushStatus>, Phase1DraftError> {
+        let Some(_) = draft.operation_id() else {
+            return Ok(None);
+        };
+        self.sync()?
+            .push_status(sync_id_for(draft)?)
+            .await
+            .map_err(|_| Phase1DraftError::Operation)
+    }
+
     async fn finish_queue(
         &self,
         ready: AuthoredDraft,
@@ -2354,6 +2718,36 @@ fn push_request(draft: &AuthoredDraft) -> Result<PushRequest, Phase1DraftError> 
     let sync_id = sync_id_for(draft)?;
     let idempotency = IdempotencyKey::parse(format!(
         "phase1-draft-{}",
+        hex::encode(draft.draft_id().as_bytes())
+    ))
+    .map_err(|_| Phase1DraftError::InvalidDraft)?;
+    PushRequest::new(
+        sync_id,
+        idempotency,
+        actor,
+        plan,
+        targets,
+        satisfaction,
+        policy.delivery_deadline_unix_ms,
+        cancellation,
+    )
+    .map_err(|_| Phase1DraftError::InvalidQueuePolicy)
+}
+
+fn profile_push_request(draft: &AuthoredDraft) -> Result<PushRequest, Phase1DraftError> {
+    let payload = Phase1ProfilePayload::decode(draft)?;
+    let policy = payload.queue.ok_or(Phase1DraftError::InvalidQueuePolicy)?;
+    let (targets, satisfaction, cancellation) = policy.materialize()?;
+    let plan = PlanWireV1::from_json(payload.plan_wire_json.as_slice())
+        .map_err(|_| Phase1DraftError::Corrupt)?
+        .into_plan();
+    let public_key = PublicKey::from_bytes(*draft.author())
+        .map_err(|_| Phase1DraftError::IdentityUnavailable)?;
+    let actor = Actor::new(public_key, ActorSource::ExplicitPublicKey, AuthorRole::ALL)
+        .map_err(|_| Phase1DraftError::IdentityUnavailable)?;
+    let sync_id = sync_id_for(draft)?;
+    let idempotency = IdempotencyKey::parse(format!(
+        "phase1-profile-{}",
         hex::encode(draft.draft_id().as_bytes())
     ))
     .map_err(|_| Phase1DraftError::InvalidDraft)?;
@@ -2690,6 +3084,12 @@ pub fn phase1_new_addressable_identifier() -> String {
     uuid::Uuid::new_v4().simple().to_string()
 }
 
+/// Generates one opaque operation identity for host-visible cancellation and
+/// receipt correlation without delegating identity policy to the host.
+pub fn phase1_new_operation_id() -> Result<[u8; 16], Phase1DraftError> {
+    phase1_random_id()
+}
+
 fn phase1_random_id() -> Result<[u8; 16], Phase1DraftError> {
     let value = *uuid::Uuid::new_v4().as_bytes();
     if value.iter().all(|byte| *byte == 0) {
@@ -2876,6 +3276,62 @@ mod tests {
             queue.delivery_deadline_unix_ms
                 >= queued.draft().updated_at_unix_ms() + ADD_DELIVERY_TIMEOUT_MS
         );
+    }
+
+    #[tokio::test]
+    async fn profile_metadata_uses_the_durable_outbox_with_stable_operation_identity() {
+        let profile = radroots_sdk::transport::RelayProfile::explicit(
+            radroots_sdk::transport::RelayProfileKind::Public,
+            [(
+                "wss://write.example",
+                radroots_sdk::transport::RelayAccess::ReadWrite,
+            )],
+        )
+        .unwrap();
+        let runtime = profiled_runtime(profile);
+        let saved = runtime
+            .phase1_save_profile_metadata(
+                ProfileMetadataCommand::new(
+                    "grower".to_owned(),
+                    Some("Local Grower".to_owned()),
+                    Some("Seasonal produce".to_owned()),
+                    None,
+                    None,
+                    Some("grower@farm.example".to_owned()),
+                    Some(false),
+                )
+                .unwrap(),
+            )
+            .await
+            .unwrap();
+        let operation_id = *saved.draft().draft_id().as_bytes();
+        assert_eq!(saved.state(), Phase1OutboxState::Draft);
+        assert_eq!(
+            PlanWireV1::from_json(
+                Phase1ProfilePayload::decode(saved.draft())
+                    .unwrap()
+                    .plan_wire_json
+                    .as_slice(),
+            )
+            .unwrap()
+            .plan()
+            .body()
+            .kind(),
+            0
+        );
+
+        let queued = runtime
+            .phase1_queue_profile(operation_id, saved.draft().revision().get())
+            .await
+            .unwrap();
+        assert_eq!(queued.state(), Phase1OutboxState::Queued);
+        assert_eq!(*queued.draft().draft_id().as_bytes(), operation_id);
+        let cancelled = runtime
+            .phase1_cancel_profile(operation_id, queued.draft().revision().get())
+            .await
+            .unwrap();
+        assert_eq!(cancelled.state(), Phase1OutboxState::Cancelled);
+        assert_eq!(*cancelled.draft().draft_id().as_bytes(), operation_id);
     }
 
     #[tokio::test]
