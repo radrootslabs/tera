@@ -1,8 +1,8 @@
 use radroots_mobile_ffi::{
-    FfiAddCommandType, FfiAddDraftInput, FfiCancellationPolicy, FfiQueuePolicyRecord,
-    FfiRelaySatisfaction, HostSigningOutcome, HostSigningRequest, HostSigningResult,
-    MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsAppError, RadrootsHostSigner,
-    RadrootsRuntime, SignerAvailabilityRecord, SignerStatusRecord,
+    FfiAddCommandType, FfiAddDraftInput, FfiCancellationPolicy, FfiMediaOperation,
+    FfiQueuePolicyRecord, FfiRelaySatisfaction, HostSigningOutcome, HostSigningRequest,
+    HostSigningResult, MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsAppError,
+    RadrootsHostSigner, RadrootsRuntime, SignerAvailabilityRecord, SignerStatusRecord,
 };
 use secp256k1::{Keypair, Message, Secp256k1, SecretKey};
 use std::sync::{Arc, Mutex};
@@ -74,6 +74,17 @@ fn swift_module_names_preserve_the_host_contract() {
         config,
         "[bindings.swift]\nmodule_name = \"RadrootsKitBindings\"\nffi_module_name = \"RadrootsFFI\"\n"
     );
+}
+
+#[test]
+fn media_cancellation_handle_owns_one_stable_opaque_operation_identity() {
+    let operation = FfiMediaOperation::new().expect("media operation");
+    let operation_id = operation.operation_id();
+    assert_eq!(operation_id.len(), 32);
+    assert!(!operation.is_cancelled());
+    operation.cancel();
+    assert!(operation.is_cancelled());
+    assert_eq!(operation.operation_id(), operation_id);
 }
 
 #[tokio::test]

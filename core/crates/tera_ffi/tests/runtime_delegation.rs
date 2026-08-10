@@ -1,9 +1,10 @@
 use radroots_mobile_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiBlossomEndpointAuthority, FfiBlossomHostKind,
-    FfiBlossomUploadIntent, FfiCancellationPolicy, FfiDraftKind, FfiLocalNetworkRecord,
-    FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord, FfiRelaySatisfaction,
-    FfiRetractionDraftInput, FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION,
-    RadrootsAppError,
+    FfiBlossomUploadIntent, FfiCancellationPolicy, FfiDraftKind, FfiIdentityCommandKind,
+    FfiIdentityCommandRecord, FfiIdentityLockState, FfiLocalNetworkRecord, FfiOutboxState,
+    FfiPreparedMediaInput, FfiProfileMetadataInputRecord, FfiQueuePolicyRecord,
+    FfiRelaySatisfaction, FfiRetractionDraftInput, FfiRevisionInputRecord, FfiRevisionPhase,
+    FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError,
 };
 
 mod support;
@@ -424,6 +425,126 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             })
             .is_err()
     );
+
+    let initial_settings = runtime.phase1_settings().await.expect("settings");
+    let begun = runtime
+        .phase1_apply_identity_command(
+            initial_settings.revision,
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::BeginImport,
+                operation_id: Some("import-ffi-1".to_owned()),
+                identity_id: None,
+                public_key: None,
+            },
+        )
+        .await
+        .expect("begin identity import");
+    let completed = runtime
+        .phase1_apply_identity_command(
+            begun.settings.revision,
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::CompleteImport,
+                operation_id: Some("import-ffi-1".to_owned()),
+                identity_id: Some("primary".to_owned()),
+                public_key: Some(support::PUBLIC_KEY.to_owned()),
+            },
+        )
+        .await
+        .expect("complete identity import");
+    let unlocked = runtime
+        .phase1_apply_identity_command(
+            completed.settings.revision,
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Unlock,
+                operation_id: None,
+                identity_id: None,
+                public_key: None,
+            },
+        )
+        .await
+        .expect("record process-local unlock");
+    assert_eq!(
+        unlocked.settings.identity.lock_state,
+        FfiIdentityLockState::Unlocked
+    );
+    assert_eq!(unlocked.settings.revision, completed.settings.revision);
+
+    let source_event_id = "ab".repeat(32);
+    let source = radroots_mobile_core::runtime::product_surface::CardSourceIdentity::Event(
+        radroots_event::EventId::parse(&source_event_id).expect("source event id"),
+    );
+    let card_id = radroots_mobile_core::runtime::product_surface::CardId::derive(
+        radroots_mobile_core::runtime::product_surface::TodayCardType::Update,
+        &source,
+    )
+    .to_hex();
+    let revision = runtime
+        .phase1_save_revision_intent(FfiRevisionInputRecord {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            command_type: FfiAddCommandType::CreateUpdate,
+            card_id,
+            source_event_id,
+            source_kind: 1,
+            source_address: None,
+            author_public_key: support::PUBLIC_KEY.to_owned(),
+            replacement: FfiAddDraftInput {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                command_type: FfiAddCommandType::CreateUpdate,
+                content: "Corrected farm stand hours".to_owned(),
+                identifier: None,
+                title: None,
+                summary: None,
+                location: None,
+                event_timing: None,
+                event_start_date: None,
+                event_end_date: None,
+                event_start_unix_s: None,
+                event_end_unix_s: None,
+                event_timezone: None,
+                price_amount: None,
+                currency: None,
+                unit: None,
+                quantity: None,
+                food_published_at_unix_s: None,
+                food_status: None,
+                media: Vec::new(),
+            },
+        })
+        .await
+        .expect("save lossless revision intent");
+    assert_eq!(revision.phase, FfiRevisionPhase::ReplacementPending);
+    assert_eq!(revision.operation_id, revision.replacement.draft_id);
+    let cancelled_revision = runtime
+        .phase1_cancel_revision(revision.operation_id.clone())
+        .await
+        .expect("cancel revision intent");
+    assert_eq!(cancelled_revision.operation_id, revision.operation_id);
+    assert_eq!(cancelled_revision.phase, FfiRevisionPhase::Cancelled);
+
+    let profile = runtime
+        .phase1_save_profile_metadata(FfiProfileMetadataInputRecord {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            name: "grower".to_owned(),
+            display_name: Some("Local Grower".to_owned()),
+            about: Some("Seasonal produce".to_owned()),
+            picture: None,
+            banner: None,
+            nip05: Some("grower@farm.example".to_owned()),
+            bot: Some(false),
+        })
+        .await
+        .expect("save profile intent");
+    assert_eq!(profile.state, FfiOutboxState::Draft);
+    assert_eq!(profile.operation_id.len(), 32);
+    let cancelled_profile = runtime
+        .phase1_cancel_profile(profile.operation_id.clone(), profile.revision)
+        .await
+        .expect("cancel profile intent");
+    assert_eq!(cancelled_profile.operation_id, profile.operation_id);
+    assert_eq!(cancelled_profile.state, FfiOutboxState::Cancelled);
 
     runtime.shutdown().await.expect("shutdown");
     assert!(matches!(

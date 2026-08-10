@@ -1,11 +1,19 @@
 use std::sync::Arc;
 
 use radroots_mobile_core::runtime::product_surface::{
-    LocalNetworkRelayPolicy, Phase1AddIntent, Phase1ExistingDraft, Phase1QueueIntent,
-    TodayPageRequest, phase1_new_addressable_identifier, phase1_operation_now_unix_ms,
+    LocalNetworkRelayPolicy, Phase1AddIntent, Phase1ExistingDraft, Phase1MediaCachePolicy,
+    Phase1QueueIntent, Phase1ReviseIntent, ReplaceMobileSettings, TodayPageRequest,
+    phase1_new_addressable_identifier, phase1_operation_now_unix_ms,
 };
 
 use crate::dto::PreparedMedia;
+use crate::operations::{
+    FfiIdentityCommandRecord, FfiMediaCacheStatusRecord, FfiMediaOperation,
+    FfiMobileSettingsRecord, FfiProfileMetadataInputRecord, FfiProfileStatusRecord,
+    FfiReplaceSettingsRecord, FfiRevisionInputRecord, FfiRevisionStatusRecord,
+    FfiSettingsTransitionRecord, FfiVerifiedMediaArtifactRecord, decode_artifact_id,
+    decode_configuration, decode_reference_fingerprint,
+};
 use crate::signer::HostSignerAdapter;
 use crate::subscription::SubscriptionHub;
 use crate::{
@@ -756,6 +764,280 @@ impl RadrootsRuntime {
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
+    }
+
+    pub async fn phase1_settings(&self) -> Result<FfiMobileSettingsRecord, RadrootsAppError> {
+        self.inner
+            .phase1_settings()
+            .await
+            .map(|settings| (&settings).into())
+            .map_err(Into::into)
+    }
+
+    pub async fn phase1_replace_settings(
+        &self,
+        input: FfiReplaceSettingsRecord,
+    ) -> Result<FfiSettingsTransitionRecord, RadrootsAppError> {
+        let current = self.inner.phase1_settings().await?;
+        let expected_revision = input.expected_revision;
+        let next = input.apply(current)?;
+        let transition = self
+            .inner
+            .phase1_replace_settings(ReplaceMobileSettings::new(expected_revision, next)?)
+            .await?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Settings, None);
+        Ok(transition.into())
+    }
+
+    pub async fn phase1_apply_identity_command(
+        &self,
+        expected_revision: u64,
+        command: FfiIdentityCommandRecord,
+    ) -> Result<FfiSettingsTransitionRecord, RadrootsAppError> {
+        let transition = self
+            .inner
+            .phase1_apply_identity_command(expected_revision, command.try_into()?)
+            .await?;
+        let identity_id = transition
+            .settings
+            .identity()
+            .active_identity_id()
+            .map(str::to_owned);
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Identity, identity_id);
+        Ok(transition.into())
+    }
+
+    pub async fn phase1_save_profile_metadata(
+        &self,
+        input: FfiProfileMetadataInputRecord,
+    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
+        let blossom = self
+            .inner
+            .sdk_blossom_slot()
+            .map_err(RadrootsAppError::from)?;
+        let status = self
+            .inner
+            .phase1_save_profile_metadata(input.command(blossom.as_ref())?)
+            .await?;
+        let operation_id = hex::encode(status.draft().draft_id().as_bytes());
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Profile, Some(operation_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_profile_status(
+        &self,
+        operation_id: String,
+    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
+        self.inner
+            .phase1_profile_status(decode_id(&operation_id, "invalid_operation_id")?)
+            .await
+            .map(Into::into)
+            .map_err(Into::into)
+    }
+
+    pub async fn phase1_advance_profile(
+        &self,
+        operation_id: String,
+    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
+        let status = self
+            .inner
+            .phase1_advance_profile(decode_id(&operation_id, "invalid_operation_id")?)
+            .await?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Profile, Some(operation_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_cancel_profile(
+        &self,
+        operation_id: String,
+        expected_revision: u64,
+    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
+        let status = self
+            .inner
+            .phase1_cancel_profile(
+                decode_id(&operation_id, "invalid_operation_id")?,
+                expected_revision,
+            )
+            .await?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Profile, Some(operation_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_save_revision_intent(
+        &self,
+        mut input: FfiRevisionInputRecord,
+    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+        let target = input.target()?;
+        if input.replacement.identifier.is_none()
+            && matches!(
+                input.replacement.command_type,
+                crate::FfiAddCommandType::CreateEvent
+                    | crate::FfiAddCommandType::CreateFoodAvailability
+            )
+        {
+            input.replacement.identifier = Some(phase1_new_addressable_identifier());
+        }
+        let authored_at_unix_s = phase1_operation_now_unix_ms()? / 1_000;
+        let blossom = self
+            .inner
+            .sdk_blossom_slot()
+            .map_err(RadrootsAppError::from)?;
+        let (command, media, form) = input
+            .replacement
+            .command_media_and_form(authored_at_unix_s, blossom.as_ref())?;
+        let status = self
+            .inner
+            .phase1_save_revision_intent(Phase1ReviseIntent::new(target, command, media, form)?)
+            .await?;
+        let operation_id = hex::encode(status.replacement().draft().draft_id().as_bytes());
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(operation_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_revision_status(
+        &self,
+        operation_id: String,
+    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+        self.inner
+            .phase1_revision_status(decode_id(&operation_id, "invalid_operation_id")?)
+            .await
+            .map(Into::into)
+            .map_err(Into::into)
+    }
+
+    pub async fn phase1_advance_revision(
+        &self,
+        operation_id: String,
+    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+        let status = self
+            .inner
+            .phase1_advance_revision(decode_id(&operation_id, "invalid_operation_id")?)
+            .await?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(operation_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_cancel_revision(
+        &self,
+        operation_id: String,
+    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+        let status = self
+            .inner
+            .phase1_cancel_revision(decode_id(&operation_id, "invalid_operation_id")?)
+            .await?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, Some(operation_id));
+        Ok(status.into())
+    }
+
+    pub async fn phase1_retrieve_media(
+        &self,
+        context: FfiLocalNetworkRecord,
+        reference_fingerprint: String,
+        operation: Arc<FfiMediaOperation>,
+    ) -> Result<FfiVerifiedMediaArtifactRecord, RadrootsAppError> {
+        let context = self.local_network(context)?;
+        operation.claim()?;
+        let operation_id = operation.operation_id();
+        let settings = self.inner.phase1_settings().await?;
+        let policy = Phase1MediaCachePolicy::new(
+            settings.local_storage().media_cache_bytes(),
+            settings.local_storage().media_cache_artifacts(),
+        )
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_cache_policy"))?;
+        let artifact = self
+            .inner
+            .phase1_retrieve_media(
+                &context,
+                decode_reference_fingerprint(&reference_fingerprint)?,
+                operation.id(),
+                policy,
+                operation.cancellation(),
+            )
+            .await
+            .map_err(|error| {
+                RadrootsAppError::from(error).with_operation_id(operation_id.clone())
+            })?;
+        self.subscriptions.notify(
+            FfiRuntimeChangeKind::Media,
+            Some(artifact.artifact_id().to_hex()),
+        );
+        Ok(FfiVerifiedMediaArtifactRecord::from_artifact(
+            artifact,
+            Some(operation_id),
+        ))
+    }
+
+    pub async fn phase1_verified_media_artifact(
+        &self,
+        context: FfiLocalNetworkRecord,
+        artifact_id: String,
+    ) -> Result<Option<FfiVerifiedMediaArtifactRecord>, RadrootsAppError> {
+        let context = self.local_network(context)?;
+        self.inner
+            .phase1_verified_media_artifact(
+                &context,
+                decode_artifact_id(&artifact_id)?,
+                phase1_operation_now_unix_ms()?,
+            )
+            .await
+            .map(|value| {
+                value.map(|artifact| FfiVerifiedMediaArtifactRecord::from_artifact(artifact, None))
+            })
+            .map_err(Into::into)
+    }
+
+    pub async fn phase1_media_cache_status(
+        &self,
+        context: FfiLocalNetworkRecord,
+    ) -> Result<FfiMediaCacheStatusRecord, RadrootsAppError> {
+        let context = self.local_network(context)?;
+        self.inner
+            .phase1_media_cache_status(&context)
+            .await
+            .map(Into::into)
+            .map_err(Into::into)
+    }
+
+    pub async fn phase1_invalidate_media_artifact(
+        &self,
+        context: FfiLocalNetworkRecord,
+        artifact_id: String,
+    ) -> Result<bool, RadrootsAppError> {
+        let context = self.local_network(context)?;
+        let changed = self
+            .inner
+            .phase1_invalidate_media_artifact(&context, decode_artifact_id(&artifact_id)?)
+            .await?;
+        if changed {
+            self.subscriptions
+                .notify(FfiRuntimeChangeKind::Media, Some(artifact_id));
+        }
+        Ok(changed)
+    }
+
+    pub async fn phase1_invalidate_media_configuration(
+        &self,
+        context: FfiLocalNetworkRecord,
+        configuration_fingerprint: String,
+    ) -> Result<Vec<String>, RadrootsAppError> {
+        let context = self.local_network(context)?;
+        let removed = self
+            .inner
+            .phase1_invalidate_media_configuration(
+                &context,
+                decode_configuration(&configuration_fingerprint)?,
+            )
+            .await?;
+        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
+        Ok(removed.into_iter().map(|value| value.to_hex()).collect())
     }
 }
 

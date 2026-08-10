@@ -7,12 +7,14 @@ uniffi::setup_scaffolding!("radroots_mobile_core");
 
 mod dto;
 pub mod logging;
+mod operations;
 mod runtime;
 mod signer;
 mod subscription;
 
 pub use dto::*;
 pub use error::{RadrootsAppError, RadrootsErrorRecord};
+pub use operations::*;
 pub use runtime::{ProtectedDataAvailability, RadrootsRuntime};
 pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,

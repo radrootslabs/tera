@@ -15,6 +15,8 @@ const CHANGE_BUFFER_CAPACITY: usize = 16;
 pub enum FfiRuntimeChangeKind {
     Initial,
     Identity,
+    Settings,
+    Profile,
     Today,
     Drafts,
     Relay,

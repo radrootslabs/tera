@@ -1,4 +1,6 @@
-use radroots_mobile_core::runtime::product_surface::{Phase1DraftError, TodayError};
+use radroots_mobile_core::runtime::product_surface::{
+    Phase1DraftError, ProfileMetadataError, SettingsError, TodayError,
+};
 use thiserror::Error;
 
 use crate::MOBILE_FFI_SCHEMA_VERSION;
@@ -76,6 +78,13 @@ impl RadrootsAppError {
         match self {
             Self::Failure { report } => report,
         }
+    }
+
+    pub(crate) fn with_operation_id(mut self, operation_id: String) -> Self {
+        match &mut self {
+            Self::Failure { report } => report.operation_id = Some(operation_id),
+        }
+        self
     }
 }
 
@@ -218,6 +227,43 @@ impl From<Phase1DraftError> for RadrootsAppError {
             retryable,
             actions,
             "The authored operation could not be completed.",
+        )
+    }
+}
+
+impl From<SettingsError> for RadrootsAppError {
+    fn from(error: SettingsError) -> Self {
+        let retryable = matches!(
+            error,
+            SettingsError::RevisionConflict
+                | SettingsError::RevisionExhausted
+                | SettingsError::Storage
+        );
+        let actions = if matches!(error, SettingsError::RevisionConflict) {
+            &["refresh"] as &[&str]
+        } else if retryable {
+            &["retry"] as &[&str]
+        } else {
+            &["correct_input"] as &[&str]
+        };
+        Self::failure(
+            error.code(),
+            "settings",
+            retryable,
+            actions,
+            "The settings operation could not be completed.",
+        )
+    }
+}
+
+impl From<ProfileMetadataError> for RadrootsAppError {
+    fn from(error: ProfileMetadataError) -> Self {
+        Self::failure(
+            error.code(),
+            "profile",
+            false,
+            &["correct_input"],
+            "The profile metadata is invalid.",
         )
     }
 }

@@ -276,6 +276,7 @@ impl From<&Phase1InboundMediaState> for FfiMediaVerificationState {
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiMediaReferenceRecord {
     pub schema_version: u16,
+    pub reference_fingerprint: String,
     pub url: String,
     pub sha256: Option<String>,
     pub media_type: Option<String>,
@@ -292,6 +293,7 @@ impl From<MediaReference> for FfiMediaReferenceRecord {
         let structural = value.structural();
         Self {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            reference_fingerprint: hex::encode(structural.fingerprint()),
             url: structural.source_url().to_owned(),
             sha256: structural.expected_sha256().map(str::to_owned),
             media_type: structural.expected_media_type().map(str::to_owned),
@@ -1165,6 +1167,13 @@ fn read_media_file_descriptor(
 }
 
 impl PreparedMedia {
+    pub(crate) fn into_authored_image(
+        self,
+        blossom: &radroots_sdk::transport::BlossomSlot,
+    ) -> Result<AuthoredImage, RadrootsAppError> {
+        self.bind(blossom)?.authored_image()
+    }
+
     pub(crate) fn into_upload_intent(
         self,
         draft_id: [u8; 16],
