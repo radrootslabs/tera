@@ -843,6 +843,21 @@ impl RadrootsRuntime {
             .map_err(Into::into)
     }
 
+    pub async fn phase1_apply_settings_to_runtime(
+        &self,
+    ) -> Result<FfiMobileSettingsRecord, RadrootsAppError> {
+        let settings = self.inner.phase1_settings().await?;
+        self.inner
+            .configure_relay_preferences(settings.relays())
+            .map_err(RadrootsAppError::from)?;
+        self.inner
+            .configure_blossom_preferences(settings.blossom())
+            .map_err(RadrootsAppError::from)?;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Settings, None);
+        Ok((&settings).into())
+    }
+
     pub async fn phase1_replace_settings(
         &self,
         input: FfiReplaceSettingsRecord,

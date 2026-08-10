@@ -1,11 +1,14 @@
 use radroots_mobile_ffi::{
-    FfiAddCommandType, FfiAddDraftInput, FfiBlossomEndpointAuthority, FfiBlossomHostKind,
+    FfiAddCommandType, FfiAddDraftInput, FfiBlossomAuthorityPreference,
+    FfiBlossomEndpointAuthority, FfiBlossomHostKind, FfiBlossomPreferencesRecord,
     FfiBlossomUploadIntent, FfiCancellationPolicy, FfiDraftKind, FfiIdentityCommandKind,
-    FfiIdentityCommandRecord, FfiIdentityLockState, FfiLocalNetworkRecord, FfiOutboxState,
-    FfiPreparedMediaInput, FfiProfileMetadataInputRecord, FfiQueuePolicyRecord,
-    FfiRelayAccessRecord, FfiRelaySatisfaction, FfiRetractionDraftInput, FfiRevisionInputRecord,
-    FfiRevisionPhase, FfiTodayCardType, FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION,
-    RadrootsAppError,
+    FfiIdentityCommandRecord, FfiIdentityLockState, FfiLocalNetworkRecord,
+    FfiLocalStoragePolicyRecord, FfiMediaNetworkPolicyRecord, FfiMobileNetworkEnvironment,
+    FfiOutboxState, FfiPreparedMediaInput, FfiProfileMetadataInputRecord, FfiQueuePolicyRecord,
+    FfiRelayAccessPreference, FfiRelayAccessRecord, FfiRelayPreferenceRecord,
+    FfiRelayPreferencesRecord, FfiRelaySatisfaction, FfiReplaceSettingsRecord,
+    FfiRetractionDraftInput, FfiRevisionInputRecord, FfiRevisionPhase, FfiTodayCardType,
+    FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError,
 };
 
 mod support;
@@ -59,6 +62,60 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             .configure_public_relays(vec!["ws://127.0.0.1:7447".to_owned()])
             .is_err()
     );
+
+    let settings = runtime.phase1_settings().await.expect("settings");
+    runtime
+        .phase1_replace_settings(FfiReplaceSettingsRecord {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            expected_revision: settings.revision,
+            relays: FfiRelayPreferencesRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                environment: FfiMobileNetworkEnvironment::Public,
+                endpoints: vec![
+                    FfiRelayPreferenceRecord {
+                        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                        url: "wss://read.example".to_owned(),
+                        access: FfiRelayAccessPreference::ReadOnly,
+                    },
+                    FfiRelayPreferenceRecord {
+                        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                        url: "wss://write.example".to_owned(),
+                        access: FfiRelayAccessPreference::ReadWrite,
+                    },
+                ],
+            },
+            blossom: FfiBlossomPreferencesRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                environment: FfiMobileNetworkEnvironment::Public,
+                authority: FfiBlossomAuthorityPreference::PublicWebPki,
+                primary_origin: "https://media.example".to_owned(),
+                fallback_origins: vec![],
+            },
+            media_network: FfiMediaNetworkPolicyRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                allow_cellular_downloads: true,
+                allow_cellular_uploads: true,
+                allow_background_transfers: true,
+            },
+            local_storage: FfiLocalStoragePolicyRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                media_cache_bytes: 256 * 1024 * 1024,
+                media_cache_artifacts: 1024,
+            },
+        })
+        .await
+        .expect("replace settings");
+    runtime
+        .phase1_apply_settings_to_runtime()
+        .await
+        .expect("apply settings");
+    let applied = runtime
+        .sdk_relay_status()
+        .expect("relay status")
+        .expect("applied settings profile");
+    assert_eq!(applied.relays.len(), 2);
+    assert_eq!(applied.relays[0].access, FfiRelayAccessRecord::ReadOnly);
+    assert_eq!(applied.relays[1].access, FfiRelayAccessRecord::ReadWrite);
 
     runtime
         .configure_simulator_relays(vec!["ws://127.0.0.1:7447".to_owned()])
