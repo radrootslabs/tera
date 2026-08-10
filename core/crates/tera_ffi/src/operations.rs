@@ -620,15 +620,32 @@ impl FfiMediaOperation {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Eq, PartialEq, uniffi::Record)]
 pub struct FfiVerifiedMediaArtifactRecord {
     pub schema_version: u16,
     pub operation_id: Option<String>,
     pub artifact_id: String,
+    pub bytes: Vec<u8>,
     pub byte_size: u64,
     pub media_type: String,
     pub width: u32,
     pub height: u32,
+}
+
+impl std::fmt::Debug for FfiVerifiedMediaArtifactRecord {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("FfiVerifiedMediaArtifactRecord")
+            .field("schema_version", &self.schema_version)
+            .field("operation_id", &self.operation_id)
+            .field("artifact_id", &self.artifact_id)
+            .field("bytes", &"<redacted>")
+            .field("byte_size", &self.byte_size)
+            .field("media_type", &self.media_type)
+            .field("width", &self.width)
+            .field("height", &self.height)
+            .finish()
+    }
 }
 
 impl FfiVerifiedMediaArtifactRecord {
@@ -640,6 +657,7 @@ impl FfiVerifiedMediaArtifactRecord {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
             operation_id,
             artifact_id: value.artifact_id().to_hex(),
+            bytes: value.bytes().to_vec(),
             byte_size: value.byte_size(),
             media_type: value.media_type().to_owned(),
             width: value.width(),
@@ -720,6 +738,23 @@ mod tests {
         let error = operation.claim().unwrap_err();
         assert_eq!(error.report().code, "media_operation_already_used");
         assert_eq!(operation.operation_id().len(), 32);
+    }
+
+    #[test]
+    fn verified_media_artifact_debug_never_exposes_renderable_bytes() {
+        let artifact = FfiVerifiedMediaArtifactRecord {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            operation_id: None,
+            artifact_id: "11".repeat(32),
+            bytes: b"private farm image".to_vec(),
+            byte_size: 18,
+            media_type: "image/png".to_owned(),
+            width: 1,
+            height: 1,
+        };
+        let debug = format!("{artifact:?}");
+        assert!(debug.contains("<redacted>"));
+        assert!(!debug.contains("private farm image"));
     }
 
     #[test]
