@@ -1,0 +1,153 @@
+{
+  "suite": "rhi_evidence_attestation_decision",
+  "contract_version": "1.0.0",
+  "vectors": [
+    {
+      "id": "rhi_evidence_attestation_current_001",
+      "kind": "rhi.evidence_attestation.valid",
+      "input": {
+        "statement_payload": {
+          "attestation_method": "signed_evidence_snapshot",
+          "claim_mutation_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "contract_id": "radroots.rhi.evidence_attestation.v1",
+          "contract_version": 1,
+          "evidence_manifest_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+          "evidence_policy_digest": "5555555555555555555555555555555555555555555555555555555555555555",
+          "issuer_pubkey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "observed_at_unix_s": 1800000000,
+          "outcome": "indeterminate",
+          "projection_digest": "6666666666666666666666666666666666666666666666666666666666666666",
+          "reason_codes": ["required_source_incomplete"],
+          "reducer_contract_id": "radroots.trade.reducer.v1",
+          "reducer_contract_version": 1,
+          "supersedes_event_id": null,
+          "supersedes_report_id": null,
+          "trade_generation": 7,
+          "trade_id": "11111111111111111111111111111111"
+        }
+      },
+      "expected": {
+        "kind": 3441,
+        "event_class": "regular_immutable",
+        "canonical_statement_payload_utf8": "{\"attestation_method\":\"signed_evidence_snapshot\",\"claim_mutation_id\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"contract_id\":\"radroots.rhi.evidence_attestation.v1\",\"contract_version\":1,\"evidence_manifest_digest\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"evidence_policy_digest\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"issuer_pubkey\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"observed_at_unix_s\":1800000000,\"outcome\":\"indeterminate\",\"projection_digest\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"reason_codes\":[\"required_source_incomplete\"],\"reducer_contract_id\":\"radroots.trade.reducer.v1\",\"reducer_contract_version\":1,\"supersedes_event_id\":null,\"supersedes_report_id\":null,\"trade_generation\":7,\"trade_id\":\"11111111111111111111111111111111\"}",
+        "statement_digest": "461acfea579481f6aadba47c31abc07eaa700f66abc074b8926ba41266082b44",
+        "report_id": "461acfea579481f6aadba47c31abc07eaa700f66abc074b8926ba41266082b44",
+        "canonical_event_content_utf8": "{\"attestation_method\":\"signed_evidence_snapshot\",\"claim_mutation_id\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"contract_id\":\"radroots.rhi.evidence_attestation.v1\",\"contract_version\":1,\"evidence_manifest_digest\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"evidence_policy_digest\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"issuer_pubkey\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"observed_at_unix_s\":1800000000,\"outcome\":\"indeterminate\",\"projection_digest\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"reason_codes\":[\"required_source_incomplete\"],\"reducer_contract_id\":\"radroots.trade.reducer.v1\",\"reducer_contract_version\":1,\"report_id\":\"461acfea579481f6aadba47c31abc07eaa700f66abc074b8926ba41266082b44\",\"statement_digest\":\"461acfea579481f6aadba47c31abc07eaa700f66abc074b8926ba41266082b44\",\"supersedes_event_id\":null,\"supersedes_report_id\":null,\"trade_generation\":7,\"trade_id\":\"11111111111111111111111111111111\"}",
+        "tags": [
+          ["contract", "radroots.rhi.evidence_attestation.v1"],
+          ["d", "11111111111111111111111111111111"],
+          ["x", "2222222222222222222222222222222222222222222222222222222222222222", "claim"],
+          ["x", "461acfea579481f6aadba47c31abc07eaa700f66abc074b8926ba41266082b44", "statement"],
+          ["t", "radroots:rhi-outcome:indeterminate"]
+        ]
+      }
+    },
+    {
+      "id": "rhi_evidence_attestation_superseding_002",
+      "kind": "rhi.evidence_attestation.valid",
+      "input": {
+        "statement_payload": {
+          "attestation_method": "signed_evidence_snapshot",
+          "claim_mutation_id": "2222222222222222222222222222222222222222222222222222222222222222",
+          "contract_id": "radroots.rhi.evidence_attestation.v1",
+          "contract_version": 1,
+          "evidence_manifest_digest": "4444444444444444444444444444444444444444444444444444444444444444",
+          "evidence_policy_digest": "5555555555555555555555555555555555555555555555555555555555555555",
+          "issuer_pubkey": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "observed_at_unix_s": 1800000100,
+          "outcome": "valid",
+          "projection_digest": "6666666666666666666666666666666666666666666666666666666666666666",
+          "reason_codes": ["scope_satisfied"],
+          "reducer_contract_id": "radroots.trade.reducer.v1",
+          "reducer_contract_version": 1,
+          "supersedes_event_id": "8888888888888888888888888888888888888888888888888888888888888888",
+          "supersedes_report_id": "7777777777777777777777777777777777777777777777777777777777777777",
+          "trade_generation": 8,
+          "trade_id": "11111111111111111111111111111111"
+        }
+      },
+      "expected": {
+        "canonical_statement_payload_utf8": "{\"attestation_method\":\"signed_evidence_snapshot\",\"claim_mutation_id\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"contract_id\":\"radroots.rhi.evidence_attestation.v1\",\"contract_version\":1,\"evidence_manifest_digest\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"evidence_policy_digest\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"issuer_pubkey\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"observed_at_unix_s\":1800000100,\"outcome\":\"valid\",\"projection_digest\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"reason_codes\":[\"scope_satisfied\"],\"reducer_contract_id\":\"radroots.trade.reducer.v1\",\"reducer_contract_version\":1,\"supersedes_event_id\":\"8888888888888888888888888888888888888888888888888888888888888888\",\"supersedes_report_id\":\"7777777777777777777777777777777777777777777777777777777777777777\",\"trade_generation\":8,\"trade_id\":\"11111111111111111111111111111111\"}",
+        "statement_digest": "61af3caa6a3a14ff7bb026e9f294826d1d1957a5aff3d814156acee9cf0d5807",
+        "report_id": "61af3caa6a3a14ff7bb026e9f294826d1d1957a5aff3d814156acee9cf0d5807",
+        "canonical_event_content_utf8": "{\"attestation_method\":\"signed_evidence_snapshot\",\"claim_mutation_id\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"contract_id\":\"radroots.rhi.evidence_attestation.v1\",\"contract_version\":1,\"evidence_manifest_digest\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"evidence_policy_digest\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"issuer_pubkey\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"observed_at_unix_s\":1800000100,\"outcome\":\"valid\",\"projection_digest\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"reason_codes\":[\"scope_satisfied\"],\"reducer_contract_id\":\"radroots.trade.reducer.v1\",\"reducer_contract_version\":1,\"report_id\":\"61af3caa6a3a14ff7bb026e9f294826d1d1957a5aff3d814156acee9cf0d5807\",\"statement_digest\":\"61af3caa6a3a14ff7bb026e9f294826d1d1957a5aff3d814156acee9cf0d5807\",\"supersedes_event_id\":\"8888888888888888888888888888888888888888888888888888888888888888\",\"supersedes_report_id\":\"7777777777777777777777777777777777777777777777777777777777777777\",\"trade_generation\":8,\"trade_id\":\"11111111111111111111111111111111\"}",
+        "tags": [
+          ["contract", "radroots.rhi.evidence_attestation.v1"],
+          ["d", "11111111111111111111111111111111"],
+          ["x", "2222222222222222222222222222222222222222222222222222222222222222", "claim"],
+          ["x", "61af3caa6a3a14ff7bb026e9f294826d1d1957a5aff3d814156acee9cf0d5807", "statement"],
+          ["t", "radroots:rhi-outcome:valid"],
+          ["x", "7777777777777777777777777777777777777777777777777777777777777777", "supersedes_report"],
+          ["e", "8888888888888888888888888888888888888888888888888888888888888888"]
+        ],
+        "mutates_prior_report": false
+      }
+    },
+    {
+      "id": "rhi_evidence_attestation_wrong_kind_003",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "kind": 3440 },
+      "expected": { "layer": "wire", "error_code": "invalid_attestation_kind" }
+    },
+    {
+      "id": "rhi_evidence_attestation_wrong_author_004",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "event_author": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+      "expected": { "layer": "wire", "error_code": "issuer_author_mismatch" }
+    },
+    {
+      "id": "rhi_evidence_attestation_noncanonical_content_005",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "content_transform": "append_ascii_space" },
+      "expected": { "layer": "wire", "error_code": "noncanonical_report_content" }
+    },
+    {
+      "id": "rhi_evidence_attestation_digest_mismatch_006",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "statement_digest": "0000000000000000000000000000000000000000000000000000000000000000" },
+      "expected": { "layer": "wire", "error_code": "statement_digest_mismatch" }
+    },
+    {
+      "id": "rhi_evidence_attestation_unknown_outcome_007",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "outcome": "complete" },
+      "expected": { "layer": "wire", "error_code": "invalid_outcome" }
+    },
+    {
+      "id": "rhi_evidence_attestation_missing_claim_tag_008",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "remove_tag": ["x", "claim"] },
+      "expected": { "layer": "wire", "error_code": "missing_claim_tag" }
+    },
+    {
+      "id": "rhi_evidence_attestation_duplicate_trade_tag_009",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "append_tag": ["d", "99999999999999999999999999999999"] },
+      "expected": { "layer": "wire", "error_code": "duplicate_trade_tag" }
+    },
+    {
+      "id": "rhi_evidence_attestation_duplicate_statement_tag_010",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "append_tag": ["x", "9999999999999999999999999999999999999999999999999999999999999999", "statement"] },
+      "expected": { "layer": "wire", "error_code": "duplicate_statement_tag" }
+    },
+    {
+      "id": "rhi_evidence_attestation_incomplete_supersession_011",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_current_001", "supersedes_report_id": "7777777777777777777777777777777777777777777777777777777777777777", "supersedes_event_id": null },
+      "expected": { "layer": "wire", "error_code": "incomplete_supersession_reference" }
+    },
+    {
+      "id": "rhi_evidence_attestation_stale_supersession_012",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "base": "rhi_evidence_attestation_superseding_002", "current_trade_generation": 8, "candidate_trade_generation": 7 },
+      "expected": { "layer": "admission", "error_code": "stale_trade_generation" }
+    },
+    {
+      "id": "rhi_evidence_attestation_caller_structural_tag_013",
+      "kind": "rhi.evidence_attestation.invalid",
+      "input": { "builder_extra_tags": [["d", "11111111111111111111111111111111"]] },
+      "expected": { "layer": "builder", "error_code": "caller_structural_tag_forbidden" }
+    }
+  ]
+}

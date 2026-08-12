@@ -1,9 +1,9 @@
 //! Focused, versioned value types owned by the native boundary.
 
 #[cfg(unix)]
-use std::os::unix::fs::FileExt;
+use std::os::fd::{FromRawFd, OwnedFd, RawFd};
 #[cfg(unix)]
-use std::os::{fd::BorrowedFd, unix::io::RawFd};
+use std::os::unix::fs::FileExt;
 
 use radroots_blossom::{BlobDescriptor, MediaType, Sha256};
 use radroots_event::{
@@ -1143,12 +1143,18 @@ fn read_media_file_descriptor(
 ) -> Result<Vec<u8>, RadrootsAppError> {
     let raw_file_descriptor = RawFd::try_from(file_descriptor)
         .map_err(|_| RadrootsAppError::invalid_argument("media_handle_unavailable"))?;
-    // SAFETY: the host owns this descriptor for the duration of the synchronous
-    // FFI call. Duplicating it immediately gives Rust independent ownership
-    // without closing or otherwise consuming the host descriptor.
-    let borrowed = unsafe { BorrowedFd::borrow_raw(raw_file_descriptor) };
-    let owned = rustix::io::dup(borrowed)
-        .map_err(|_| RadrootsAppError::invalid_argument("media_handle_unavailable"))?;
+    // SAFETY: `fcntl(F_DUPFD_CLOEXEC)` accepts any in-range integer descriptor
+    // and reports EBADF for an unavailable one. No borrowed or owned Rust
+    // descriptor is constructed until the kernel has duplicated it.
+    let duplicated = unsafe { libc::fcntl(raw_file_descriptor, libc::F_DUPFD_CLOEXEC, 0) };
+    if duplicated < 0 {
+        return Err(RadrootsAppError::invalid_argument(
+            "media_handle_unavailable",
+        ));
+    }
+    // SAFETY: a nonnegative F_DUPFD_CLOEXEC result is a new descriptor owned by
+    // this call. The host's original descriptor remains independently owned.
+    let owned = unsafe { OwnedFd::from_raw_fd(duplicated) };
     let file = std::fs::File::from(owned);
     let metadata = file
         .metadata()
@@ -2265,6 +2271,23 @@ mod tests {
             input
                 .command_and_media(1_800_000_000, Some(&blossom))
                 .expect_err("out-of-range descriptor")
+                .report()
+                .code,
+            "media_handle_unavailable"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn prepared_media_rejects_unavailable_in_range_file_descriptors() {
+        let bytes = png(2, 2);
+        let blossom = blossom_slot();
+        let input = photo_input(i32::MAX as u64, &bytes, Sha256::digest(&bytes).to_hex());
+
+        assert_eq!(
+            input
+                .command_and_media(1_800_000_000, Some(&blossom))
+                .expect_err("unavailable in-range descriptor")
                 .report()
                 .code,
             "media_handle_unavailable"

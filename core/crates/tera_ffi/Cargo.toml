@@ -35,6 +35,7 @@ thiserror = { workspace = true }
 uniffi = { workspace = true, features = ["tokio"] }
 
 [target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
 rustix = { workspace = true }
 
 [dev-dependencies]
@@ -43,4 +44,11 @@ nostr-relay-builder = { git = "https://github.com/rust-nostr/nostr.git", rev = "
 nostr-sdk = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr-sdk" }
 secp256k1 = { workspace = true }
 tempfile = { workspace = true }
-tokio = { workspace = true, features = ["io-util", "macros", "net", "rt-multi-thread", "sync", "time"] }
+tokio = { workspace = true, features = [
+  "io-util",
+  "macros",
+  "net",
+  "rt-multi-thread",
+  "sync",
+  "time",
+] }
