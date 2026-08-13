@@ -374,10 +374,110 @@ mod tests {
             Phase1DraftError::Storage,
             Phase1DraftError::Overlay,
             Phase1DraftError::Corrupt,
+            Phase1DraftError::ClockUnavailable,
+            Phase1DraftError::DeadlineOverflow,
+            Phase1DraftError::NoWritableRelay,
+            Phase1DraftError::InvalidRevision,
         ] {
             let ffi = RadrootsAppError::from(error);
             assert_eq!(ffi.report().category, "authoring");
             assert!(!ffi.report().safe_message.is_empty());
         }
+    }
+
+    #[test]
+    fn cursor_media_settings_and_profile_failures_cover_every_stable_class() {
+        use radroots_mobile_core::runtime::product_surface::{
+            CursorError, IdentitySettingsError, Phase1InboundMediaError,
+        };
+
+        for cursor in [
+            CursorError::InvalidContext,
+            CursorError::Malformed,
+            CursorError::Integrity,
+            CursorError::Version,
+            CursorError::ContextMismatch,
+            CursorError::SnapshotMismatch,
+            CursorError::Stale,
+            CursorError::InvalidPosition,
+        ] {
+            let error = RadrootsAppError::from(TodayError::Cursor(cursor));
+            assert_eq!(error.report().code, "today_cursor_invalid");
+        }
+        for media in [
+            Phase1InboundMediaError::InvalidReference,
+            Phase1InboundMediaError::InvalidDigest,
+            Phase1InboundMediaError::MissingDigest,
+            Phase1InboundMediaError::InvalidMediaType,
+            Phase1InboundMediaError::InvalidDimensions,
+            Phase1InboundMediaError::InvalidByteSize,
+            Phase1InboundMediaError::InvalidAlt,
+            Phase1InboundMediaError::MetadataMismatch,
+            Phase1InboundMediaError::InvalidOperation,
+            Phase1InboundMediaError::OperationMismatch,
+            Phase1InboundMediaError::InvalidFailure,
+            Phase1InboundMediaError::InvalidConfiguration,
+            Phase1InboundMediaError::ConfigurationMismatch,
+            Phase1InboundMediaError::InvalidVerificationTime,
+            Phase1InboundMediaError::InvalidCachePolicy,
+            Phase1InboundMediaError::InvalidCacheObservation,
+            Phase1InboundMediaError::CacheQuotaExceeded,
+            Phase1InboundMediaError::ArtifactCollision,
+            Phase1InboundMediaError::CorruptReceipt,
+            Phase1InboundMediaError::CorruptState,
+            Phase1InboundMediaError::UnsupportedSchema,
+            Phase1InboundMediaError::CacheUnavailable,
+            Phase1InboundMediaError::CacheIo,
+            Phase1InboundMediaError::CorruptArtifact,
+        ] {
+            let error = RadrootsAppError::from(TodayError::InboundMedia(media));
+            assert_eq!(error.report().code, "today_media_invalid");
+        }
+        for settings in [
+            SettingsError::UnknownRelayAccess,
+            SettingsError::InvalidRelayEndpoint,
+            SettingsError::InvalidRelayEndpointCount,
+            SettingsError::DuplicateRelayEndpoint,
+            SettingsError::InvalidBlossomEndpoint,
+            SettingsError::InvalidBlossomEndpointCount,
+            SettingsError::NetworkEnvironmentMismatch,
+            SettingsError::InvalidMediaCacheBytes,
+            SettingsError::InvalidMediaCacheArtifacts,
+            SettingsError::RevisionConflict,
+            SettingsError::RevisionExhausted,
+            SettingsError::UnsupportedSchema,
+            SettingsError::CorruptDocument,
+            SettingsError::Storage,
+            SettingsError::Identity(IdentitySettingsError::InvalidIdentityId),
+        ] {
+            let expected_retryable = matches!(
+                settings,
+                SettingsError::RevisionConflict
+                    | SettingsError::RevisionExhausted
+                    | SettingsError::Storage
+            );
+            let error = RadrootsAppError::from(settings);
+            assert_eq!(error.report().retryable, expected_retryable);
+        }
+        for profile in [
+            ProfileMetadataError::InvalidName,
+            ProfileMetadataError::InvalidDisplayName,
+            ProfileMetadataError::InvalidAbout,
+            ProfileMetadataError::InvalidNip05,
+        ] {
+            assert_eq!(RadrootsAppError::from(profile).report().category, "profile");
+        }
+        assert_eq!(
+            RadrootsAppError::initialization("private").report().code,
+            "initialization_failed"
+        );
+        assert_eq!(
+            RadrootsAppError::invalid_argument("bad")
+                .with_operation_id("operation".to_owned())
+                .report()
+                .operation_id
+                .as_deref(),
+            Some("operation")
+        );
     }
 }

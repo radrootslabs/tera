@@ -1,5 +1,6 @@
 use std::io::Write;
 use std::os::fd::AsRawFd;
+use std::sync::Arc;
 use std::time::Duration;
 
 use nostr::{EventBuilder, Keys, Kind, Metadata, Tag, Timestamp};
@@ -9,7 +10,7 @@ use radroots_blossom::Sha256;
 use radroots_mobile_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiBlossomEndpointAuthority, FfiBlossomHostKind,
     FfiBlossomUploadInput, FfiCancellationPolicy, FfiEventTimingKind, FfiLocalNetworkRecord,
-    FfiMediaStage, FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord,
+    FfiMediaOperation, FfiMediaStage, FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord,
     FfiRelaySatisfaction, FfiRetractionDraftInput, FfiTodayCardType, FfiTodayProjectionUpdate,
     FfiTodayRelaySyncState, HostSigningOutcome, HostSigningRequest, HostSigningResult,
     MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsHostSigner, RadrootsRuntime,
@@ -75,6 +76,14 @@ struct BlossomServer {
 
 impl BlossomServer {
     async fn spawn(bytes: Vec<u8>, corrupt_retrieval: bool) -> Self {
+        Self::spawn_with_retrievals(bytes, corrupt_retrieval, 1).await
+    }
+
+    async fn spawn_with_retrievals(
+        bytes: Vec<u8>,
+        corrupt_retrieval: bool,
+        retrievals: usize,
+    ) -> Self {
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .expect("bind Blossom server");
@@ -106,17 +115,19 @@ impl BlossomServer {
             );
             write_http_response(&mut upload, "application/json", &descriptor).await;
 
-            let (mut retrieval, _) = listener.accept().await.expect("accept Blossom retrieval");
-            let request = read_http_request(&mut retrieval).await;
-            assert!(
-                String::from_utf8_lossy(&request)
-                    .starts_with(format!("GET /{hash}.png HTTP/1.1\r\n").as_str())
-            );
-            let mut response_bytes = bytes;
-            if corrupt_retrieval {
-                response_bytes[0] ^= 1;
+            for _ in 0..retrievals {
+                let (mut retrieval, _) = listener.accept().await.expect("accept Blossom retrieval");
+                let request = read_http_request(&mut retrieval).await;
+                assert!(
+                    String::from_utf8_lossy(&request)
+                        .starts_with(format!("GET /{hash}.png HTTP/1.1\r\n").as_str())
+                );
+                let mut response_bytes = bytes.clone();
+                if corrupt_retrieval {
+                    response_bytes[0] ^= 1;
+                }
+                write_http_response(&mut retrieval, "image/png", &response_bytes).await;
             }
-            write_http_response(&mut retrieval, "image/png", &response_bytes).await;
         });
         Self { origin, task }
     }
@@ -131,7 +142,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     let relay = MockRelay::run().await.expect("local NIP-01 relay");
     let relay_url = relay.url().await.to_string();
     let image_bytes = png(2, 3);
-    let blossom = BlossomServer::spawn(image_bytes.clone(), false).await;
+    let blossom = BlossomServer::spawn_with_retrievals(image_bytes.clone(), false, 2).await;
     let mut image_file = tempfile::tempfile().expect("media file");
     image_file.write_all(&image_bytes).expect("write media");
     let media = prepared_media(&blossom.origin, &image_bytes, &image_file, "Harvest photo");
@@ -256,8 +267,6 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
         .await;
         advance_complete(&publisher, &id, queued.revision).await;
     }
-    blossom.finish().await;
-
     let reader_root = tempfile::tempdir().expect("fresh reader root");
     support::prepare(reader_root.path());
     let reader = RadrootsRuntime::new(
@@ -308,6 +317,55 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
         photo.media[0].sha256.as_deref(),
         Some(media.sha256.as_str())
     );
+    reader
+        .configure_blossom(
+            FfiBlossomHostKind::Simulator,
+            FfiBlossomEndpointAuthority::LoopbackDevelopment,
+            blossom.origin.clone(),
+            vec![],
+        )
+        .expect("reader Blossom profile");
+    let artifact = reader
+        .phase1_retrieve_media(
+            context.clone(),
+            photo.media[0].reference_fingerprint.clone(),
+            Arc::new(FfiMediaOperation::new().expect("media operation")),
+        )
+        .await
+        .expect("retrieve projected media");
+    assert_eq!(artifact.bytes, image_bytes);
+    assert_eq!(
+        artifact.byte_size,
+        u64::try_from(image_bytes.len()).unwrap()
+    );
+    assert!(
+        reader
+            .phase1_verified_media_artifact(context.clone(), artifact.artifact_id.clone())
+            .await
+            .expect("verify cached media")
+            .is_some()
+    );
+    let media_cache = reader
+        .phase1_media_cache_status(context.clone())
+        .await
+        .expect("media cache status");
+    assert_eq!(media_cache.artifact_count, 1);
+    assert_eq!(media_cache.total_bytes, artifact.byte_size);
+    assert!(media_cache.configuration_fingerprint.is_some());
+    assert!(
+        reader
+            .phase1_invalidate_media_artifact(context.clone(), artifact.artifact_id.clone())
+            .await
+            .expect("invalidate cached media")
+    );
+    assert!(
+        reader
+            .phase1_verified_media_artifact(context.clone(), artifact.artifact_id)
+            .await
+            .expect("verify invalidated media")
+            .is_none()
+    );
+    blossom.finish().await;
     let update = cards
         .iter()
         .find(|card| card.card_type == FfiTodayCardType::Update)

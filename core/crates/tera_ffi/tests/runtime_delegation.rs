@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use radroots_mobile_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiBlossomAuthorityPreference,
     FfiBlossomEndpointAuthority, FfiBlossomHostKind, FfiBlossomPreferencesRecord,
-    FfiBlossomUploadIntent, FfiCancellationPolicy, FfiDraftKind, FfiIdentityCommandKind,
-    FfiIdentityCommandRecord, FfiIdentityLockState, FfiLocalNetworkRecord,
-    FfiLocalStoragePolicyRecord, FfiMediaNetworkPolicyRecord, FfiMobileNetworkEnvironment,
-    FfiOutboxState, FfiPreparedMediaInput, FfiProfileMetadataInputRecord, FfiQueuePolicyRecord,
+    FfiBlossomUploadIntent, FfiCancellationPolicy, FfiDraftKind, FfiEventTimingKind,
+    FfiIdentityCommandKind, FfiIdentityCommandRecord, FfiIdentityLockState, FfiLocalNetworkRecord,
+    FfiLocalStoragePolicyRecord, FfiMediaNetworkPolicyRecord, FfiMediaOperation,
+    FfiMobileNetworkEnvironment, FfiNativeUploadCompletionInput, FfiOutboxState,
+    FfiPreparedMediaInput, FfiProfileMetadataInputRecord, FfiQueuePolicyRecord,
     FfiRelayAccessPreference, FfiRelayAccessRecord, FfiRelayPreferenceRecord,
     FfiRelayPreferencesRecord, FfiRelaySatisfaction, FfiReplaceSettingsRecord,
     FfiRetractionDraftInput, FfiRevisionInputRecord, FfiRevisionPhase, FfiTodayCardType,
@@ -198,6 +201,15 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             vec![],
         )
         .expect("simulator Blossom");
+    runtime
+        .configure_blossom(
+            FfiBlossomHostKind::Simulator,
+            FfiBlossomEndpointAuthority::LoopbackDevelopment,
+            "http://127.0.0.1:1".to_owned(),
+            vec![],
+        )
+        .expect("unavailable simulator Blossom");
+    assert!(runtime.probe_blossom().await.is_err());
     runtime
         .configure_blossom(
             FfiBlossomHostKind::PhysicalDevice,
@@ -409,20 +421,74 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .await
         .expect("cancelled draft");
     assert_eq!(cancelled.state, FfiOutboxState::Cancelled);
+    assert!(
+        runtime
+            .phase1_save_add_intent(
+                FfiAddDraftInput {
+                    schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                    command_type: FfiAddCommandType::CreateEvent,
+                    content: "Market opens Saturday".to_owned(),
+                    identifier: None,
+                    title: Some("Saturday market".to_owned()),
+                    summary: Some("Weekly market".to_owned()),
+                    location: Some("Town square".to_owned()),
+                    event_timing: Some(FfiEventTimingKind::AllDay),
+                    event_start_date: Some("2027-01-02".to_owned()),
+                    event_end_date: None,
+                    event_start_unix_s: None,
+                    event_end_unix_s: None,
+                    event_timezone: None,
+                    price_amount: None,
+                    currency: None,
+                    unit: None,
+                    quantity: None,
+                    food_published_at_unix_s: None,
+                    food_status: None,
+                    media: Vec::new(),
+                },
+                None,
+                Some(1),
+            )
+            .await
+            .is_err()
+    );
+    assert!(
+        runtime
+            .phase1_advance_draft(draft_id.clone(), cancelled.revision)
+            .await
+            .is_err()
+    );
 
     let retraction_id = "0a".repeat(16);
+    let retraction_input = FfiRetractionDraftInput {
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        command_type: FfiAddCommandType::CreateUpdate,
+        target_card_id: "c".repeat(64),
+        target_event_id: "a".repeat(64),
+        target_kind: 1,
+        target_address: None,
+        reason: "Replaced with a corrected copy".to_owned(),
+    };
+    let mut unsupported_retraction = retraction_input.clone();
+    unsupported_retraction.schema_version += 1;
+    assert_eq!(
+        runtime
+            .phase1_save_retraction_draft(
+                retraction_id.clone(),
+                unsupported_retraction,
+                1_800_000_005,
+                1_800_000_005_000,
+            )
+            .await
+            .expect_err("unsupported retraction schema")
+            .report()
+            .code,
+        "unsupported_schema_version"
+    );
     let retraction = runtime
         .phase1_save_retraction_draft(
             retraction_id.clone(),
-            FfiRetractionDraftInput {
-                schema_version: MOBILE_FFI_SCHEMA_VERSION,
-                command_type: FfiAddCommandType::CreateUpdate,
-                target_card_id: "c".repeat(64),
-                target_event_id: "a".repeat(64),
-                target_kind: 1,
-                target_address: None,
-                reason: "Replaced with a corrected copy".to_owned(),
-            },
+            retraction_input,
             1_800_000_005,
             1_800_000_005_000,
         )
@@ -474,14 +540,86 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .await
         .expect_err("unsupported upload schema");
     assert_eq!(upload_error.report().code, "unsupported_schema_version");
+    assert_eq!(
+        runtime
+            .phase1_prepare_add_media_background(upload.clone())
+            .await
+            .expect_err("unsupported background upload schema")
+            .report()
+            .code,
+        "unsupported_schema_version"
+    );
+    assert_eq!(
+        runtime
+            .phase1_complete_add_media_background(FfiNativeUploadCompletionInput {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION + 1,
+                draft_id: upload.draft_id.clone(),
+                expected_revision: upload.expected_revision,
+                media: upload.media.clone(),
+                status_code: 200,
+                response_media_type: Some("application/json".to_owned()),
+                response_content_encoding: None,
+                response_body: Vec::new(),
+            })
+            .await
+            .expect_err("unsupported completion schema")
+            .report()
+            .code,
+        "invalid_native_upload_completion"
+    );
+    assert_eq!(
+        runtime
+            .phase1_complete_add_media_background(FfiNativeUploadCompletionInput {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                draft_id: upload.draft_id.clone(),
+                expected_revision: upload.expected_revision,
+                media: upload.media.clone(),
+                status_code: 200,
+                response_media_type: Some("application/json".to_owned()),
+                response_content_encoding: None,
+                response_body: vec![0; 16_385],
+            })
+            .await
+            .expect_err("oversized completion body")
+            .report()
+            .code,
+        "invalid_native_upload_completion"
+    );
     let mut invalid_id_upload = upload;
     invalid_id_upload.schema_version = MOBILE_FFI_SCHEMA_VERSION;
     invalid_id_upload.draft_id = "not-a-draft-id".to_owned();
     assert_eq!(
         runtime
-            .phase1_upload_add_media_intent(invalid_id_upload)
+            .phase1_upload_add_media_intent(invalid_id_upload.clone())
             .await
             .expect_err("invalid draft id")
+            .report()
+            .code,
+        "invalid_draft_id"
+    );
+    assert_eq!(
+        runtime
+            .phase1_prepare_add_media_background(invalid_id_upload.clone())
+            .await
+            .expect_err("invalid background draft id")
+            .report()
+            .code,
+        "invalid_draft_id"
+    );
+    assert_eq!(
+        runtime
+            .phase1_complete_add_media_background(FfiNativeUploadCompletionInput {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                draft_id: invalid_id_upload.draft_id,
+                expected_revision: invalid_id_upload.expected_revision,
+                media: invalid_id_upload.media,
+                status_code: 200,
+                response_media_type: Some("application/json".to_owned()),
+                response_content_encoding: None,
+                response_body: Vec::new(),
+            })
+            .await
+            .expect_err("invalid completion draft id")
             .report()
             .code,
         "invalid_draft_id"
@@ -590,6 +728,20 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert_eq!(revision.phase, FfiRevisionPhase::ReplacementPending);
     assert_eq!(revision.operation_id, revision.replacement.draft_id);
     assert!(revision.replacement.is_revision);
+    assert_eq!(
+        runtime
+            .phase1_revision_status(revision.operation_id.clone())
+            .await
+            .expect("revision status")
+            .phase,
+        FfiRevisionPhase::ReplacementPending
+    );
+    assert!(
+        runtime
+            .phase1_advance_revision(revision.operation_id.clone())
+            .await
+            .is_err()
+    );
     let cancelled_revision = runtime
         .phase1_cancel_revision(revision.operation_id.clone())
         .await
@@ -612,12 +764,78 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .expect("save profile intent");
     assert_eq!(profile.state, FfiOutboxState::Draft);
     assert_eq!(profile.operation_id.len(), 32);
+    assert_eq!(
+        runtime
+            .phase1_profile_status(profile.operation_id.clone())
+            .await
+            .expect("profile status")
+            .revision,
+        profile.revision
+    );
     let cancelled_profile = runtime
         .phase1_cancel_profile(profile.operation_id.clone(), profile.revision)
         .await
         .expect("cancel profile intent");
     assert_eq!(cancelled_profile.operation_id, profile.operation_id);
     assert_eq!(cancelled_profile.state, FfiOutboxState::Cancelled);
+    assert_eq!(
+        runtime
+            .phase1_advance_profile(profile.operation_id.clone())
+            .await
+            .expect("advance cancelled profile")
+            .state,
+        FfiOutboxState::Cancelled
+    );
+
+    let cache = runtime
+        .phase1_media_cache_status(local_network.clone())
+        .await
+        .expect("empty media cache status");
+    assert_eq!(cache.artifact_count, 0);
+    assert_eq!(cache.total_bytes, 0);
+    assert!(cache.configuration_fingerprint.is_none());
+    assert!(
+        runtime
+            .phase1_verified_media_artifact(local_network.clone(), "11".repeat(32))
+            .await
+            .expect("empty verified media lookup")
+            .is_none()
+    );
+    assert!(
+        !runtime
+            .phase1_invalidate_media_artifact(local_network.clone(), "11".repeat(32))
+            .await
+            .expect("missing media invalidation")
+    );
+    assert!(
+        runtime
+            .phase1_invalidate_media_configuration(local_network.clone(), "22".repeat(32))
+            .await
+            .expect("empty configuration invalidation")
+            .is_empty()
+    );
+    let media_operation = Arc::new(FfiMediaOperation::new().expect("media operation"));
+    let media_error = runtime
+        .phase1_retrieve_media(
+            local_network.clone(),
+            "invalid-reference".to_owned(),
+            Arc::clone(&media_operation),
+        )
+        .await
+        .expect_err("invalid media reference");
+    assert_eq!(
+        media_error.report().code,
+        "invalid_media_reference_fingerprint"
+    );
+    assert_eq!(
+        runtime
+            .phase1_retrieve_media(local_network, "00".repeat(32), Arc::clone(&media_operation),)
+            .await
+            .expect_err("single-use media operation")
+            .report()
+            .code,
+        "media_operation_already_used"
+    );
 
     runtime.shutdown().await.expect("shutdown");
     assert!(matches!(

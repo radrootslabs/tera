@@ -730,6 +730,9 @@ pub(crate) fn decode_reference_fingerprint(value: &str) -> Result<[u8; 32], Radr
 #[cfg(test)]
 mod tests {
     use super::*;
+    use radroots_mobile_core::runtime::product_surface::Phase1MediaConfigurationFingerprint;
+
+    const PUBLIC_KEY: &str = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
 
     #[test]
     fn media_operation_can_be_claimed_exactly_once() {
@@ -768,5 +771,238 @@ mod tests {
         })
         .unwrap_err();
         assert_eq!(error.report().code, "invalid_identity_command");
+    }
+
+    #[test]
+    fn boundary_enums_and_identity_commands_cover_the_closed_vocabularies() {
+        for (ffi, core) in [
+            (
+                crate::FfiAddCommandType::CreateUpdate,
+                AddCommandType::CreateUpdate,
+            ),
+            (
+                crate::FfiAddCommandType::CreatePhotoUpdate,
+                AddCommandType::CreatePhotoUpdate,
+            ),
+            (
+                crate::FfiAddCommandType::CreateAsk,
+                AddCommandType::CreateAsk,
+            ),
+            (
+                crate::FfiAddCommandType::CreateEvent,
+                AddCommandType::CreateEvent,
+            ),
+            (
+                crate::FfiAddCommandType::CreateFoodAvailability,
+                AddCommandType::CreateFoodAvailability,
+            ),
+        ] {
+            assert_eq!(AddCommandType::from(ffi), core);
+        }
+        for environment in [
+            FfiMobileNetworkEnvironment::Public,
+            FfiMobileNetworkEnvironment::Simulator,
+            FfiMobileNetworkEnvironment::PhysicalDevice,
+        ] {
+            assert_eq!(
+                FfiMobileNetworkEnvironment::from(MobileNetworkEnvironment::from(environment)),
+                environment
+            );
+        }
+        for access in [
+            FfiRelayAccessPreference::ReadOnly,
+            FfiRelayAccessPreference::ReadWrite,
+        ] {
+            assert_eq!(
+                FfiRelayAccessPreference::from(RelayAccessPreference::from(access)),
+                access
+            );
+        }
+        for authority in [
+            FfiBlossomAuthorityPreference::PublicWebPki,
+            FfiBlossomAuthorityPreference::LoopbackDevelopment,
+            FfiBlossomAuthorityPreference::PrivateNetworkDevelopment,
+        ] {
+            assert_eq!(
+                FfiBlossomAuthorityPreference::from(BlossomEndpointAuthorityPreference::from(
+                    authority
+                )),
+                authority
+            );
+        }
+
+        let commands = [
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::BeginImport,
+                operation_id: Some("operation".to_owned()),
+                identity_id: None,
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::CompleteImport,
+                operation_id: Some("operation".to_owned()),
+                identity_id: Some("primary".to_owned()),
+                public_key: Some(PUBLIC_KEY.to_owned()),
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::CancelImport,
+                operation_id: Some("operation".to_owned()),
+                identity_id: None,
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Select,
+                operation_id: None,
+                identity_id: Some("primary".to_owned()),
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Lock,
+                operation_id: None,
+                identity_id: None,
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Unlock,
+                operation_id: None,
+                identity_id: None,
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Recover,
+                operation_id: None,
+                identity_id: None,
+                public_key: None,
+            },
+        ];
+        for command in commands {
+            assert!(IdentityCommand::try_from(command).is_ok());
+        }
+        for command in [
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::BeginImport,
+                operation_id: Some("operation".to_owned()),
+                identity_id: Some("unexpected".to_owned()),
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::CancelImport,
+                operation_id: Some("operation".to_owned()),
+                identity_id: None,
+                public_key: Some(PUBLIC_KEY.to_owned()),
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Select,
+                operation_id: Some("unexpected".to_owned()),
+                identity_id: Some("primary".to_owned()),
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Select,
+                operation_id: None,
+                identity_id: Some("primary".to_owned()),
+                public_key: Some(PUBLIC_KEY.to_owned()),
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Lock,
+                operation_id: Some("unexpected".to_owned()),
+                identity_id: None,
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Unlock,
+                operation_id: None,
+                identity_id: Some("unexpected".to_owned()),
+                public_key: None,
+            },
+            FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                kind: FfiIdentityCommandKind::Recover,
+                operation_id: None,
+                identity_id: None,
+                public_key: Some(PUBLIC_KEY.to_owned()),
+            },
+        ] {
+            assert!(IdentityCommand::try_from(command).is_err());
+        }
+        assert!(
+            IdentityCommand::try_from(FfiIdentityCommandRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION + 1,
+                kind: FfiIdentityCommandKind::Lock,
+                operation_id: None,
+                identity_id: None,
+                public_key: None,
+            })
+            .is_err()
+        );
+
+        let identity = IdentityRecord::new("primary", PUBLIC_KEY).unwrap();
+        for lock_state in [IdentityLockState::Locked, IdentityLockState::Unlocked] {
+            let state = IdentityState::new(
+                vec![identity.clone()],
+                Some("primary".to_owned()),
+                lock_state,
+                None,
+            )
+            .unwrap();
+            let record = FfiIdentityStateRecord::from(&state);
+            assert_eq!(record.identities.len(), 1);
+            assert_eq!(record.lock_state, lock_state.into());
+        }
+    }
+
+    #[test]
+    fn media_decoders_status_and_private_operation_accessors_are_exhaustive() {
+        assert!(require_schema(MOBILE_FFI_SCHEMA_VERSION).is_ok());
+        assert!(require_schema(MOBILE_FFI_SCHEMA_VERSION + 1).is_err());
+        for invalid in ["", "not-hex", "00"] {
+            assert!(decode_artifact_id(invalid).is_err());
+            assert!(decode_configuration(invalid).is_err());
+            assert!(decode_reference_fingerprint(invalid).is_err());
+        }
+        let digest = "11".repeat(32);
+        assert!(decode_artifact_id(&digest).is_ok());
+        assert!(decode_configuration(&digest).is_ok());
+        assert_eq!(decode_reference_fingerprint(&digest).unwrap(), [0x11; 32]);
+
+        let configuration = Phase1MediaConfigurationFingerprint::new([7; 32]).unwrap();
+        let status = FfiMediaCacheStatusRecord::from(Phase1MediaCacheStatus {
+            artifacts: 2,
+            bytes: 9,
+            configuration: Some(configuration),
+        });
+        assert_eq!(status.artifact_count, 2);
+        assert_eq!(status.total_bytes, 9);
+        assert_eq!(status.configuration_fingerprint, Some("07".repeat(32)));
+        assert!(
+            FfiMediaCacheStatusRecord::from(Phase1MediaCacheStatus {
+                artifacts: 0,
+                bytes: 0,
+                configuration: None,
+            })
+            .configuration_fingerprint
+            .is_none()
+        );
+
+        let operation = FfiMediaOperation::new().unwrap();
+        assert_eq!(operation.id(), operation.operation_id);
+        assert!(!operation.cancellation().is_cancelled());
+        assert!(!operation.is_cancelled());
+        operation.cancel();
+        assert!(operation.is_cancelled());
+        assert!(operation.cancellation().is_cancelled());
     }
 }
