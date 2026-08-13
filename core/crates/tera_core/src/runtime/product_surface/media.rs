@@ -1304,6 +1304,9 @@ fn update_optional_u64(digest: &mut Sha256Hasher, value: Option<u64>) {
 mod tests {
     use super::*;
 
+    type ReceiptMutation = Box<dyn Fn(&mut Phase1VerifiedMediaReceipt)>;
+    type CacheMutation = Box<dyn Fn(&mut Phase1MediaCacheIndex)>;
+
     const HASH: &str = "2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824";
 
     fn reference(alt: Option<&str>) -> Phase1StructuralMediaReference {
@@ -1384,6 +1387,207 @@ mod tests {
     }
 
     #[test]
+    fn structural_reference_rejects_each_noncanonical_field_independently() {
+        for source_url in [
+            "",
+            "ftp://media.example/file.jpg",
+            "https:///file.jpg",
+            "https://user@media.example/file.jpg",
+            "https://user:password@media.example/file.jpg",
+            "https://media.example/file.jpg\n",
+        ] {
+            assert!(
+                Phase1StructuralMediaReference::new(
+                    source_url,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .is_err(),
+                "source URL should fail: {source_url:?}"
+            );
+        }
+        assert!(
+            Phase1StructuralMediaReference::new(
+                format!("https://media.example/{}", "x".repeat(MEDIA_URL_MAX_BYTES)),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+            .is_err()
+        );
+        for digest in ["not-hex".to_owned(), HASH.to_ascii_uppercase()] {
+            assert!(
+                Phase1StructuralMediaReference::new(
+                    "https://media.example/file.jpg",
+                    Some(digest),
+                    None,
+                    None,
+                    None,
+                    None,
+                    None,
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            Phase1StructuralMediaReference::new(
+                "https://media.example/file.jpg",
+                Some(HASH.to_owned()),
+                Some("not a media type".to_owned()),
+                None,
+                None,
+                None,
+                None,
+            )
+            .is_err()
+        );
+        for (width, height) in [
+            (Some(1), None),
+            (None, Some(1)),
+            (Some(0), Some(1)),
+            (Some(1), Some(0)),
+            (Some(MEDIA_DIMENSION_MAX_EDGE + 1), Some(1)),
+            (Some(1), Some(MEDIA_DIMENSION_MAX_EDGE + 1)),
+            (Some(10_001), Some(10_000)),
+        ] {
+            assert!(
+                Phase1StructuralMediaReference::new(
+                    "https://media.example/file.jpg",
+                    Some(HASH.to_owned()),
+                    Some("image/jpeg".to_owned()),
+                    width,
+                    height,
+                    Some(5),
+                    None,
+                )
+                .is_err()
+            );
+        }
+        for alt in [
+            "x".repeat(MEDIA_ALT_MAX_BYTES + 1),
+            "line\nbreak".to_owned(),
+        ] {
+            assert!(
+                Phase1StructuralMediaReference::new(
+                    "https://media.example/file.jpg",
+                    Some(HASH.to_owned()),
+                    Some("image/jpeg".to_owned()),
+                    None,
+                    None,
+                    Some(5),
+                    Some(alt),
+                )
+                .is_err()
+            );
+        }
+        assert!(
+            Phase1StructuralMediaReference::new(
+                "https://media.example/file.jpg",
+                Some(HASH.to_owned()),
+                Some("image/jpeg".to_owned()),
+                None,
+                None,
+                Some(0),
+                None,
+            )
+            .is_err()
+        );
+
+        let mut unsupported = reference(None);
+        unsupported.schema_version = 2;
+        assert_eq!(
+            unsupported.validate(),
+            Err(Phase1InboundMediaError::UnsupportedSchema)
+        );
+        let mut corrupt = reference(None);
+        corrupt.fingerprint = [9; 32];
+        assert_eq!(
+            corrupt.validate(),
+            Err(Phase1InboundMediaError::CorruptState)
+        );
+    }
+
+    #[test]
+    fn operation_and_failure_evidence_reject_each_invalid_field() {
+        assert!(Phase1MediaConfigurationFingerprint::new([0; 32]).is_err());
+        assert!(Phase1MediaConfigurationFingerprint::parse("not-hex").is_err());
+        assert!(Phase1MediaConfigurationFingerprint::parse("00").is_err());
+        assert!(Phase1MediaArtifactId::parse("not-hex").is_err());
+
+        assert!(Phase1InboundMediaPending::new([0; 16], configuration(1), 1).is_err());
+        assert!(Phase1InboundMediaPending::new([1; 16], configuration(1), 0).is_err());
+        assert!(
+            Phase1InboundMediaPending::new(
+                [1; 16],
+                Phase1MediaConfigurationFingerprint([0; 32]),
+                1,
+            )
+            .is_err()
+        );
+
+        for (operation_id, code, failed_at) in [
+            ([0; 16], "failed".to_owned(), 1),
+            ([1; 16], "failed".to_owned(), 0),
+            ([1; 16], String::new(), 1),
+            ([1; 16], "x".repeat(MEDIA_FAILURE_CODE_MAX_BYTES + 1), 1),
+            ([1; 16], "Not_Safe".to_owned(), 1),
+        ] {
+            assert!(Phase1InboundMediaFailure::new(operation_id, code, true, failed_at).is_err());
+        }
+        let evidence = Phase1InboundMediaFailure::new([2; 16], "retry_2", true, 9).unwrap();
+        assert_eq!(evidence.safe_code(), "retry_2");
+        assert!(evidence.retryable());
+    }
+
+    #[test]
+    fn media_helper_vocabularies_cover_every_closed_outcome() {
+        assert!(validate_url_text("https://example.test/media").is_ok());
+        assert_eq!(
+            validate_url_text(""),
+            Err(Phase1InboundMediaError::InvalidReference)
+        );
+        assert_eq!(
+            validate_url_text(&"x".repeat(MEDIA_URL_MAX_BYTES + 1)),
+            Err(Phase1InboundMediaError::InvalidReference)
+        );
+        assert_eq!(
+            validate_url_text("bad\nurl"),
+            Err(Phase1InboundMediaError::InvalidReference)
+        );
+        assert!(canonical_media_type("image/jpeg"));
+        assert!(!canonical_media_type("IMAGE/JPEG"));
+        assert_eq!(
+            canonical_extension(&MediaType::parse("image/gif").unwrap()),
+            Some("gif")
+        );
+        assert_eq!(
+            canonical_extension(&MediaType::parse("image/jpeg").unwrap()),
+            Some("jpg")
+        );
+        assert_eq!(
+            canonical_extension(&MediaType::parse("image/png").unwrap()),
+            Some("png")
+        );
+        assert_eq!(
+            canonical_extension(&MediaType::parse("image/webp").unwrap()),
+            Some("webp")
+        );
+        assert_eq!(
+            canonical_extension(&MediaType::parse("image/svg+xml").unwrap()),
+            None
+        );
+        assert!(validate_dimensions(None, None).is_ok());
+        assert!(validate_dimensions(Some(10_000), Some(10_000)).is_ok());
+    }
+
+    #[test]
     fn verified_state_requires_matching_operation_bytes_and_configuration() {
         let structural = reference(None);
         let mut media = MediaReference::new(structural.clone()).unwrap();
@@ -1395,6 +1599,86 @@ mod tests {
         );
         media
             .verify([7; 16], receipt(&structural, configuration(3)))
+            .unwrap();
+        assert!(matches!(
+            media.retrieval(),
+            Phase1InboundMediaState::Verified(_)
+        ));
+        media
+            .restore(
+                Phase1InboundMediaState::Unavailable,
+                &Phase1MediaCacheIndex::default(),
+            )
+            .unwrap();
+        assert!(matches!(
+            media.retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+    }
+
+    #[test]
+    fn media_state_transitions_and_renderability_cover_every_state() {
+        let structural = reference(None);
+        let config = configuration(3);
+        let verified = receipt(&structural, config);
+        let pending = Phase1InboundMediaPending::new([7; 16], config, 9).unwrap();
+        let failure = Phase1InboundMediaFailure::new([7; 16], "network", true, 10).unwrap();
+        let wrong_failure = Phase1InboundMediaFailure::new([8; 16], "network", true, 10).unwrap();
+
+        let mut media = MediaReference::new(structural.clone()).unwrap();
+        assert_eq!(media.invalidate(), None);
+        assert!(!media.is_renderable_with(&Phase1MediaCacheIndex::default(), config));
+        assert_eq!(
+            media.fail(failure.clone()),
+            Err(Phase1InboundMediaError::OperationMismatch)
+        );
+        assert_eq!(
+            media.verify([7; 16], verified.clone()),
+            Err(Phase1InboundMediaError::OperationMismatch)
+        );
+
+        media.begin(pending.clone()).unwrap();
+        assert_eq!(
+            media.fail(wrong_failure),
+            Err(Phase1InboundMediaError::OperationMismatch)
+        );
+        assert_eq!(
+            media.verify([7; 16], receipt(&structural, configuration(4))),
+            Err(Phase1InboundMediaError::OperationMismatch)
+        );
+        media.fail(failure).unwrap();
+        assert!(matches!(
+            media.retrieval(),
+            Phase1InboundMediaState::Failed(_)
+        ));
+        assert!(media.validate().is_ok());
+
+        media.begin(pending).unwrap();
+        media.verify([7; 16], verified.clone()).unwrap();
+        assert!(!media.is_renderable_with(&Phase1MediaCacheIndex::default(), config));
+        let mut cache = Phase1MediaCacheIndex::default();
+        cache
+            .admit(&verified, Phase1MediaCachePolicy::new(5, 1).unwrap(), 10)
+            .unwrap();
+        assert!(media.is_renderable_with(&cache, config));
+        assert!(!media.is_renderable_with(&cache, configuration(4)));
+        assert_eq!(media.invalidate(), Some(verified.artifact_id()));
+
+        media
+            .restore(
+                Phase1InboundMediaState::Verified(Box::new(verified.clone())),
+                &Phase1MediaCacheIndex::default(),
+            )
+            .unwrap();
+        assert!(matches!(
+            media.retrieval(),
+            Phase1InboundMediaState::Unavailable
+        ));
+        media
+            .restore(
+                Phase1InboundMediaState::Verified(Box::new(verified)),
+                &cache,
+            )
             .unwrap();
         assert!(matches!(
             media.retrieval(),
@@ -1433,6 +1717,320 @@ mod tests {
                 1,
             )
             .is_err()
+        );
+    }
+
+    #[test]
+    fn receipt_validation_rejects_each_bound_field_independently() {
+        let expected = reference(None);
+        let commitment =
+            ByteCommitment::from_bytes(b"hello", MediaType::parse("image/jpeg").unwrap());
+        let final_url = BlobUrl::parse(&format!("https://cdn.example/{HASH}.jpg")).unwrap();
+        assert!(
+            Phase1VerifiedMediaReceipt::from_commitment(
+                &expected,
+                final_url.clone(),
+                &commitment,
+                2,
+                3,
+                configuration(1),
+                0,
+            )
+            .is_err()
+        );
+
+        let mutations: [fn(&mut Phase1StructuralMediaReference); 4] = [
+            |value: &mut Phase1StructuralMediaReference| value.expected_byte_size = Some(6),
+            |value: &mut Phase1StructuralMediaReference| {
+                value.expected_media_type = Some("image/png".to_owned())
+            },
+            |value: &mut Phase1StructuralMediaReference| value.expected_width = Some(3),
+            |value: &mut Phase1StructuralMediaReference| value.expected_height = Some(4),
+        ];
+        for mutate in mutations {
+            let mut changed = expected.clone();
+            mutate(&mut changed);
+            changed.fingerprint = changed.derive_fingerprint();
+            assert!(
+                Phase1VerifiedMediaReceipt::from_commitment(
+                    &changed,
+                    final_url.clone(),
+                    &commitment,
+                    2,
+                    3,
+                    configuration(1),
+                    1,
+                )
+                .is_err()
+            );
+        }
+
+        let mut without_digest = Phase1StructuralMediaReference::new(
+            "https://media.example/file.jpg",
+            None,
+            Some("image/jpeg".to_owned()),
+            Some(2),
+            Some(3),
+            Some(5),
+            None,
+        )
+        .unwrap();
+        without_digest.expected_sha256 = None;
+        without_digest.fingerprint = without_digest.derive_fingerprint();
+        assert!(
+            Phase1VerifiedMediaReceipt::from_commitment(
+                &without_digest,
+                final_url,
+                &commitment,
+                2,
+                3,
+                configuration(1),
+                1,
+            )
+            .is_err()
+        );
+
+        let valid = receipt(&expected, configuration(1));
+        let mut corruptions: Vec<ReceiptMutation> = vec![
+            Box::new(|value| value.schema_version = 2),
+            Box::new(|value| value.expected_sha256 = "a".repeat(64)),
+            Box::new(|value| value.artifact_id = Phase1MediaArtifactId([8; 32])),
+            Box::new(|value| value.byte_size = 0),
+            Box::new(|value| value.verified_at_unix_ms = 0),
+            Box::new(|value| value.configuration = Phase1MediaConfigurationFingerprint([0; 32])),
+            Box::new(|value| value.canonical_final_url = "not a url".to_owned()),
+            Box::new(|value| value.canonical_final_url.push_str("?changed=1")),
+            Box::new(|value| value.extension = "png".to_owned()),
+            Box::new(|value| value.media_type = "not a media type".to_owned()),
+            Box::new(|value| value.media_type = "image/svg+xml".to_owned()),
+            Box::new(|value| value.width = 0),
+        ];
+        for mutate in corruptions.drain(..) {
+            let mut changed = valid.clone();
+            mutate(&mut changed);
+            assert_eq!(
+                changed.validate_intrinsic(),
+                Err(Phase1InboundMediaError::CorruptReceipt)
+            );
+        }
+        assert_eq!(valid.artifact_id().to_hex(), HASH);
+        assert_eq!(valid.configuration(), configuration(1));
+        assert_eq!(
+            valid.canonical_final_url(),
+            format!("https://cdn.example/{HASH}.jpg")
+        );
+        assert_eq!(valid.observed_sha256(), HASH);
+        assert_eq!(valid.byte_size(), 5);
+        assert_eq!(valid.media_type(), "image/jpeg");
+        assert_eq!(valid.extension(), "jpg");
+        assert_eq!(
+            (valid.width(), valid.height(), valid.verified_at_unix_ms()),
+            (2, 3, 10)
+        );
+
+        let wrong_extension = BlobUrl::parse(&format!("https://cdn.example/{HASH}.png")).unwrap();
+        assert_eq!(
+            Phase1VerifiedMediaReceipt::from_commitment(
+                &expected,
+                wrong_extension,
+                &commitment,
+                2,
+                3,
+                configuration(1),
+                1,
+            ),
+            Err(Phase1InboundMediaError::MetadataMismatch)
+        );
+        let wrong_path_hash = "a".repeat(64);
+        assert_eq!(
+            Phase1VerifiedMediaReceipt::from_commitment(
+                &expected,
+                BlobUrl::parse(&format!("https://cdn.example/{wrong_path_hash}.jpg")).unwrap(),
+                &commitment,
+                2,
+                3,
+                configuration(1),
+                1,
+            ),
+            Err(Phase1InboundMediaError::MetadataMismatch)
+        );
+
+        let reference_mutations: [fn(&mut Phase1StructuralMediaReference); 7] = [
+            |value| value.fingerprint = [8; 32],
+            |value| value.source_url = "https://other.example/file.jpg".to_owned(),
+            |value| value.expected_sha256 = Some("a".repeat(64)),
+            |value| value.expected_byte_size = Some(6),
+            |value| value.expected_media_type = Some("image/png".to_owned()),
+            |value| value.expected_width = Some(3),
+            |value| value.expected_height = Some(4),
+        ];
+        for mutate in reference_mutations {
+            let mut changed = expected.clone();
+            mutate(&mut changed);
+            assert_eq!(
+                valid.validate(&changed),
+                Err(Phase1InboundMediaError::CorruptReceipt)
+            );
+        }
+    }
+
+    #[test]
+    fn cache_validation_rejects_each_invalid_field_independently() {
+        assert!(Phase1MediaCachePolicy::new(0, 1).is_err());
+        assert!(Phase1MediaCachePolicy::new(1, 0).is_err());
+        let policy = Phase1MediaCachePolicy::default();
+        assert_eq!(policy.max_bytes(), 256 * 1024 * 1024);
+        assert_eq!(policy.max_artifacts(), 2_000);
+
+        let structural = reference(None);
+        let verified = receipt(&structural, configuration(4));
+        assert!(Phase1MediaCacheEntry::from_receipt(&verified, 9).is_err());
+        let mut cache = Phase1MediaCacheIndex::default();
+        assert!(!cache.touch(verified.artifact_id(), 1).unwrap());
+        assert!(cache.touch(verified.artifact_id(), 0).is_err());
+        assert!(!cache.invalidate_artifact(verified.artifact_id()));
+        assert!(cache.invalidate_configuration(configuration(4)).is_empty());
+        cache
+            .admit(&verified, Phase1MediaCachePolicy::new(5, 1).unwrap(), 10)
+            .unwrap();
+        assert!(cache.touch(verified.artifact_id(), 11).unwrap());
+        assert!(cache.invalidate_artifact(verified.artifact_id()));
+
+        let mut baseline = Phase1MediaCacheIndex::default();
+        baseline
+            .admit(&verified, Phase1MediaCachePolicy::new(5, 1).unwrap(), 10)
+            .unwrap();
+        let key = verified.artifact_id().to_hex();
+        let mutations: Vec<CacheMutation> = vec![
+            Box::new(|value| value.schema_version = 2),
+            Box::new(|value| value.configuration = None),
+            Box::new({
+                let key = key.clone();
+                move |value| value.entries.get_mut(&key).unwrap().byte_size = 0
+            }),
+            Box::new({
+                let key = key.clone();
+                move |value| value.entries.get_mut(&key).unwrap().cached_at_unix_ms = 0
+            }),
+            Box::new({
+                let key = key.clone();
+                move |value| {
+                    value
+                        .entries
+                        .get_mut(&key)
+                        .unwrap()
+                        .last_accessed_at_unix_ms = 9
+                }
+            }),
+            Box::new({
+                let key = key.clone();
+                move |value| value.entries.get_mut(&key).unwrap().media_type = "bad".to_owned()
+            }),
+            Box::new({
+                let key = key.clone();
+                move |value| value.entries.get_mut(&key).unwrap().extension.clear()
+            }),
+            Box::new({
+                let key = key.clone();
+                move |value| value.entries.get_mut(&key).unwrap().width = 0
+            }),
+            Box::new(|value| {
+                let entry = value.entries.pop_first().unwrap().1;
+                value.entries.insert("wrong-key".to_owned(), entry);
+            }),
+            Box::new(|value| {
+                value.configuration = Some(Phase1MediaConfigurationFingerprint([0; 32]));
+            }),
+        ];
+        for mutate in mutations {
+            let mut changed = baseline.clone();
+            mutate(&mut changed);
+            assert_eq!(changed.status(), Err(Phase1InboundMediaError::CorruptState));
+        }
+        assert_eq!(
+            baseline.admit(&verified, Phase1MediaCachePolicy::new(4, 1).unwrap(), 10),
+            Err(Phase1InboundMediaError::CacheQuotaExceeded)
+        );
+
+        let mut wrong_schema = baseline.clone();
+        wrong_schema.schema_version = 2;
+        assert!(!wrong_schema.contains(&verified));
+        let mut wrong_configuration = baseline.clone();
+        wrong_configuration.configuration = Some(configuration(5));
+        assert!(!wrong_configuration.contains(&verified));
+        let mut missing = baseline.clone();
+        missing.entries.clear();
+        assert!(!missing.contains(&verified));
+        let mut mismatched = baseline.clone();
+        mismatched.entries.get_mut(&key).unwrap().height = 4;
+        assert!(!mismatched.contains(&verified));
+
+        let receipt_mutations: [fn(&mut Phase1VerifiedMediaReceipt); 6] = [
+            |value| value.artifact_id = Phase1MediaArtifactId([8; 32]),
+            |value| value.byte_size = 6,
+            |value| value.media_type = "image/png".to_owned(),
+            |value| value.extension = "png".to_owned(),
+            |value| value.width = 3,
+            |value| value.height = 4,
+        ];
+        let entry = baseline.entries.get(&key).unwrap();
+        for mutate in receipt_mutations {
+            let mut changed = verified.clone();
+            mutate(&mut changed);
+            assert!(!entry.matches(&changed));
+        }
+
+        let mut collision = baseline.clone();
+        collision.entries.get_mut(&key).unwrap().byte_size = 4;
+        assert_eq!(
+            collision.admit(&verified, Phase1MediaCachePolicy::new(10, 2).unwrap(), 10),
+            Err(Phase1InboundMediaError::ArtifactCollision)
+        );
+
+        let second_hash = Sha256::digest(b"world").to_hex();
+        let second_reference = Phase1StructuralMediaReference::new(
+            format!("https://media.example/{second_hash}.jpg"),
+            Some(second_hash.clone()),
+            Some("image/jpeg".to_owned()),
+            Some(2),
+            Some(3),
+            Some(5),
+            None,
+        )
+        .unwrap();
+        let second = Phase1VerifiedMediaReceipt::from_commitment(
+            &second_reference,
+            BlobUrl::parse(&format!("https://cdn.example/{second_hash}.jpg")).unwrap(),
+            &ByteCommitment::from_bytes(b"world", MediaType::parse("image/jpeg").unwrap()),
+            2,
+            3,
+            configuration(4),
+            11,
+        )
+        .unwrap();
+        let mut byte_limited = baseline.clone();
+        assert_eq!(
+            byte_limited
+                .admit(&second, Phase1MediaCachePolicy::new(8, 2).unwrap(), 11)
+                .unwrap(),
+            vec![verified.artifact_id()]
+        );
+
+        let mut overflow = Phase1MediaCacheIndex {
+            configuration: Some(configuration(4)),
+            ..Phase1MediaCacheIndex::default()
+        };
+        let mut first_entry = Phase1MediaCacheEntry::from_receipt(&verified, 10).unwrap();
+        first_entry.byte_size = u64::MAX;
+        overflow.entries.insert(key, first_entry);
+        let second_key = second.artifact_id().to_hex();
+        overflow.entries.insert(
+            second_key,
+            Phase1MediaCacheEntry::from_receipt(&second, 11).unwrap(),
+        );
+        assert_eq!(
+            overflow.total_bytes(),
+            Err(Phase1InboundMediaError::CorruptState)
         );
     }
 

@@ -510,6 +510,48 @@ mod tests {
     }
 
     #[test]
+    fn malformed_address_and_media_helpers_fail_closed() {
+        assert_eq!(tag_value(&[Vec::new()], &["title"]), None);
+        assert_eq!(tag_value(&[vec!["title".to_owned()]], &["title"]), None);
+        assert_eq!(tag_values(&[Vec::new()], "price"), None);
+        assert_eq!(tag_values(&[vec!["price".to_owned()]], "price"), None);
+        assert_eq!(
+            tag_values(
+                &[vec!["price".to_owned(), "3".to_owned(), "CAD".to_owned()]],
+                "price"
+            ),
+            Some(vec!["3".to_owned(), "CAD".to_owned()])
+        );
+        assert_eq!(
+            tag_time(&[vec!["start".to_owned(), "bad".to_owned()]], "start"),
+            None
+        );
+        assert!(
+            tag_time(
+                &[vec!["start".to_owned(), "2026-08-13".to_owned()]],
+                "start"
+            )
+            .is_some()
+        );
+
+        assert_eq!(blossom_digest("not-a-url"), None);
+        assert_eq!(blossom_digest("https://example.test"), None);
+        assert_eq!(blossom_digest("https://example.test/short"), None);
+        assert_eq!(
+            blossom_digest(&format!("https://example.test/{}", "G".repeat(64))),
+            None
+        );
+        assert_eq!(
+            blossom_digest(&format!("https://example.test/{}/file.jpg", "a".repeat(64))),
+            Some("a".repeat(64))
+        );
+        assert_eq!(
+            media_reference("not-a-url", None, None, None, None, None, None,),
+            None
+        );
+    }
+
+    #[test]
     fn supporting_profiles_never_become_cards_and_nonmatches_are_excluded() {
         let profile = admitted(0, vec![], r#"{"name":"Farm"}"#);
         let reply = admitted(1, vec![vec!["e", &"a".repeat(64), "", "root"]], "Reply");

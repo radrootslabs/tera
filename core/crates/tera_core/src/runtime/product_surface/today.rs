@@ -2692,6 +2692,17 @@ mod tests {
             .await
             .expect("search");
         assert!(search.iter().any(|result| result.profile.is_some()));
+        let card_search = runtime
+            .phase1_search(&context, "fresh field photo", 10, 2_000_000_200)
+            .await
+            .expect("card search");
+        assert!(card_search.iter().any(|result| result.card.is_some()));
+        let profile_limited = runtime
+            .phase1_search(&context, "moss@example.com", 1, 2_000_000_200)
+            .await
+            .expect("profile-limited search");
+        assert_eq!(profile_limited.len(), 1);
+        assert!(profile_limited[0].profile.is_some());
         let me = runtime
             .phase1_me(&context, &author, 2_000_000_200)
             .await
@@ -2753,6 +2764,48 @@ mod tests {
             Phase1InboundMediaState::Verified(receipt) => receipt.artifact_id(),
             state => panic!("unexpected profile state: {state:?}"),
         };
+        assert!(matches!(
+            runtime
+                .phase1_fail_media_retrieval(
+                    &context,
+                    *photo_reference.fingerprint(),
+                    Phase1InboundMediaFailure::new([3; 16], "network", true, 29).unwrap(),
+                )
+                .await,
+            Err(TodayError::InboundMedia(
+                Phase1InboundMediaError::OperationMismatch
+            ))
+        ));
+        assert!(matches!(
+            runtime
+                .phase1_begin_media_retrieval(
+                    &context,
+                    *photo_reference.fingerprint(),
+                    Phase1InboundMediaPending::new(
+                        [3; 16],
+                        Phase1MediaConfigurationFingerprint::new([8; 32]).unwrap(),
+                        29,
+                    )
+                    .unwrap(),
+                )
+                .await,
+            Err(TodayError::InboundMedia(
+                Phase1InboundMediaError::ConfigurationMismatch
+            ))
+        ));
+        assert!(matches!(
+            runtime
+                .phase1_commit_media_receipt(
+                    &context,
+                    [0; 32],
+                    [3; 16],
+                    photo_receipt.clone(),
+                    Phase1MediaCachePolicy::new(1_024, 8).unwrap(),
+                    29,
+                )
+                .await,
+            Err(TodayError::InvalidRequest)
+        ));
         runtime
             .phase1_begin_media_retrieval(
                 &context,
@@ -2809,6 +2862,25 @@ mod tests {
             .await
             .expect("configuration invalidation");
         assert_eq!(removed.len(), 1);
+        assert!(
+            runtime
+                .phase1_invalidate_media_configuration(
+                    &context,
+                    Phase1MediaConfigurationFingerprint::new([8; 32]).unwrap(),
+                )
+                .await
+                .expect("idempotent configuration invalidation")
+                .is_empty()
+        );
+        assert!(
+            !runtime
+                .phase1_invalidate_media_artifact(
+                    &context,
+                    Phase1MediaArtifactId::parse(&"f".repeat(64)).unwrap(),
+                )
+                .await
+                .expect("missing artifact invalidation")
+        );
         let invalidated = runtime
             .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_203))
             .await
@@ -3686,7 +3758,18 @@ mod tests {
             TodayCursor::scope("bad"),
             Err(CursorError::Malformed)
         ));
+        assert!(!valid_public_key("short"));
         assert!(!valid_public_key("A".repeat(64).as_str()));
+        assert!(valid_public_key("a".repeat(64).as_str()));
+        assert_eq!(locality_evidence(None, &[]), LocalityEvidence::Missing);
+        assert_eq!(blossom_digest("https://blob.example"), None);
+        assert_eq!(
+            blossom_digest(&format!(
+                "https://blob.example/{}/image.jpg",
+                "a".repeat(64)
+            )),
+            Some("a".repeat(64))
+        );
         assert_eq!(TODAY_PAGE_LIMIT_MAX, 100);
         assert_eq!(TODAY_SEARCH_LIMIT_MAX, 100);
     }

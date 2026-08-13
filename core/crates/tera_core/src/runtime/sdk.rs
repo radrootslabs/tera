@@ -1,6 +1,7 @@
 use radroots_sdk::capability::{Availability, Maturity};
 
 use super::RadrootsRuntime;
+#[cfg(feature = "mobile-social")]
 use super::product_surface::{BlossomPreferences, RelayPreferences};
 use crate::RadrootsAppError;
 

@@ -85,6 +85,7 @@ impl RuntimeBuilder {
 #[cfg(test)]
 mod tests {
     use super::RuntimeBuilder;
+    #[cfg(feature = "mobile-social")]
     use crate::runtime::sdk::SdkRelayAccessRecord;
     use crate::runtime::store::{MobileUserStoreConfig, ProtectedDataAvailability};
 
