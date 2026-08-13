@@ -59,7 +59,7 @@ pub use ranking::{RankError, TODAY_RANK_SCHEMA_VERSION, TimeRelevance, TodayRank
 pub use settings::{
     BlossomEndpointAuthorityPreference, BlossomPreferences, DEFAULT_PUBLIC_BLOSSOM_ORIGIN,
     DEFAULT_PUBLIC_RELAY, DEFAULT_SIMULATOR_BLOSSOM_ORIGIN, DEFAULT_SIMULATOR_RELAY,
-    IdentityCommand, IdentityError, IdentityLockState, IdentityRecord, IdentityState,
+    IdentityCommand, IdentityLockState, IdentityRecord, IdentitySettingsError, IdentityState,
     LocalStoragePolicy, MOBILE_SETTINGS_SCHEMA_VERSION, MediaNetworkPolicy,
     MobileNetworkEnvironment, MobileSettings, ProfileMetadataCommand, ProfileMetadataError,
     RelayAccessPreference, RelayEndpointPreference, RelayPreferences, ReplaceMobileSettings,

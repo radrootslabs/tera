@@ -51,13 +51,13 @@ pub struct IdentityRecord {
 }
 
 impl IdentityRecord {
-    pub fn new(id: impl Into<String>, public_key_hex: &str) -> Result<Self, IdentityError> {
+    pub fn new(id: impl Into<String>, public_key_hex: &str) -> Result<Self, IdentitySettingsError> {
         let id = id.into();
         validate_identifier(&id, IDENTITY_ID_MAX_BYTES)
             .then_some(())
-            .ok_or(IdentityError::InvalidIdentityId)?;
-        let public_key =
-            PublicKey::from_hex(public_key_hex).map_err(|_| IdentityError::InvalidPublicKey)?;
+            .ok_or(IdentitySettingsError::InvalidIdentityId)?;
+        let public_key = PublicKey::from_hex(public_key_hex)
+            .map_err(|_| IdentitySettingsError::InvalidPublicKey)?;
         Ok(Self {
             id,
             public_key_hex: public_key.to_hex(),
@@ -100,29 +100,29 @@ impl IdentityState {
         active_identity_id: Option<String>,
         lock_state: IdentityLockState,
         pending_import_operation_id: Option<String>,
-    ) -> Result<Self, IdentityError> {
+    ) -> Result<Self, IdentitySettingsError> {
         let mut ids = BTreeSet::new();
         let mut public_keys = BTreeSet::new();
         for identity in &identities {
             if !ids.insert(identity.id()) {
-                return Err(IdentityError::DuplicateIdentityId);
+                return Err(IdentitySettingsError::DuplicateIdentityId);
             }
             if !public_keys.insert(identity.public_key_hex()) {
-                return Err(IdentityError::DuplicatePublicKey);
+                return Err(IdentitySettingsError::DuplicatePublicKey);
             }
         }
         if let Some(active) = active_identity_id.as_deref()
             && !ids.contains(active)
         {
-            return Err(IdentityError::UnknownIdentity);
+            return Err(IdentitySettingsError::UnknownIdentity);
         }
         if let Some(operation_id) = pending_import_operation_id.as_deref()
             && !validate_identifier(operation_id, OPERATION_ID_MAX_BYTES)
         {
-            return Err(IdentityError::InvalidOperationId);
+            return Err(IdentitySettingsError::InvalidOperationId);
         }
         if active_identity_id.is_none() && lock_state == IdentityLockState::Unlocked {
-            return Err(IdentityError::NoActiveIdentity);
+            return Err(IdentitySettingsError::NoActiveIdentity);
         }
         Ok(Self {
             identities,
@@ -150,15 +150,15 @@ impl IdentityState {
 
     /// Applies a secret-free identity state transition after the native host
     /// has completed any required Keychain or user-presence operation.
-    pub fn apply(&self, command: IdentityCommand) -> Result<Self, IdentityError> {
+    pub fn apply(&self, command: IdentityCommand) -> Result<Self, IdentitySettingsError> {
         let mut next = self.clone();
         match command {
             IdentityCommand::BeginImport { operation_id } => {
                 if next.pending_import_operation_id.is_some() {
-                    return Err(IdentityError::ImportAlreadyPending);
+                    return Err(IdentitySettingsError::ImportAlreadyPending);
                 }
                 if !validate_identifier(&operation_id, OPERATION_ID_MAX_BYTES) {
-                    return Err(IdentityError::InvalidOperationId);
+                    return Err(IdentitySettingsError::InvalidOperationId);
                 }
                 next.pending_import_operation_id = Some(operation_id);
             }
@@ -167,21 +167,21 @@ impl IdentityState {
                 identity,
             } => {
                 if next.pending_import_operation_id.as_deref() != Some(operation_id.as_str()) {
-                    return Err(IdentityError::ImportOperationMismatch);
+                    return Err(IdentitySettingsError::ImportOperationMismatch);
                 }
                 if next
                     .identities
                     .iter()
                     .any(|value| value.id() == identity.id())
                 {
-                    return Err(IdentityError::DuplicateIdentityId);
+                    return Err(IdentitySettingsError::DuplicateIdentityId);
                 }
                 if next
                     .identities
                     .iter()
                     .any(|value| value.public_key_hex() == identity.public_key_hex())
                 {
-                    return Err(IdentityError::DuplicatePublicKey);
+                    return Err(IdentitySettingsError::DuplicatePublicKey);
                 }
                 next.active_identity_id = Some(identity.id().to_owned());
                 next.identities.push(identity);
@@ -190,7 +190,7 @@ impl IdentityState {
             }
             IdentityCommand::CancelImport { operation_id } => {
                 if next.pending_import_operation_id.as_deref() != Some(operation_id.as_str()) {
-                    return Err(IdentityError::ImportOperationMismatch);
+                    return Err(IdentitySettingsError::ImportOperationMismatch);
                 }
                 next.pending_import_operation_id = None;
             }
@@ -200,26 +200,26 @@ impl IdentityState {
                     .iter()
                     .any(|identity| identity.id() == identity_id)
                 {
-                    return Err(IdentityError::UnknownIdentity);
+                    return Err(IdentitySettingsError::UnknownIdentity);
                 }
                 next.active_identity_id = Some(identity_id);
                 next.lock_state = IdentityLockState::Locked;
             }
             IdentityCommand::Lock => {
                 if next.active_identity_id.is_none() {
-                    return Err(IdentityError::NoActiveIdentity);
+                    return Err(IdentitySettingsError::NoActiveIdentity);
                 }
                 next.lock_state = IdentityLockState::Locked;
             }
             IdentityCommand::Unlock => {
                 if next.active_identity_id.is_none() {
-                    return Err(IdentityError::NoActiveIdentity);
+                    return Err(IdentitySettingsError::NoActiveIdentity);
                 }
                 next.lock_state = IdentityLockState::Unlocked;
             }
             IdentityCommand::Recover => {
                 if next.active_identity_id.is_none() {
-                    return Err(IdentityError::NoActiveIdentity);
+                    return Err(IdentitySettingsError::NoActiveIdentity);
                 }
                 next.lock_state = IdentityLockState::Locked;
                 next.pending_import_operation_id = None;
@@ -252,7 +252,7 @@ pub enum IdentityCommand {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
-pub enum IdentityError {
+pub enum IdentitySettingsError {
     #[error("identity id is invalid")]
     InvalidIdentityId,
     #[error("identity public key is invalid")]
@@ -273,7 +273,7 @@ pub enum IdentityError {
     ImportOperationMismatch,
 }
 
-impl IdentityError {
+impl IdentitySettingsError {
     pub const fn code(&self) -> &'static str {
         match self {
             Self::InvalidIdentityId => "invalid_identity_id",
@@ -870,7 +870,7 @@ pub enum SettingsError {
     #[error("settings storage is unavailable")]
     Storage,
     #[error("identity settings are invalid: {0}")]
-    Identity(#[from] IdentityError),
+    Identity(#[from] IdentitySettingsError),
 }
 
 impl SettingsError {
