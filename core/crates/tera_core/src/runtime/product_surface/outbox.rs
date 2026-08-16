@@ -3420,14 +3420,18 @@ mod tests {
         let profile = radroots_sdk::transport::RelayProfile::explicit(
             radroots_sdk::transport::RelayProfileKind::Public,
             [
-                (
+                radroots_sdk::transport::RelayEndpoint::new(
                     "wss://read.example",
+                    radroots_sdk::transport::RelayUrlPolicy::Public,
                     radroots_sdk::transport::RelayAccess::ReadOnly,
-                ),
-                (
+                )
+                .unwrap(),
+                radroots_sdk::transport::RelayEndpoint::new(
                     "wss://write.example",
+                    radroots_sdk::transport::RelayUrlPolicy::Public,
                     radroots_sdk::transport::RelayAccess::ReadWrite,
-                ),
+                )
+                .unwrap(),
             ],
         )
         .unwrap();
@@ -3475,10 +3479,12 @@ mod tests {
     async fn profile_metadata_uses_the_durable_outbox_with_stable_operation_identity() {
         let profile = radroots_sdk::transport::RelayProfile::explicit(
             radroots_sdk::transport::RelayProfileKind::Public,
-            [(
+            [radroots_sdk::transport::RelayEndpoint::new(
                 "wss://write.example",
+                radroots_sdk::transport::RelayUrlPolicy::Public,
                 radroots_sdk::transport::RelayAccess::ReadWrite,
-            )],
+            )
+            .unwrap()],
         )
         .unwrap();
         let runtime = profiled_runtime(profile);
@@ -3531,10 +3537,12 @@ mod tests {
     async fn add_queue_intent_fails_closed_without_a_writable_relay() {
         let profile = radroots_sdk::transport::RelayProfile::explicit(
             radroots_sdk::transport::RelayProfileKind::Public,
-            [(
+            [radroots_sdk::transport::RelayEndpoint::new(
                 "wss://read.example",
+                radroots_sdk::transport::RelayUrlPolicy::Public,
                 radroots_sdk::transport::RelayAccess::ReadOnly,
-            )],
+            )
+            .unwrap()],
         )
         .unwrap();
         let runtime = profiled_runtime(profile);
@@ -3733,10 +3741,12 @@ mod tests {
     async fn kind_one_revision_never_creates_retraction_before_replacement_acceptance() {
         let profile = radroots_sdk::transport::RelayProfile::explicit(
             radroots_sdk::transport::RelayProfileKind::Public,
-            [(
+            [radroots_sdk::transport::RelayEndpoint::new(
                 "wss://offline.example",
+                radroots_sdk::transport::RelayUrlPolicy::Public,
                 radroots_sdk::transport::RelayAccess::ReadWrite,
-            )],
+            )
+            .unwrap()],
         )
         .unwrap();
         let signer = radroots_nostr::signing::LocalSigner::new(

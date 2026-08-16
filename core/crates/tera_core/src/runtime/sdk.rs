@@ -117,9 +117,10 @@ impl RadrootsRuntime {
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), RadrootsAppError> {
-        self.configure_relay_profile(
-            radroots_sdk::transport::RelayProfile::public(writable_relays)
-                .map_err(|error| RadrootsAppError::runtime(error.to_string()))?,
+        self.configure_relay_endpoints(
+            radroots_sdk::transport::RelayProfileKind::Public,
+            radroots_sdk::transport::RelayUrlPolicy::Public,
+            writable_relays,
         )
     }
 
@@ -129,9 +130,10 @@ impl RadrootsRuntime {
         &self,
         loopback_relays: Vec<String>,
     ) -> Result<(), RadrootsAppError> {
-        self.configure_relay_profile(
-            radroots_sdk::transport::RelayProfile::simulator(loopback_relays)
-                .map_err(|error| RadrootsAppError::runtime(error.to_string()))?,
+        self.configure_relay_endpoints(
+            radroots_sdk::transport::RelayProfileKind::Simulator,
+            radroots_sdk::transport::RelayUrlPolicy::Local,
+            loopback_relays,
         )
     }
 
@@ -141,10 +143,34 @@ impl RadrootsRuntime {
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), RadrootsAppError> {
-        self.configure_relay_profile(
-            radroots_sdk::transport::RelayProfile::device(writable_relays)
-                .map_err(|error| RadrootsAppError::runtime(error.to_string()))?,
+        self.configure_relay_endpoints(
+            radroots_sdk::transport::RelayProfileKind::Device,
+            radroots_sdk::transport::RelayUrlPolicy::PrivateNetwork,
+            writable_relays,
         )
+    }
+
+    #[cfg(feature = "mobile-social")]
+    fn configure_relay_endpoints(
+        &self,
+        kind: radroots_sdk::transport::RelayProfileKind,
+        policy: radroots_sdk::transport::RelayUrlPolicy,
+        relays: Vec<String>,
+    ) -> Result<(), RadrootsAppError> {
+        let endpoints = relays
+            .into_iter()
+            .map(|relay| {
+                radroots_sdk::transport::RelayEndpoint::new(
+                    relay,
+                    policy,
+                    radroots_sdk::transport::RelayAccess::ReadWrite,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| RadrootsAppError::runtime(error.to_string()))?;
+        let profile = radroots_sdk::transport::RelayProfile::explicit(kind, endpoints)
+            .map_err(|error| RadrootsAppError::runtime(error.to_string()))?;
+        self.configure_relay_profile(profile)
     }
 
     #[cfg(feature = "mobile-social")]

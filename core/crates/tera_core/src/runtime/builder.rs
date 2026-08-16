@@ -20,8 +20,16 @@ impl RuntimeBuilder {
             #[cfg(feature = "mobile-social")]
             signer: None,
             #[cfg(feature = "mobile-social")]
-            relay_profile: radroots_sdk::transport::RelayProfile::public(Vec::<String>::new())
-                .expect("bundled public relay profile is valid"),
+            relay_profile: radroots_sdk::transport::RelayProfile::explicit(
+                radroots_sdk::transport::RelayProfileKind::Public,
+                [radroots_sdk::transport::RelayEndpoint::new(
+                    "wss://radroots.org",
+                    radroots_sdk::transport::RelayUrlPolicy::Public,
+                    radroots_sdk::transport::RelayAccess::ReadWrite,
+                )
+                .expect("bundled public relay endpoint is valid")],
+            )
+            .expect("bundled public relay profile is valid"),
             #[cfg(feature = "mobile-social")]
             blossom_config: None,
         }

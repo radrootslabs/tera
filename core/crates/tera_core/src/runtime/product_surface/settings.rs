@@ -15,7 +15,7 @@ use sha2::{Digest, Sha256};
 
 use super::super::RadrootsRuntime;
 
-pub use radroots_sdk::transport::DEFAULT_PUBLIC_RELAY;
+pub const DEFAULT_PUBLIC_RELAY: &str = "wss://radroots.org";
 
 pub const MOBILE_SETTINGS_SCHEMA_VERSION: u16 = 1;
 pub const DEFAULT_PUBLIC_BLOSSOM_ORIGIN: &str = "https://blossom.radroots.org";
@@ -437,9 +437,17 @@ impl RelayPreferences {
                 radroots_sdk::transport::RelayProfileKind::Device
             }
         };
-        radroots_sdk::transport::RelayProfile::explicit(
-            kind,
-            self.endpoints.iter().map(|endpoint| {
+        let policy = match self.environment {
+            MobileNetworkEnvironment::Public => radroots_sdk::transport::RelayUrlPolicy::Public,
+            MobileNetworkEnvironment::Simulator => radroots_sdk::transport::RelayUrlPolicy::Local,
+            MobileNetworkEnvironment::PhysicalDevice => {
+                radroots_sdk::transport::RelayUrlPolicy::PrivateNetwork
+            }
+        };
+        let endpoints = self
+            .endpoints
+            .iter()
+            .map(|endpoint| {
                 let access = match endpoint.access {
                     RelayAccessPreference::ReadOnly => {
                         radroots_sdk::transport::RelayAccess::ReadOnly
@@ -448,10 +456,12 @@ impl RelayPreferences {
                         radroots_sdk::transport::RelayAccess::ReadWrite
                     }
                 };
-                (endpoint.url.as_str(), access)
-            }),
-        )
-        .map_err(|_| SettingsError::InvalidRelayEndpoint)
+                radroots_sdk::transport::RelayEndpoint::new(endpoint.url.as_str(), policy, access)
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|_| SettingsError::InvalidRelayEndpoint)?;
+        radroots_sdk::transport::RelayProfile::explicit(kind, endpoints)
+            .map_err(|_| SettingsError::InvalidRelayEndpoint)
     }
 }
 
