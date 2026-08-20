@@ -475,11 +475,11 @@
       }
     },
     {
-      "id": "generic_trade_proposal_010",
+      "id": "typed_trade_proposal_010",
       "kind": "authored_operations.wire",
       "input": {
         "contract_id": "radroots.trade.proposal.v1",
-        "authoring": "generic"
+        "authoring": "typed"
       },
       "expected": {
         "kind": 3470,
@@ -495,15 +495,228 @@
             "11111111111111111111111111111111"
           ],
           [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "mutation"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
             "p",
             "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
           ]
         ],
         "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate\":{\"base_candidate_id\":null,\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"cancellation\":{\"buyer_pre_agreement\":true,\"post_agreement_cutoff_unix_s\":null,\"profile_id\":\"buyer-pre-agreement\"},\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"economics\":{\"adjustment_total_mantissa\":\"0\",\"adjustments\":[],\"currency_code\":\"USD\",\"currency_exponent\":2,\"discount_total_mantissa\":\"0\",\"profile_id\":\"mvp-fixed\",\"rounding_profile\":\"half-even\",\"subtotal_mantissa\":\"1000\",\"total_mantissa\":\"1000\"},\"farm_id\":\"farm-1\",\"fulfillment\":{\"ends_at_unix_s\":1800003600,\"fold\":0,\"location_class\":\"farmstand\",\"method\":\"pickup\",\"profile_id\":\"market-pickup\",\"requires_private_terms\":false,\"starts_at_unix_s\":1800000000,\"timezone\":\"America/New_York\",\"utc_offset_seconds\":-18000},\"line_tombstones\":[],\"lines\":[{\"bin_id\":\"bin-1\",\"currency_code\":\"USD\",\"line_id\":\"line-1\",\"line_subtotal_mantissa\":\"1000\",\"listing_addr\":\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\",\"listing_event_id\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"listing_snapshot_sha256\":\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"option_id\":null,\"product_id\":\"carrots\",\"quantity_mantissa\":\"2\",\"quantity_scale\":0,\"replaces_line_id\":null,\"unit_code\":\"count\",\"unit_price_mantissa\":\"500\",\"unit_profile\":\"mvp-count\"}],\"private_terms\":null,\"proposal_expires_at_unix_s\":1799999000,\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"supersession_intent\":null},\"mutation_type\":\"proposal\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.proposal.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent_mutation_ids\":[],\"root_mutation_id\":null,\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
-        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3470,[[\"contract\",\"radroots.trade.proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"parent_mutation_ids\\\":[],\\\"root_mutation_id\\\":null,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
-        "event_id": "62d04ac41ad9d0d14b1f7f56a6d4d3cbcea73e712f2aa4ae5dec0218b578d078",
-        "signature": "4fa5133b540dd67b3397a20ec419bc890cc8e71e85b886fd3c806e305394fdfd24c97961ce00aa949712e9f865a4e517e31117e0f9c9c6cf30a0297f4ac0298c",
-        "raw_json": "{\"id\":\"62d04ac41ad9d0d14b1f7f56a6d4d3cbcea73e712f2aa4ae5dec0218b578d078\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3470,\"tags\":[[\"contract\",\"radroots.trade.proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"parent_mutation_ids\\\":[],\\\"root_mutation_id\\\":null,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"4fa5133b540dd67b3397a20ec419bc890cc8e71e85b886fd3c806e305394fdfd24c97961ce00aa949712e9f865a4e517e31117e0f9c9c6cf30a0297f4ac0298c\"}"
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3470,[[\"contract\",\"radroots.trade.proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"mutation\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"parent_mutation_ids\\\":[],\\\"root_mutation_id\\\":null,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "58eacb99d9b4e4da7f614fb37ed84b482d2cb85e30785d49ea6a29b555bfcd3a",
+        "signature": "b39fc5d285826bda6462dc9fb8c20c6519b54d4c8ac9673f3c53c6424e2e1703762b4126282e579dcb11c6738477738a61396595fb6c13331e038c3b06b18517",
+        "raw_json": "{\"id\":\"58eacb99d9b4e4da7f614fb37ed84b482d2cb85e30785d49ea6a29b555bfcd3a\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3470,\"tags\":[[\"contract\",\"radroots.trade.proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"mutation\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"parent_mutation_ids\\\":[],\\\"root_mutation_id\\\":null,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"b39fc5d285826bda6462dc9fb8c20c6519b54d4c8ac9673f3c53c6424e2e1703762b4126282e579dcb11c6738477738a61396595fb6c13331e038c3b06b18517\"}"
+      }
+    },
+    {
+      "id": "typed_trade_decision_013",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.decision.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3471,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.decision.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"decision\":{\"decision\":\"declined\",\"reason\":\"inventory unavailable\"},\"mutation_type\":\"decision\",\"proposal_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.decision.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3471,[[\"contract\",\"radroots.trade.decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "7dbe947cbeb1cde706bb240657fee585aa4214baa61d728b7bec7ac5ee18350e",
+        "signature": "222a04c15f66c6028c5b6619116ae92958a5e853293697f2fdbe0450300a50f9bfd2f1f56f1ce3eb2bd037d938bf22f6d99ecdb924de8c2fd5f0da846c1d2817",
+        "raw_json": "{\"id\":\"7dbe947cbeb1cde706bb240657fee585aa4214baa61d728b7bec7ac5ee18350e\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3471,\"tags\":[[\"contract\",\"radroots.trade.decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"222a04c15f66c6028c5b6619116ae92958a5e853293697f2fdbe0450300a50f9bfd2f1f56f1ce3eb2bd037d938bf22f6d99ecdb924de8c2fd5f0da846c1d2817\"}"
+      }
+    },
+    {
+      "id": "typed_trade_revision_proposal_014",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.revision_proposal.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3472,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.revision_proposal.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate\":{\"base_candidate_id\":null,\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"cancellation\":{\"buyer_pre_agreement\":true,\"post_agreement_cutoff_unix_s\":null,\"profile_id\":\"buyer-pre-agreement\"},\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"economics\":{\"adjustment_total_mantissa\":\"0\",\"adjustments\":[],\"currency_code\":\"USD\",\"currency_exponent\":2,\"discount_total_mantissa\":\"0\",\"profile_id\":\"mvp-fixed\",\"rounding_profile\":\"half-even\",\"subtotal_mantissa\":\"1000\",\"total_mantissa\":\"1000\"},\"farm_id\":\"farm-1\",\"fulfillment\":{\"ends_at_unix_s\":1800003600,\"fold\":0,\"location_class\":\"farmstand\",\"method\":\"pickup\",\"profile_id\":\"market-pickup\",\"requires_private_terms\":false,\"starts_at_unix_s\":1800000000,\"timezone\":\"America/New_York\",\"utc_offset_seconds\":-18000},\"line_tombstones\":[],\"lines\":[{\"bin_id\":\"bin-1\",\"currency_code\":\"USD\",\"line_id\":\"line-1\",\"line_subtotal_mantissa\":\"1000\",\"listing_addr\":\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\",\"listing_event_id\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"listing_snapshot_sha256\":\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"option_id\":null,\"product_id\":\"carrots\",\"quantity_mantissa\":\"2\",\"quantity_scale\":0,\"replaces_line_id\":null,\"unit_code\":\"count\",\"unit_price_mantissa\":\"500\",\"unit_profile\":\"mvp-count\"}],\"private_terms\":null,\"proposal_expires_at_unix_s\":1799999000,\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"supersession_intent\":null},\"mutation_type\":\"revision_proposal\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.revision_proposal.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3472,[[\"contract\",\"radroots.trade.revision_proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"revision_proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "3be0e2a2f3f9eef21127eed0dab79ce31932e05927d6558999c5a50022d2eefe",
+        "signature": "777eb26ba6b01ee154a006907cb99ad43dace95208138a30dc48d36419c93f8e1e256d3707eb28a0dd42ed50ed3954b803656f83b0259afae02bb86cc7ae3742",
+        "raw_json": "{\"id\":\"3be0e2a2f3f9eef21127eed0dab79ce31932e05927d6558999c5a50022d2eefe\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3472,\"tags\":[[\"contract\",\"radroots.trade.revision_proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"revision_proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"777eb26ba6b01ee154a006907cb99ad43dace95208138a30dc48d36419c93f8e1e256d3707eb28a0dd42ed50ed3954b803656f83b0259afae02bb86cc7ae3742\"}"
+      }
+    },
+    {
+      "id": "typed_trade_revision_decision_015",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.revision_decision.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3473,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.revision_decision.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"decision\":{\"decision\":\"declined\",\"reason\":\"inventory unavailable\"},\"mutation_type\":\"revision_decision\",\"proposal_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.revision_decision.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3473,[[\"contract\",\"radroots.trade.revision_decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"revision_decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "064a6208b3a064e472fd8f1c4d56c9ca49513693d1343feb0ceeb7a8814f93b6",
+        "signature": "60a9241287ba780bcccc8b3b5c85c102bfab40fa6898990f420d634f3eba01c4b9a76a6ad9efed64d111f1e39d5b5d923810c6cd2793f71d2bd19cd7fb21cdf3",
+        "raw_json": "{\"id\":\"064a6208b3a064e472fd8f1c4d56c9ca49513693d1343feb0ceeb7a8814f93b6\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3473,\"tags\":[[\"contract\",\"radroots.trade.revision_decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"revision_decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"60a9241287ba780bcccc8b3b5c85c102bfab40fa6898990f420d634f3eba01c4b9a76a6ad9efed64d111f1e39d5b5d923810c6cd2793f71d2bd19cd7fb21cdf3\"}"
+      }
+    },
+    {
+      "id": "typed_trade_cancellation_016",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.cancellation.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3474,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.cancellation.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"mutation_type\":\"cancellation\",\"reason\":\"cancelled\",\"target_candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"target_claim_mutation_id\":null},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.cancellation.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3474,[[\"contract\",\"radroots.trade.cancellation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"mutation_type\\\":\\\"cancellation\\\",\\\"reason\\\":\\\"cancelled\\\",\\\"target_candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"target_claim_mutation_id\\\":null},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.cancellation.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "2cb6574e48eb71825016b5fb94aed7df459948cab74b8f45f34cc1b42ca8767a",
+        "signature": "141c3eace0da665038626a73d336e48bc2ebc2bdee1f460bedd35034d85f199c1059f5b37c3c9b8a51730c4db0b8240223c00a0fc3fc2807cb46a7b6a0504a36",
+        "raw_json": "{\"id\":\"2cb6574e48eb71825016b5fb94aed7df459948cab74b8f45f34cc1b42ca8767a\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3474,\"tags\":[[\"contract\",\"radroots.trade.cancellation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"mutation_type\\\":\\\"cancellation\\\",\\\"reason\\\":\\\"cancelled\\\",\\\"target_candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"target_claim_mutation_id\\\":null},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.cancellation.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"141c3eace0da665038626a73d336e48bc2ebc2bdee1f460bedd35034d85f199c1059f5b37c3c9b8a51730c4db0b8240223c00a0fc3fc2807cb46a7b6a0504a36\"}"
       }
     }
   ]
