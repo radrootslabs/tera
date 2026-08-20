@@ -43,6 +43,260 @@ pub const MOBILE_FFI_SCHEMA_VERSION: u16 = 1;
 const MEDIA_FILE_MAX_BYTES: u64 = 10 * 1024 * 1024;
 const MEDIA_REFERENCE_MAX_BYTES: usize = 256;
 
+/// Final four-state trade-evidence coverage vocabulary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiTradeEvidenceCoverage {
+    Missing,
+    Partial,
+    ScopeSatisfied,
+    Unsupported,
+}
+
+/// Final three-state trade-evidence outcome vocabulary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiTradeEvidenceOutcome {
+    Valid,
+    Invalid,
+    Indeterminate,
+}
+
+/// Secret-free projection of one canonical evidence manifest.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiTradeEvidenceManifestRecord {
+    pub schema_version: u16,
+    pub contract_id: String,
+    pub contract_version: u16,
+    pub trade_id: String,
+    pub trade_generation: String,
+    pub observed_at_unix_s: String,
+    pub coverage: FfiTradeEvidenceCoverage,
+    pub evidence_policy_digest: String,
+    pub manifest_digest: String,
+    pub canonical_bytes_hex: String,
+}
+
+/// Secret-free projection of one canonical RHI evidence report.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiRhiEvidenceReportRecord {
+    pub schema_version: u16,
+    pub contract_id: String,
+    pub contract_version: u16,
+    pub issuer_pubkey: String,
+    pub trade_id: String,
+    pub claim_mutation_id: String,
+    pub outcome: FfiTradeEvidenceOutcome,
+    pub reason_codes: Vec<String>,
+    pub projection_digest: String,
+    pub evidence_manifest_digest: String,
+    pub evidence_policy_digest: String,
+    pub observed_at_unix_s: String,
+    pub trade_generation: String,
+    pub statement_digest: String,
+    pub supersedes_report_id: Option<String>,
+    pub supersedes_event_id: Option<String>,
+    pub canonical_content: String,
+}
+
+/// Unsigned typed event plan ready for host-owned signing.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiTypedEvidenceEventPlanRecord {
+    pub schema_version: u16,
+    pub contract_id: String,
+    pub kind: u32,
+    pub author_pubkey: String,
+    pub created_at_unix_s: String,
+    pub expected_event_id: String,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+}
+
+/// Signed NIP-01 event input for verified attestation admission.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiSignedEvidenceEventRecord {
+    pub id: String,
+    pub author_pubkey: String,
+    pub created_at_unix_s: u64,
+    pub kind: u32,
+    pub tags: Vec<Vec<String>>,
+    pub content: String,
+    pub signature: String,
+}
+
+/// Secret-free supersession projection from one verified attestation.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiRhiEvidenceAttestationSupersessionRecord {
+    pub report_id: String,
+    pub event_id: String,
+}
+
+/// Verified final RHI evidence attestation.
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiRhiEvidenceAttestationRecord {
+    pub schema_version: u16,
+    pub issuer_pubkey: String,
+    pub trade_id: String,
+    pub claim_mutation_id: String,
+    pub outcome: FfiTradeEvidenceOutcome,
+    pub observed_at_unix_s: String,
+    pub trade_generation: String,
+    pub statement_digest: String,
+    pub supersession: Option<FfiRhiEvidenceAttestationSupersessionRecord>,
+    pub canonical_content: String,
+}
+
+#[uniffi::export]
+pub fn parse_trade_evidence_manifest(
+    canonical_bytes: Vec<u8>,
+) -> Result<FfiTradeEvidenceManifestRecord, RadrootsAppError> {
+    let manifest = radroots_sdk::trade::parse_evidence_manifest(&canonical_bytes)
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_manifest"))?;
+    Ok(FfiTradeEvidenceManifestRecord {
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        contract_id: manifest.contract_id().to_owned(),
+        contract_version: manifest.contract_version(),
+        trade_id: manifest.trade_id().to_string(),
+        trade_generation: manifest.trade_generation().get().to_string(),
+        observed_at_unix_s: manifest.observed_at_unix_s().to_string(),
+        coverage: manifest.coverage().into(),
+        evidence_policy_digest: manifest.evidence_policy_digest().to_hex(),
+        manifest_digest: manifest.digest().to_hex(),
+        canonical_bytes_hex: hex::encode(manifest.canonical_bytes()),
+    })
+}
+
+#[uniffi::export]
+pub fn parse_rhi_evidence_report(
+    canonical_content: String,
+) -> Result<FfiRhiEvidenceReportRecord, RadrootsAppError> {
+    let report = radroots_sdk::trade::parse_rhi_evidence_report(canonical_content.as_bytes())
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_report"))?;
+    let supersession = report.supersession();
+    Ok(FfiRhiEvidenceReportRecord {
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        contract_id: report.contract_id().to_owned(),
+        contract_version: report.contract_version(),
+        issuer_pubkey: report.issuer_public_key().to_hex(),
+        trade_id: report.trade_id().to_string(),
+        claim_mutation_id: report.claim_mutation_id().to_string(),
+        outcome: report.outcome().into(),
+        reason_codes: report
+            .reason_codes()
+            .iter()
+            .map(|code| code.as_str().to_owned())
+            .collect(),
+        projection_digest: report.projection_digest().to_hex(),
+        evidence_manifest_digest: report.evidence_manifest_digest().to_hex(),
+        evidence_policy_digest: report.evidence_policy_digest().to_hex(),
+        observed_at_unix_s: report.observed_at_unix_s().to_string(),
+        trade_generation: report.trade_generation().get().to_string(),
+        statement_digest: report.statement_digest().to_hex(),
+        supersedes_report_id: supersession.map(|value| value.report_id().to_hex()),
+        supersedes_event_id: supersession.map(|value| value.event_id().to_hex()),
+        canonical_content: report.canonical_content().to_owned(),
+    })
+}
+
+#[uniffi::export]
+pub fn prepare_rhi_evidence_attestation(
+    canonical_content: String,
+    created_at_unix_s: u64,
+) -> Result<FfiTypedEvidenceEventPlanRecord, RadrootsAppError> {
+    let report = radroots_sdk::trade::parse_rhi_evidence_report(canonical_content.as_bytes())
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_report"))?;
+    let plan = radroots_sdk::trade::prepare_rhi_evidence_attestation(&report, created_at_unix_s)
+        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_attestation_plan"))?;
+    Ok(FfiTypedEvidenceEventPlanRecord {
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        contract_id: plan.body().contract().contract_id().as_str().to_owned(),
+        kind: plan.body().kind(),
+        author_pubkey: plan.author().to_hex(),
+        created_at_unix_s: plan.created_at().to_string(),
+        expected_event_id: plan.expected_event_id().to_hex(),
+        tags: plan.body().tags().to_vec(),
+        content: plan.body().content().to_owned(),
+    })
+}
+
+#[uniffi::export]
+pub fn validate_rhi_evidence_attestation(
+    event: FfiSignedEvidenceEventRecord,
+) -> Result<FfiRhiEvidenceAttestationRecord, RadrootsAppError> {
+    let event = radroots_event::envelope::EventEnvelope::new(
+        radroots_event::envelope::EventEnvelopeParts {
+            id: event.id,
+            author: event.author_pubkey,
+            created_at: event.created_at_unix_s,
+            kind: event.kind,
+            tags: event.tags,
+            content: event.content,
+            sig: event.signature,
+        },
+    )
+    .map_err(|_| RadrootsAppError::invalid_argument("invalid_signed_event"))?;
+    let attestation = radroots_sdk::trade::validate_rhi_evidence_attestation(event).map_err(
+        |error| match error {
+            radroots_sdk::trade::EvidenceAttestationValidationError::Signature => {
+                RadrootsAppError::invalid_argument("invalid_event_signature")
+            }
+            radroots_sdk::trade::EvidenceAttestationValidationError::Contract => {
+                RadrootsAppError::invalid_argument("invalid_evidence_attestation")
+            }
+        },
+    )?;
+    Ok(FfiRhiEvidenceAttestationRecord {
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        issuer_pubkey: attestation.issuer().to_hex(),
+        trade_id: attestation.trade_id().to_string(),
+        claim_mutation_id: attestation.claim_mutation_id().to_string(),
+        outcome: match attestation.outcome() {
+            radroots_sdk::trade::RadrootsRhiEvidenceAttestationOutcomeV1::Valid => {
+                FfiTradeEvidenceOutcome::Valid
+            }
+            radroots_sdk::trade::RadrootsRhiEvidenceAttestationOutcomeV1::Invalid => {
+                FfiTradeEvidenceOutcome::Invalid
+            }
+            radroots_sdk::trade::RadrootsRhiEvidenceAttestationOutcomeV1::Indeterminate => {
+                FfiTradeEvidenceOutcome::Indeterminate
+            }
+        },
+        observed_at_unix_s: attestation.observed_at_unix_s().to_string(),
+        trade_generation: attestation.trade_generation().get().to_string(),
+        statement_digest: hex::encode(attestation.statement_digest()),
+        supersession: attestation.supersession().map(|value| {
+            FfiRhiEvidenceAttestationSupersessionRecord {
+                report_id: hex::encode(value.report_id()),
+                event_id: value.event_id().to_hex(),
+            }
+        }),
+        canonical_content: attestation.canonical_content().to_owned(),
+    })
+}
+
+impl From<radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1> for FfiTradeEvidenceCoverage {
+    fn from(value: radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1) -> Self {
+        match value {
+            radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::Missing => Self::Missing,
+            radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::Partial => Self::Partial,
+            radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::ScopeSatisfied => {
+                Self::ScopeSatisfied
+            }
+            radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::Unsupported => Self::Unsupported,
+        }
+    }
+}
+
+impl From<radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1> for FfiTradeEvidenceOutcome {
+    fn from(value: radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1) -> Self {
+        match value {
+            radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1::Valid => Self::Valid,
+            radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1::Invalid => Self::Invalid,
+            radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1::Indeterminate => {
+                Self::Indeterminate
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiBuildInfoRecord {
     pub schema_version: u16,
@@ -2048,6 +2302,64 @@ mod tests {
     use std::os::fd::AsRawFd;
 
     use super::*;
+
+    fn rhi_attestation_fixture() -> serde_json::Value {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/conformance/vectors/event/authored_operations.v1.json"
+        ))
+        .expect("authored corpus");
+        fixture["vectors"]
+            .as_array()
+            .expect("operations")
+            .iter()
+            .find(|entry| entry["id"] == "typed_rhi_evidence_attestation_017")
+            .expect("RHI operation")
+            .get("expected")
+            .expect("expected")
+            .clone()
+    }
+
+    #[test]
+    fn evidence_report_plan_and_verified_event_use_final_mobile_vocabulary() {
+        let expected = rhi_attestation_fixture();
+        let content = expected["content"].as_str().expect("content").to_owned();
+        let report = parse_rhi_evidence_report(content.clone()).expect("report");
+        assert_eq!(report.outcome, FfiTradeEvidenceOutcome::Indeterminate);
+        assert_eq!(report.trade_generation, "7");
+        assert_eq!(report.observed_at_unix_s, "1800000000");
+
+        let plan = prepare_rhi_evidence_attestation(content, 1_784_347_200).expect("plan");
+        assert_eq!(plan.kind, 3_441);
+        assert_eq!(plan.created_at_unix_s, "1784347200");
+        assert_eq!(
+            plan.expected_event_id,
+            expected["event_id"].as_str().expect("event id")
+        );
+
+        let raw: serde_json::Value =
+            serde_json::from_str(expected["raw_json"].as_str().expect("raw event"))
+                .expect("raw event JSON");
+        let signed = FfiSignedEvidenceEventRecord {
+            id: raw["id"].as_str().expect("id").to_owned(),
+            author_pubkey: raw["pubkey"].as_str().expect("pubkey").to_owned(),
+            created_at_unix_s: raw["created_at"].as_u64().expect("created_at"),
+            kind: u32::try_from(raw["kind"].as_u64().expect("kind")).expect("u32 kind"),
+            tags: serde_json::from_value(raw["tags"].clone()).expect("tags"),
+            content: raw["content"].as_str().expect("content").to_owned(),
+            signature: raw["sig"].as_str().expect("signature").to_owned(),
+        };
+        let attestation = validate_rhi_evidence_attestation(signed).expect("attestation");
+        assert_eq!(attestation.outcome, FfiTradeEvidenceOutcome::Indeterminate);
+        assert_eq!(attestation.trade_generation, "7");
+    }
+
+    #[test]
+    fn evidence_errors_do_not_render_untrusted_content() {
+        let secret = "mobile-private-evidence";
+        let error = parse_rhi_evidence_report(secret.to_owned()).expect_err("malformed report");
+        assert!(!error.to_string().contains(secret));
+        assert!(!format!("{error:?}").contains(secret));
+    }
 
     fn png(width: u32, height: u32) -> Vec<u8> {
         let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();

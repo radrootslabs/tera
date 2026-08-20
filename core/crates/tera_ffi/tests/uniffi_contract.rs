@@ -1,8 +1,9 @@
 use radroots_mobile_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiCancellationPolicy, FfiMediaOperation,
-    FfiQueuePolicyRecord, FfiRelaySatisfaction, HostSigningOutcome, HostSigningRequest,
-    HostSigningResult, MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsAppError,
-    RadrootsHostSigner, RadrootsRuntime, SignerAvailabilityRecord, SignerStatusRecord,
+    FfiQueuePolicyRecord, FfiRelaySatisfaction, FfiTradeEvidenceCoverage, FfiTradeEvidenceOutcome,
+    HostSigningOutcome, HostSigningRequest, HostSigningResult, MOBILE_FFI_SCHEMA_VERSION,
+    ProtectedDataAvailability, RadrootsAppError, RadrootsHostSigner, RadrootsRuntime,
+    SignerAvailabilityRecord, SignerStatusRecord,
 };
 use secp256k1::{Keypair, Message, Secp256k1, SecretKey};
 use std::sync::{Arc, Mutex};
@@ -73,6 +74,29 @@ fn swift_module_names_preserve_the_host_contract() {
     assert_eq!(
         config,
         "[bindings.swift]\nmodule_name = \"RadrootsKitBindings\"\nffi_module_name = \"RadrootsFFI\"\n"
+    );
+}
+
+#[test]
+fn final_evidence_vocabularies_are_exact_at_the_mobile_boundary() {
+    assert_eq!(
+        [
+            FfiTradeEvidenceCoverage::Missing,
+            FfiTradeEvidenceCoverage::Partial,
+            FfiTradeEvidenceCoverage::ScopeSatisfied,
+            FfiTradeEvidenceCoverage::Unsupported,
+        ]
+        .len(),
+        4
+    );
+    assert_eq!(
+        [
+            FfiTradeEvidenceOutcome::Valid,
+            FfiTradeEvidenceOutcome::Invalid,
+            FfiTradeEvidenceOutcome::Indeterminate,
+        ]
+        .len(),
+        3
     );
 }
 
