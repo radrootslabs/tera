@@ -718,6 +718,48 @@
         "signature": "141c3eace0da665038626a73d336e48bc2ebc2bdee1f460bedd35034d85f199c1059f5b37c3c9b8a51730c4db0b8240223c00a0fc3fc2807cb46a7b6a0504a36",
         "raw_json": "{\"id\":\"2cb6574e48eb71825016b5fb94aed7df459948cab74b8f45f34cc1b42ca8767a\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3474,\"tags\":[[\"contract\",\"radroots.trade.cancellation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"mutation_type\\\":\\\"cancellation\\\",\\\"reason\\\":\\\"cancelled\\\",\\\"target_candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"target_claim_mutation_id\\\":null},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.cancellation.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"141c3eace0da665038626a73d336e48bc2ebc2bdee1f460bedd35034d85f199c1059f5b37c3c9b8a51730c4db0b8240223c00a0fc3fc2807cb46a7b6a0504a36\"}"
       }
+    },
+    {
+      "id": "typed_rhi_evidence_attestation_017",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.rhi.evidence_attestation.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3441,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.rhi.evidence_attestation.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "2222222222222222222222222222222222222222222222222222222222222222",
+            "claim"
+          ],
+          [
+            "x",
+            "254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30",
+            "statement"
+          ],
+          [
+            "t",
+            "radroots:rhi-outcome:indeterminate"
+          ]
+        ],
+        "content": "{\"attestation_method\":\"signed_evidence_snapshot\",\"claim_mutation_id\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"contract_id\":\"radroots.rhi.evidence_attestation.v1\",\"contract_version\":1,\"evidence_manifest_digest\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"evidence_policy_digest\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"issuer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"observed_at_unix_s\":1800000000,\"outcome\":\"indeterminate\",\"projection_digest\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"reason_codes\":[\"required_source_incomplete\"],\"reducer_contract_id\":\"radroots.trade.reducer.v1\",\"reducer_contract_version\":1,\"report_id\":\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"statement_digest\":\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"supersedes_event_id\":null,\"supersedes_report_id\":null,\"trade_generation\":7,\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3441,[[\"contract\",\"radroots.rhi.evidence_attestation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"2222222222222222222222222222222222222222222222222222222222222222\",\"claim\"],[\"x\",\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"statement\"],[\"t\",\"radroots:rhi-outcome:indeterminate\"]],\"{\\\"attestation_method\\\":\\\"signed_evidence_snapshot\\\",\\\"claim_mutation_id\\\":\\\"2222222222222222222222222222222222222222222222222222222222222222\\\",\\\"contract_id\\\":\\\"radroots.rhi.evidence_attestation.v1\\\",\\\"contract_version\\\":1,\\\"evidence_manifest_digest\\\":\\\"4444444444444444444444444444444444444444444444444444444444444444\\\",\\\"evidence_policy_digest\\\":\\\"5555555555555555555555555555555555555555555555555555555555555555\\\",\\\"issuer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"observed_at_unix_s\\\":1800000000,\\\"outcome\\\":\\\"indeterminate\\\",\\\"projection_digest\\\":\\\"6666666666666666666666666666666666666666666666666666666666666666\\\",\\\"reason_codes\\\":[\\\"required_source_incomplete\\\"],\\\"reducer_contract_id\\\":\\\"radroots.trade.reducer.v1\\\",\\\"reducer_contract_version\\\":1,\\\"report_id\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"statement_digest\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"supersedes_event_id\\\":null,\\\"supersedes_report_id\\\":null,\\\"trade_generation\\\":7,\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "a811ca5f84414e9d817ca47b923d8fd7f61c1a03d498b32f6b0816b99d57b8ce",
+        "signature": "8abd1ba0b3b597629939a559e2536897b602ef4e225f1552a57ddce72dd372f98ad21891cfe10bdb1a50532f50a0dd3d9b14fd46677dccd0a4fa652cdee17063",
+        "raw_json": "{\"id\":\"a811ca5f84414e9d817ca47b923d8fd7f61c1a03d498b32f6b0816b99d57b8ce\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3441,\"tags\":[[\"contract\",\"radroots.rhi.evidence_attestation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"2222222222222222222222222222222222222222222222222222222222222222\",\"claim\"],[\"x\",\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"statement\"],[\"t\",\"radroots:rhi-outcome:indeterminate\"]],\"content\":\"{\\\"attestation_method\\\":\\\"signed_evidence_snapshot\\\",\\\"claim_mutation_id\\\":\\\"2222222222222222222222222222222222222222222222222222222222222222\\\",\\\"contract_id\\\":\\\"radroots.rhi.evidence_attestation.v1\\\",\\\"contract_version\\\":1,\\\"evidence_manifest_digest\\\":\\\"4444444444444444444444444444444444444444444444444444444444444444\\\",\\\"evidence_policy_digest\\\":\\\"5555555555555555555555555555555555555555555555555555555555555555\\\",\\\"issuer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"observed_at_unix_s\\\":1800000000,\\\"outcome\\\":\\\"indeterminate\\\",\\\"projection_digest\\\":\\\"6666666666666666666666666666666666666666666666666666666666666666\\\",\\\"reason_codes\\\":[\\\"required_source_incomplete\\\"],\\\"reducer_contract_id\\\":\\\"radroots.trade.reducer.v1\\\",\\\"reducer_contract_version\\\":1,\\\"report_id\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"statement_digest\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"supersedes_event_id\\\":null,\\\"supersedes_report_id\\\":null,\\\"trade_generation\\\":7,\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"8abd1ba0b3b597629939a559e2536897b602ef4e225f1552a57ddce72dd372f98ad21891cfe10bdb1a50532f50a0dd3d9b14fd46677dccd0a4fa652cdee17063\"}"
+      }
     }
   ]
 }
