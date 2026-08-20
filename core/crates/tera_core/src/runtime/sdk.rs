@@ -1,5 +1,10 @@
 use radroots_sdk::capability::{Availability, Maturity};
 
+pub use radroots_sdk::trade::{
+    RadrootsRhiEvidenceReportV1, RadrootsTradeEvidenceCoverageV1, RadrootsTradeEvidenceManifestV1,
+    RadrootsTradeEvidenceOutcomeV1,
+};
+
 use super::RadrootsRuntime;
 #[cfg(feature = "mobile-social")]
 use super::product_surface::{BlossomPreferences, RelayPreferences};

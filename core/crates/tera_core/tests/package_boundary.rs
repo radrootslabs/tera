@@ -78,3 +78,24 @@ fn production_runtime_requires_validated_sqlite_and_memory_is_test_only() {
     assert!(RUNTIME.contains("#[cfg(test)]\n    pub(crate) fn test_memory()"));
     assert!(!RUNTIME.contains("pub fn new()"));
 }
+
+#[test]
+fn mobile_core_reuses_the_final_sdk_evidence_vocabulary() {
+    for required in [
+        "RadrootsRhiEvidenceReportV1",
+        "RadrootsTradeEvidenceCoverageV1",
+        "RadrootsTradeEvidenceManifestV1",
+        "RadrootsTradeEvidenceOutcomeV1",
+    ] {
+        assert!(
+            SDK.contains(required),
+            "missing SDK evidence type `{required}`"
+        );
+    }
+    for forbidden in ["SecretKey", "sign_event", "publish_event", "tokio::spawn"] {
+        assert!(
+            !SDK.contains(forbidden),
+            "mobile evidence projection gained forbidden authority `{forbidden}`"
+        );
+    }
+}
