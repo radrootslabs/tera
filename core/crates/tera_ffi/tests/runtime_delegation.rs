@@ -58,8 +58,9 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .sdk_relay_status()
         .expect("relay status")
         .expect("public profile");
-    assert_eq!(public.relays.len(), 2);
-    assert_eq!(public.relays[1].access, FfiRelayAccessRecord::ReadWrite);
+    assert_eq!(public.relays.len(), 1);
+    assert_eq!(public.relays[0].relay_url, "wss://write.example");
+    assert_eq!(public.relays[0].access, FfiRelayAccessRecord::ReadWrite);
     assert!(
         runtime
             .configure_public_relays(vec!["ws://127.0.0.1:7447".to_owned()])
@@ -157,7 +158,9 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .expect("relay status")
         .expect("device profile");
     assert_eq!(device.profile, "device_development");
-    assert_eq!(device.relays.len(), 2);
+    assert_eq!(device.relays.len(), 1);
+    assert_eq!(device.relays[0].relay_url, "wss://10.0.0.5:7447");
+    assert_eq!(device.relays[0].access, FfiRelayAccessRecord::ReadWrite);
     assert!(
         runtime
             .configure_device_relays(vec!["wss://127.0.0.1:7447".to_owned()])
