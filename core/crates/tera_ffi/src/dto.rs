@@ -2298,8 +2298,11 @@ fn require_schema(schema_version: u16) -> Result<(), RadrootsAppError> {
 
 #[cfg(test)]
 mod tests {
+    use core::num::NonZeroU64;
     use std::io::Write;
     use std::os::fd::AsRawFd;
+
+    use radroots_event::id::TradeId;
 
     use super::*;
 
@@ -2351,6 +2354,139 @@ mod tests {
         let attestation = validate_rhi_evidence_attestation(signed).expect("attestation");
         assert_eq!(attestation.outcome, FfiTradeEvidenceOutcome::Indeterminate);
         assert_eq!(attestation.trade_generation, "7");
+    }
+
+    #[test]
+    fn evidence_manifest_and_supersession_project_the_complete_vocabulary() {
+        use radroots_sdk::trade::{
+            RadrootsTradeEvidenceManifestSourceResultV1, RadrootsTradeEvidenceManifestV1,
+            RadrootsTradeEvidencePolicyDigestV1, RadrootsTradeEvidenceScopePrerequisitesV1,
+            RadrootsTradeEvidenceSourceCompletionV1, RadrootsTradeEvidenceSourceIdV1,
+            RadrootsTradeEvidenceSourceRequirementV1, RadrootsTradeEvidenceSourceResultDigestV1,
+            RadrootsTradeEvidenceSourceResultV1,
+        };
+
+        assert_eq!(
+            FfiTradeEvidenceCoverage::from(
+                radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::Missing
+            ),
+            FfiTradeEvidenceCoverage::Missing
+        );
+        assert_eq!(
+            FfiTradeEvidenceCoverage::from(
+                radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::Partial
+            ),
+            FfiTradeEvidenceCoverage::Partial
+        );
+        assert_eq!(
+            FfiTradeEvidenceCoverage::from(
+                radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::ScopeSatisfied
+            ),
+            FfiTradeEvidenceCoverage::ScopeSatisfied
+        );
+        assert_eq!(
+            FfiTradeEvidenceCoverage::from(
+                radroots_sdk::trade::RadrootsTradeEvidenceCoverageV1::Unsupported
+            ),
+            FfiTradeEvidenceCoverage::Unsupported
+        );
+        assert_eq!(
+            FfiTradeEvidenceOutcome::from(
+                radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1::Valid
+            ),
+            FfiTradeEvidenceOutcome::Valid
+        );
+        assert_eq!(
+            FfiTradeEvidenceOutcome::from(
+                radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1::Invalid
+            ),
+            FfiTradeEvidenceOutcome::Invalid
+        );
+        assert_eq!(
+            FfiTradeEvidenceOutcome::from(
+                radroots_sdk::trade::RadrootsTradeEvidenceOutcomeV1::Indeterminate
+            ),
+            FfiTradeEvidenceOutcome::Indeterminate
+        );
+
+        let source = RadrootsTradeEvidenceManifestSourceResultV1::new(
+            RadrootsTradeEvidenceSourceIdV1::parse("typed_source").expect("source id"),
+            RadrootsTradeEvidenceSourceResultV1::new(
+                RadrootsTradeEvidenceSourceRequirementV1::Required,
+                RadrootsTradeEvidenceSourceCompletionV1::Complete,
+                0,
+            )
+            .expect("source result"),
+            RadrootsTradeEvidenceSourceResultDigestV1::from_bytes([0x33; 32]),
+        );
+        let manifest = RadrootsTradeEvidenceManifestV1::new(
+            TradeId::from_bytes([0x11; 16]),
+            NonZeroU64::new(1).expect("nonzero generation"),
+            RadrootsTradeEvidencePolicyDigestV1::from_bytes([0x22; 32]),
+            1_800_000_000,
+            RadrootsTradeEvidenceScopePrerequisitesV1::Satisfied,
+            [source],
+            [],
+        )
+        .expect("manifest");
+        let projected = parse_trade_evidence_manifest(manifest.canonical_bytes().to_vec())
+            .expect("manifest projection");
+        assert_eq!(projected.coverage, FfiTradeEvidenceCoverage::ScopeSatisfied);
+        assert_eq!(
+            projected.canonical_bytes_hex,
+            hex::encode(manifest.canonical_bytes())
+        );
+
+        let decisions: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../contracts/conformance/vectors/rhi/evidence_attestation_decision.v1.json"
+        ))
+        .expect("RHI decision corpus");
+        let superseding = decisions["vectors"]
+            .as_array()
+            .expect("RHI decision vectors")
+            .iter()
+            .find(|entry| entry["id"] == "rhi_evidence_attestation_superseding_002")
+            .expect("superseding vector");
+        let report = parse_rhi_evidence_report(
+            superseding["expected"]["canonical_event_content_utf8"]
+                .as_str()
+                .expect("canonical event content")
+                .to_owned(),
+        )
+        .expect("superseding report");
+        assert_eq!(report.outcome, FfiTradeEvidenceOutcome::Valid);
+        assert_eq!(
+            report.supersedes_report_id.as_deref(),
+            Some("7777777777777777777777777777777777777777777777777777777777777777")
+        );
+        assert_eq!(
+            report.supersedes_event_id.as_deref(),
+            Some("8888888888888888888888888888888888888888888888888888888888888888")
+        );
+    }
+
+    #[test]
+    fn transport_policy_enums_map_every_closed_variant() {
+        assert_eq!(
+            FfiCancellationPolicy::PreservePublishedRequest.core(),
+            Phase1CancellationPolicy::PreservePublishedRequest
+        );
+        assert_eq!(
+            FfiCancellationPolicy::LocalCooperative.core(),
+            Phase1CancellationPolicy::LocalCooperative
+        );
+        assert_eq!(
+            radroots_sdk::transport::BlossomHostKind::from(FfiBlossomHostKind::Native),
+            radroots_sdk::transport::BlossomHostKind::Native
+        );
+        assert_eq!(
+            radroots_sdk::transport::BlossomHostKind::from(FfiBlossomHostKind::Simulator),
+            radroots_sdk::transport::BlossomHostKind::Simulator
+        );
+        assert_eq!(
+            radroots_sdk::transport::BlossomHostKind::from(FfiBlossomHostKind::PhysicalDevice),
+            radroots_sdk::transport::BlossomHostKind::PhysicalDevice
+        );
     }
 
     #[test]
