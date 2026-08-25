@@ -441,7 +441,26 @@ mod tests {
                 0,
                 LocalNetworkRelayPolicy::Device,
             )
-            .is_err()
+            .is_ok()
         );
+        for denied in [
+            "wss://relay.example",
+            "ws://127.0.0.1:7447",
+            "ws://169.254.1.7:7447",
+            "ws://8.8.8.8:7447",
+        ] {
+            assert!(matches!(
+                LocalNetwork::new_for_relay_policy(
+                    "id".into(),
+                    "label".into(),
+                    vec![denied.into()],
+                    None,
+                    vec![],
+                    0,
+                    LocalNetworkRelayPolicy::Device,
+                ),
+                Err(LocalNetworkError::InvalidRelay)
+            ));
+        }
     }
 }
