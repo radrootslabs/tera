@@ -66,3 +66,17 @@ FFI artifacts and directs the developer to run `make bootstrap`.
 The Rust source lock, generated bindings, XCFramework hashes, provenance, Swift
 package locks, privacy manifests, and public API snapshots are checked as part
 of the release lane.
+
+The unsigned release-evidence lane also regenerates a deterministic CycloneDX
+SBOM from the locked Rust and Swift dependency graphs and binds it to the
+checked-in locks, API snapshots, privacy inputs, Xcode project, XCFramework
+provenance, and exact public repository identity:
+
+```sh
+make release-evidence-write
+make release-preflight
+```
+
+Run the write target only when an owned release input changes. The preflight
+is read-only and rejects stale generated evidence. Signing, tagging,
+publication, and deployment remain separate operations.

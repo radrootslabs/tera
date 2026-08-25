@@ -12,10 +12,10 @@ This file applies to the complete standalone iOS app repository. A closer
   `RadrootsFFI/source.lock` must select the same exact remotely reachable public
   lib revision and release version. `Package.swift`, both
   `Package.resolved` files, and `project.yml` own exact Apple package inputs.
-- `RadrootsFFI/provenance.json`, `RadrootsFFI/api/**`, `api/**`, generated
-  project/source inputs, and the package locks are machine evidence. Do not
-  hand-edit generated bindings, XCFramework contents, provenance, project
-  output, or API snapshots.
+- `RadrootsFFI/provenance.json`, `RadrootsFFI/api/**`, `api/**`, `release/**`,
+  generated project/source inputs, and the package locks are machine evidence.
+  Do not hand-edit generated bindings, XCFramework contents, provenance, SBOM,
+  project output, or API snapshots.
 - Human specifications, decisions, migration history, runbooks, and
   qualification evidence are parent-owned under `docs/oss/ios_app/**`. They
   are absent from a standalone clone and must never become a build, test,
@@ -79,6 +79,9 @@ This file applies to the complete standalone iOS app repository. A closer
 - `make bootstrap` performs networked source/artifact bootstrap. `make verify`
   is the complete package, Xcode build/test, UI, and API-snapshot lane. Use an
   explicitly installed simulator name when the default is unavailable.
+- `make release-evidence-write` regenerates deterministic unsigned release
+  evidence from exact locks and artifacts. `make release-preflight` checks its
+  freshness and source authority without signing, tagging, or publication.
 - Run the smallest credible target while iterating, followed by the complete
   affected standalone lane. Never claim a command passed unless it ran
   successfully; report missing Xcode, simulator, signing, or network

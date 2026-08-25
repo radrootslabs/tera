@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "app_api_sha256": "5c380a3c4341e127946cd174d59b92091805b450871198fadced323a198a6d9d",
+    "ffi_api_sha256": "7889118dc04dcf7fd2cf7c09c12e2a47ee0c3dc69d51987d8df98f3f2a3d638e",
+    "ffi_provenance_sha256": "8955d44f1b289dc1d18567d0ded97c6619021c67a681ac127a840920e0dea4bf",
+    "info_plist_sha256": "d2fe40767eb37acd634193118da71171aea5abaea6d4e9e9578c984974225ea2",
+    "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
+    "sbom_sha256": "343268494f65736bb90a9ecad4fe0c2adbbe896865e2ce110313064185c81214",
+    "xcode_project_sha256": "1b5c2e337c26c4c44247ca1c323e548b340ee67fb1e87e6ac1d024e46b94c30d"
+  },
+  "disposition": "unsigned",
+  "platforms": [
+    "ios-arm64",
+    "ios-arm64-simulator"
+  ],
+  "product": "radroots_ios_app",
+  "repository": "https://github.com/radrootslabs/tera",
+  "schema": "radroots.ios.release-provenance.v1",
+  "source": {
+    "cargo_lock_sha256": "a2cb8a0f1d252434acba5e417f93ab9cd3be945af554452b3b40e4a8dcea3c80",
+    "consumer_source_lock_sha256": "87814c299ff83411991793ccd180eb22d5ccd4c756abb66f3c8100763d9d39d9",
+    "lib_revision": "be9db78e060ebc0000fa7827ac32efa3f6504f53",
+    "source_date_epoch": 1787697030,
+    "swift_package_lock_sha256": "dfeb2e99483fecfa215a988f6cc511622b005c979f80bda5cf79c4c5083c6083",
+    "xcode_package_lock_sha256": "22b6afb7c28a9d8d6e41bd272ced30ac4afc3ae0a04dd7dfdfd4e67a17207809"
+  },
+  "version": "0.1.0-alpha"
+}

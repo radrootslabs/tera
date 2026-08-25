@@ -7,7 +7,7 @@ version = "0.1.0-alpha"
 edition = "2024"
 rust-version = "1.97.1"
 license = "GPL-3.0-or-later"
-repository = "https://github.com/radrootslabs/ios_app"
+repository = "https://github.com/radrootslabs/tera"
 homepage = "https://radroots.org"
 authors = ["Tyson Lupul <tyson@radroots.org>"]
 

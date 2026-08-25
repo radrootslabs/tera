@@ -6,6 +6,10 @@ package="$repo_root/Package.swift"
 source_lock="$repo_root/RadrootsFFI/source.lock"
 consumer_lock="$repo_root/radroots.lib.source-lock.v1.toml"
 
+grep -Fq 'repository = "https://github.com/radrootslabs/tera"' "$repo_root/Cargo.toml"
+grep -Fq '9F54FC4930051FC4611B37D3 /* ios_app */' \
+    "$repo_root/Radroots.xcodeproj/project.pbxproj"
+
 for forbidden_root in docs .github .act
 do
     if [ -e "$repo_root/$forbidden_root" ] || [ -L "$repo_root/$forbidden_root" ]; then

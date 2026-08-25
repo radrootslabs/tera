@@ -10,7 +10,7 @@ SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
 .PHONY: all doctor bootstrap ffi-bootstrap artifact-check package-contract-check \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-write \
-	api-snapshot-check verify clean distclean
+	api-snapshot-check release-evidence-write release-preflight verify clean distclean
 
 all: verify
 
@@ -60,6 +60,12 @@ api-snapshot-write: package-build
 
 api-snapshot-check: package-build
 	cargo extbuild run -- scripts/app-api-snapshot.sh check
+
+release-evidence-write: doctor
+	cargo extbuild run -- scripts/release-evidence.sh write
+
+release-preflight: artifact-check package-contract-check
+	cargo extbuild run -- scripts/release-preflight.sh
 
 verify: artifact-check package-contract-check package-build package-test \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-check
