@@ -277,13 +277,26 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
             id: "nearby".to_owned(),
             label: "Near me".to_owned(),
-            relay_urls: vec!["wss://relay.example".to_owned()],
+            relay_urls: vec!["ws://192.168.1.7:7447".to_owned()],
             locality: Some("u10h".to_owned()),
             followed_authors: vec!["a".repeat(64)],
             generation: 1,
         })
         .expect("valid local network");
     assert_eq!(local_network.id, "nearby");
+    assert!(
+        runtime
+            .phase1_local_network(FfiLocalNetworkRecord {
+                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                id: "public-host".to_owned(),
+                label: "Public host".to_owned(),
+                relay_urls: vec!["wss://relay.example".to_owned()],
+                locality: None,
+                followed_authors: vec![],
+                generation: 1,
+            })
+            .is_err()
+    );
     let refresh = runtime
         .phase1_refresh_today(
             local_network.clone(),
@@ -322,15 +335,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert!(
         runtime
             .phase1_search(
-                FfiLocalNetworkRecord {
-                    schema_version: MOBILE_FFI_SCHEMA_VERSION,
-                    id: "nearby".to_owned(),
-                    label: "Near me".to_owned(),
-                    relay_urls: vec!["wss://relay.example".to_owned()],
-                    locality: Some("u10h".to_owned()),
-                    followed_authors: vec!["a".repeat(64)],
-                    generation: 1,
-                },
+                local_network.clone(),
                 "carrots".to_owned(),
                 20,
                 1_800_000_001,
@@ -340,18 +345,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             .is_empty()
     );
     let me = runtime
-        .phase1_me(
-            FfiLocalNetworkRecord {
-                schema_version: MOBILE_FFI_SCHEMA_VERSION,
-                id: "nearby".to_owned(),
-                label: "Near me".to_owned(),
-                relay_urls: vec!["wss://relay.example".to_owned()],
-                locality: Some("u10h".to_owned()),
-                followed_authors: vec!["a".repeat(64)],
-                generation: 1,
-            },
-            1_800_000_001,
-        )
+        .phase1_me(local_network.clone(), 1_800_000_001)
         .await
         .expect("Me snapshot");
     assert_eq!(me.public_key, support::PUBLIC_KEY);
