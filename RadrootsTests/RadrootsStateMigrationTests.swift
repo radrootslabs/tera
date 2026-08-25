@@ -19,12 +19,41 @@ final class RadrootsStateMigrationTests: XCTestCase {
             ),
             ["ws://127.0.0.1:7447"]
         )
-        XCTAssertNoThrow(
-            try RadrootsNetworkValidator.relays(
-                ["wss://10.0.0.5:7447"],
-                profile: .device
+        for accepted in [
+            "ws://10.0.0.5:7447",
+            "ws://172.16.0.5:7447",
+            "ws://172.31.255.254:7447",
+            "ws://192.168.0.5:7447",
+            "ws://[fc00::5]:7447",
+            "ws://[fd00::5]:7447",
+            "wss://10.0.0.5:7447",
+        ] {
+            XCTAssertNoThrow(
+                try RadrootsNetworkValidator.relays([accepted], profile: .device),
+                "Expected device policy to admit \(accepted)"
             )
-        )
+        }
+        for denied in [
+            "ws://8.8.8.8:7447",
+            "ws://device.example:7447",
+            "wss://device.example:7447",
+            "ws://0.0.0.0:7447",
+            "ws://127.0.0.1:7447",
+            "ws://169.254.1.1:7447",
+            "ws://172.32.0.5:7447",
+            "ws://100.64.0.5:7447",
+            "ws://224.0.0.1:7447",
+            "ws://[::]:7447",
+            "ws://[::1]:7447",
+            "ws://[fe80::1]:7447",
+            "ws://[ff02::1]:7447",
+            "ws://[2001:4860:4860::8888]:7447",
+        ] {
+            XCTAssertThrowsError(
+                try RadrootsNetworkValidator.relays([denied], profile: .device),
+                "Expected device policy to deny \(denied)"
+            )
+        }
         for denied in [
             "ws://public.example",
             "wss://localhost",
@@ -37,12 +66,6 @@ final class RadrootsStateMigrationTests: XCTestCase {
                 "Expected public policy to deny \(denied)"
             )
         }
-        XCTAssertThrowsError(
-            try RadrootsNetworkValidator.relays(
-                ["wss://127.0.0.1:7447"],
-                profile: .device
-            )
-        )
     }
 
     func testLegacyRelayMigrationIsIdempotentAndCorruptionIsNotAbsence() async throws {

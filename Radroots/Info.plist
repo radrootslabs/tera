@@ -26,6 +26,11 @@
 	<string>Radroots uses Face ID only to unlock the local Nostr identity or approve a post or media upload you choose to sign.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Radroots uses your local network only when you explicitly select a trusted physical-device development service.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

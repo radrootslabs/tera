@@ -44,6 +44,16 @@ plutil -lint "$repo_root/Radroots/Info.plist" >/dev/null
 grep -Fq '<key>NSCameraUsageDescription</key>' "$repo_root/Radroots/Info.plist"
 grep -Fq '<key>NSFaceIDUsageDescription</key>' "$repo_root/Radroots/Info.plist"
 grep -Fq '<key>NSLocalNetworkUsageDescription</key>' "$repo_root/Radroots/Info.plist"
+if ! plutil -extract NSAppTransportSecurity json -o - "$repo_root/Radroots/Info.plist" \
+    | jq -e '
+        type == "object" and
+        keys == ["NSAllowsLocalNetworking"] and
+        .NSAllowsLocalNetworking == true
+    ' >/dev/null
+then
+    echo "error: ATS must allow only explicitly selected local-network development" >&2
+    exit 1
+fi
 if grep -Fq '<key>NSBonjourServices</key>' "$repo_root/Radroots/Info.plist"; then
     echo "error: physical-device development must not enable Bonjour discovery" >&2
     exit 1

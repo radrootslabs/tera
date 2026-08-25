@@ -10,12 +10,12 @@
   "files": [],
   "provenance": {
     "repository": "https://github.com/radrootslabs/lib",
-    "revision": "945a7d4255a75acf48c5a6ed90510615c1c78e9f",
+    "revision": "be9db78e060ebc0000fa7827ac32efa3f6504f53",
     "architecture": "radroots.crates.release.v2",
-    "catalog_sha256": "d42a2ec2f86f4df22b0deee5afe0fb7e971dae2f3657758961ff9d19c7e2d27e",
-    "lockfile_sha256": "0cddee470e47166aca0f3b03b8935acd081ea853e5ede20daf04a06a2a6669d5",
-    "source_archive_sha256": "9381ab3a9e5c972e8d12b32aaa8df0a5fe4a52ce5671c2f6ea7f12682962ec3c",
-    "source_date_epoch": 1786493077,
+    "catalog_sha256": "deca0c080deae187ff8186c0708903e42f41ea57f77c5f91581e23aa561164a4",
+    "lockfile_sha256": "a2cb8a0f1d252434acba5e417f93ab9cd3be945af554452b3b40e4a8dcea3c80",
+    "source_archive_sha256": "aec2fe198b200f40af81424fbec70a9a8f22b0b38455bc6c81b7eb3be4241748",
+    "source_date_epoch": 1787697030,
     "builder_id": "radroots_ios_app",
     "features": []
   }

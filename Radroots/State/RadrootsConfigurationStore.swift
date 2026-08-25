@@ -593,15 +593,18 @@ enum RadrootsNetworkValidator {
               components.user == nil,
               components.password == nil,
               let scheme = components.scheme?.lowercased(),
-              let host = components.host?.lowercased(),
+              let parsedHost = components.host?.lowercased(),
               components.port != 0,
               components.path.isEmpty || components.path == "/"
         else {
             throw RadrootsConfigurationError.invalid("relay_url")
         }
-        guard scheme == "wss" || scheme == "ws" && profile == .simulator,
-              hostAllowed(host, profile: profile)
-        else {
+        let host = parsedHost.hasPrefix("[") && parsedHost.hasSuffix("]")
+            ? String(parsedHost.dropFirst().dropLast())
+            : parsedHost
+        let schemeAllowed = scheme == "wss"
+            || (scheme == "ws" && (profile == .simulator || profile == .device))
+        guard schemeAllowed, hostAllowed(host, profile: profile) else {
             throw RadrootsConfigurationError.invalid("relay_policy")
         }
         var canonical = "\(scheme)://\(hostForURL(host))"
@@ -628,13 +631,15 @@ enum RadrootsNetworkValidator {
             return false
         }
         if let ipv4 = IPv4Address(host) {
-            return profile == .publicNetwork ? ipv4.isPublic : ipv4.isTrustedDevice
+            return profile == .publicNetwork ? ipv4.isPublic
+                : profile == .device ? ipv4.isPrivateLAN : ipv4.isTrustedDevice
         }
         if let ipv6 = IPv6Address(host) {
-            return profile == .publicNetwork ? ipv6.isPublic : ipv6.isTrustedDevice
+            return profile == .publicNetwork ? ipv6.isPublic
+                : profile == .device ? ipv6.isPrivateLAN : ipv6.isTrustedDevice
         }
         if profile == .device {
-            return true
+            return false
         }
         let normalized = host.trimmingCharacters(in: CharacterSet(charactersIn: "."))
         return normalized.contains(".")
@@ -674,6 +679,14 @@ private struct IPv4Address {
             || octets[0] == 203 && octets[1] == 0 && octets[2] == 113
             || octets[0] >= 240)
     }
+
+    var isPrivateLAN: Bool {
+        var address = address
+        let octets = withUnsafeBytes(of: &address.s_addr) { Array($0) }
+        return octets[0] == 10
+            || octets[0] == 172 && (16 ... 31).contains(octets[1])
+            || octets[0] == 192 && octets[1] == 168
+    }
 }
 
 private struct IPv6Address {
@@ -703,6 +716,12 @@ private struct IPv6Address {
             && !(segment0 == 0x2001 && segment1 == 0x0DB8)
             && segment0 != 0x2002
             && !(segment0 == 0x3FFF && segment1 & 0xF000 == 0)
+    }
+
+    var isPrivateLAN: Bool {
+        var address = address
+        let bytes = withUnsafeBytes(of: &address) { Array($0) }
+        return bytes.count == 16 && bytes[0] & 0xFE == 0xFC
     }
 }
 
