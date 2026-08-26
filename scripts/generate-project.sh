@@ -9,7 +9,7 @@ root_package_name=ios_app
 xcodegen generate --spec project.yml
 
 root_package_reference=$(perl -ne '
-    if (/^\s*([0-9A-F]{24}) \/\* ([^*]+) \*\/ = \{isa = PBXFileReference; lastKnownFileType = folder; name = "[^"]+"; path = \.; sourceTree = SOURCE_ROOT; \};$/) {
+    if (/^\s*([0-9A-F]{24}) \/\* ([^*]+) \*\/ = \{isa = PBXFileReference; lastKnownFileType = folder; name = (?:"[^"]+"|[^";]+); path = \.; sourceTree = SOURCE_ROOT; \};$/) {
         print "$1\t$2\n";
     }
 ' "$project_file")
