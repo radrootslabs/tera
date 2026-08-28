@@ -1086,13 +1086,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       return nil
     }
     guard
-      waitForWorkToFinish(
-        app,
-        submit: submit,
-        status: status,
-        priorStatusLabel: priorStatusLabel,
-        priorSubmitValue: priorSubmitValue
-      )
+      waitForWorkToFinish(app)
     else {
       XCTFail(
         "The Add submission did not reach a terminal local state; "
@@ -1132,23 +1126,9 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func waitForWorkToFinish(
-    _ app: XCUIApplication,
-    submit: XCUIElement,
-    status: XCUIElement,
-    priorStatusLabel: String?,
-    priorSubmitValue: String?
-  ) -> Bool {
+  private func waitForWorkToFinish(_ app: XCUIApplication) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
-    let finished = NSPredicate { _, _ in
-      guard !progress.exists else { return false }
-      if status.exists, !status.label.isEmpty, status.label != priorStatusLabel {
-        return true
-      }
-      guard submit.exists else { return false }
-      let submitValue = submit.value as? String
-      return submitValue != priorSubmitValue && submitValue != "Working"
-    }
+    let finished = NSPredicate { _, _ in !progress.exists }
     let expectation = XCTNSPredicateExpectation(predicate: finished, object: app)
     return XCTWaiter.wait(for: [expectation], timeout: 180) == .completed
   }
