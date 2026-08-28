@@ -618,11 +618,19 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCTAssertTrue(account.waitForExistence(timeout: 10))
     account.tap()
 
-    let settings = app.descendants(matching: .any)["radroots.support.settings"]
-    for _ in 0..<5 where !settings.exists {
-      app.swipeUp()
+    let meSheet = app.descendants(matching: .any)["radroots.support.me.sheet"]
+    guard meSheet.waitForExistence(timeout: 10) else {
+      throw QualificationError.missingProductSurface
     }
-    XCTAssertTrue(settings.waitForExistence(timeout: 20))
+    let meList = meSheet.descendants(matching: .collectionView).firstMatch
+    let settings = app.descendants(matching: .any)["radroots.support.settings"]
+    for _ in 0..<8 where !settings.exists {
+      meList.swipeUp()
+    }
+    guard settings.waitForExistence(timeout: 20) else {
+      XCTFail("Settings was unavailable through the visible Me sheet")
+      throw QualificationError.missingProductSurface
+    }
     settings.tap()
 
     let publicKey = app.descendants(matching: .any)[
