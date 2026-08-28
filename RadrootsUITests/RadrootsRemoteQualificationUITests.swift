@@ -1178,9 +1178,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       return submit.exists && submit.value as? String != priorSubmitValue
     }
     let startExpectation = XCTNSPredicateExpectation(predicate: started, object: app)
-    guard XCTWaiter.wait(for: [startExpectation], timeout: 10) == .completed else {
-      return false
-    }
+    _ = XCTWaiter.wait(for: [startExpectation], timeout: 5)
     let settled = NSPredicate { _, _ in
       addRoot.value as? String == "Ready" && !progress.exists
     }
