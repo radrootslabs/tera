@@ -1069,12 +1069,14 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   private func submitAndWait(_ app: XCUIApplication, submit: XCUIElement) -> String? {
     let status = app.staticTexts.matching(identifier: "radroots.add.status").firstMatch
     let priorStatusLabel = status.exists ? status.label : nil
+    let priorSubmitValue = submit.value as? String
     guard
       tapSubmitUntilWorkStarts(
         app,
         submit: submit,
         status: status,
-        priorStatusLabel: priorStatusLabel
+        priorStatusLabel: priorStatusLabel,
+        priorSubmitValue: priorSubmitValue
       )
     else {
       XCTFail(
@@ -1086,8 +1088,10 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     guard
       waitForWorkToFinish(
         app,
+        submit: submit,
         status: status,
-        priorStatusLabel: priorStatusLabel
+        priorStatusLabel: priorStatusLabel,
+        priorSubmitValue: priorSubmitValue
       )
     else {
       XCTFail(
@@ -1130,13 +1134,20 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   @MainActor
   private func waitForWorkToFinish(
     _ app: XCUIApplication,
+    submit: XCUIElement,
     status: XCUIElement,
-    priorStatusLabel: String?
+    priorStatusLabel: String?,
+    priorSubmitValue: String?
   ) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let finished = NSPredicate { _, _ in
-      guard !progress.exists, status.exists else { return false }
-      return !status.label.isEmpty && status.label != priorStatusLabel
+      guard !progress.exists else { return false }
+      if status.exists, !status.label.isEmpty, status.label != priorStatusLabel {
+        return true
+      }
+      guard submit.exists else { return false }
+      let submitValue = submit.value as? String
+      return submitValue != priorSubmitValue && submitValue != "Working"
     }
     let expectation = XCTNSPredicateExpectation(predicate: finished, object: app)
     return XCTWaiter.wait(for: [expectation], timeout: 180) == .completed
@@ -1147,13 +1158,16 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     _ app: XCUIApplication,
     submit: XCUIElement,
     status: XCUIElement,
-    priorStatusLabel: String?
+    priorStatusLabel: String?,
+    priorSubmitValue: String?
   ) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let started = NSPredicate { _, _ in
       if progress.exists { return true }
       if status.exists { return status.label != priorStatusLabel }
-      return priorStatusLabel != nil
+      if priorStatusLabel != nil { return true }
+      guard submit.exists else { return false }
+      return (submit.value as? String) != priorSubmitValue
     }
 
     submit.tap()
