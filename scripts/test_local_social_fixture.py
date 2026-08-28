@@ -150,6 +150,77 @@ class LocalSocialFixtureTests(unittest.TestCase):
             self.assertEqual(evidence["accepted_uploads"], 1)
             self.assertEqual(evidence["retrievals"], 1)
 
+    def test_persona_retrieval_counts_only_its_own_uploaded_digest(self) -> None:
+        body = b"persona-photo"
+        digest = fixture.hashlib.sha256(body).hexdigest()
+        _, suite = fixture.load_persona_suite(
+            Path("test-fixtures/local-social-personas.v1.json")
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            control = root / "control.json"
+            state = fixture.FixtureState(
+                root / "evidence.json", control, 21100, suite
+            )
+            self.write_persona_control(control, "P01")
+            with mock.patch.object(
+                fixture, "valid_blossom_authorization", return_value=True
+            ):
+                accepted, _ = state.upload(body, "image/png", digest, "Nostr valid")
+            self.assertTrue(accepted)
+            self.assertIsNotNone(state.retrieve(digest))
+            self.write_persona_control(control, "P02")
+            self.assertIsNotNone(state.retrieve(digest))
+
+            evidence = json.loads(
+                (root / "evidence.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(evidence["retrievals"], 1)
+            self.assertEqual(evidence["personas"][0]["retrievals"], 1)
+            self.assertEqual(evidence["personas"][1]["retrievals"], 0)
+
+    def test_transport_retry_drops_one_response_then_accepts(self) -> None:
+        _, suite = fixture.load_persona_suite(
+            Path("test-fixtures/local-social-personas.v1.json")
+        )
+        attempt = fixture.persona_attempts(suite)["P05-A01"]
+        event = {
+            "id": "1" * 64,
+            "kind": fixture.FLOW_KINDS[attempt["flow"]],
+            "pubkey": "2" * 64,
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            control = root / "control.json"
+            self.write_persona_control(control, "P05")
+            state = fixture.FixtureState(
+                root / "evidence.json", control, 21100, suite
+            )
+            with mock.patch.object(
+                fixture, "classify_attempt", return_value=attempt
+            ):
+                self.assertIsNone(state._publish_persona_event(event))
+                self.assertTrue(state._publish_persona_event(event))
+
+            evidence = json.loads(
+                (root / "evidence.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(evidence["expected_failure_rejections"], 1)
+            self.assertEqual(evidence["accepted_events"], 1)
+
+    @staticmethod
+    def write_persona_control(path: Path, alias: str) -> None:
+        path.write_text(
+            json.dumps(
+                {
+                    "schema": fixture.PERSONA_CONTROL_SCHEMA,
+                    "active_persona": alias,
+                    "blossom_enabled": True,
+                }
+            ),
+            encoding="utf-8",
+        )
+
     def test_result_contract_accepts_future_ios_and_rejects_drift(self) -> None:
         suite, result = self.persona_result()
         result_schema = json.loads(

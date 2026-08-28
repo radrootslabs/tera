@@ -244,6 +244,9 @@ class FixtureState:
         self._identity_by_persona: dict[str, str] = {}
         self._persona_by_identity: dict[str, str] = {}
         self._accepted_uploads_by_persona = {alias: 0 for alias in PERSONA_ALIASES}
+        self._uploaded_digests_by_persona = {
+            alias: set() for alias in PERSONA_ALIASES
+        }
         self._retrievals_by_persona = {alias: set() for alias in PERSONA_ALIASES}
         self._unknown_attempts = 0
         self._duplicate_attempts = 0
@@ -254,7 +257,7 @@ class FixtureState:
         self._unintended_publications = 0
         self._write_evidence()
 
-    def publish(self, event: dict[str, Any]) -> bool:
+    def publish(self, event: dict[str, Any]) -> bool | None:
         if not valid_nostr_event(event) or not verify_nostr_signature(event):
             return False
         if self._suite is not None:
@@ -267,7 +270,7 @@ class FixtureState:
             self._write_evidence_locked()
         return True
 
-    def _publish_persona_event(self, event: dict[str, Any]) -> bool:
+    def _publish_persona_event(self, event: dict[str, Any]) -> bool | None:
         attempt = classify_attempt(event, self._attempts)
         control = read_control(self.control)
         with self._lock:
@@ -306,7 +309,7 @@ class FixtureState:
                 self._transport_rejected_attempts.add(attempt_id)
                 self._expected_failure_rejections += 1
                 self._write_evidence_locked()
-                return False
+                return None
             if attempt_id in self._accepted_attempts:
                 self._duplicate_attempts += 1
                 self._write_evidence_locked()
@@ -375,6 +378,7 @@ class FixtureState:
                 self._accepted_uploads += 1
                 if persona is not None:
                     self._accepted_uploads_by_persona[persona] += 1
+                    self._uploaded_digests_by_persona[persona].add(digest)
             self._write_evidence_locked()
         descriptor = {
             "url": f"http://127.0.0.1:{self.blossom_port}/{digest}.png",
@@ -394,11 +398,12 @@ class FixtureState:
                     self._retrievals += 1
                 elif control is not None:
                     persona = control["active_persona"]
-                    before = len(self._retrievals_by_persona[persona])
-                    self._retrievals_by_persona[persona].add(digest)
-                    self._retrievals += (
-                        len(self._retrievals_by_persona[persona]) - before
-                    )
+                    if digest in self._uploaded_digests_by_persona[persona]:
+                        before = len(self._retrievals_by_persona[persona])
+                        self._retrievals_by_persona[persona].add(digest)
+                        self._retrievals += (
+                            len(self._retrievals_by_persona[persona]) - before
+                        )
                 self._write_evidence_locked()
             return value
 
@@ -786,6 +791,8 @@ class RelayHandler(socketserver.BaseRequestHandler):
             ):
                 event_id = message[1].get("id", "")
                 accepted = self.state.publish(message[1])
+                if accepted is None:
+                    return
                 send_json(
                     self.request,
                     ["OK", event_id, accepted, "" if accepted else "invalid"],

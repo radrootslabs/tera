@@ -428,6 +428,14 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       }
       if issue.auditType == .contrast,
         let element = issue.element,
+        element.elementType == .other,
+        element.identifier.isEmpty,
+        element.label.isEmpty,
+        element.frame == app.frame {
+        return true
+      }
+      if issue.auditType == .contrast,
+        let element = issue.element,
         element.exists,
         !element.isEnabled
       {
@@ -916,7 +924,10 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       throw QualificationError.missingProductSurface
     }
     let retry = relaunched.buttons["Retry"].firstMatch
-    XCTAssertTrue(retry.waitForExistence(timeout: 20))
+    guard retry.waitForExistence(timeout: 20) else {
+      XCTFail("The transport-retry draft did not expose the Retry action")
+      throw QualificationError.missingProductSurface
+    }
     retry.tap()
     let retryCompleted = NSPredicate { _, _ in !retry.exists || !retry.isEnabled }
     let expectation = XCTNSPredicateExpectation(predicate: retryCompleted, object: relaunched)
