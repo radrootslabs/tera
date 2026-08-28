@@ -1070,23 +1070,16 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let status = app.staticTexts.matching(identifier: "radroots.add.status").firstMatch
     let priorStatusLabel = status.exists ? status.label : nil
     let priorSubmitValue = submit.value as? String
+    submit.tap()
+    scrollTo(app, element: submit)
     guard
-      tapSubmitUntilWorkStarts(
+      waitForWorkToFinish(
         app,
         submit: submit,
         status: status,
         priorStatusLabel: priorStatusLabel,
         priorSubmitValue: priorSubmitValue
       )
-    else {
-      XCTFail(
-        "The Add submission tap did not start local work; "
-          + submissionDiagnostics(app, submit: submit)
-      )
-      return nil
-    }
-    guard
-      waitForWorkToFinish(app)
     else {
       XCTFail(
         "The Add submission did not reach a terminal local state; "
@@ -1126,15 +1119,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func waitForWorkToFinish(_ app: XCUIApplication) -> Bool {
-    let progress = app.descendants(matching: .any)["radroots.add.progress"]
-    let finished = NSPredicate { _, _ in !progress.exists }
-    let expectation = XCTNSPredicateExpectation(predicate: finished, object: app)
-    return XCTWaiter.wait(for: [expectation], timeout: 180) == .completed
-  }
-
-  @MainActor
-  private func tapSubmitUntilWorkStarts(
+  private func waitForWorkToFinish(
     _ app: XCUIApplication,
     submit: XCUIElement,
     status: XCUIElement,
@@ -1142,17 +1127,17 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     priorSubmitValue: String?
   ) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
-    let started = NSPredicate { _, _ in
-      if progress.exists { return true }
-      if status.exists { return status.label != priorStatusLabel }
-      if priorStatusLabel != nil { return true }
+    let finished = NSPredicate { _, _ in
+      guard !progress.exists else { return false }
+      if status.exists, !status.label.isEmpty, status.label != priorStatusLabel {
+        return true
+      }
       guard submit.exists else { return false }
-      return (submit.value as? String) != priorSubmitValue
+      let submitValue = submit.value as? String
+      return submitValue != priorSubmitValue && submitValue != "Working"
     }
-
-    submit.tap()
-    let expectation = XCTNSPredicateExpectation(predicate: started, object: app)
-    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
+    let expectation = XCTNSPredicateExpectation(predicate: finished, object: app)
+    return XCTWaiter.wait(for: [expectation], timeout: 180) == .completed
   }
 
   @MainActor
