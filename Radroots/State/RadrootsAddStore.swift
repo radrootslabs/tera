@@ -111,6 +111,9 @@ final class RadrootsAddStore: ObservableObject {
         supportResult
       )
       guard requestedGeneration == generation else { return }
+      try await media?.reconcileBackgroundUploads(drafts: loadedDrafts)
+      try Task.checkCancellation()
+      guard requestedGeneration == generation else { return }
       schemas = loadedSchemas
       drafts = Self.sorted(loadedDrafts)
       mediaSupport = loadedSupport
@@ -470,8 +473,8 @@ final class RadrootsAddStore: ObservableObject {
       do {
         status = try await runtimeClient.completeAddMediaBackground(
           input: RadrootsNativeUploadCompletion(
-            draftID: job.draft.id,
-            expectedRevision: job.draft.revision,
+            draftID: receipt.draftID,
+            expectedRevision: receipt.expectedRevision,
             media: handle,
             statusCode: receipt.statusCode,
             responseMediaType: receipt.mediaType,
@@ -479,7 +482,16 @@ final class RadrootsAddStore: ObservableObject {
             responseBody: receipt.body
           )
         )
+      } catch is CancellationError {
+        // Rust completion may already be durable. Leave the receipt awaiting
+        // verification so relaunch can reconcile the unknown outcome.
+        throw CancellationError()
       } catch {
+        if Self.failure(for: error)?.code == "ios.runtime.cancelled" {
+          // The bounded runtime client cannot prove whether a cancelled FFI
+          // completion became durable. Preserve the receipt for reconciliation.
+          throw CancellationError()
+        }
         try? await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: false)
         throw error
       }

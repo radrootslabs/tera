@@ -10,6 +10,8 @@ struct RadrootsAddMediaSupport: Sendable, Equatable {
 
 struct RadrootsAddBackgroundUploadReceipt: Sendable, Equatable {
   let identifier: String
+  let draftID: String
+  let expectedRevision: UInt64
   let statusCode: UInt16
   let mediaType: String?
   let contentEncoding: String?
@@ -26,6 +28,7 @@ protocol RadrootsAddMediaHandling: Sendable {
     media: RadrootsPreparedMedia
   ) async throws -> RadrootsAddBackgroundUploadReceipt
   func settleBackgroundUpload(identifier: String, accepted: Bool) async throws
+  func reconcileBackgroundUploads(drafts: [RadrootsDraftStatus]) async throws
 }
 
 extension RadrootsAddMediaHandling {
@@ -41,6 +44,8 @@ extension RadrootsAddMediaHandling {
   }
 
   func settleBackgroundUpload(identifier _: String, accepted _: Bool) async throws {}
+
+  func reconcileBackgroundUploads(drafts _: [RadrootsDraftStatus]) async throws {}
 }
 
 final class RadrootsOpenedMedia: @unchecked Sendable {
@@ -215,74 +220,87 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
         ? .publicHTTPS : .simulatorLoopbackHTTP,
       identifier: identifier
     )
-    _ = try await transfer.enqueue(request)
-    return try await withTaskCancellationHandler {
-      while true {
-        try Task.checkCancellation()
-        guard let snapshot = try await transfer.snapshot(for: identifier) else {
-          throw RadrootsRuntimeFailure.local(
-            operation: "add.media.background",
-            code: "ios.add.background_upload_missing",
-            safeMessage: "The background photo upload could not be recovered."
-          )
-        }
-        switch snapshot.state {
-        case .awaitingVerification:
-          guard let response = snapshot.response,
-            let statusCode = UInt16(exactly: response.statusCode),
-            let body = response.body
-          else {
-            throw RadrootsRuntimeFailure.local(
-              operation: "add.media.background",
-              code: "ios.add.background_response_invalid",
-              safeMessage: "The photo service returned an invalid response."
-            )
-          }
-          return RadrootsAddBackgroundUploadReceipt(
-            identifier: identifier.rawValue,
-            statusCode: statusCode,
-            mediaType: response.mediaType,
-            contentEncoding: response.contentEncoding,
-            body: body
-          )
-        case .failed, .interrupted, .cancelled, .expired:
-          throw RadrootsRuntimeFailure.local(
-            operation: "add.media.background",
-            code: snapshot.errorMessage ?? "ios.add.background_upload_failed",
-            safeMessage: "The background photo upload did not complete."
-          )
-        case .completed:
-          throw RadrootsRuntimeFailure.local(
-            operation: "add.media.background",
-            code: "ios.add.background_upload_already_settled",
-            safeMessage: "The background photo upload was already settled."
-          )
-        case .queued, .running:
-          try await Task.sleep(for: .milliseconds(100))
-        }
+    let persisted = try await matchingPersistedUpload(
+      draftID: job.draft.id,
+      expectedRevision: job.draft.revision,
+      request: request
+    )
+    let activeIdentifier: RadrootsBackgroundTransferIdentifier
+    if let persisted {
+      activeIdentifier = persisted.identifier
+      if [.failed, .interrupted, .cancelled, .expired].contains(persisted.state) {
+        let retry = try Self.replacingIdentifier(in: request, with: activeIdentifier)
+        _ = try await transfer.retry(retry)
       }
-    } onCancel: {
-      Task {
-        try? await self.transfer.cancel(identifier)
-      }
+    } else {
+      try Task.checkCancellation()
+      _ = try await transfer.enqueue(request)
+      activeIdentifier = identifier
     }
+    return try await receipt(
+      for: activeIdentifier,
+      draftID: job.draft.id,
+      expectedRevision: job.draft.revision,
+      request: request
+    )
   }
 
   func settleBackgroundUpload(identifier: String, accepted: Bool) async throws {
     do {
       let value = try RadrootsBackgroundTransferIdentifier(identifier)
+      if let snapshot = try await transfer.snapshot(for: value),
+        snapshot.state == .completed, accepted
+      {
+        return
+      }
       try await transfer.settle(
         value,
         verification: accepted
           ? .accepted
           : .rejected(code: "background_transfer_rust_verification_failed")
       )
+    } catch is CancellationError {
+      throw CancellationError()
     } catch {
       throw RadrootsRuntimeFailure.local(
         operation: "add.media.background.settle",
         code: "ios.add.background_settlement_failed",
         safeMessage: "The verified photo transfer could not be finalized."
       )
+    }
+  }
+
+  func reconcileBackgroundUploads(drafts: [RadrootsDraftStatus]) async throws {
+    var draftsByID: [String: RadrootsDraftStatus] = [:]
+    for draft in drafts {
+      guard draftsByID.updateValue(draft, forKey: draft.id) == nil else {
+        throw Self.failure(
+          code: "ios.add.background_draft_ambiguous",
+          message: "The persisted draft inventory is ambiguous."
+        )
+      }
+    }
+    for snapshot in try await transfer.snapshots()
+    where snapshot.state == .awaitingVerification {
+      try Task.checkCancellation()
+      guard let identity = Self.transferIdentity(snapshot.identifier),
+        let draft = draftsByID[identity.draftID]
+      else { continue }
+      guard draft.revision > identity.revision,
+        let form = draft.form,
+        let media = form.media.first(where: {
+          $0.remoteURL == snapshot.request.remoteURL.absoluteString
+            && $0.sha256 == snapshot.request.expectedSourceSHA256
+        }),
+        draft.media.contains(where: { $0.url == media.remoteURL && $0.stage == .verified }),
+        try Self.persistedRequestMatchesMedia(snapshot.request, media: media)
+      else {
+        throw Self.failure(
+          code: "ios.add.background_upload_mismatch",
+          message: "The persisted photo upload does not match its verified draft."
+        )
+      }
+      try await transfer.settle(snapshot.identifier, verification: .accepted)
     }
   }
 
@@ -309,6 +327,189 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
     try RadrootsBackgroundTransferIdentifier(
       "radroots.add.\(job.draft.id).\(job.draft.revision).\(job.operationID)"
     )
+  }
+
+  private func matchingPersistedUpload(
+    draftID: String,
+    expectedRevision: UInt64,
+    request: RadrootsBackgroundTransferRequest
+  ) async throws -> RadrootsBackgroundTransferSnapshot? {
+    try Task.checkCancellation()
+    let snapshots = try await transfer.snapshots()
+    let prefix = "radroots.add.\(draftID)."
+    let owned = snapshots.filter { $0.identifier.rawValue.hasPrefix(prefix) }
+    let parsed = try owned.map { snapshot in
+      guard let identity = Self.transferIdentity(snapshot.identifier),
+        identity.draftID == draftID,
+        identity.revision <= expectedRevision
+      else {
+        throw Self.failure(
+          code: "ios.add.background_upload_mismatch",
+          message: "The persisted photo upload identity is invalid."
+        )
+      }
+      return snapshot
+    }
+    let candidates = parsed.filter { snapshot in
+      return snapshot.state != .completed
+        || Self.persistedRequestMatches(snapshot.request, request: request)
+    }
+    try Task.checkCancellation()
+    let active = candidates.filter { $0.state != .completed }
+    guard active.count <= 1 else {
+      throw Self.failure(
+        code: "ios.add.background_upload_ambiguous",
+        message: "The persisted photo upload state is ambiguous."
+      )
+    }
+    if let candidate = active.first {
+      guard Self.persistedRequestMatches(candidate.request, request: request) else {
+        throw Self.failure(
+          code: "ios.add.background_upload_mismatch",
+          message: "The persisted photo upload does not match the authorized upload."
+        )
+      }
+      return candidate
+    }
+    let completed = candidates.filter {
+      $0.state == .completed && Self.persistedRequestMatches($0.request, request: request)
+    }
+    guard completed.count <= 1 else {
+      throw Self.failure(
+        code: "ios.add.background_upload_ambiguous",
+        message: "The persisted photo upload state is ambiguous."
+      )
+    }
+    return completed.first
+  }
+
+  private func receipt(
+    for identifier: RadrootsBackgroundTransferIdentifier,
+    draftID: String,
+    expectedRevision: UInt64,
+    request: RadrootsBackgroundTransferRequest
+  ) async throws -> RadrootsAddBackgroundUploadReceipt {
+    while true {
+      try Task.checkCancellation()
+      guard let snapshot = try await transfer.snapshot(for: identifier) else {
+        throw Self.failure(
+          code: "ios.add.background_upload_missing",
+          message: "The background photo upload could not be recovered."
+        )
+      }
+      guard Self.persistedRequestMatches(snapshot.request, request: request) else {
+        throw Self.failure(
+          code: "ios.add.background_upload_mismatch",
+          message: "The persisted photo upload no longer matches its request."
+        )
+      }
+      switch snapshot.state {
+      case .awaitingVerification, .completed:
+        try Task.checkCancellation()
+        guard let response = snapshot.response,
+          let statusCode = UInt16(exactly: response.statusCode),
+          let body = response.body
+        else {
+          throw Self.failure(
+            code: "ios.add.background_response_invalid",
+            message: "The photo service returned an invalid response."
+          )
+        }
+        return RadrootsAddBackgroundUploadReceipt(
+          identifier: identifier.rawValue,
+          draftID: draftID,
+          expectedRevision: expectedRevision,
+          statusCode: statusCode,
+          mediaType: response.mediaType,
+          contentEncoding: response.contentEncoding,
+          body: body
+        )
+      case .failed, .interrupted, .cancelled, .expired:
+        throw Self.failure(
+          code: snapshot.errorMessage ?? "ios.add.background_upload_failed",
+          message: "The background photo upload did not complete."
+        )
+      case .queued, .running:
+        try await Task.sleep(for: .milliseconds(100))
+      }
+    }
+  }
+
+  private static func persistedRequestMatches(
+    _ persisted: RadrootsBackgroundTransferRequest,
+    request: RadrootsBackgroundTransferRequest
+  ) -> Bool {
+    persisted.headers.isEmpty && persisted.metadata.isEmpty
+      && persisted.remoteURL == request.remoteURL
+      && persisted.method == request.method
+      && persisted.operation == request.operation
+      && persisted.networkPolicy == request.networkPolicy
+      && persisted.responsePolicy == request.responsePolicy
+      && persisted.expectedSourceSHA256 == request.expectedSourceSHA256
+      && persisted.maximumTransferBytes == request.maximumTransferBytes
+  }
+
+  private static func persistedRequestMatchesMedia(
+    _ persisted: RadrootsBackgroundTransferRequest,
+    media: RadrootsPreparedMedia
+  ) throws -> Bool {
+    guard let remoteURL = media.remoteURL.flatMap(URL.init(string:)),
+      let byteSize = Int(exactly: media.byteSize)
+    else { return false }
+    let blob = try RadrootsStagedBlobReference(
+      blobID: media.sha256,
+      sizeBytes: byteSize,
+      mediaType: media.mediaType,
+      filenameHint: "\(media.sha256).png"
+    )
+    let responsePolicy = try RadrootsBackgroundTransferResponsePolicy.boundedJSON()
+    return persisted.headers.isEmpty && persisted.metadata.isEmpty
+      && persisted.remoteURL == remoteURL
+      && persisted.method == .put
+      && persisted.operation == .upload(source: .stagedBlob(blob))
+      && persisted.networkPolicy
+        == (remoteURL.scheme?.lowercased() == "https" ? .publicHTTPS : .simulatorLoopbackHTTP)
+      && persisted.responsePolicy == responsePolicy
+      && persisted.expectedSourceSHA256 == media.sha256
+      && persisted.maximumTransferBytes
+        == RadrootsBackgroundTransferRequest.defaultMaximumTransferBytes
+  }
+
+  private static func replacingIdentifier(
+    in request: RadrootsBackgroundTransferRequest,
+    with identifier: RadrootsBackgroundTransferIdentifier
+  ) throws -> RadrootsBackgroundTransferRequest {
+    try RadrootsBackgroundTransferRequest(
+      identifier: identifier,
+      remoteURL: request.remoteURL,
+      method: request.method,
+      operation: request.operation,
+      headers: request.headers,
+      metadata: request.metadata,
+      networkPolicy: request.networkPolicy,
+      responsePolicy: request.responsePolicy,
+      expectedSourceSHA256: request.expectedSourceSHA256,
+      maximumTransferBytes: request.maximumTransferBytes
+    )
+  }
+
+  private static func transferIdentity(
+    _ identifier: RadrootsBackgroundTransferIdentifier
+  ) -> (draftID: String, revision: UInt64)? {
+    let components = identifier.rawValue.split(separator: ".", omittingEmptySubsequences: false)
+    guard components.count == 5,
+      components[0] == "radroots",
+      components[1] == "add",
+      components[2].range(of: "^[0-9a-f]{32}$", options: .regularExpression) != nil,
+      let revision = UInt64(components[3]),
+      String(revision) == components[3],
+      components[4].range(of: "^[0-9a-f]{32}$", options: .regularExpression) != nil
+    else { return nil }
+    return (String(components[2]), revision)
+  }
+
+  private static func failure(code: String, message: String) -> RadrootsRuntimeFailure {
+    .local(operation: "add.media.background", code: code, safeMessage: message)
   }
 }
 

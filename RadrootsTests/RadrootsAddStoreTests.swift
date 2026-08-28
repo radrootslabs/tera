@@ -1,8 +1,226 @@
+import CryptoKit
+import RadrootsKit
 import XCTest
 
 @testable import RadrootsApp
 
 final class RadrootsAddStoreTests: XCTestCase {
+  func testBackgroundUploadResumesReceiptRetriesAndCompletedStateWithoutDuplicateEnqueue()
+    async throws
+  {
+    let fixture = try BackgroundUploadFixture()
+    defer { fixture.remove() }
+    let transfer = BackgroundTransferHarness()
+    let coordinator = fixture.coordinator(transfer: transfer)
+
+    let first = try await coordinator.uploadInBackground(
+      job: fixture.job(revision: 2, operation: String(repeating: "a", count: 32)),
+      media: fixture.media
+    )
+    XCTAssertEqual(first.expectedRevision, 2)
+    var counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 1)
+
+    let replayed = try await coordinator.uploadInBackground(
+      job: fixture.job(revision: 3, operation: String(repeating: "b", count: 32)),
+      media: fixture.media
+    )
+    XCTAssertEqual(replayed.identifier, first.identifier)
+    XCTAssertEqual(replayed.expectedRevision, 3)
+    counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 1)
+
+    try await coordinator.settleBackgroundUpload(identifier: replayed.identifier, accepted: true)
+    let completed = try await coordinator.uploadInBackground(
+      job: fixture.job(revision: 4, operation: String(repeating: "c", count: 32)),
+      media: fixture.media
+    )
+    XCTAssertEqual(completed.identifier, first.identifier)
+    counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 1)
+    try await coordinator.settleBackgroundUpload(identifier: completed.identifier, accepted: true)
+    counts = await transfer.counts
+    XCTAssertEqual(counts.acceptedSettlement, 1)
+
+    try await transfer.setState(.interrupted)
+    let retried = try await coordinator.uploadInBackground(
+      job: fixture.job(revision: 5, operation: String(repeating: "d", count: 32)),
+      media: fixture.media
+    )
+    XCTAssertEqual(retried.identifier, first.identifier)
+    counts = await transfer.counts
+    XCTAssertEqual(counts.retry, 1)
+    XCTAssertEqual(counts.enqueue, 1)
+  }
+
+  func testBackgroundUploadRejectsMismatchedAndAmbiguousPersistedRequests() async throws {
+    let fixture = try BackgroundUploadFixture()
+    defer { fixture.remove() }
+    let transfer = BackgroundTransferHarness()
+    let coordinator = fixture.coordinator(transfer: transfer)
+    let job = fixture.job(revision: 2, operation: String(repeating: "a", count: 32))
+    let request = try fixture.request(job: job)
+    let mismatched = try fixture.request(
+      job: job,
+      remoteURL: "http://127.0.0.1:3000/not-the-authorized-object.png"
+    )
+    try await transfer.seed(request: mismatched, state: .running)
+
+    do {
+      _ = try await coordinator.uploadInBackground(job: job, media: fixture.media)
+      XCTFail("expected persisted-request mismatch")
+    } catch let failure as RadrootsRuntimeFailure {
+      XCTAssertEqual(failure.code, "ios.add.background_upload_mismatch")
+    }
+    var counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 0)
+
+    await transfer.removeAll()
+    let future = try fixture.request(
+      job: fixture.job(revision: 3, operation: String(repeating: "f", count: 32))
+    )
+    try await transfer.seed(request: future, state: .running)
+    do {
+      _ = try await coordinator.uploadInBackground(job: job, media: fixture.media)
+      XCTFail("expected future transfer identity rejection")
+    } catch let failure as RadrootsRuntimeFailure {
+      XCTAssertEqual(failure.code, "ios.add.background_upload_mismatch")
+    }
+
+    await transfer.removeAll()
+    try await transfer.seed(request: request, state: .running)
+    let second = try fixture.request(
+      job: fixture.job(revision: 1, operation: String(repeating: "e", count: 32))
+    )
+    try await transfer.seed(request: second, state: .running)
+    do {
+      _ = try await coordinator.uploadInBackground(job: job, media: fixture.media)
+      XCTFail("expected ambiguous persisted state")
+    } catch let failure as RadrootsRuntimeFailure {
+      XCTAssertEqual(failure.code, "ios.add.background_upload_ambiguous")
+    }
+    counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 0)
+  }
+
+  func testBackgroundUploadCancellationLeavesDurableWorkForRelaunch() async throws {
+    let fixture = try BackgroundUploadFixture()
+    defer { fixture.remove() }
+    let transfer = BackgroundTransferHarness(enqueueState: .running)
+    let coordinator = fixture.coordinator(transfer: transfer)
+    let firstJob = fixture.job(revision: 2, operation: String(repeating: "a", count: 32))
+
+    let task = Task {
+      try await coordinator.uploadInBackground(job: firstJob, media: fixture.media)
+    }
+    let reachedSnapshot = await Self.waitUntil { await transfer.snapshotCount > 0 }
+    XCTAssertTrue(reachedSnapshot)
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("expected cancellation")
+    } catch is CancellationError {}
+
+    var counts = await transfer.counts
+    XCTAssertEqual(counts.cancel, 0)
+    XCTAssertEqual(counts.enqueue, 1)
+    try await transfer.setState(.awaitingVerification)
+    let replayed = try await coordinator.uploadInBackground(
+      job: fixture.job(revision: 3, operation: String(repeating: "b", count: 32)),
+      media: fixture.media
+    )
+    XCTAssertEqual(replayed.identifier, firstJob.transferIdentifier)
+    counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 1)
+  }
+
+  func testBackgroundUploadCancellationBeforeEnqueueHasNoTransferSideEffect() async throws {
+    let fixture = try BackgroundUploadFixture()
+    defer { fixture.remove() }
+    let transfer = BackgroundTransferHarness(pause: .discovery)
+    let coordinator = fixture.coordinator(transfer: transfer)
+    let task = Task {
+      try await coordinator.uploadInBackground(
+        job: fixture.job(revision: 2, operation: String(repeating: "a", count: 32)),
+        media: fixture.media
+      )
+    }
+    let reachedDiscovery = await Self.waitUntil { await transfer.isPaused }
+    XCTAssertTrue(reachedDiscovery)
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("expected cancellation")
+    } catch is CancellationError {}
+
+    let counts = await transfer.counts
+    let state = await transfer.state
+    XCTAssertEqual(counts.enqueue, 0)
+    XCTAssertNil(state)
+  }
+
+  func testBackgroundUploadCancellationAtReceiptBoundaryReplaysOnRelaunch() async throws {
+    let fixture = try BackgroundUploadFixture()
+    defer { fixture.remove() }
+    let transfer = BackgroundTransferHarness(pause: .snapshot)
+    let coordinator = fixture.coordinator(transfer: transfer)
+    let firstJob = fixture.job(revision: 2, operation: String(repeating: "a", count: 32))
+    let task = Task {
+      try await coordinator.uploadInBackground(job: firstJob, media: fixture.media)
+    }
+    let reachedReceipt = await Self.waitUntil { await transfer.isPaused }
+    XCTAssertTrue(reachedReceipt)
+    task.cancel()
+    do {
+      _ = try await task.value
+      XCTFail("expected cancellation")
+    } catch is CancellationError {}
+
+    var counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 1)
+    XCTAssertEqual(counts.cancel, 0)
+    await transfer.releasePause()
+    let replayed = try await coordinator.uploadInBackground(
+      job: fixture.job(revision: 3, operation: String(repeating: "b", count: 32)),
+      media: fixture.media
+    )
+    XCTAssertEqual(replayed.identifier, firstJob.transferIdentifier)
+    counts = await transfer.counts
+    XCTAssertEqual(counts.enqueue, 1)
+  }
+
+  func testVerifiedRustDraftReconcilesAwaitingReceiptAfterRelaunch() async throws {
+    let fixture = try BackgroundUploadFixture()
+    defer { fixture.remove() }
+    let transfer = BackgroundTransferHarness()
+    let coordinator = fixture.coordinator(transfer: transfer)
+    let job = fixture.job(revision: 2, operation: String(repeating: "a", count: 32))
+    try await transfer.seed(request: fixture.request(job: job), state: .awaitingVerification)
+
+    try await coordinator.reconcileBackgroundUploads(
+      drafts: [fixture.draft(revision: 3, stage: .verified)]
+    )
+
+    let counts = await transfer.counts
+    let state = await transfer.state
+    XCTAssertEqual(counts.acceptedSettlement, 1)
+    XCTAssertEqual(state, .completed)
+  }
+
+  func testBackgroundReconciliationRejectsDuplicateDraftInventory() async throws {
+    let fixture = try BackgroundUploadFixture()
+    defer { fixture.remove() }
+    let coordinator = fixture.coordinator(transfer: BackgroundTransferHarness())
+    let draft = fixture.draft(revision: 3, stage: .verified)
+
+    do {
+      try await coordinator.reconcileBackgroundUploads(drafts: [draft, draft])
+      XCTFail("expected duplicate draft rejection")
+    } catch let failure as RadrootsRuntimeFailure {
+      XCTAssertEqual(failure.code, "ios.add.background_draft_ambiguous")
+    }
+  }
+
   @MainActor
   func testAllFiveFormsCompleteThroughRuntimeAndSubmittedSnapshotsFreeze() async throws {
     let backend = AddBackend()
@@ -157,6 +375,65 @@ final class RadrootsAddStoreTests: XCTestCase {
   }
 
   @MainActor
+  func testCancellationAfterDurableRustVerificationDoesNotRejectReceipt() async throws {
+    let backend = AddBackend(delayAfterBackgroundCompletion: true)
+    let client = try await Self.startedClient(backend)
+    let media = AddMediaHarness()
+    let store = RadrootsAddStore(runtimeClient: client, media: media)
+    await store.configure(snapshot: backend.snapshot())
+    await store.start()
+    store.selectType(.createPhotoUpdate)
+    store.updateForm(\.content, "Unknown Rust completion outcome")
+    await store.importPhotos()
+
+    let submit = Task { await store.submit() }
+    let persistedCompletion = await Self.waitUntil {
+      await backend.didPersistBackgroundCompletion()
+    }
+    XCTAssertTrue(persistedCompletion)
+    store.stop()
+    await submit.value
+
+    var settlements = await media.settlementValues()
+    XCTAssertEqual(settlements, [])
+    await store.start()
+    XCTAssertEqual(store.drafts.first?.state, .readyToSign)
+    XCTAssertEqual(store.drafts.first?.media.first?.stage, .verified)
+    settlements = await media.settlementValues()
+    let reconciliations = await media.reconciliationCount()
+    XCTAssertEqual(settlements, [])
+    XCTAssertEqual(reconciliations, 2)
+    _ = try await client.stop()
+  }
+
+  @MainActor
+  func testCancellationDuringSettlementReconcilesVerifiedDraftOnRelaunch() async throws {
+    let backend = AddBackend()
+    let client = try await Self.startedClient(backend)
+    let media = AddMediaHarness(delaySettlement: true)
+    let store = RadrootsAddStore(runtimeClient: client, media: media)
+    await store.configure(snapshot: backend.snapshot())
+    await store.start()
+    store.selectType(.createPhotoUpdate)
+    store.updateForm(\.content, "Unknown settlement outcome")
+    await store.importPhotos()
+
+    let submit = Task { await store.submit() }
+    let reachedSettlement = await Self.waitUntil { await media.didBeginSettlement() }
+    XCTAssertTrue(reachedSettlement)
+    store.stop()
+    await submit.value
+
+    let settlements = await media.settlementValues()
+    XCTAssertEqual(settlements, [])
+    await store.start()
+    XCTAssertEqual(store.drafts.first?.media.first?.stage, .verified)
+    let reconciliations = await media.reconciliationCount()
+    XCTAssertEqual(reconciliations, 2)
+    _ = try await client.stop()
+  }
+
+  @MainActor
   func testPhotoServiceProbeSurfacesCanonicalEvidence() async throws {
     let backend = AddBackend()
     let client = try await Self.startedClient(backend)
@@ -292,6 +569,16 @@ final class RadrootsAddStoreTests: XCTestCase {
     }
   }
 
+  private static func waitUntil(
+    _ predicate: @escaping @Sendable () async -> Bool
+  ) async -> Bool {
+    for _ in 0..<1_000 {
+      if await predicate() { return true }
+      try? await Task.sleep(nanoseconds: 1_000_000)
+    }
+    return false
+  }
+
   private static func startedClient(_ backend: AddBackend) async throws -> RadrootsRuntimeClient {
     let client = RadrootsRuntimeClient { _ in
       await RadrootsRuntimeBackendStart(backend: backend, snapshot: backend.snapshot())
@@ -374,7 +661,11 @@ private struct AddSigner: RadrootsRuntimeSigner {
 
 private actor AddMediaHarness: RadrootsAddMediaHandling {
   private let delayFirstUpload: Bool
+  private let delaySettlement: Bool
   private var uploadAttempts = 0
+  private var settlementStarted = false
+  private var settlements: [Bool] = []
+  private var reconciliations = 0
   private let item = RadrootsPreparedMedia(
     opaqueReference: "media:\(String(repeating: "0", count: 64))",
     remoteURL: nil,
@@ -387,8 +678,9 @@ private actor AddMediaHarness: RadrootsAddMediaHandling {
     preparedAtUnixSeconds: 1_800_000_000
   )
 
-  init(delayFirstUpload: Bool = false) {
+  init(delayFirstUpload: Bool = false, delaySettlement: Bool = false) {
     self.delayFirstUpload = delayFirstUpload
+    self.delaySettlement = delaySettlement
   }
 
   func support() -> RadrootsAddMediaSupport {
@@ -420,11 +712,37 @@ private actor AddMediaHarness: RadrootsAddMediaHandling {
     }
     return RadrootsAddBackgroundUploadReceipt(
       identifier: "radroots.add.\(job.draft.id).\(job.draft.revision).\(job.operationID)",
+      draftID: job.draft.id,
+      expectedRevision: job.draft.revision,
       statusCode: 200,
       mediaType: "application/json",
       contentEncoding: nil,
       body: Data("{}".utf8)
     )
+  }
+
+  func settleBackgroundUpload(identifier _: String, accepted: Bool) async throws {
+    settlementStarted = true
+    if delaySettlement {
+      try await Task.sleep(nanoseconds: 50_000_000)
+    }
+    settlements.append(accepted)
+  }
+
+  func reconcileBackgroundUploads(drafts _: [RadrootsDraftStatus]) {
+    reconciliations += 1
+  }
+
+  func didBeginSettlement() -> Bool {
+    settlementStarted
+  }
+
+  func settlementValues() -> [Bool] {
+    settlements
+  }
+
+  func reconciliationCount() -> Int {
+    reconciliations
   }
 }
 
@@ -439,22 +757,26 @@ private actor AddBackend: RadrootsRuntimeBackend {
   private let saveFailure: RadrootsRuntimeFailure?
   private let includeWritableRelay: Bool
   private let delayedPhase: AddDelayPhase?
+  private let delayAfterBackgroundCompletion: Bool
   private var values: [String: RadrootsDraftStatus] = [:]
   private var uploadedMedia = false
   private var revisionPlans = 0
   private var delayConsumed = false
+  private var backgroundCompletionPersisted = false
   private var closed = false
 
   init(
     advanceOffline: Bool = false,
     saveFailure: RadrootsRuntimeFailure? = nil,
     includeWritableRelay: Bool = true,
-    delayedPhase: AddDelayPhase? = nil
+    delayedPhase: AddDelayPhase? = nil,
+    delayAfterBackgroundCompletion: Bool = false
   ) {
     self.advanceOffline = advanceOffline
     self.saveFailure = saveFailure
     self.includeWritableRelay = includeWritableRelay
     self.delayedPhase = delayedPhase
+    self.delayAfterBackgroundCompletion = delayAfterBackgroundCompletion
   }
 
   func snapshot() -> RadrootsRuntimeSnapshot {
@@ -740,7 +1062,7 @@ private actor AddBackend: RadrootsRuntimeBackend {
 
   func uploadAddMediaIntent(input: RadrootsBlossomUploadIntent) throws -> RadrootsDraftStatus {
     uploadedMedia = true
-    let current = try draftStatus(id: input.draftID)
+    let current = try storedDraft(id: input.draftID)
     let verified = current.media.map {
       RadrootsDraftMediaStatus(
         url: $0.url,
@@ -787,9 +1109,9 @@ private actor AddBackend: RadrootsRuntimeBackend {
 
   func completeAddMediaBackground(
     input: RadrootsNativeUploadCompletion
-  ) throws -> RadrootsDraftStatus {
+  ) async throws -> RadrootsDraftStatus {
     uploadedMedia = true
-    let current = try draftStatus(id: input.draftID)
+    let current = try storedDraft(id: input.draftID)
     let verified = current.media.map {
       RadrootsDraftMediaStatus(
         url: $0.url,
@@ -809,7 +1131,15 @@ private actor AddBackend: RadrootsRuntimeBackend {
       media: verified
     )
     values[current.id] = value
+    backgroundCompletionPersisted = true
+    if delayAfterBackgroundCompletion {
+      try await Task.sleep(nanoseconds: 50_000_000)
+    }
     return value
+  }
+
+  func didPersistBackgroundCompletion() -> Bool {
+    backgroundCompletionPersisted
   }
 
   func didUploadMedia() -> Bool {
@@ -960,4 +1290,323 @@ private actor AddBackend: RadrootsRuntimeBackend {
 
 private actor AddSubscriptionToken: RadrootsRuntimeSubscriptionToken {
   func cancel() {}
+}
+
+private final class BackgroundUploadFixture: @unchecked Sendable {
+  let draftID = String(repeating: "1", count: 32)
+  let media: RadrootsPreparedMedia
+  private let root: URL
+  private let roots: RadrootsAppleFileRoots
+
+  init() throws {
+    let bytes = Data("radroots-background-upload".utf8)
+    let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
+    root = FileManager.default.temporaryDirectory
+      .appendingPathComponent("radroots-background-tests-\(UUID().uuidString)", isDirectory: true)
+    roots = try RadrootsAppleFileRoots(
+      appIdentifier: "org.radroots.background-tests",
+      dataRoot: root.appendingPathComponent("data", isDirectory: true),
+      cacheRoot: root.appendingPathComponent("cache", isDirectory: true),
+      temporaryRoot: root.appendingPathComponent("temporary", isDirectory: true)
+    )
+    try FileManager.default.createDirectory(
+      at: roots.stagedBlobsRoot,
+      withIntermediateDirectories: true
+    )
+    try bytes.write(to: roots.stagedBlobsRoot.appendingPathComponent(digest))
+    media = RadrootsPreparedMedia(
+      opaqueReference: "media:\(digest)",
+      remoteURL: "http://127.0.0.1:3000/\(digest).png",
+      sha256: digest,
+      mediaType: "image/png",
+      byteSize: UInt64(bytes.count),
+      width: 2,
+      height: 2,
+      alt: "Background upload",
+      preparedAtUnixSeconds: 1_800_000_000
+    )
+  }
+
+  func remove() {
+    try? FileManager.default.removeItem(at: root)
+  }
+
+  func coordinator(transfer: any RadrootsBackgroundTransfer) -> RadrootsAddMediaCoordinator {
+    RadrootsAddMediaCoordinator(
+      roots: roots,
+      picker: BackgroundMediaPicker(),
+      preparer: RadrootsAppleMediaPreparer(roots: roots),
+      transfer: transfer
+    )
+  }
+
+  func job(revision: UInt64, operation: String) -> RadrootsNativeUploadJob {
+    RadrootsNativeUploadJob(
+      operationID: operation,
+      draft: draft(revision: revision, stage: .uploading),
+      remoteURL: media.remoteURL!,
+      authorizationHeader: "Nostr test-authorization",
+      expectedSHA256: media.sha256,
+      mediaType: media.mediaType,
+      byteSize: media.byteSize
+    )
+  }
+
+  func draft(revision: UInt64, stage: RadrootsDraftMediaStage) -> RadrootsDraftStatus {
+    var form = RadrootsAddForm.empty(.createPhotoUpdate)
+    form.content = "Background transfer"
+    form.media = [media]
+    return RadrootsDraftStatus(
+      id: draftID,
+      revision: revision,
+      authorPublicKey: String(repeating: "a", count: 64),
+      kind: .add,
+      commandType: .createPhotoUpdate,
+      form: form,
+      state: stage == .verified ? .readyToSign : .mediaUploading,
+      cardID: String(repeating: "c", count: 64),
+      operationID: String(repeating: "d", count: 32),
+      createdAtUnixMilliseconds: 1_800_000_000_000,
+      updatedAtUnixMilliseconds: 1_800_000_000_001,
+      media: [
+        RadrootsDraftMediaStatus(
+          url: media.remoteURL!,
+          stage: stage,
+          uploadAttempts: stage == .verified ? 1 : 0,
+          verifiedAtUnixMilliseconds: stage == .verified ? 1_800_000_000_001 : nil,
+          possibleOrphan: false,
+          orphanReasonCode: nil,
+          orphanRecordedAtUnixMilliseconds: nil
+        )
+      ],
+      settlement: nil,
+      isRevision: false
+    )
+  }
+
+  func request(
+    job: RadrootsNativeUploadJob,
+    remoteURL: String? = nil
+  ) throws -> RadrootsBackgroundTransferRequest {
+    let blob = try RadrootsStagedBlobReference(
+      blobID: media.sha256,
+      sizeBytes: Int(media.byteSize),
+      mediaType: media.mediaType,
+      filenameHint: "\(media.sha256).png"
+    )
+    return try RadrootsBackgroundTransferRequest(
+      identifier: RadrootsBackgroundTransferIdentifier(job.transferIdentifier),
+      remoteURL: URL(string: remoteURL ?? job.remoteURL)!,
+      method: .put,
+      operation: .upload(source: .stagedBlob(blob)),
+      headers: [:],
+      metadata: [:],
+      networkPolicy: .simulatorLoopbackHTTP,
+      responsePolicy: .boundedJSON(),
+      expectedSourceSHA256: media.sha256
+    )
+  }
+}
+
+extension RadrootsNativeUploadJob {
+  fileprivate var transferIdentifier: String {
+    "radroots.add.\(draft.id).\(draft.revision).\(operationID)"
+  }
+}
+
+private struct BackgroundMediaPicker: RadrootsMediaPicker {
+  func currentSupport() async throws -> RadrootsMediaPickerSupport {
+    try RadrootsMediaPickerSupport(
+      importAvailable: false,
+      cameraCaptureAvailable: false,
+      supportedImportKinds: [],
+      supportedCaptureKinds: [],
+      multipleSelectionSupported: false
+    )
+  }
+
+  func importMedia(_: RadrootsMediaImportRequest) async throws -> RadrootsMediaImportResult {
+    throw RadrootsCaptureIntakeError.unavailable("not used")
+  }
+
+  func captureMedia(_: RadrootsMediaCaptureRequest) async throws -> RadrootsMediaCaptureResult {
+    throw RadrootsCaptureIntakeError.unavailable("not used")
+  }
+}
+
+private actor BackgroundTransferHarness: RadrootsBackgroundTransfer {
+  private var values: [RadrootsBackgroundTransferIdentifier: RadrootsBackgroundTransferSnapshot] =
+    [:]
+  private let enqueueState: RadrootsBackgroundTransferState
+  private let pause: BackgroundTransferPause
+  private var pauseReleased: Bool
+  private(set) var isPaused = false
+  private(set) var enqueueCount = 0
+  private(set) var retryCount = 0
+  private(set) var cancelCount = 0
+  private(set) var acceptedSettlementCount = 0
+  private(set) var snapshotCount = 0
+
+  init(
+    enqueueState: RadrootsBackgroundTransferState = .awaitingVerification,
+    pause: BackgroundTransferPause = .none
+  ) {
+    self.enqueueState = enqueueState
+    self.pause = pause
+    pauseReleased = pause == .none
+  }
+
+  var state: RadrootsBackgroundTransferState? {
+    values.values.first?.state
+  }
+
+  var counts: (enqueue: Int, retry: Int, cancel: Int, acceptedSettlement: Int) {
+    (enqueueCount, retryCount, cancelCount, acceptedSettlementCount)
+  }
+
+  func seed(
+    request: RadrootsBackgroundTransferRequest,
+    state: RadrootsBackgroundTransferState
+  ) throws {
+    values[request.identifier] = try snapshot(request: request, state: state)
+  }
+
+  func setState(_ state: RadrootsBackgroundTransferState) throws {
+    for (identifier, value) in values {
+      values[identifier] = try snapshot(request: value.request, state: state)
+    }
+  }
+
+  func removeAll() {
+    values.removeAll()
+  }
+
+  func releasePause() {
+    pauseReleased = true
+  }
+
+  func enqueue(_ request: RadrootsBackgroundTransferRequest) async throws
+    -> RadrootsBackgroundTransferHandle
+  {
+    enqueueCount += 1
+    values[request.identifier] = try snapshot(
+      request: persisted(request),
+      state: enqueueState
+    )
+    return RadrootsBackgroundTransferHandle(request: request)
+  }
+
+  func retry(_ request: RadrootsBackgroundTransferRequest) async throws
+    -> RadrootsBackgroundTransferHandle
+  {
+    retryCount += 1
+    values[request.identifier] = try snapshot(
+      request: persisted(request),
+      state: .awaitingVerification
+    )
+    return RadrootsBackgroundTransferHandle(request: request)
+  }
+
+  func cancel(_ identifier: RadrootsBackgroundTransferIdentifier) async throws {
+    cancelCount += 1
+    if let value = values[identifier] {
+      values[identifier] = try snapshot(request: value.request, state: .cancelled)
+    }
+  }
+
+  func expire(_ identifier: RadrootsBackgroundTransferIdentifier) async throws {
+    if let value = values[identifier] {
+      values[identifier] = try snapshot(request: value.request, state: .expired)
+    }
+  }
+
+  func settle(
+    _ identifier: RadrootsBackgroundTransferIdentifier,
+    verification: RadrootsBackgroundTransferVerification
+  ) async throws {
+    guard let value = values[identifier] else {
+      throw RadrootsBackgroundTransferError.transferFailure("missing snapshot")
+    }
+    switch verification {
+    case .accepted:
+      acceptedSettlementCount += 1
+      values[identifier] = try snapshot(request: value.request, state: .completed)
+    case .rejected(let code):
+      values[identifier] = try RadrootsBackgroundTransferSnapshot(
+        request: value.request,
+        state: .failed,
+        errorMessage: code
+      )
+    }
+  }
+
+  func snapshot(for identifier: RadrootsBackgroundTransferIdentifier) async throws
+    -> RadrootsBackgroundTransferSnapshot?
+  {
+    snapshotCount += 1
+    try await waitIfPaused(at: .snapshot)
+    return values[identifier]
+  }
+
+  func snapshots() async throws -> [RadrootsBackgroundTransferSnapshot] {
+    try await waitIfPaused(at: .discovery)
+    return values.values.sorted { $0.identifier < $1.identifier }
+  }
+
+  func handleEventsForBackgroundURLSession(
+    identifier _: String,
+    completionHandler: @escaping @Sendable () -> Void
+  ) async {
+    completionHandler()
+  }
+
+  private func persisted(
+    _ request: RadrootsBackgroundTransferRequest
+  ) throws -> RadrootsBackgroundTransferRequest {
+    try RadrootsBackgroundTransferRequest(
+      identifier: request.identifier,
+      remoteURL: request.remoteURL,
+      method: request.method,
+      operation: request.operation,
+      headers: [:],
+      metadata: [:],
+      networkPolicy: request.networkPolicy,
+      responsePolicy: request.responsePolicy,
+      expectedSourceSHA256: request.expectedSourceSHA256,
+      maximumTransferBytes: request.maximumTransferBytes
+    )
+  }
+
+  private func snapshot(
+    request: RadrootsBackgroundTransferRequest,
+    state: RadrootsBackgroundTransferState
+  ) throws -> RadrootsBackgroundTransferSnapshot {
+    try RadrootsBackgroundTransferSnapshot(
+      request: request,
+      state: state,
+      response: [.awaitingVerification, .completed].contains(state)
+        ? RadrootsBackgroundTransferResponse(
+          statusCode: 200,
+          mediaType: "application/json",
+          body: Data("{}".utf8)
+        ) : nil,
+      possibleRemoteOrphan: false,
+      updatedAt: Date(timeIntervalSince1970: 1_800_000_000)
+    )
+  }
+
+  private func waitIfPaused(at point: BackgroundTransferPause) async throws {
+    guard pause == point, !pauseReleased else { return }
+    isPaused = true
+    defer { isPaused = false }
+    while !pauseReleased {
+      try await Task.sleep(nanoseconds: 1_000_000)
+    }
+  }
+}
+
+private enum BackgroundTransferPause: Sendable {
+  case none
+  case discovery
+  case snapshot
 }
