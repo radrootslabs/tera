@@ -823,10 +823,23 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       XCTAssertTrue(library.waitForExistence(timeout: 10))
       XCTAssertTrue(library.isEnabled)
       library.tap()
-      guard app.descendants(matching: .any)["radroots.add.media.prepared"]
-        .waitForExistence(timeout: 60)
-      else {
-        XCTFail("The governed Photo update image was not prepared")
+      let preparedStatus = app.staticTexts.matching(
+        identifier: "radroots.add.status"
+      ).matching(
+        NSPredicate(format: "label == 'Photo prepared. Add descriptive text before publishing.'")
+      ).firstMatch
+      guard preparedStatus.waitForExistence(timeout: 60) else {
+        XCTFail("The governed Photo update image preparation did not complete")
+        throw QualificationError.missingProductSurface
+      }
+      let prepared = app.descendants(matching: .any)["radroots.add.media.prepared"]
+      scrollTo(app, element: prepared)
+      guard prepared.waitForExistence(timeout: 10) else {
+        XCTFail("The governed prepared Photo update was unavailable through the visible UI")
+        throw QualificationError.missingProductSurface
+      }
+      guard prepared.isHittable else {
+        XCTFail("The governed prepared Photo update was obscured")
         throw QualificationError.missingProductSurface
       }
     case .event:
