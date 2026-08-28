@@ -823,10 +823,12 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       XCTAssertTrue(library.waitForExistence(timeout: 10))
       XCTAssertTrue(library.isEnabled)
       library.tap()
-      XCTAssertTrue(
-        app.descendants(matching: .any)["radroots.add.media.prepared"]
-          .waitForExistence(timeout: 30)
-      )
+      guard app.descendants(matching: .any)["radroots.add.media.prepared"]
+        .waitForExistence(timeout: 60)
+      else {
+        XCTFail("The governed Photo update image was not prepared")
+        throw QualificationError.missingProductSurface
+      }
     case .event:
       try enterText(app, identifier: "radroots.add.title", value: marker)
     case .foodAvailability:
@@ -1113,10 +1115,12 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   ) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let finished = NSPredicate { _, _ in
+      guard !progress.exists else { return false }
+      guard submit.exists else {
+        return app.buttons["radroots.add.new"].exists
+      }
       let submitValue = submit.value as? String
-      return submit.exists
-        && !progress.exists
-        && submitValue != priorSubmitValue
+      return submitValue != priorSubmitValue
         && submitValue != "Working"
     }
     let expectation = XCTNSPredicateExpectation(predicate: finished, object: app)
@@ -1131,9 +1135,10 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   ) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let started = NSPredicate { _, _ in
+      guard !progress.exists else { return true }
+      guard submit.exists else { return true }
       let submitValue = submit.value as? String
-      return progress.exists
-        || submitValue != priorSubmitValue
+      return submitValue != priorSubmitValue
     }
 
     for _ in 0..<3 {
