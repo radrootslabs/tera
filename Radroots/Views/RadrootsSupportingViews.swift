@@ -7,6 +7,7 @@ struct RadrootsSearchSheet: View {
   @ObservedObject var store: RadrootsSearchStore
   @ObservedObject var mediaStore: RadrootsMediaStore
   let revise: (RadrootsTodayCard) -> Void
+  let retract: (RadrootsTodayCard) -> Void
   @Environment(\.dismiss) private var dismiss
 
   var body: some View {
@@ -59,7 +60,9 @@ struct RadrootsSearchSheet: View {
             mediaStore: mediaStore,
             canRevise: card.authorPublicKey == snapshot.identity.publicKeyHex
               && card.localOperationID != nil,
-            revise: revise
+            canRetract: card.authorPublicKey == snapshot.identity.publicKeyHex,
+            revise: revise,
+            retract: retract
           )
         } label: {
           RadrootsTodayCardView(card: card, context: context, mediaStore: mediaStore)
@@ -97,6 +100,7 @@ struct RadrootsMeSheet: View {
   @ObservedObject var settingsStore: RadrootsSettingsStore
   @ObservedObject var mediaStore: RadrootsMediaStore
   let revise: (RadrootsTodayCard) -> Void
+  let retract: (RadrootsTodayCard) -> Void
   @Environment(\.dismiss) private var dismiss
   @State private var showsDrafts = false
 
@@ -186,7 +190,10 @@ struct RadrootsMeSheet: View {
               context: context,
               mediaStore: mediaStore,
               canRevise: card.localOperationID != nil,
-              revise: revise
+              canRetract: card.authorPublicKey
+                == (store.snapshot?.publicKey ?? runtimeSnapshot.identity.publicKeyHex),
+              revise: revise,
+              retract: retract
             )
           } label: {
             RadrootsTodayCardView(card: card, context: context, mediaStore: mediaStore)
@@ -307,11 +314,11 @@ struct RadrootsProfileView: View {
 
   private func safeHTTPS(_ value: String?) -> URL? {
     guard let value,
-          let url = URL(string: value),
-          url.scheme?.lowercased() == "https",
-          url.host != nil,
-          url.user == nil,
-          url.password == nil
+      let url = URL(string: value),
+      url.scheme?.lowercased() == "https",
+      url.host != nil,
+      url.user == nil,
+      url.password == nil
     else {
       return nil
     }
@@ -401,7 +408,7 @@ struct RadrootsSettingsView: View {
         TextField("Display name", text: $settingsStore.profileDisplayName)
           .accessibilityIdentifier("radroots.settings.profile.display_name")
         TextField("About", text: $settingsStore.profileAbout, axis: .vertical)
-          .lineLimit(3 ... 8)
+          .lineLimit(3...8)
           .accessibilityIdentifier("radroots.settings.profile.about")
         TextField("NIP-05 identifier", text: $settingsStore.profileNip05)
           .textInputAutocapitalization(.never)
@@ -481,7 +488,7 @@ struct RadrootsSettingsView: View {
           text: $settingsStore.blossomFallbackOrigins,
           axis: .vertical
         )
-        .lineLimit(2 ... 5)
+        .lineLimit(2...5)
         .textInputAutocapitalization(.never)
         .keyboardType(.URL)
         Toggle("Cellular downloads", isOn: $settingsStore.allowCellularDownloads)
@@ -492,13 +499,13 @@ struct RadrootsSettingsView: View {
         Stepper(
           "Cache: \(settingsStore.mediaCacheMegabytes) MB",
           value: $settingsStore.mediaCacheMegabytes,
-          in: 16 ... 2048,
+          in: 16...2048,
           step: 16
         )
         Stepper(
           "Artifacts: \(settingsStore.mediaCacheArtifacts)",
           value: $settingsStore.mediaCacheArtifacts,
-          in: 1 ... 10000,
+          in: 1...10000,
           step: 100
         )
         Button("Save network and storage settings") {

@@ -264,6 +264,62 @@ final class RadrootsAddStoreTests: XCTestCase {
   }
 
   @MainActor
+  func testProductSurfaceSnapshotAndSchemaInventoryAreExact() async throws {
+    XCTAssertEqual(
+      RadrootsProductSurfaceContract.snapshot,
+      "today=update,photoUpdate,ask,event,foodAvailability|add=createUpdate,createPhotoUpdate,createAsk,createEvent,createFoodAvailability|support=context_picker,search,me,settings"
+    )
+
+    let validBackend = AddBackend()
+    let validClient = try await Self.startedClient(validBackend)
+    let validStore = RadrootsAddStore(runtimeClient: validClient)
+    await validStore.configure(snapshot: validBackend.snapshot())
+    await validStore.start()
+    XCTAssertEqual(validStore.state, .ready)
+    XCTAssertEqual(validStore.schemas.map(\.commandType), RadrootsAddCommandType.allCases)
+    XCTAssertTrue(validStore.isProductReady)
+
+    let unicodeIdentifierStore = RadrootsAddStore(
+      runtimeClient: validClient,
+      initialType: .createFoodAvailability,
+      identifier: { String(repeating: "٠", count: 16) }
+    )
+    XCTAssertNil(unicodeIdentifierStore.form.identifier)
+    _ = try await validClient.stop()
+
+    let exact = AddBackend.schemas()
+    var missingField = exact
+    let food = exact[4]
+    missingField[4] = RadrootsAddSchema(
+      schemaVersion: food.schemaVersion,
+      commandType: food.commandType,
+      label: food.label,
+      fields: Array(food.fields.dropLast())
+    )
+    let invalidInventories = [
+      Array(exact.reversed()),
+      Array(exact.dropLast()),
+      exact + [exact[0]],
+      missingField,
+    ]
+    for inventory in invalidInventories {
+      let invalidBackend = AddBackend(schemas: inventory)
+      let invalidClient = try await Self.startedClient(invalidBackend)
+      let invalidStore = RadrootsAddStore(runtimeClient: invalidClient)
+      await invalidStore.configure(snapshot: invalidBackend.snapshot())
+      await invalidStore.start()
+      XCTAssertEqual(
+        invalidStore.state,
+        .failed("The Add product contract does not match this app.")
+      )
+      XCTAssertFalse(invalidStore.isProductReady)
+      XCTAssertFalse(invalidStore.canSave)
+      XCTAssertFalse(invalidStore.canSubmit)
+      _ = try await invalidClient.stop()
+    }
+  }
+
+  @MainActor
   func testOfflineSubmitPersistsQueuedSnapshotForRetryAndReopen() async throws {
     let backend = AddBackend(advanceOffline: true)
     let client = try await Self.startedClient(backend)
@@ -307,6 +363,37 @@ final class RadrootsAddStoreTests: XCTestCase {
     let revisionPlanCount = await backend.revisionPlanCount()
     XCTAssertEqual(revisionPlanCount, 1)
     XCTAssertNil(store.drafts.first(where: { $0.kind == .retraction }))
+    _ = try await client.stop()
+  }
+
+  @MainActor
+  func testRetractionUsesTypedTargetAndCompletesThroughTheDurableOutbox() async throws {
+    let backend = AddBackend()
+    let client = try await Self.startedClient(backend)
+    let store = RadrootsAddStore(
+      runtimeClient: client,
+      identifier: { String(repeating: "f", count: 32) },
+      nowUnixSeconds: { 1_800_000_200 },
+      nowUnixMilliseconds: { 1_800_000_200_000 }
+    )
+    await store.configure(snapshot: backend.snapshot())
+    await store.start()
+
+    await store.retract(Self.card())
+
+    XCTAssertEqual(store.activeDraft?.id, String(repeating: "f", count: 32))
+    XCTAssertEqual(store.activeDraft?.kind, .retraction)
+    XCTAssertEqual(store.activeDraft?.state, .complete)
+    XCTAssertFalse(store.isFormEditable)
+    XCTAssertFalse(store.canSave)
+    let recordedRetraction = await backend.lastRetraction()
+    let retraction = try XCTUnwrap(recordedRetraction)
+    XCTAssertEqual(retraction.commandType, .createFoodAvailability)
+    XCTAssertEqual(retraction.targetKind, 30_402)
+    XCTAssertEqual(retraction.targetCardID, String(repeating: "c", count: 64))
+    XCTAssertEqual(retraction.targetEventID, String(repeating: "e", count: 64))
+    XCTAssertEqual(retraction.targetAddress, Self.card().sourceAddress)
+    XCTAssertEqual(retraction.reason, "Removed by author.")
     _ = try await client.stop()
   }
 
@@ -554,14 +641,19 @@ final class RadrootsAddStoreTests: XCTestCase {
     case .createAsk:
       store.updateForm(\.content, "Who has seed potatoes?")
     case .createEvent:
-      store.updateForm(\.identifier, Optional("market-day"))
+      XCTAssertEqual(store.form.identifier?.count, 32)
+      XCTAssertNotNil(store.form.eventStartUnixSeconds)
+      XCTAssertNotNil(store.form.eventEndUnixSeconds)
+      XCTAssertNotNil(store.form.eventStartDate)
+      XCTAssertNotNil(store.form.eventEndDate)
       store.updateForm(\.title, Optional("Market day"))
       store.updateForm(\.eventTiming, Optional(RadrootsEventTiming.timed))
-      store.updateForm(\.eventStartUnixSeconds, Optional(UInt64(1_800_003_600)))
       store.updateForm(\.location, Optional("Town square"))
     case .createFoodAvailability:
-      store.updateForm(\.identifier, Optional("carrots"))
+      XCTAssertEqual(store.form.identifier?.count, 32)
       store.updateForm(\.title, Optional("Carrots"))
+      store.updateForm(\.summary, Optional("Fresh carrots"))
+      store.updateForm(\.content, "Freshly picked")
       store.updateForm(\.location, Optional("Town square"))
       store.updateForm(\.priceAmount, Optional("3"))
       store.updateForm(\.currency, Optional("CAD"))
@@ -619,8 +711,8 @@ final class RadrootsAddStoreTests: XCTestCase {
       id: String(repeating: "c", count: 64),
       type: .foodAvailability,
       sourceEventID: String(repeating: "e", count: 64),
-      sourceAddress: "30402:\(String(repeating: "a", count: 64)):carrots",
-      authorPublicKey: String(repeating: "a", count: 64),
+      sourceAddress: "30402:\(String(repeating: "ab", count: 32)):carrots",
+      authorPublicKey: String(repeating: "ab", count: 32),
       contractID: "radroots.food_availability.v1",
       title: "Carrots",
       content: "Freshly picked",
@@ -758,11 +850,13 @@ private actor AddBackend: RadrootsRuntimeBackend {
   private let includeWritableRelay: Bool
   private let delayedPhase: AddDelayPhase?
   private let delayAfterBackgroundCompletion: Bool
+  private let schemaInventory: [RadrootsAddSchema]
   private var values: [String: RadrootsDraftStatus] = [:]
   private var uploadedMedia = false
   private var revisionPlans = 0
   private var delayConsumed = false
   private var backgroundCompletionPersisted = false
+  private var recordedRetraction: RadrootsRetractionDraftInput?
   private var closed = false
 
   init(
@@ -770,13 +864,15 @@ private actor AddBackend: RadrootsRuntimeBackend {
     saveFailure: RadrootsRuntimeFailure? = nil,
     includeWritableRelay: Bool = true,
     delayedPhase: AddDelayPhase? = nil,
-    delayAfterBackgroundCompletion: Bool = false
+    delayAfterBackgroundCompletion: Bool = false,
+    schemas: [RadrootsAddSchema] = AddBackend.schemas()
   ) {
     self.advanceOffline = advanceOffline
     self.saveFailure = saveFailure
     self.includeWritableRelay = includeWritableRelay
     self.delayedPhase = delayedPhase
     self.delayAfterBackgroundCompletion = delayAfterBackgroundCompletion
+    schemaInventory = schemas
   }
 
   func snapshot() -> RadrootsRuntimeSnapshot {
@@ -832,33 +928,99 @@ private actor AddBackend: RadrootsRuntimeBackend {
   }
 
   func addSchemas() -> [RadrootsAddSchema] {
-    RadrootsAddCommandType.allCases.map { type in
-      let maximum: UInt16? =
-        switch type {
-        case .createUpdate: nil
-        case .createEvent: 1
-        case .createPhotoUpdate, .createAsk, .createFoodAvailability: 20
-        }
-      return RadrootsAddSchema(
+    schemaInventory
+  }
+
+  nonisolated static func schemas() -> [RadrootsAddSchema] {
+    let field = {
+      (
+        id: String,
+        label: String,
+        kind: RadrootsAddFieldKind,
+        required: Bool,
+        choices: [String],
+        maxBytes: UInt64?,
+        maxItems: UInt16?
+      ) in
+      RadrootsAddField(
         schemaVersion: 1,
-        commandType: type,
-        label: type.label,
-        fields: maximum.map {
-          [
-            RadrootsAddField(
-              schemaVersion: 1,
-              id: "media",
-              label: "Photos",
-              kind: .media,
-              required: false,
-              choices: [],
-              maxBytes: 10 * 1024 * 1024,
-              maxItems: $0
-            )
-          ]
-        } ?? []
+        id: id,
+        label: label,
+        kind: kind,
+        required: required,
+        choices: choices,
+        maxBytes: maxBytes,
+        maxItems: maxItems
       )
     }
+    let text = {
+      (id: String, label: String, kind: RadrootsAddFieldKind, required: Bool, maximum: UInt64?) in
+      field(id, label, kind, required, [], maximum, nil)
+    }
+    let media = { (required: Bool, maximum: UInt16) in
+      field("media", "Photos", .media, required, [], 10 * 1024 * 1024, maximum)
+    }
+    return [
+      RadrootsAddSchema(
+        schemaVersion: 1,
+        commandType: .createUpdate,
+        label: "Update",
+        fields: [text("content", "Update", .multilineText, true, 65_535)]
+      ),
+      RadrootsAddSchema(
+        schemaVersion: 1,
+        commandType: .createPhotoUpdate,
+        label: "Photo update",
+        fields: [
+          text("content", "Update", .multilineText, true, 65_535),
+          media(true, 20),
+        ]
+      ),
+      RadrootsAddSchema(
+        schemaVersion: 1,
+        commandType: .createAsk,
+        label: "Ask",
+        fields: [
+          text("content", "Question", .multilineText, true, 65_535),
+          media(false, 20),
+        ]
+      ),
+      RadrootsAddSchema(
+        schemaVersion: 1,
+        commandType: .createEvent,
+        label: "Event",
+        fields: [
+          text("identifier", "Identifier", .text, true, 256),
+          text("title", "Title", .text, true, 256),
+          text("content", "Description", .multilineText, false, 65_535),
+          text("event_start", "Starts", .dateTime, true, nil),
+          text("event_end", "Ends", .dateTime, false, nil),
+          text("location", "Location", .location, false, 256),
+          media(false, 1),
+        ]
+      ),
+      RadrootsAddSchema(
+        schemaVersion: 1,
+        commandType: .createFoodAvailability,
+        label: "Food availability",
+        fields: [
+          text("identifier", "Identifier", .text, true, 256),
+          text("title", "Food", .text, true, 256),
+          text("summary", "Summary", .text, true, 256),
+          text("content", "Details", .multilineText, true, 65_535),
+          text("location", "Pickup location", .location, true, 256),
+          text("price_amount", "Price", .decimal, true, 64),
+          field("currency", "Currency", .choice, true, [], 3, nil),
+          field(
+            "unit", "Unit", .choice, true,
+            ["g", "kg", "lb", "oz", "each", "dozen", "bunch", "punnet", "bag", "basket"],
+            nil, nil
+          ),
+          text("quantity", "Available quantity", .decimal, false, 64),
+          media(false, 20),
+        ]
+      ),
+    ]
   }
 
   func saveAddIntent(
@@ -935,6 +1097,7 @@ private actor AddBackend: RadrootsRuntimeBackend {
     authoredAtUnixSeconds _: UInt64,
     persistedAtUnixMilliseconds: UInt64
   ) -> RadrootsDraftStatus {
+    recordedRetraction = input
     let status = makeStatus(
       id: id,
       revision: 1,
@@ -947,6 +1110,10 @@ private actor AddBackend: RadrootsRuntimeBackend {
     )
     values[id] = status
     return status
+  }
+
+  func lastRetraction() -> RadrootsRetractionDraftInput? {
+    recordedRetraction
   }
 
   func saveRevisionIntent(

@@ -130,7 +130,7 @@ extension RadrootsRuntimeLaunchConfiguration: Equatable {
       && lhs.publicKeyHex == rhs.publicKeyHex
       && lhs.sourceGenerationHex == rhs.sourceGenerationHex
       && lhs.sourceGenerationCreatedAtUnixMilliseconds
-      == rhs.sourceGenerationCreatedAtUnixMilliseconds
+        == rhs.sourceGenerationCreatedAtUnixMilliseconds
       && lhs.protectedData == rhs.protectedData
       && lhs.networkProfile == rhs.networkProfile
       && lhs.writableRelays == rhs.writableRelays
@@ -468,12 +468,12 @@ extension RadrootsRuntimeClientError: LocalizedError {
     case .superseded:
       "A newer runtime lifecycle request replaced this request."
     case .startup(let failure),
-         .subscription(let failure),
-         .status(let failure),
-         .today(let failure),
-         .add(let failure),
-         .support(let failure),
-         .shutdown(let failure):
+      .subscription(let failure),
+      .status(let failure),
+      .today(let failure),
+      .add(let failure),
+      .support(let failure),
+      .shutdown(let failure):
       failure.safeMessage
     }
   }
@@ -517,6 +517,16 @@ enum RadrootsTodayCardType: String, CaseIterable, Sendable, Equatable, Hashable 
     case .foodAvailability: "Food availability"
     }
   }
+
+  var addCommandType: RadrootsAddCommandType {
+    switch self {
+    case .update: .createUpdate
+    case .photoUpdate: .createPhotoUpdate
+    case .ask: .createAsk
+    case .event: .createEvent
+    case .foodAvailability: .createFoodAvailability
+    }
+  }
 }
 
 enum RadrootsMediaVerificationState: String, Sendable, Equatable, Hashable {
@@ -543,9 +553,9 @@ struct RadrootsMediaReference: Sendable, Equatable, Hashable, Identifiable {
 
   var verifiedArtifactID: String? {
     guard verification == .verified,
-          let sha256,
-          sha256.count == 64,
-          sha256.allSatisfy({ $0.isHexDigit && !$0.isUppercase })
+      let sha256,
+      sha256.count == 64,
+      sha256.allSatisfy({ $0.isHexDigit && !$0.isUppercase })
     else { return nil }
     return sha256
   }
@@ -568,12 +578,12 @@ struct RadrootsVerifiedMediaArtifact: Sendable, Equatable {
     height: UInt32
   ) {
     guard artifactID.count == 64,
-          artifactID.allSatisfy({ $0.isHexDigit && !$0.isUppercase }),
-          !bytes.isEmpty,
-          UInt64(bytes.count) == byteSize,
-          ["image/gif", "image/jpeg", "image/png", "image/webp"].contains(mediaType),
-          width > 0,
-          height > 0
+      artifactID.allSatisfy({ $0.isHexDigit && !$0.isUppercase }),
+      !bytes.isEmpty,
+      UInt64(bytes.count) == byteSize,
+      ["image/gif", "image/jpeg", "image/png", "image/webp"].contains(mediaType),
+      width > 0,
+      height > 0
     else { return nil }
     self.artifactID = artifactID
     self.bytes = bytes
@@ -700,6 +710,30 @@ struct RadrootsTodayCard: Sendable, Equatable, Hashable, Identifiable {
     }
     return parts.joined(separator: ", ")
   }
+
+  var retractionTargetKind: UInt32? {
+    switch type {
+    case .update, .photoUpdate, .ask:
+      guard sourceAddress == nil else { return nil }
+      return 1
+    case .event:
+      guard let kind = sourceAddressKind, kind == 31_922 || kind == 31_923 else { return nil }
+      return kind
+    case .foodAvailability:
+      guard sourceAddressKind == 30_402 else { return nil }
+      return 30_402
+    }
+  }
+
+  private var sourceAddressKind: UInt32? {
+    guard let sourceAddress,
+      let rawKind = sourceAddress.split(separator: ":", maxSplits: 1).first,
+      let kind = UInt32(rawKind)
+    else {
+      return nil
+    }
+    return kind
+  }
 }
 
 struct RadrootsTodayPageRequest: Sendable, Equatable {
@@ -822,6 +856,133 @@ struct RadrootsAddSchema: Sendable, Equatable, Hashable, Identifiable {
 
   var id: RadrootsAddCommandType {
     commandType
+  }
+}
+
+enum RadrootsProductSurfaceContractError: LocalizedError, Sendable, Equatable {
+  case invalidAddSchemaInventory
+
+  var errorDescription: String? {
+    "The Add product contract does not match this app."
+  }
+}
+
+enum RadrootsProductSurfaceContract {
+  private struct MediaProfile: Equatable {
+    let required: Bool
+    let maximum: UInt16
+  }
+
+  static let supportingSurfaceIDs = ["context_picker", "search", "me", "settings"]
+
+  static var snapshot: String {
+    let cards = RadrootsTodayCardType.allCases.map(\.rawValue).joined(separator: ",")
+    let commands = RadrootsAddCommandType.allCases.map(\.rawValue).joined(separator: ",")
+    let supporting = supportingSurfaceIDs.joined(separator: ",")
+    return "today=\(cards)|add=\(commands)|support=\(supporting)"
+  }
+
+  static func validate(schemas: [RadrootsAddSchema]) throws -> [RadrootsAddSchema] {
+    let expectedCommands = RadrootsAddCommandType.allCases
+    guard schemas.map(\.commandType) == expectedCommands,
+      schemas.allSatisfy({ $0.schemaVersion == 1 && $0.label == $0.commandType.label }),
+      schemas.allSatisfy({ schema in
+        schema.fields.allSatisfy({ $0.schemaVersion == 1 })
+          && Set(schema.fields.map(\.id)).count == schema.fields.count
+      }),
+      schemas.allSatisfy({ $0.fields.map(\.id) == expectedFieldIDs(for: $0.commandType) }),
+      schemas.allSatisfy({ $0.fields.map(\.kind) == expectedFieldKinds(for: $0.commandType) }),
+      schemas.allSatisfy({
+        requiredFieldIDs(in: $0) == expectedRequiredFieldIDs(for: $0.commandType)
+      }),
+      schemas.allSatisfy({ mediaProfile(in: $0) == expectedMediaProfile(for: $0.commandType) }),
+      schemas.first(where: { $0.commandType == .createFoodAvailability })?
+        .fields.first(where: { $0.id == "unit" })?.choices
+        == ["g", "kg", "lb", "oz", "each", "dozen", "bunch", "punnet", "bag", "basket"]
+    else {
+      throw RadrootsProductSurfaceContractError.invalidAddSchemaInventory
+    }
+    return schemas
+  }
+
+  private static func expectedFieldIDs(for command: RadrootsAddCommandType) -> [String] {
+    switch command {
+    case .createUpdate:
+      ["content"]
+    case .createPhotoUpdate, .createAsk:
+      ["content", "media"]
+    case .createEvent:
+      ["identifier", "title", "content", "event_start", "event_end", "location", "media"]
+    case .createFoodAvailability:
+      [
+        "identifier", "title", "summary", "content", "location", "price_amount", "currency",
+        "unit", "quantity", "media",
+      ]
+    }
+  }
+
+  private static func expectedRequiredFieldIDs(for command: RadrootsAddCommandType) -> Set<String> {
+    switch command {
+    case .createUpdate:
+      ["content"]
+    case .createPhotoUpdate:
+      ["content", "media"]
+    case .createAsk:
+      ["content"]
+    case .createEvent:
+      ["identifier", "title", "event_start"]
+    case .createFoodAvailability:
+      ["identifier", "title", "summary", "content", "location", "price_amount", "currency", "unit"]
+    }
+  }
+
+  private static func expectedFieldKinds(
+    for command: RadrootsAddCommandType
+  ) -> [RadrootsAddFieldKind] {
+    switch command {
+    case .createUpdate:
+      [.multilineText]
+    case .createPhotoUpdate, .createAsk:
+      [.multilineText, .media]
+    case .createEvent:
+      [.text, .text, .multilineText, .dateTime, .dateTime, .location, .media]
+    case .createFoodAvailability:
+      [
+        .text, .text, .text, .multilineText, .location, .decimal, .choice, .choice, .decimal,
+        .media,
+      ]
+    }
+  }
+
+  private static func requiredFieldIDs(in schema: RadrootsAddSchema) -> Set<String> {
+    Set(schema.fields.lazy.filter(\.required).map(\.id))
+  }
+
+  private static func expectedMediaProfile(
+    for command: RadrootsAddCommandType
+  ) -> MediaProfile? {
+    switch command {
+    case .createUpdate:
+      nil
+    case .createPhotoUpdate:
+      MediaProfile(required: true, maximum: 20)
+    case .createAsk:
+      MediaProfile(required: false, maximum: 20)
+    case .createEvent:
+      MediaProfile(required: false, maximum: 1)
+    case .createFoodAvailability:
+      MediaProfile(required: false, maximum: 20)
+    }
+  }
+
+  private static func mediaProfile(
+    in schema: RadrootsAddSchema
+  ) -> MediaProfile? {
+    let fields = schema.fields.filter { $0.kind == .media }
+    guard fields.count == 1, let field = fields.first, let maximum = field.maxItems else {
+      return nil
+    }
+    return MediaProfile(required: field.required, maximum: maximum)
   }
 }
 

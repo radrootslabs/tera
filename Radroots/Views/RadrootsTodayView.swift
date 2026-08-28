@@ -10,6 +10,7 @@ struct RadrootsTodayView: View {
   @ObservedObject var settingsStore: RadrootsSettingsStore
   @ObservedObject var mediaStore: RadrootsMediaStore
   let revise: (RadrootsTodayCard) -> Void
+  let retract: (RadrootsTodayCard) -> Void
   @State private var showsAccount = false
   @State private var showsContextPicker = false
   @State private var showsSearch = false
@@ -18,7 +19,7 @@ struct RadrootsTodayView: View {
     Group {
       switch store.state {
       case .idle where store.cards.isEmpty,
-           .loading where store.cards.isEmpty:
+        .loading where store.cards.isEmpty:
         ProgressView("Loading Today…")
           .accessibilityIdentifier("radroots.today.loading")
       case .empty:
@@ -62,7 +63,8 @@ struct RadrootsTodayView: View {
         addStore: addStore,
         settingsStore: settingsStore,
         mediaStore: mediaStore,
-        revise: revise
+        revise: revise,
+        retract: retract
       )
     }
     .sheet(isPresented: $showsSearch, onDismiss: { searchStore.stop() }) {
@@ -71,7 +73,8 @@ struct RadrootsTodayView: View {
         context: store.selectedContext,
         store: searchStore,
         mediaStore: mediaStore,
-        revise: revise
+        revise: revise,
+        retract: retract
       )
     }
     .task { await store.start() }
@@ -119,7 +122,9 @@ struct RadrootsTodayView: View {
         mediaStore: mediaStore,
         canRevise: card.authorPublicKey == snapshot.identity.publicKeyHex
           && card.localOperationID != nil,
-        revise: revise
+        canRetract: card.authorPublicKey == snapshot.identity.publicKeyHex,
+        revise: revise,
+        retract: retract
       )
     }
     .accessibilityIdentifier("radroots.today.feed")
@@ -397,7 +402,10 @@ struct RadrootsTodayDetailView: View {
   let context: RadrootsLocalNetwork?
   @ObservedObject var mediaStore: RadrootsMediaStore
   let canRevise: Bool
+  let canRetract: Bool
   let revise: (RadrootsTodayCard) -> Void
+  let retract: (RadrootsTodayCard) -> Void
+  @State private var showsRetractionConfirmation = false
 
   var body: some View {
     List {
@@ -429,6 +437,22 @@ struct RadrootsTodayDetailView: View {
             .accessibilityIdentifier("radroots.today.revise")
         }
       }
+      if canRetract {
+        ToolbarItem(placement: .topBarTrailing) {
+          Button("Retract", role: .destructive) { showsRetractionConfirmation = true }
+            .accessibilityIdentifier("radroots.today.retract")
+        }
+      }
+    }
+    .confirmationDialog(
+      "Retract this post?",
+      isPresented: $showsRetractionConfirmation,
+      titleVisibility: .visible
+    ) {
+      Button("Retract post", role: .destructive) { retract(card) }
+      Button("Keep post", role: .cancel) {}
+    } message: {
+      Text("A signed retraction will be saved to the durable outbox before relay delivery.")
     }
     .accessibilityIdentifier("radroots.today.detail.\(card.id)")
   }

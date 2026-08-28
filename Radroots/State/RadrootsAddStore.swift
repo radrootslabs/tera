@@ -26,6 +26,9 @@ final class RadrootsAddStore: ObservableObject {
   private let runtimeClient: RadrootsRuntimeClient
   private let media: (any RadrootsAddMediaHandling)?
   private let observationDelay: @Sendable (UInt32) async throws -> Void
+  private let identifier: @Sendable () -> String
+  private let nowUnixSeconds: @Sendable () -> UInt64
+  private let nowUnixMilliseconds: @Sendable () -> UInt64
   private var generation: UInt64 = 0
   private var operationGeneration: UInt64?
   private var operationTask: Task<Void, Never>?
@@ -34,18 +37,35 @@ final class RadrootsAddStore: ObservableObject {
   private var observationGeneration: UInt64 = 0
   private var revisionTarget: RadrootsRevisionTarget?
   private var revisionOperationID: String?
+  private var activePublicKey: String?
 
   init(
     runtimeClient: RadrootsRuntimeClient,
     media: (any RadrootsAddMediaHandling)? = nil,
     initialType: RadrootsAddCommandType = .createUpdate,
+    identifier: @escaping @Sendable () -> String = {
+      UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
+    },
+    nowUnixSeconds: @escaping @Sendable () -> UInt64 = {
+      UInt64(Date().timeIntervalSince1970)
+    },
+    nowUnixMilliseconds: @escaping @Sendable () -> UInt64 = {
+      UInt64(Date().timeIntervalSince1970 * 1_000)
+    },
     observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
       RadrootsRuntimeObservationBackoff.sleep
   ) {
     self.runtimeClient = runtimeClient
     self.media = media
+    self.identifier = identifier
+    self.nowUnixSeconds = nowUnixSeconds
+    self.nowUnixMilliseconds = nowUnixMilliseconds
     self.observationDelay = observationDelay
-    form = .empty(initialType)
+    form = Self.newForm(
+      type: initialType,
+      identifier: identifier,
+      nowUnixSeconds: nowUnixSeconds
+    )
   }
 
   deinit {
@@ -57,16 +77,20 @@ final class RadrootsAddStore: ObservableObject {
   }
 
   var isFormEditable: Bool {
-    guard activeDraft?.isRevision != true else { return false }
+    guard activeDraft?.isRevision != true, activeDraft?.kind != .retraction else { return false }
     return activeDraft?.state.isEditable ?? true
   }
 
+  var isProductReady: Bool {
+    state == .ready && selectedSchema != nil
+  }
+
   var canSave: Bool {
-    isFormEditable && !isWorking
+    isProductReady && isFormEditable && !isWorking
   }
 
   var canSubmit: Bool {
-    !isWorking
+    isProductReady && !isWorking
       && (activeDraft?.isRevision == true || activeDraft?.state.canAdvance == true
         || isFormEditable)
   }
@@ -88,6 +112,7 @@ final class RadrootsAddStore: ObservableObject {
   }
 
   func configure(snapshot: RadrootsRuntimeSnapshot) {
+    activePublicKey = snapshot.identity.publicKeyHex
     blossomConfiguration = snapshot.blossomConfiguration
     blossomEvidence = snapshot.blossomEvidence
   }
@@ -114,7 +139,7 @@ final class RadrootsAddStore: ObservableObject {
       try await media?.reconcileBackgroundUploads(drafts: loadedDrafts)
       try Task.checkCancellation()
       guard requestedGeneration == generation else { return }
-      schemas = loadedSchemas
+      schemas = try RadrootsProductSurfaceContract.validate(schemas: loadedSchemas)
       drafts = Self.sorted(loadedDrafts)
       mediaSupport = loadedSupport
       state = .ready
@@ -150,7 +175,11 @@ final class RadrootsAddStore: ObservableObject {
     activeDraft = nil
     revisionTarget = nil
     revisionOperationID = nil
-    form = .empty(type)
+    form = Self.newForm(
+      type: type,
+      identifier: identifier,
+      nowUnixSeconds: nowUnixSeconds
+    )
     message = nil
   }
 
@@ -165,7 +194,11 @@ final class RadrootsAddStore: ObservableObject {
     activeDraft = nil
     revisionTarget = nil
     revisionOperationID = nil
-    form = .empty(type ?? form.commandType)
+    form = Self.newForm(
+      type: type ?? form.commandType,
+      identifier: identifier,
+      nowUnixSeconds: nowUnixSeconds
+    )
     message = nil
   }
 
@@ -373,6 +406,13 @@ final class RadrootsAddStore: ObservableObject {
 
   func retractAndRevise(_ card: RadrootsTodayCard) async {
     await perform {
+      guard let publicKey = self.activePublicKey, publicKey == card.authorPublicKey else {
+        throw RadrootsRuntimeFailure.local(
+          operation: "add.revise",
+          code: "ios.add.revision_not_authorized",
+          safeMessage: "Only your own post can be revised."
+        )
+      }
       guard let operationID = card.localOperationID else {
         throw RadrootsRuntimeFailure.local(
           operation: "add.revise",
@@ -399,6 +439,60 @@ final class RadrootsAddStore: ObservableObject {
       self.activeDraft = nil
       self.form = sourceForm
       self.message = "Review the lossless revised copy before publishing."
+    }
+  }
+
+  func retract(_ card: RadrootsTodayCard) async {
+    await perform {
+      guard let publicKey = self.activePublicKey, publicKey == card.authorPublicKey else {
+        throw RadrootsRuntimeFailure.local(
+          operation: "add.retract",
+          code: "ios.add.retraction_not_authorized",
+          safeMessage: "Only your own post can be retracted."
+        )
+      }
+      guard let targetKind = card.retractionTargetKind else {
+        throw RadrootsRuntimeFailure.local(
+          operation: "add.retract",
+          code: "ios.add.retraction_target_invalid",
+          safeMessage: "This post cannot be retracted safely."
+        )
+      }
+      let draftID = self.identifier()
+      guard Self.isValidIdentifier(draftID) else {
+        throw RadrootsRuntimeFailure.local(
+          operation: "add.retract",
+          code: "ios.add.identifier_invalid",
+          safeMessage: "The local operation identifier is invalid."
+        )
+      }
+      var status = try await self.runtimeClient.saveRetractionDraft(
+        id: draftID,
+        input: RadrootsRetractionDraftInput(
+          commandType: card.type.addCommandType,
+          targetCardID: card.id,
+          targetEventID: card.sourceEventID,
+          targetKind: targetKind,
+          targetAddress: card.sourceAddress,
+          reason: "Removed by author."
+        ),
+        authoredAtUnixSeconds: self.nowUnixSeconds(),
+        persistedAtUnixMilliseconds: self.nowUnixMilliseconds()
+      )
+      self.accept(status)
+      status = try await self.runtimeClient.queueAddIntent(
+        id: status.id,
+        expectedRevision: status.revision
+      )
+      self.accept(status)
+      if status.state.canAdvance {
+        status = try await self.runtimeClient.advanceDraft(
+          id: status.id,
+          expectedRevision: status.revision
+        )
+        self.accept(status)
+      }
+      self.message = status.honestSummary
     }
   }
 
@@ -662,6 +756,50 @@ final class RadrootsAddStore: ObservableObject {
       return $0.updatedAtUnixMilliseconds > $1.updatedAtUnixMilliseconds
     }
   }
+
+  private static func newForm(
+    type: RadrootsAddCommandType,
+    identifier: @Sendable () -> String,
+    nowUnixSeconds: @Sendable () -> UInt64
+  ) -> RadrootsAddForm {
+    var form = RadrootsAddForm.empty(type)
+    if type == .createEvent || type == .createFoodAvailability {
+      let value = identifier()
+      if isValidIdentifier(value) {
+        form.identifier = value
+      }
+    }
+    if type == .createEvent {
+      let now = nowUnixSeconds()
+      let start = now.addingReportingOverflow(3_600).overflow ? now : now + 3_600
+      let end = start.addingReportingOverflow(3_600).overflow ? start : start + 3_600
+      form.eventStartUnixSeconds = start
+      form.eventEndUnixSeconds = end
+      form.eventStartDate = eventDateFormatter.string(
+        from: Date(timeIntervalSince1970: TimeInterval(start))
+      )
+      form.eventEndDate = eventDateFormatter.string(
+        from: Date(timeIntervalSince1970: TimeInterval(end))
+      )
+    }
+    return form
+  }
+
+  private static func isValidIdentifier(_ value: String) -> Bool {
+    value.utf8.count == 32
+      && value.utf8.allSatisfy { byte in
+        (byte >= 0x30 && byte <= 0x39) || (byte >= 0x61 && byte <= 0x66)
+      }
+  }
+
+  private static let eventDateFormatter: DateFormatter = {
+    let formatter = DateFormatter()
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    formatter.timeZone = TimeZone(secondsFromGMT: 0)
+    formatter.dateFormat = "yyyy-MM-dd"
+    return formatter
+  }()
 
   private static func message(for error: Error) -> String {
     if let failure = failure(for: error) {

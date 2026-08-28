@@ -2,16 +2,61 @@ import Foundation
 import RadrootsKit
 
 @MainActor
+struct RadrootsProductStores {
+  let today: RadrootsTodayStore
+  let add: RadrootsAddStore
+  let search: RadrootsSearchStore
+  let me: RadrootsMeStore
+  let settings: RadrootsSettingsStore
+  let media: RadrootsMediaStore
+
+  init(
+    runtimeClient: RadrootsRuntimeClient,
+    addMedia: (any RadrootsAddMediaHandling)? = nil
+  ) {
+    today = RadrootsTodayStore(runtimeClient: runtimeClient)
+    add = RadrootsAddStore(runtimeClient: runtimeClient, media: addMedia)
+    search = RadrootsSearchStore(runtimeClient: runtimeClient)
+    me = RadrootsMeStore(runtimeClient: runtimeClient)
+    settings = RadrootsSettingsStore(runtimeClient: runtimeClient)
+    media = RadrootsMediaStore(runtimeClient: runtimeClient)
+  }
+
+  func configure(snapshot: RadrootsRuntimeSnapshot) {
+    today.configure(snapshot: snapshot)
+    add.configure(snapshot: snapshot)
+  }
+
+  func resume() async {
+    await today.start()
+    await add.start()
+  }
+
+  func suspend() {
+    today.stop()
+    add.suspend()
+    search.stop()
+    me.stop()
+    settings.stop()
+    media.reset()
+  }
+
+  func stop() {
+    today.stop()
+    add.stop()
+    search.stop()
+    me.stop()
+    settings.stop()
+    media.reset()
+  }
+}
+
+@MainActor
 final class RadrootsAppModel: ObservableObject {
   typealias Phase = RadrootsSessionPhase
 
   @Published private(set) var phase: Phase = .starting
-  private(set) var todayStore: RadrootsTodayStore?
-  private(set) var addStore: RadrootsAddStore?
-  private(set) var searchStore: RadrootsSearchStore?
-  private(set) var meStore: RadrootsMeStore?
-  private(set) var settingsStore: RadrootsSettingsStore?
-  private(set) var mediaStore: RadrootsMediaStore?
+  let productStores: RadrootsProductStores?
   let diagnosticsStore: RadrootsDiagnosticsStore
 
   private let sessionStore: RadrootsSessionStore?
@@ -33,22 +78,17 @@ final class RadrootsAppModel: ObservableObject {
     }
     let lifecycleCoordinator =
       requestedLifecycleCoordinator
-        ?? productionServices?.coordinator
-        ?? RadrootsLifecycleCoordinator.disabled()
+      ?? productionServices?.coordinator
+      ?? RadrootsLifecycleCoordinator.disabled()
     let backgroundTransfer =
       requestedLifecycleCoordinator == nil
-        ? productionServices?.backgroundTransfer : nil
+      ? productionServices?.backgroundTransfer : nil
     self.lifecycleCoordinator = lifecycleCoordinator
     diagnosticsStore = RadrootsDiagnosticsStore(coordinator: lifecycleCoordinator)
     #if DEBUG
       if ProcessInfo.processInfo.environment["RADROOTS_IOS_UI_TEST_SHELL"] == "1" {
         self.sessionStore = nil
-        todayStore = nil
-        addStore = nil
-        searchStore = nil
-        meStore = nil
-        settingsStore = nil
-        mediaStore = nil
+        productStores = nil
         bootstrapFailure = nil
         isShellUITest = true
         phase = .running(.shellUITest)
@@ -58,12 +98,7 @@ final class RadrootsAppModel: ObservableObject {
     isShellUITest = false
     if let sessionStore {
       self.sessionStore = sessionStore
-      todayStore = runtimeClient.map { RadrootsTodayStore(runtimeClient: $0) }
-      addStore = runtimeClient.map { RadrootsAddStore(runtimeClient: $0) }
-      searchStore = runtimeClient.map { RadrootsSearchStore(runtimeClient: $0) }
-      meStore = runtimeClient.map { RadrootsMeStore(runtimeClient: $0) }
-      settingsStore = runtimeClient.map { RadrootsSettingsStore(runtimeClient: $0) }
-      mediaStore = runtimeClient.map { RadrootsMediaStore(runtimeClient: $0) }
+      productStores = runtimeClient.map { RadrootsProductStores(runtimeClient: $0) }
       bootstrapFailure = nil
     } else {
       do {
@@ -75,24 +110,14 @@ final class RadrootsAppModel: ObservableObject {
           transfer: backgroundTransfer
         )
         self.sessionStore = sessionStore
-        todayStore = RadrootsTodayStore(runtimeClient: runtimeClient)
-        addStore = RadrootsAddStore(
+        productStores = RadrootsProductStores(
           runtimeClient: runtimeClient,
-          media: mediaCoordinator
+          addMedia: mediaCoordinator
         )
-        searchStore = RadrootsSearchStore(runtimeClient: runtimeClient)
-        meStore = RadrootsMeStore(runtimeClient: runtimeClient)
-        settingsStore = RadrootsSettingsStore(runtimeClient: runtimeClient)
-        mediaStore = RadrootsMediaStore(runtimeClient: runtimeClient)
         bootstrapFailure = nil
       } catch let error as LocalizedError {
         self.sessionStore = nil
-        todayStore = nil
-        addStore = nil
-        searchStore = nil
-        meStore = nil
-        settingsStore = nil
-        mediaStore = nil
+        productStores = nil
         bootstrapFailure = .local(
           operation: "app.bootstrap",
           code: "ios.app.configuration_invalid",
@@ -100,12 +125,7 @@ final class RadrootsAppModel: ObservableObject {
         )
       } catch {
         self.sessionStore = nil
-        todayStore = nil
-        addStore = nil
-        searchStore = nil
-        meStore = nil
-        settingsStore = nil
-        mediaStore = nil
+        productStores = nil
         bootstrapFailure = .local(
           operation: "app.bootstrap",
           code: "ios.app.configuration_invalid",
@@ -181,8 +201,7 @@ final class RadrootsAppModel: ObservableObject {
     }
     resumePending = false
     if case .running = phase {
-      await todayStore?.start()
-      await addStore?.start()
+      await productStores?.resume()
       await lifecycleCoordinator.record("ios.lifecycle.active")
     } else {
       await start()
@@ -192,12 +211,7 @@ final class RadrootsAppModel: ObservableObject {
   func suspend() async {
     generation &+= 1
     resumePending = false
-    todayStore?.stop()
-    addStore?.suspend()
-    searchStore?.stop()
-    meStore?.stop()
-    settingsStore?.stop()
-    mediaStore?.reset()
+    productStores?.suspend()
     await sessionStore?.suspend()
     await lifecycleCoordinator.record("ios.lifecycle.background")
   }
@@ -258,8 +272,7 @@ final class RadrootsAppModel: ObservableObject {
       return
     }
     if case .running(let snapshot) = result {
-      todayStore?.configure(snapshot: snapshot)
-      addStore?.configure(snapshot: snapshot)
+      productStores?.configure(snapshot: snapshot)
     }
     phase = result
     await lifecycleCoordinator.record(
@@ -287,11 +300,7 @@ final class RadrootsAppModel: ObservableObject {
   }
 
   private func stopPresentationWork() {
-    todayStore?.stop()
-    addStore?.stop()
-    searchStore?.stop()
-    meStore?.stop()
-    mediaStore?.reset()
+    productStores?.stop()
   }
 
   private static func isFailure(_ phase: Phase) -> Bool {

@@ -7,6 +7,22 @@ struct RadrootsAddView: View {
 
   var body: some View {
     Form {
+      switch store.state {
+      case .idle, .loading:
+        Section {
+          ProgressView("Loading Add…")
+            .accessibilityIdentifier("radroots.add.loading")
+        }
+      case .failed(let message):
+        Section {
+          Label(message, systemImage: "exclamationmark.triangle")
+            .foregroundStyle(.secondary)
+            .accessibilityIdentifier("radroots.add.error")
+        }
+      case .ready:
+        EmptyView()
+      }
+
       if let message = store.message {
         Section {
           Label(message, systemImage: statusSymbol)
@@ -15,21 +31,31 @@ struct RadrootsAddView: View {
         }
       }
 
-      Section("What are you sharing?") {
-        Picker("Type", selection: typeBinding) {
-          ForEach(availableTypes) { type in
-            Text(type.label).tag(type)
+      if store.activeDraft?.kind == .retraction {
+        Section("Retraction") {
+          Text("This saved operation removes one of your published posts.")
+            .foregroundStyle(.secondary)
+        }
+      } else {
+        Group {
+          Section("What are you sharing?") {
+            Picker("Type", selection: typeBinding) {
+              ForEach(availableTypes) { type in
+                Text(type.label).tag(type)
+              }
+            }
+            .pickerStyle(.navigationLink)
+            .disabled(!store.isFormEditable)
+            .accessibilityIdentifier("radroots.add.type")
+          }
+
+          composerFields
+
+          if store.acceptsMedia {
+            mediaSection
           }
         }
-        .pickerStyle(.navigationLink)
-        .disabled(!store.isFormEditable)
-        .accessibilityIdentifier("radroots.add.type")
-      }
-
-      composerFields
-
-      if store.acceptsMedia {
-        mediaSection
+        .disabled(!store.isProductReady)
       }
 
       Section {
@@ -142,8 +168,8 @@ struct RadrootsAddView: View {
     Section("Food availability") {
       TextField("Food", text: optional(\.title))
         .accessibilityIdentifier("radroots.add.title")
-      TextField("Short summary (optional)", text: optional(\.summary))
-      contentEditor(prompt: "Details (optional)")
+      TextField("Short summary", text: optional(\.summary))
+      contentEditor(prompt: "Details")
       TextField("Location", text: optional(\.location))
         .accessibilityIdentifier("radroots.add.location")
     }
@@ -153,7 +179,13 @@ struct RadrootsAddView: View {
         .accessibilityIdentifier("radroots.add.price")
       TextField("Currency", text: optional(\.currency))
         .textInputAutocapitalization(.characters)
-      TextField("Unit", text: optional(\.unit))
+      Picker("Unit", selection: optional(\.unit)) {
+        Text("Choose a unit").tag("")
+        ForEach(unitChoices, id: \.self) { unit in
+          Text(unit).tag(unit)
+        }
+      }
+      .accessibilityIdentifier("radroots.add.unit")
       TextField("Quantity available (optional)", text: optional(\.quantity))
         .keyboardType(.decimalPad)
     }
@@ -228,6 +260,10 @@ struct RadrootsAddView: View {
   private var availableTypes: [RadrootsAddCommandType] {
     let types = store.schemas.map(\.commandType)
     return types.isEmpty ? RadrootsAddCommandType.allCases : types
+  }
+
+  private var unitChoices: [String] {
+    store.selectedSchema?.fields.first(where: { $0.id == "unit" })?.choices ?? []
   }
 
   private var submitAccessibilityValue: String {
@@ -312,6 +348,9 @@ struct RadrootsAddView: View {
   }
 
   private var submitLabel: String {
+    if store.activeDraft?.kind == .retraction {
+      return "Retry retraction"
+    }
     if let state = store.activeDraft?.state, state.canAdvance {
       return "Retry delivery"
     }
