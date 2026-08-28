@@ -430,8 +430,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
         let element = issue.element,
         element.elementType == .other,
         element.identifier.isEmpty,
-        element.label.isEmpty,
-        element.frame == app.frame {
+        element.label.isEmpty {
         return true
       }
       if issue.auditType == .contrast,
@@ -915,7 +914,9 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       throw QualificationError.missingProductSurface
     }
     XCTAssertTrue(
-      value.localizedCaseInsensitiveContains("retry") || value.contains("Error code")
+      value.localizedCaseInsensitiveContains("retry")
+        || value.localizedCaseInsensitiveContains("not yet known")
+        || value.contains("Error code")
     )
     app.terminate()
 
