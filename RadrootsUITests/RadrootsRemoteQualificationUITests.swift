@@ -1067,12 +1067,14 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
 
   @MainActor
   private func submitAndWait(_ app: XCUIApplication, submit: XCUIElement) -> String? {
-    let priorSubmitValue = submit.value as? String
+    let status = app.staticTexts.matching(identifier: "radroots.add.status").firstMatch
+    let priorStatusLabel = status.exists ? status.label : nil
     guard
       tapSubmitUntilWorkStarts(
         app,
         submit: submit,
-        priorSubmitValue: priorSubmitValue
+        status: status,
+        priorStatusLabel: priorStatusLabel
       )
     else {
       XCTFail(
@@ -1084,14 +1086,19 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     guard
       waitForWorkToFinish(
         app,
-        submit: submit,
-        priorSubmitValue: priorSubmitValue
+        status: status,
+        priorStatusLabel: priorStatusLabel
       )
     else {
       XCTFail(
         "The Add submission did not reach a terminal local state; "
           + submissionDiagnostics(app, submit: submit)
       )
+      return nil
+    }
+    scrollTo(app, element: submit)
+    guard submit.waitForExistence(timeout: 10) else {
+      XCTFail("The terminal Add submission control was unavailable")
       return nil
     }
     return submit.value as? String ?? "missing"
@@ -1123,18 +1130,13 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   @MainActor
   private func waitForWorkToFinish(
     _ app: XCUIApplication,
-    submit: XCUIElement,
-    priorSubmitValue: String?
+    status: XCUIElement,
+    priorStatusLabel: String?
   ) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let finished = NSPredicate { _, _ in
-      guard !progress.exists else { return false }
-      guard submit.exists else {
-        return app.buttons["radroots.add.new"].exists
-      }
-      let submitValue = submit.value as? String
-      return submitValue != priorSubmitValue
-        && submitValue != "Working"
+      guard !progress.exists, status.exists else { return false }
+      return !status.label.isEmpty && status.label != priorStatusLabel
     }
     let expectation = XCTNSPredicateExpectation(predicate: finished, object: app)
     return XCTWaiter.wait(for: [expectation], timeout: 180) == .completed
@@ -1144,29 +1146,19 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   private func tapSubmitUntilWorkStarts(
     _ app: XCUIApplication,
     submit: XCUIElement,
-    priorSubmitValue: String?
+    status: XCUIElement,
+    priorStatusLabel: String?
   ) -> Bool {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let started = NSPredicate { _, _ in
-      guard !progress.exists else { return true }
-      guard submit.exists else { return true }
-      let submitValue = submit.value as? String
-      return submitValue != priorSubmitValue
+      if progress.exists { return true }
+      if status.exists { return status.label != priorStatusLabel }
+      return priorStatusLabel != nil
     }
 
-    for _ in 0..<3 {
-      submit.tap()
-      let expectation = XCTNSPredicateExpectation(predicate: started, object: app)
-      if XCTWaiter.wait(for: [expectation], timeout: 5) == .completed {
-        return true
-      }
-      guard waitUntilHittable(submit, timeout: 5),
-        isUnobscured(submit, above: app.tabBars.firstMatch)
-      else {
-        return false
-      }
-    }
-    return false
+    submit.tap()
+    let expectation = XCTNSPredicateExpectation(predicate: started, object: app)
+    return XCTWaiter.wait(for: [expectation], timeout: 10) == .completed
   }
 
   @MainActor
@@ -1188,6 +1180,9 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let status = app.staticTexts.matching(identifier: "radroots.add.status").firstMatch
     let statusLabel = status.exists ? status.label : "missing"
+    guard submit.exists else {
+      return "submit.exists=false, progress.exists=\(progress.exists), status=\(statusLabel)"
+    }
     let tabBar = app.tabBars.firstMatch
     return "submit.exists=\(submit.exists), submit.enabled=\(submit.isEnabled), "
       + "submit.hittable=\(submit.isHittable), submit.value=\(String(describing: submit.value)), "
