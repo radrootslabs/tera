@@ -85,6 +85,9 @@ struct RadrootsRootShell: View {
       .tag(RadrootsRootTab.add)
       .accessibilityIdentifier("radroots.tab.add")
     }
+    .tint(.primary)
+    .toolbarBackground(Color(uiColor: .systemBackground), for: .tabBar)
+    .toolbarBackground(.visible, for: .tabBar)
     .accessibilityIdentifier("radroots.root.tabs")
     .onOpenURL { url in
       guard let tab = RadrootsRootTab.resolve(url: url) else { return }

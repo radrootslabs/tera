@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RadrootsAddView: View {
   private enum FocusedField: Hashable {
@@ -13,6 +14,7 @@ struct RadrootsAddView: View {
   }
 
   @ObservedObject var store: RadrootsAddStore
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var showsDrafts = false
   @FocusState private var focusedField: FocusedField?
 
@@ -71,6 +73,8 @@ struct RadrootsAddView: View {
 
       Section {
         Button("Save draft") { Task { await store.save() } }
+          .buttonStyle(.borderedProminent)
+          .tint(.primary)
           .disabled(!store.canSave)
           .accessibilityIdentifier("radroots.add.save")
 
@@ -81,24 +85,28 @@ struct RadrootsAddView: View {
           .disabled(store.isWorking)
           .accessibilityIdentifier("radroots.add.cancel")
         }
-      } footer: {
         Text(
           "Submit saves an immutable local snapshot first. If signing, media, or a relay is unavailable, the saved operation remains available to retry."
         )
+        .font(.footnote)
+        .foregroundStyle(.primary)
+
+        if dynamicTypeSize.isAccessibilitySize {
+          submitButton
+        }
       }
     }
+    .headerProminence(.increased)
+    .tint(.primary)
     .accessibilityIdentifier("radroots.add.root")
     .safeAreaInset(edge: .bottom, spacing: 0) {
-      Button(submitLabel) { Task { await store.submit() } }
-        .accessibilityIdentifier("radroots.add.submit")
-        .accessibilityValue(submitAccessibilityValue)
-        .buttonStyle(.borderedProminent)
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal)
-        .padding(.vertical, 8)
-        .padding(.bottom, 72)
-        .background(.bar)
-        .disabled(!store.canSubmit)
+      if !dynamicTypeSize.isAccessibilitySize {
+        submitButton
+          .padding(.horizontal)
+          .padding(.vertical, 8)
+          .padding(.bottom, 72)
+          .background(.bar)
+      }
     }
     .disabled(store.isWorking)
     .overlay {
@@ -110,6 +118,8 @@ struct RadrootsAddView: View {
       }
     }
     .navigationTitle("Add")
+    .toolbarBackground(Color(uiColor: .systemBackground), for: .navigationBar)
+    .toolbarBackground(.visible, for: .navigationBar)
     .toolbar {
       ToolbarItem(placement: .topBarLeading) {
         Button("Drafts") { showsDrafts = true }
@@ -153,13 +163,15 @@ struct RadrootsAddView: View {
 
   private var eventFields: some View {
     Section("Event") {
-      TextField("Title", text: optional(\.title))
-        .focused($focusedField, equals: .title)
-        .accessibilityIdentifier("radroots.add.title")
+      formTextField(
+        label: "Title", text: optional(\.title), focus: .title,
+        identifier: "radroots.add.title"
+      )
       contentEditor(prompt: "Event details (optional)")
-      TextField("Location (optional)", text: optional(\.location))
-        .focused($focusedField, equals: .location)
-        .accessibilityIdentifier("radroots.add.location")
+      formTextField(
+        label: "Location (optional)", text: optional(\.location), focus: .location,
+        identifier: "radroots.add.location"
+      )
       Picker("When", selection: optionalTiming) {
         ForEach(RadrootsEventTiming.allCases) { timing in
           Text(timing.label).tag(Optional(timing))
@@ -168,10 +180,18 @@ struct RadrootsAddView: View {
       .accessibilityIdentifier("radroots.add.event_timing")
       if store.form.eventTiming == .allDay {
         DatePicker("Starts", selection: allDayStart, displayedComponents: .date)
+          .accessibilityLabel("Starts")
+          .accessibilityIdentifier("radroots.add.event.start")
         DatePicker("Ends", selection: allDayEnd, displayedComponents: .date)
+          .accessibilityLabel("Ends")
+          .accessibilityIdentifier("radroots.add.event.end")
       } else {
         DatePicker("Starts", selection: timedStart)
+          .accessibilityLabel("Starts")
+          .accessibilityIdentifier("radroots.add.event.start")
         DatePicker("Ends", selection: timedEnd)
+          .accessibilityLabel("Ends")
+          .accessibilityIdentifier("radroots.add.event.end")
       }
     }
   }
@@ -179,26 +199,29 @@ struct RadrootsAddView: View {
   @ViewBuilder
   private var foodFields: some View {
     Section("Food availability") {
-      TextField("Food", text: optional(\.title))
-        .focused($focusedField, equals: .title)
-        .accessibilityIdentifier("radroots.add.title")
-      TextField("Short summary", text: optional(\.summary))
-        .focused($focusedField, equals: .summary)
-        .accessibilityIdentifier("radroots.add.summary")
+      formTextField(
+        label: "Food", text: optional(\.title), focus: .title,
+        identifier: "radroots.add.title"
+      )
+      formTextField(
+        label: "Short summary", text: optional(\.summary), focus: .summary,
+        identifier: "radroots.add.summary"
+      )
       contentEditor(prompt: "Details")
-      TextField("Location", text: optional(\.location))
-        .focused($focusedField, equals: .location)
-        .accessibilityIdentifier("radroots.add.location")
+      formTextField(
+        label: "Location", text: optional(\.location), focus: .location,
+        identifier: "radroots.add.location"
+      )
     }
     Section("Price and quantity") {
-      TextField("Price", text: optional(\.priceAmount))
-        .keyboardType(.decimalPad)
-        .focused($focusedField, equals: .price)
-        .accessibilityIdentifier("radroots.add.price")
-      TextField("Currency", text: optional(\.currency))
-        .textInputAutocapitalization(.characters)
-        .focused($focusedField, equals: .currency)
-        .accessibilityIdentifier("radroots.add.currency")
+      formTextField(
+        label: "Price", text: optional(\.priceAmount), focus: .price,
+        identifier: "radroots.add.price", keyboardType: .decimalPad
+      )
+      formTextField(
+        label: "Currency", text: optional(\.currency), focus: .currency,
+        identifier: "radroots.add.currency", capitalization: .characters
+      )
       Picker("Unit", selection: optional(\.unit)) {
         Text("Choose a unit").tag("")
         ForEach(unitChoices, id: \.self) { unit in
@@ -206,9 +229,10 @@ struct RadrootsAddView: View {
         }
       }
       .accessibilityIdentifier("radroots.add.unit")
-      TextField("Quantity available (optional)", text: optional(\.quantity))
-        .keyboardType(.decimalPad)
-        .focused($focusedField, equals: .quantity)
+      formTextField(
+        label: "Quantity available (optional)", text: optional(\.quantity), focus: .quantity,
+        identifier: "radroots.add.quantity", keyboardType: .decimalPad
+      )
     }
   }
 
@@ -219,7 +243,7 @@ struct RadrootsAddView: View {
           Label("Prepared image", systemImage: "checkmark.shield")
             .font(.subheadline.weight(.semibold))
           Text(
-            "\(media.width) × \(media.height) · \(ByteCountFormatter.string(fromByteCount: Int64(media.byteSize), countStyle: .file))"
+            "\(media.width) × \(media.height) · \(ByteCountFormatter.string(fromByteCount: Int64(clamping: media.byteSize), countStyle: .file))"
           )
           .font(.caption)
           .foregroundStyle(.secondary)
@@ -231,51 +255,113 @@ struct RadrootsAddView: View {
             )
           )
           .focused($focusedField, equals: .media(media.id))
-          .accessibilityIdentifier("radroots.add.media.alt.\(media.id)")
+          .accessibilityIdentifier("radroots.add.media.alt")
           Button("Remove photo", role: .destructive) { store.removeMedia(id: media.id) }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier("radroots.add.media.\(media.sha256)")
+        .accessibilityIdentifier("radroots.add.media.prepared")
         .accessibilityValue(
-          "sha256 \(media.sha256), \(media.byteSize) bytes, \(media.width) by \(media.height)"
+          "\(media.width) by \(media.height), "
+            + ByteCountFormatter.string(
+              fromByteCount: Int64(clamping: media.byteSize), countStyle: .file)
         )
       }
 
-      HStack {
-        Button {
-          Task { await store.importPhotos() }
-        } label: {
-          Label("Photo Library", systemImage: "photo.on.rectangle")
+      ViewThatFits(in: .horizontal) {
+        HStack {
+          mediaLibraryButton
+          Spacer()
+          mediaCameraButton
         }
-        .disabled(!store.mediaSupport.library || !store.canAddMedia)
-        .accessibilityIdentifier("radroots.add.media.library")
-
-        Spacer()
-
-        Button {
-          Task { await store.capturePhoto() }
-        } label: {
-          Label("Camera", systemImage: "camera")
+        VStack(alignment: .leading, spacing: 12) {
+          mediaLibraryButton
+          mediaCameraButton
         }
-        .disabled(!store.mediaSupport.camera || !store.canAddMedia)
-        .accessibilityIdentifier("radroots.add.media.camera")
       }
     }
   }
 
-  private func contentEditor(prompt: String) -> some View {
+  private var mediaLibraryButton: some View {
+    Button {
+      Task { await store.importPhotos() }
+    } label: {
+      HStack(alignment: .firstTextBaseline) {
+        Image(systemName: "photo.on.rectangle")
+        Text("Library")
+          .fixedSize(horizontal: false, vertical: true)
+      }
+    }
+    .disabled(!store.mediaSupport.library || !store.canAddMedia)
+    .accessibilityLabel("Photo Library")
+    .accessibilityIdentifier("radroots.add.media.library")
+  }
+
+  private var mediaCameraButton: some View {
+    Button {
+      Task { await store.capturePhoto() }
+    } label: {
+      HStack(alignment: .firstTextBaseline) {
+        Image(systemName: "camera")
+        Text("Camera")
+          .fixedSize(horizontal: false, vertical: true)
+      }
+    }
+    .disabled(!store.mediaSupport.camera || !store.canAddMedia)
+    .accessibilityIdentifier("radroots.add.media.camera")
+  }
+
+  private func contentEditor(prompt: LocalizedStringKey) -> some View {
     ZStack(alignment: .topLeading) {
       TextEditor(text: required(\.content))
         .frame(minHeight: 110)
         .focused($focusedField, equals: .content)
+        .accessibilityLabel(Text(prompt))
         .accessibilityIdentifier("radroots.add.content")
       if store.form.content.isEmpty {
         Text(prompt)
-          .foregroundStyle(.tertiary)
+          .foregroundStyle(.primary)
           .padding(.horizontal, 5)
           .padding(.vertical, 8)
           .allowsHitTesting(false)
+          .accessibilityHidden(true)
       }
+    }
+  }
+
+  private var submitButton: some View {
+    Button {
+      Task { await store.submit() }
+    } label: {
+      Text(submitLabel)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity)
+    }
+    .accessibilityIdentifier("radroots.add.submit")
+    .accessibilityValue(submitAccessibilityValue)
+    .buttonStyle(.borderedProminent)
+    .tint(.primary)
+    .disabled(!store.canSubmit)
+  }
+
+  private func formTextField(
+    label: LocalizedStringKey,
+    text: Binding<String>,
+    focus: FocusedField,
+    identifier: String,
+    keyboardType: UIKeyboardType = .default,
+    capitalization: TextInputAutocapitalization? = nil
+  ) -> some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Text(label)
+        .font(.subheadline.weight(.semibold))
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityHidden(true)
+      TextField("", text: text)
+        .keyboardType(keyboardType)
+        .textInputAutocapitalization(capitalization)
+        .focused($focusedField, equals: focus)
+        .accessibilityLabel(Text(label))
+        .accessibilityIdentifier(identifier)
     }
   }
 

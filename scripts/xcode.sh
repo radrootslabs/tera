@@ -135,6 +135,7 @@ case "$operation" in
     local-social-ui-test)
         destination=${2:?local-social-ui-test requires a simulator destination}
         result_name=${3:?local-social-ui-test requires a result name}
+        scenario=${4:-five-flow}
         qualification_run_id=${RADROOTS_IOS_UI_TEST_RUN_ID:?RADROOTS_IOS_UI_TEST_RUN_ID is required}
         relay_port=${RADROOTS_IOS_LOCAL_SOCIAL_RELAY_PORT:-21000}
         blossom_port=${RADROOTS_IOS_LOCAL_SOCIAL_BLOSSOM_PORT:-21100}
@@ -160,6 +161,24 @@ case "$operation" in
             echo "error: local-social-ui-test ports must be distinct" >&2
             exit 64
         fi
+        case "$scenario" in
+            five-flow)
+                test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario
+                evidence_command=verify
+                simulator_id=
+                previous_content_size=
+                ;;
+            accessibility)
+                test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialAccessibilitySemantics
+                evidence_command=verify-accessibility
+                simulator_id=${destination##*id=}
+                previous_content_size=
+                ;;
+            *)
+                echo "error: unsupported local-social-ui-test scenario: $scenario" >&2
+                exit 64
+                ;;
+        esac
         : "${XCODE_RESULTS:?XCODE_RESULTS is required}"
         mkdir -p "$XCODE_RESULTS"
         result_bundle="$XCODE_RESULTS/$result_name.xcresult"
@@ -180,6 +199,10 @@ case "$operation" in
         cleanup_fixture() {
             kill "$fixture_pid" 2>/dev/null || true
             wait "$fixture_pid" 2>/dev/null || true
+            if [[ -n "$previous_content_size" ]]; then
+                xcrun simctl ui "$simulator_id" content_size "$previous_content_size"
+                previous_content_size=
+            fi
         }
         trap cleanup_fixture EXIT INT TERM
         for _ in {1..100}; do
@@ -194,6 +217,19 @@ case "$operation" in
             echo "error: local-social fixture readiness timed out" >&2
             exit 1
         fi
+        if [[ "$scenario" == accessibility ]]; then
+            xcrun simctl boot "$simulator_id" >/dev/null 2>&1 || true
+            xcrun simctl bootstatus "$simulator_id" -b >/dev/null
+            previous_content_size=$(xcrun simctl ui "$simulator_id" content_size)
+            case "$previous_content_size" in
+                extra-small|small|medium|large|extra-large|extra-extra-large|extra-extra-extra-large|accessibility-medium|accessibility-large|accessibility-extra-large|accessibility-extra-extra-large|accessibility-extra-extra-extra-large) ;;
+                *)
+                    echo "error: simulator content-size state is unavailable" >&2
+                    exit 1
+                    ;;
+            esac
+            xcrun simctl ui "$simulator_id" content_size accessibility-extra-extra-extra-large
+        fi
         set +e
         xcodebuild \
             -project Radroots.xcodeproj \
@@ -203,7 +239,7 @@ case "$operation" in
             "${output_args[@]}" \
             "${offline_args[@]}" \
             -resultBundlePath "$result_bundle" \
-            "-only-testing:RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario" \
+            "-only-testing:$test_selector" \
             "RADROOTS_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
             "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS=ws://127.0.0.1:$relay_port" \
             "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=http://127.0.0.1:$blossom_port" \
@@ -217,7 +253,7 @@ case "$operation" in
         if ((test_status != 0)); then
             exit "$test_status"
         fi
-        python3 scripts/local-social-fixture.py verify --evidence "$evidence"
+        python3 scripts/local-social-fixture.py "$evidence_command" --evidence "$evidence"
         ;;
     remote-ui-test)
         destination=${2:?remote-ui-test requires a simulator destination}

@@ -23,14 +23,7 @@ struct RadrootsTodayView: View {
         ProgressView("Loading Today…")
           .accessibilityIdentifier("radroots.today.loading")
       case .empty:
-        ContentUnavailableView {
-          Label("Nothing here yet", systemImage: "leaf")
-        } description: {
-          Text("Pull to refresh or add the first update to this local network.")
-        } actions: {
-          Button("Refresh") { Task { await store.reload() } }
-            .accessibilityIdentifier("radroots.today.refresh")
-        }
+        emptyView
       case .failed(let message) where store.cards.isEmpty:
         unavailableView(
           title: "Today is unavailable",
@@ -78,6 +71,30 @@ struct RadrootsTodayView: View {
       )
     }
     .task { await store.start() }
+  }
+
+  private var emptyView: some View {
+    ScrollView {
+      VStack(spacing: 16) {
+        Image(systemName: "leaf")
+          .font(.largeTitle)
+          .foregroundStyle(.secondary)
+          .accessibilityHidden(true)
+        Text("Nothing here yet")
+          .font(.title2.weight(.semibold))
+          .multilineTextAlignment(.center)
+        Text("Pull to refresh or add the first update to this local network.")
+          .multilineTextAlignment(.center)
+        Button("Refresh") { Task { await store.reload() } }
+          .buttonStyle(.borderedProminent)
+          .tint(.primary)
+          .frame(minWidth: 44, minHeight: 44)
+          .contentShape(Rectangle())
+          .accessibilityIdentifier("radroots.today.refresh")
+      }
+      .frame(maxWidth: .infinity)
+      .padding()
+    }
   }
 
   private var feed: some View {
@@ -303,18 +320,28 @@ struct RadrootsTodayCardView: View {
   }
 
   private var foodMetadata: some View {
-    HStack(spacing: 12) {
-      if let price = card.priceSummary {
-        Label(price, systemImage: "tag")
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 12) {
+        foodMetadataLabels
       }
-      if let quantity = card.quantity, let unit = card.priceUnit {
-        Label("\(quantity) \(unit) available", systemImage: "basket")
-      }
-      if let location = card.location {
-        Label(location, systemImage: "mappin.and.ellipse")
+      VStack(alignment: .leading, spacing: 4) {
+        foodMetadataLabels
       }
     }
     .font(.subheadline)
+  }
+
+  @ViewBuilder
+  private var foodMetadataLabels: some View {
+    if let price = card.priceSummary {
+      Label(price, systemImage: "tag")
+    }
+    if let quantity = card.quantity, let unit = card.priceUnit {
+      Label("\(quantity) \(unit) available", systemImage: "basket")
+    }
+    if let location = card.location {
+      Label(location, systemImage: "mappin.and.ellipse")
+    }
   }
 }
 

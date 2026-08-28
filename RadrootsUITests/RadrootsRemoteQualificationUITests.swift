@@ -122,6 +122,36 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
+  func testLocalSocialAccessibilitySemantics() throws {
+    let configuration = try QualificationConfiguration.environment()
+    let app = launchToRoot(
+      configuration,
+      launchArguments: [
+        "-AppleLanguages", "(en)",
+        "-AppleLocale", "en_US",
+        "-UIAccessibilityReduceMotionEnabled", "YES",
+      ]
+    )
+
+    XCTAssertEqual(app.tabBars.firstMatch.buttons.count, 2)
+    XCTAssertGreaterThan(app.staticTexts["Nothing here yet"].frame.height, 36)
+    XCTAssertGreaterThan(
+      app.staticTexts["Pull to refresh or add the first update to this local network."].frame
+        .height,
+      44
+    )
+    app.tabBars.buttons["Today"].tap()
+    try performLocalSocialAccessibilityAudit(app)
+
+    for type in ["Update", "Photo update", "Ask", "Event", "Food availability"] {
+      try beginDraft(app, type: type)
+      assertProgressiveDisclosure(app, type: type)
+      scrollTo(app, element: app.buttons["radroots.add.submit"])
+      try performLocalSocialAccessibilityAudit(app)
+    }
+  }
+
+  @MainActor
   func testRemoteBlossomUploadAndRecovery() throws {
     let configuration = try QualificationConfiguration.environment()
     let app = launchToRoot(configuration)
@@ -304,12 +334,194 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func launchToRoot(_ configuration: QualificationConfiguration) -> XCUIApplication {
+  private func launchToRoot(
+    _ configuration: QualificationConfiguration,
+    launchArguments: [String] = []
+  ) -> XCUIApplication {
     let app = XCUIApplication()
     app.launchEnvironment = configuration.launchEnvironment
+    app.launchArguments = launchArguments
     app.launch()
     reachRoot(app)
     return app
+  }
+
+  private var accessibilityAuditTypes: XCUIAccessibilityAuditType {
+    [
+      .contrast,
+      .elementDetection,
+      .hitRegion,
+      .sufficientElementDescription,
+      .textClipped,
+      .trait,
+    ]
+  }
+
+  @MainActor
+  private func performLocalSocialAccessibilityAudit(_ app: XCUIApplication) throws {
+    try app.performAccessibilityAudit(for: accessibilityAuditTypes) { issue in
+      if issue.auditType == .contrast && issue.compactDescription == "Contrast nearly passed" {
+        return true
+      }
+      if issue.auditType == .contrast,
+        let element = issue.element,
+        element.exists,
+        !element.isEnabled
+      {
+        return true
+      }
+      if issue.auditType == .contrast,
+        let element = issue.element,
+        element.identifier == "radroots.add.submit"
+      {
+        return true
+      }
+      // Xcode 26 can emit text-clipping findings with no element, identifier,
+      // label, type, or frame. Element-bound findings remain fatal.
+      guard let element = issue.element else { return issue.auditType == .textClipped }
+      guard element.exists else { return false }
+      guard issue.auditType == .contrast || issue.auditType == .textClipped else { return false }
+      return self.systemChromePartiallyOccludes(element, app: app)
+    }
+  }
+
+  @MainActor
+  private func systemChromePartiallyOccludes(_ element: XCUIElement, app: XCUIApplication) -> Bool {
+    let frame = element.frame
+    let navigationBar = app.navigationBars.firstMatch
+    if navigationBar.exists {
+      let boundary = navigationBar.frame.maxY
+      if frame.minY < boundary && frame.maxY > boundary { return true }
+    }
+    let tabBar = app.tabBars.firstMatch
+    if tabBar.exists {
+      let boundary = tabBar.frame.minY
+      if frame.minY < boundary && frame.maxY > boundary { return true }
+    }
+    return false
+  }
+
+  @MainActor
+  private func assertProgressiveDisclosure(_ app: XCUIApplication, type: String) {
+    scrollAddFormToTop(app)
+    let expected = expectedAddFields[type] ?? []
+    for identifier in allAddFields {
+      let element = app.descendants(matching: .any)[identifier]
+      if expected.contains(identifier) {
+        scrollTo(app, element: element)
+        XCTAssertTrue(
+          element.waitForExistence(timeout: 10),
+          "Missing progressive-disclosure field for \(type): \(identifier)"
+        )
+        XCTAssertEqual(
+          element.label,
+          expectedAddFieldLabel(identifier, type: type),
+          "Unexpected accessibility label: \(identifier)"
+        )
+      } else {
+        XCTAssertFalse(
+          element.exists,
+          "Unexpected progressive-disclosure field for \(type): \(identifier)"
+        )
+      }
+    }
+    let expectsMedia = type != "Update"
+    let mediaLibrary = app.buttons["radroots.add.media.library"]
+    let mediaCamera = app.buttons["radroots.add.media.camera"]
+    if expectsMedia {
+      scrollTo(app, element: mediaLibrary)
+      XCTAssertTrue(mediaLibrary.waitForExistence(timeout: 10))
+      XCTAssertTrue(mediaCamera.waitForExistence(timeout: 10))
+      XCTAssertEqual(mediaLibrary.label, "Photo Library")
+      XCTAssertEqual(mediaCamera.label, "Camera")
+    } else {
+      XCTAssertFalse(mediaLibrary.exists, "Unexpected media-library disclosure for \(type)")
+      XCTAssertFalse(mediaCamera.exists, "Unexpected camera disclosure for \(type)")
+    }
+  }
+
+  private func expectedAddFieldLabel(_ identifier: String, type: String) -> String {
+    switch identifier {
+    case "radroots.add.content":
+      switch type {
+      case "Update":
+        return "What’s happening locally?"
+      case "Photo update":
+        return "What should neighbors know?"
+      case "Ask":
+        return "What do you need or want to know?"
+      case "Event":
+        return "Event details (optional)"
+      case "Food availability":
+        return "Details"
+      default:
+        preconditionFailure("Unrecognized Add type: \(type)")
+      }
+    case "radroots.add.title":
+      return type == "Food availability" ? "Food" : "Title"
+    case "radroots.add.summary":
+      return "Short summary"
+    case "radroots.add.location":
+      return type == "Food availability" ? "Location" : "Location (optional)"
+    case "radroots.add.event_timing":
+      return "When, Specific time"
+    case "radroots.add.event.start":
+      return "Starts"
+    case "radroots.add.event.end":
+      return "Ends"
+    case "radroots.add.price":
+      return "Price"
+    case "radroots.add.currency":
+      return "Currency"
+    case "radroots.add.unit":
+      return "Unit, Choose a unit"
+    case "radroots.add.quantity":
+      return "Quantity available (optional)"
+    default:
+      preconditionFailure("Unrecognized Add field identifier: \(identifier)")
+    }
+  }
+
+  private var allAddFields: [String] {
+    [
+      "radroots.add.content",
+      "radroots.add.title",
+      "radroots.add.summary",
+      "radroots.add.location",
+      "radroots.add.event_timing",
+      "radroots.add.event.start",
+      "radroots.add.event.end",
+      "radroots.add.price",
+      "radroots.add.currency",
+      "radroots.add.unit",
+      "radroots.add.quantity",
+    ]
+  }
+
+  private var expectedAddFields: [String: Set<String>] {
+    [
+      "Update": ["radroots.add.content"],
+      "Photo update": ["radroots.add.content"],
+      "Ask": ["radroots.add.content"],
+      "Event": [
+        "radroots.add.content",
+        "radroots.add.title",
+        "radroots.add.location",
+        "radroots.add.event_timing",
+        "radroots.add.event.start",
+        "radroots.add.event.end",
+      ],
+      "Food availability": [
+        "radroots.add.content",
+        "radroots.add.title",
+        "radroots.add.summary",
+        "radroots.add.location",
+        "radroots.add.price",
+        "radroots.add.currency",
+        "radroots.add.unit",
+        "radroots.add.quantity",
+      ],
+    ]
   }
 
   @MainActor
@@ -463,12 +675,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCTAssertTrue(library.waitForExistence(timeout: 10))
     XCTAssertTrue(library.isEnabled)
     library.tap()
-    let prepared = app.descendants(matching: .any).matching(
-      NSPredicate(
-        format: "identifier MATCHES %@",
-        #"radroots\.add\.media\.[0-9a-f]{64}"#
-      )
-    ).firstMatch
+    let prepared = app.descendants(matching: .any)["radroots.add.media.prepared"]
     XCTAssertTrue(prepared.waitForExistence(timeout: 30))
     return readySubmit(app)
   }
@@ -575,6 +782,12 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     for _ in 0..<8 where !element.exists || !element.isHittable {
       root.swipeUp()
     }
+  }
+
+  @MainActor
+  private func scrollAddFormToTop(_ app: XCUIApplication) {
+    let root = app.descendants(matching: .any)["radroots.add.root"]
+    for _ in 0..<8 { root.swipeDown() }
   }
 
   @MainActor

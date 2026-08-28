@@ -54,7 +54,9 @@ class FixtureState:
             self._subscriptions += 1
             events = list(self._events.values())
             self._write_evidence_locked()
-        selected = [event for event in events if any(matches(event, item) for item in filters)]
+        selected = [
+            event for event in events if any(matches(event, item) for item in filters)
+        ]
         selected.sort(key=lambda item: (item.get("created_at", 0), item.get("id", "")))
         limits = [
             item["limit"]
@@ -64,7 +66,9 @@ class FixtureState:
         count = min(max(max(limits, default=len(selected)), 0), MAX_EVENTS)
         return selected[-count:] if count else []
 
-    def upload(self, body: bytes, media_type: str, expected_hash: str) -> tuple[bool, dict[str, Any]]:
+    def upload(
+        self, body: bytes, media_type: str, expected_hash: str
+    ) -> tuple[bool, dict[str, Any]]:
         digest = hashlib.sha256(body).hexdigest()
         with self._lock:
             self._upload_attempts += 1
@@ -111,7 +115,9 @@ class FixtureState:
             "retrievals": self._retrievals,
         }
         temporary = self._evidence.with_suffix(".tmp")
-        temporary.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+        temporary.write_text(
+            json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8"
+        )
         os.replace(temporary, self._evidence)
 
 
@@ -120,7 +126,10 @@ def matches(event: dict[str, Any], item: dict[str, Any]) -> bool:
         return False
     if isinstance(item.get("ids"), list) and event.get("id") not in item["ids"]:
         return False
-    if isinstance(item.get("authors"), list) and event.get("pubkey") not in item["authors"]:
+    if (
+        isinstance(item.get("authors"), list)
+        and event.get("pubkey") not in item["authors"]
+    ):
         return False
     if isinstance(item.get("kinds"), list) and event.get("kind") not in item["kinds"]:
         return False
@@ -213,7 +222,9 @@ class RelayHandler(socketserver.BaseRequestHandler):
         if not key or fields.get("upgrade", "").lower() != "websocket":
             return
         accept = base64.b64encode(
-            hashlib.sha1((key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()).digest()
+            hashlib.sha1(
+                (key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11").encode()
+            ).digest()
         ).decode()
         self.request.sendall(
             (
@@ -241,10 +252,17 @@ class RelayHandler(socketserver.BaseRequestHandler):
                 continue
             if not isinstance(message, list) or not message:
                 continue
-            if message[0] == "EVENT" and len(message) == 2 and isinstance(message[1], dict):
+            if (
+                message[0] == "EVENT"
+                and len(message) == 2
+                and isinstance(message[1], dict)
+            ):
                 event_id = message[1].get("id", "")
                 accepted = self.state.publish(message[1])
-                send_json(self.request, ["OK", event_id, accepted, "" if accepted else "invalid"])
+                send_json(
+                    self.request,
+                    ["OK", event_id, accepted, "" if accepted else "invalid"],
+                )
             elif (
                 message[0] == "REQ"
                 and len(message) >= 3
@@ -351,7 +369,11 @@ class BlossomHandler(http.server.BaseHTTPRequestHandler):
         if not accepted:
             self.respond(503, b'{"error":"fixture_retry_required"}', "application/json")
             return
-        self.respond(200, json.dumps(descriptor, separators=(",", ":")).encode(), "application/json")
+        self.respond(
+            200,
+            json.dumps(descriptor, separators=(",", ":")).encode(),
+            "application/json",
+        )
 
     def do_GET(self) -> None:  # noqa: N802
         component = self.path.removeprefix("/")
@@ -439,6 +461,21 @@ def verify(arguments: argparse.Namespace) -> int:
     return 0
 
 
+def verify_accessibility(arguments: argparse.Namespace) -> int:
+    payload = json.loads(Path(arguments.evidence).read_text(encoding="utf-8"))
+    if (
+        payload.get("schema") != "radroots-ios-local-social-fixture-evidence-v1"
+        or payload.get("accepted_events") != 0
+        or payload.get("upload_attempts") != 0
+        or payload.get("accepted_uploads") != 0
+        or payload.get("retrievals") != 0
+        or payload.get("subscriptions", 0) < 1
+    ):
+        raise SystemExit("local-social accessibility fixture evidence is invalid")
+    print("local-social accessibility fixture evidence verified")
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser()
     commands = root.add_subparsers(dest="command", required=True)
@@ -450,6 +487,8 @@ def parser() -> argparse.ArgumentParser:
     serve_command.add_argument("--control", required=True)
     verify_command = commands.add_parser("verify")
     verify_command.add_argument("--evidence", required=True)
+    accessibility_command = commands.add_parser("verify-accessibility")
+    accessibility_command.add_argument("--evidence", required=True)
     return root
 
 
@@ -457,7 +496,9 @@ def main() -> int:
     arguments = parser().parse_args()
     if arguments.command == "serve":
         return serve(arguments)
-    return verify(arguments)
+    if arguments.command == "verify":
+        return verify(arguments)
+    return verify_accessibility(arguments)
 
 
 if __name__ == "__main__":

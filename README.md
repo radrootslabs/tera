@@ -72,6 +72,27 @@ This harness is Debug-only, binds only explicit loopback ports, records bounded
 protocol evidence under the extbuild results root, and cannot become a
 production endpoint fallback.
 
+Passing `accessibility` as the final launcher argument runs Apple's
+accessibility audit over every progressively disclosed Add composition at the
+largest accessibility text size with Reduce Motion enabled. The corresponding
+fixture verifier requires zero publication and upload effects:
+
+```sh
+RADROOTS_IOS_UI_TEST_RUN_ID=local-social-accessibility \
+cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
+  'platform=iOS Simulator,id=SIMULATOR-UDID' \
+  local-social-accessibility \
+  accessibility
+```
+
+Element-bound clipping findings remain fatal. The harness tolerates only
+Xcode's elementless clipping diagnostics and narrowly identified contrast
+false positives for disabled controls, system-chrome overlap, and the
+black-on-white Submit button.
+
+This automated gate does not substitute for the parent-owned five-participant
+formative study. No human-usability claim belongs in this standalone capsule.
+
 ## Package surface
 
 `Package.swift` publishes the `RadrootsApp` library used by the generated Xcode

@@ -83,6 +83,20 @@ grep -Fq '<key>RADROOTS_IOS_UI_TEST_NETWORK_PROFILE</key>' \
 grep -Fq 'local-social-ui-test)' "$repo_root/scripts/xcode.sh"
 grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario' \
     "$repo_root/scripts/xcode.sh"
+grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialAccessibilitySemantics' \
+    "$repo_root/scripts/xcode.sh"
+grep -Fq 'verify-accessibility' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'performAccessibilityAudit' \
+    "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
+grep -Fq 'element.identifier == "radroots.add.submit"' \
+    "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
+grep -Fq 'return issue.auditType == .textClipped' \
+    "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
+grep -Fq 'issue.auditType == .contrast || issue.auditType == .textClipped' \
+    "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
+grep -Fq -- '-UIAccessibilityReduceMotionEnabled' \
+    "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
+grep -Fq 'accessibility-extra-extra-extra-large' "$repo_root/scripts/xcode.sh"
 grep -Fq '#if DEBUG' "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
 grep -Fq 'case "simulator": runtimeMode = "simulator"' \
     "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
