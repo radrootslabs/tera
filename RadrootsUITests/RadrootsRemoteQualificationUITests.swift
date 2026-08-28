@@ -1028,11 +1028,20 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   @MainActor
   private func scrollTo(_ app: XCUIApplication, element: XCUIElement) {
     let root = app.descendants(matching: .any)["radroots.add.root"]
-    for _ in 0..<8 where !element.exists || !element.isHittable {
-      root.swipeUp()
-    }
-    for _ in 0..<8 where !element.exists || !element.isHittable {
-      root.swipeDown()
+    for attempt in 0..<16 where !element.exists || !element.isHittable {
+      if element.exists {
+        let targetFrame = element.frame
+        let rootFrame = root.frame
+        if targetFrame.midY < rootFrame.midY {
+          root.swipeDown()
+        } else {
+          root.swipeUp()
+        }
+      } else if attempt < 8 {
+        root.swipeUp()
+      } else {
+        root.swipeDown()
+      }
     }
   }
 
