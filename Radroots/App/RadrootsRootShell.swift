@@ -10,16 +10,20 @@ enum RadrootsRootTab: String, CaseIterable, Sendable {
     }
 
     static func resolve(url: URL) -> Self? {
-        guard url.scheme?.lowercased() == "radroots",
-              url.user == nil,
-              url.password == nil,
-              url.query == nil,
-              url.fragment == nil
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              components.scheme?.lowercased() == "radroots",
+              components.user == nil,
+              components.password == nil,
+              components.port == nil,
+              components.query == nil,
+              components.fragment == nil,
+              components.percentEncodedPath.isEmpty,
+              let encodedHost = components.percentEncodedHost,
+              !encodedHost.contains("%")
         else {
             return nil
         }
-        let candidate = url.host ?? url.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        return Self(rawValue: candidate.lowercased())
+        return Self(rawValue: encodedHost.lowercased())
     }
 }
 

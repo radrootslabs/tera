@@ -25,4 +25,28 @@ final class RadrootsRootShellUITests: XCTestCase {
             app.descendants(matching: .any)["radroots.today.root"].waitForExistence(timeout: 2)
         )
     }
+
+    @MainActor
+    func testCanonicalDeepLinksDriveLifecycleNavigation() throws {
+        let app = XCUIApplication()
+        app.launchEnvironment["RADROOTS_IOS_UI_TEST_SHELL"] = "1"
+        app.launch()
+
+        let tabBar = app.tabBars.firstMatch
+        let today = app.descendants(matching: .any)["radroots.today.root"]
+        let add = app.descendants(matching: .any)["radroots.add.root"]
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 5))
+        tabBar.buttons["Today"].tap()
+        XCTAssertTrue(today.waitForExistence(timeout: 5))
+
+        app.open(try XCTUnwrap(URL(string: "radroots://add")))
+        XCTAssertTrue(add.waitForExistence(timeout: 2))
+
+        app.open(try XCTUnwrap(URL(string: "radroots://today")))
+        XCTAssertTrue(today.waitForExistence(timeout: 2))
+
+        app.open(try XCTUnwrap(URL(string: "radroots://add/extra")))
+        XCTAssertTrue(today.waitForExistence(timeout: 2))
+        XCTAssertFalse(add.exists)
+    }
 }
