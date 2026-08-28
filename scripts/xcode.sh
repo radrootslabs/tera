@@ -207,9 +207,18 @@ case "$operation" in
             source_commit=$(git rev-parse HEAD)
             source_tree=$(git rev-parse 'HEAD^{tree}')
             upstream=$(git rev-parse '@{upstream}')
+            persona_repair_commit=${RADROOTS_IOS_UI_TEST_FORWARD_REPAIR_COMMIT:-}
             if [[ "$source_commit" != "$upstream" ]]; then
                 echo "error: persona qualification source is not equal to its configured upstream" >&2
                 exit 1
+            fi
+            if [[ -n "$persona_repair_commit" ]]; then
+                if [[ ! "$persona_repair_commit" =~ ^[0-9a-f]{40}$ ]] || \
+                    ! git merge-base --is-ancestor "$persona_repair_commit" "$source_commit"
+                then
+                    echo "error: persona forward-repair commit is invalid" >&2
+                    exit 1
+                fi
             fi
             python3 scripts/local-social-fixture.py verify-persona-fixture \
                 --fixture "$persona_fixture" \
@@ -289,7 +298,7 @@ case "$operation" in
             exit "$test_status"
         fi
         if [[ "$scenario" == persona ]]; then
-            python3 scripts/local-social-fixture.py "$evidence_command" \
+            persona_result_command=(python3 scripts/local-social-fixture.py "$evidence_command" \
                 --fixture "$persona_fixture" \
                 --fixture-schema test-fixtures/local-social-personas.v1.schema.json \
                 --result-schema test-fixtures/local-social-persona-results.v1.schema.json \
@@ -299,7 +308,11 @@ case "$operation" in
                 --source-commit "$source_commit" \
                 --source-tree "$source_tree" \
                 --run-id "$qualification_run_id" \
-                --simulator-id "$simulator_id"
+                --simulator-id "$simulator_id")
+            if [[ -n "$persona_repair_commit" ]]; then
+                persona_result_command+=(--forward-repair-commit "$persona_repair_commit")
+            fi
+            "${persona_result_command[@]}"
         else
             python3 scripts/local-social-fixture.py "$evidence_command" --evidence "$evidence"
         fi

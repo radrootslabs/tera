@@ -633,6 +633,16 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     else {
       throw QualificationError.invalidPublicKey
     }
+    let back = app.navigationBars.buttons["Me"].firstMatch
+    XCTAssertTrue(back.waitForExistence(timeout: 10))
+    back.tap()
+    let done = app.navigationBars.buttons["Done"].firstMatch
+    XCTAssertTrue(done.waitForExistence(timeout: 10))
+    done.tap()
+    XCTAssertTrue(
+      app.descendants(matching: .any)["radroots.support.me.sheet"]
+        .waitForNonExistence(timeout: 10)
+    )
     return value
   }
 
