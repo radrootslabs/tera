@@ -13,7 +13,7 @@ packages:
     path: .
   RadrootsKit:
     url: https://github.com/radrootslabs/apple_kit.git
-    revision: 15d2df5d646b38bdc0ddc8ad88fa6d4416c8203c
+    revision: 86f5548e9e00c2b7ad3c1d6837bff8bc41bd0f24
 
 targets:
   Radroots:
