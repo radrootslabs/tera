@@ -96,7 +96,9 @@ actor RadrootsSessionStore {
         )
       )
     )
-    let roots = try RadrootsAppleFileRoots.appContainer(appIdentifier: bundleIdentifier)
+    let roots = try RadrootsRemoteQualificationEnvironment.applicationFileRoots(
+      appIdentifier: bundleIdentifier
+    )
     let protectedData = RadrootsProtectedDataMonitor(
       available: UIApplication.shared.isProtectedDataAvailable
     )

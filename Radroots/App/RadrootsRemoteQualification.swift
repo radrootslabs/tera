@@ -16,12 +16,55 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
   let mediaFile: RadrootsFileReference?
   let runtimeMode: String
 
+  private static let mediaFixtureBase64 =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
+
   var keychainServicePrefix: String {
     "org.radroots.ios.remote-qualification.\(runID)"
   }
 
   var identityMetadataKeyPrefix: String {
     "\(keychainServicePrefix).identity"
+  }
+
+  var backgroundTransferIdentifierSuffix: String {
+    "remote-qualification.\(runID)"
+  }
+
+  func isolatedFileRoots(from base: RadrootsAppleFileRoots) throws
+    -> RadrootsAppleFileRoots
+  {
+    try RadrootsAppleFileRoots(
+      appIdentifier: base.appIdentifier,
+      dataRoot: base.dataRoot.appendingPathComponent(runID, isDirectory: true),
+      cacheRoot: base.cacheRoot.appendingPathComponent(runID, isDirectory: true),
+      temporaryRoot: base.temporaryRoot.appendingPathComponent(runID, isDirectory: true)
+    )
+  }
+
+  static func applicationFileRoots(appIdentifier: String) throws -> RadrootsAppleFileRoots {
+    let base = try RadrootsAppleFileRoots.appContainer(appIdentifier: appIdentifier)
+    #if DEBUG
+      return try current()?.isolatedFileRoots(from: base) ?? base
+    #else
+      return base
+    #endif
+  }
+
+  static func backgroundTransferIdentifier(appIdentifier: String) throws -> String {
+    #if DEBUG
+      if let qualification = try current() {
+        return "\(appIdentifier.lowercased()).\(qualification.backgroundTransferIdentifierSuffix)"
+      }
+    #endif
+    return "\(appIdentifier.lowercased()).background.transfer"
+  }
+
+  static func mediaFixtureData() throws -> Data {
+    guard let data = Data(base64Encoded: mediaFixtureBase64), !data.isEmpty else {
+      throw RadrootsConfigurationError.invalid("qualification_media_fixture")
+    }
+    return data
   }
 
   #if DEBUG
@@ -39,8 +82,16 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
       default:
         throw RadrootsConfigurationError.invalid("qualification_network_profile")
       }
-      guard blossoms.count == 1 else {
+      guard !relays.isEmpty, blossoms.count == 1 else {
         throw RadrootsConfigurationError.invalid("qualification_blossom_origin")
+      }
+      if runtimeMode == "simulator" {
+        guard
+          relays.allSatisfy({ isLoopbackEndpoint($0, schemes: ["ws"]) }),
+          blossoms.allSatisfy({ isLoopbackEndpoint($0, schemes: ["http"]) })
+        else {
+          throw RadrootsConfigurationError.invalid("qualification_loopback_endpoint")
+        }
       }
       let mediaFile = try environment[mediaRelativePathKey].map { raw in
         guard raw == "qualification/input.png" else {
@@ -78,6 +129,24 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
       return raw.components(separatedBy: CharacterSet(charactersIn: ",; \n\r\t"))
         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         .filter { !$0.isEmpty }
+    }
+
+    private static func isLoopbackEndpoint(_ raw: String, schemes: Set<String>) -> Bool {
+      guard
+        let components = URLComponents(string: raw),
+        let scheme = components.scheme?.lowercased(),
+        schemes.contains(scheme),
+        components.host == "127.0.0.1",
+        components.port != nil,
+        components.user == nil,
+        components.password == nil,
+        components.query == nil,
+        components.fragment == nil,
+        components.path.isEmpty || components.path == "/"
+      else {
+        return false
+      }
+      return true
     }
   #else
     static func current(environment _: [String: String] = [:]) throws -> Self? {

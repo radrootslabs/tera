@@ -17,6 +17,7 @@
 		7CF6D05AC3F7C8CAD56E3A91 /* RadrootsRootShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8F89E4B3A775E88F661B891 /* RadrootsRootShellTests.swift */; };
 		A8D166BCD8AFCDAF764081BB /* RadrootsRemoteQualificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EA625EE81EC684D43E43CD0 /* RadrootsRemoteQualificationTests.swift */; };
 		AEEF096F40BCBC6D66A3BF32 /* RadrootsMediaStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E51B7E9599732A711D60E1B /* RadrootsMediaStoreTests.swift */; };
+		B96AE9EA220193EBFB456190 /* local-social-personas.v1.json in Resources */ = {isa = PBXBuildFile; fileRef = 6EEC64FD7D3756E9C29B4A81 /* local-social-personas.v1.json */; };
 		C356F2A068722087ED91256C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 298DA81B0A000E307098C840 /* Assets.xcassets */; };
 		CD88BB6222151E0B8242F84A /* RadrootsLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D95CB1F4A964D87D2256DA9C /* RadrootsLifecycleTests.swift */; };
 		CEED5B97CB1F94445162D662 /* RadrootsRuntimeClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0451E8A8521D320172FFA35 /* RadrootsRuntimeClientTests.swift */; };
@@ -53,6 +54,7 @@
 		41B94CEAFD958CE92D6B9265 /* RadrootsSupportingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsSupportingStoreTests.swift; sourceTree = "<group>"; };
 		42C296DF1E35100FE59C04D3 /* RadrootsAddStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsAddStoreTests.swift; sourceTree = "<group>"; };
 		43B0EA447E213CD1B96846D6 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		6EEC64FD7D3756E9C29B4A81 /* local-social-personas.v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "local-social-personas.v1.json"; sourceTree = "<group>"; };
 		81E991EAE0A0EAB4853747C6 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		8E51B7E9599732A711D60E1B /* RadrootsMediaStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsMediaStoreTests.swift; sourceTree = "<group>"; };
 		93AA285819DD1269C3EAD80A /* Radroots.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Radroots.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -159,8 +161,17 @@
 				31C88176C5674CFF5F9CFBEA /* RadrootsTests */,
 				FD341F0384225E202A0845B1 /* RadrootsUITests */,
 				94F94915631E6DC54AAB0B89 /* Resources */,
+				EC92B8692AB6128A7DDC3AAF /* test-fixtures */,
 				6240123423927396E47D6B3E /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		EC92B8692AB6128A7DDC3AAF /* test-fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				6EEC64FD7D3756E9C29B4A81 /* local-social-personas.v1.json */,
+			);
+			path = "test-fixtures";
 			sourceTree = "<group>";
 		};
 		FD341F0384225E202A0845B1 /* RadrootsUITests */ = {
@@ -222,6 +233,7 @@
 			buildConfigurationList = B3DDD079CA522503021BDB85 /* Build configuration list for PBXNativeTarget "RadrootsUITests" */;
 			buildPhases = (
 				1A10809E12A270635124EDD4 /* Sources */,
+				3001212113C05A7E4786ED23 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -281,6 +293,14 @@
 			files = (
 				C356F2A068722087ED91256C /* Assets.xcassets in Resources */,
 				60B853393C8DF4FDF2C01CAF /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3001212113C05A7E4786ED23 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B96AE9EA220193EBFB456190 /* local-social-personas.v1.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

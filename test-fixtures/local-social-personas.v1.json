@@ -1,0 +1,58 @@
+{
+  "schema": "radroots.ios.local-social.personas.v1",
+  "schema_version": 1,
+  "locale": "en_US",
+  "media_fixture_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",
+  "personas": [
+    {
+      "alias": "P01",
+      "synthetic_age_band": "age_18_27",
+      "interaction_profile": "experienced_direct",
+      "attempts": [
+        {"id": "P01-A01", "order": 1, "flow": "Update", "marker": "rr-p01-a01-update", "expected_failure": "none"},
+        {"id": "P01-A02", "order": 2, "flow": "PhotoUpdate", "marker": "rr-p01-a02-photo", "expected_failure": "none"},
+        {"id": "P01-A03", "order": 3, "flow": "Ask", "marker": "rr-p01-a03-ask", "expected_failure": "none"}
+      ]
+    },
+    {
+      "alias": "P02",
+      "synthetic_age_band": "age_18_27",
+      "interaction_profile": "novice_progressive_disclosure",
+      "attempts": [
+        {"id": "P02-A01", "order": 4, "flow": "Event", "marker": "rr-p02-a01-event", "expected_failure": "none"},
+        {"id": "P02-A02", "order": 5, "flow": "FoodAvailability", "marker": "rr-p02-a02-food", "expected_failure": "none"},
+        {"id": "P02-A03", "order": 6, "flow": "Update", "marker": "rr-p02-a03-update", "expected_failure": "none"}
+      ]
+    },
+    {
+      "alias": "P03",
+      "synthetic_age_band": "age_18_27",
+      "interaction_profile": "nontechnical_validation_recovery",
+      "attempts": [
+        {"id": "P03-A01", "order": 7, "flow": "PhotoUpdate", "marker": "rr-p03-a01-photo", "expected_failure": "none"},
+        {"id": "P03-A02", "order": 8, "flow": "Ask", "marker": "rr-p03-a02-ask", "expected_failure": "none"},
+        {"id": "P03-A03", "order": 9, "flow": "Event", "marker": "rr-p03-a03-event", "expected_failure": "validation_recovery"}
+      ]
+    },
+    {
+      "alias": "P04",
+      "synthetic_age_band": "adult_other",
+      "interaction_profile": "novice_accessibility_keyboard",
+      "attempts": [
+        {"id": "P04-A01", "order": 10, "flow": "FoodAvailability", "marker": "rr-p04-a01-food", "expected_failure": "none"},
+        {"id": "P04-A02", "order": 11, "flow": "Update", "marker": "rr-p04-a02-update", "expected_failure": "none"},
+        {"id": "P04-A03", "order": 12, "flow": "PhotoUpdate", "marker": "rr-p04-a03-photo", "expected_failure": "none"}
+      ]
+    },
+    {
+      "alias": "P05",
+      "synthetic_age_band": "adult_other",
+      "interaction_profile": "general_transport_retry_relaunch",
+      "attempts": [
+        {"id": "P05-A01", "order": 13, "flow": "Ask", "marker": "rr-p05-a01-ask", "expected_failure": "transport_retry_relaunch"},
+        {"id": "P05-A02", "order": 14, "flow": "Event", "marker": "rr-p05-a02-event", "expected_failure": "none"},
+        {"id": "P05-A03", "order": 15, "flow": "FoodAvailability", "marker": "rr-p05-a03-food", "expected_failure": "none"}
+      ]
+    }
+  ]
+}

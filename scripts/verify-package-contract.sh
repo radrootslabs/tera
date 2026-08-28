@@ -85,7 +85,32 @@ grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFive
     "$repo_root/scripts/xcode.sh"
 grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialAccessibilitySemantics' \
     "$repo_root/scripts/xcode.sh"
+grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas' \
+    "$repo_root/scripts/xcode.sh"
 grep -Fq 'verify-accessibility' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'verify-persona-fixture' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'verify-persona' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'verify-persona-result' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'add.tap()' "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
+if rg -n 'coordinate\(' "$repo_root/RadrootsUITests" --glob '*.swift'; then
+    echo "error: UI qualification must not use coordinate taps" >&2
+    exit 1
+fi
+for fixture in \
+    local-social-personas.v1.json \
+    local-social-personas.v1.schema.json \
+    local-social-persona-results.v1.schema.json
+do
+    test -f "$repo_root/test-fixtures/$fixture"
+done
+python3 "$repo_root/scripts/local-social-fixture.py" verify-persona-fixture \
+    --fixture "$repo_root/test-fixtures/local-social-personas.v1.json" \
+    --fixture-schema "$repo_root/test-fixtures/local-social-personas.v1.schema.json" \
+    --result-schema "$repo_root/test-fixtures/local-social-persona-results.v1.schema.json"
+(
+    cd "$repo_root"
+    python3 -m unittest scripts/test_local_social_fixture.py
+)
 grep -Fq 'performAccessibilityAudit' \
     "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
 grep -Fq 'element.identifier == "radroots.add.submit"' \

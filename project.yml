@@ -70,6 +70,8 @@ targets:
     sources:
       - path: RadrootsUITests/RadrootsRootShellUITests.swift
       - path: RadrootsUITests/RadrootsRemoteQualificationUITests.swift
+      - path: test-fixtures/local-social-personas.v1.json
+        buildPhase: resources
     settings:
       base:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64

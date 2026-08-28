@@ -219,7 +219,9 @@ actor RadrootsLifecycleCoordinator {
   static func productionServices(
     bundleIdentifier: String
   ) throws -> RadrootsProductionLifecycleServices {
-    let roots = try RadrootsAppleFileRoots.appContainer(appIdentifier: bundleIdentifier)
+    let roots = try RadrootsRemoteQualificationEnvironment.applicationFileRoots(
+      appIdentifier: bundleIdentifier
+    )
     let fileAccess = RadrootsAppleFileAccess(roots: roots)
     let buffer = RadrootsDiagnosticsBuffer()
     let logger = RadrootsAppleLoggerTelemetry(subsystem: bundleIdentifier)
@@ -228,7 +230,9 @@ actor RadrootsLifecycleCoordinator {
       RadrootsRedactingTelemetry(sink: buffer),
     ])
     let identifier = try RadrootsBackgroundTransferValidation.normalizedIdentifier(
-      "\(bundleIdentifier.lowercased()).background.transfer"
+      RadrootsRemoteQualificationEnvironment.backgroundTransferIdentifier(
+        appIdentifier: bundleIdentifier
+      )
     )
     let transfer = try RadrootsAppleBackgroundTransfer(
       roots: roots,

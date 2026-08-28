@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 
 final class RadrootsRemoteQualificationUITests: XCTestCase {
@@ -149,6 +150,56 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       scrollTo(app, element: app.buttons["radroots.add.submit"])
       try performLocalSocialAccessibilityAudit(app)
     }
+  }
+
+  @MainActor
+  func testLocalSocialDeterministicPersonas() throws {
+    let environment = try QualificationConfiguration.environment()
+    let control = try XCTUnwrap(environment.fixtureControl)
+    let suite = try loadPersonaSuite()
+    XCTAssertEqual(suite.locale, "en_US")
+    XCTAssertEqual(suite.personas.map(\.alias), ["P01", "P02", "P03", "P04", "P05"])
+
+    var identityDigests = Set<String>()
+    for persona in suite.personas {
+      try activateFixture(persona: persona.alias, at: control)
+      let configuration = environment.forPersona(persona.alias)
+      var app = launchPersona(configuration)
+      let publicKey = try readPublicKey(app)
+      let identityDigest = SHA256.hash(data: Data(publicKey.utf8))
+        .map { String(format: "%02x", $0) }.joined()
+      XCTAssertTrue(identityDigests.insert(identityDigest).inserted)
+
+      for attempt in persona.attempts {
+        switch attempt.expectedFailure {
+        case "validation_recovery":
+          try publishWithValidationRecovery(app, attempt: attempt)
+        case "transport_retry_relaunch":
+          app = try publishWithTransportRetry(
+            app,
+            configuration: configuration,
+            attempt: attempt
+          )
+        case "none":
+          try publishPersonaAttempt(
+            app,
+            attempt: attempt,
+            interactionProfile: persona.interactionProfile
+          )
+        default:
+          throw QualificationError.invalidPersonaFixture
+        }
+        assertTodayContains(app, markers: [attempt.marker])
+      }
+
+      let markers = persona.attempts.map(\.marker)
+      app.terminate()
+      app = launchPersona(configuration)
+      assertTodayContains(app, markers: markers)
+      XCTAssertEqual(try readPublicKey(app), publicKey)
+      app.terminate()
+    }
+    XCTAssertEqual(identityDigests.count, 5)
   }
 
   @MainActor
@@ -344,6 +395,18 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     app.launch()
     reachRoot(app)
     return app
+  }
+
+  @MainActor
+  private func launchPersona(_ configuration: QualificationConfiguration) -> XCUIApplication {
+    launchToRoot(
+      configuration,
+      launchArguments: [
+        "-AppleLanguages", "(en)",
+        "-AppleLocale", "en_US",
+        "-UIAccessibilityReduceMotionEnabled", "YES",
+      ]
+    )
   }
 
   private var accessibilityAuditTypes: XCUIAccessibilityAuditType {
@@ -613,7 +676,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     guard add.waitForExistence(timeout: 10) else { return nil }
     let type = app.descendants(matching: .any)["radroots.add.type"]
     for _ in 0..<3 {
-      add.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+      add.tap()
       if type.waitForExistence(timeout: 10) {
         return type
       }
@@ -715,6 +778,146 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCTAssertTrue(pounds.waitForExistence(timeout: 10))
     pounds.tap()
     try submitSuccessfully(app)
+  }
+
+  @MainActor
+  private func publishPersonaAttempt(
+    _ app: XCUIApplication,
+    attempt: PersonaAttempt,
+    interactionProfile: String
+  ) throws {
+    let type = attempt.flow.uiLabel
+    try beginDraft(app, type: type)
+    if interactionProfile == "novice_progressive_disclosure" {
+      assertProgressiveDisclosure(app, type: type)
+    }
+    if interactionProfile == "novice_accessibility_keyboard" {
+      try performLocalSocialAccessibilityAudit(app)
+    }
+    try completeOpenDraft(app, flow: attempt.flow, marker: attempt.marker)
+  }
+
+  @MainActor
+  private func completeOpenDraft(
+    _ app: XCUIApplication,
+    flow: PersonaFlow,
+    marker: String
+  ) throws {
+    switch flow {
+    case .update, .ask:
+      try enterText(app, identifier: "radroots.add.content", value: marker)
+    case .photoUpdate:
+      try enterText(app, identifier: "radroots.add.content", value: marker)
+      let library = app.descendants(matching: .any)["radroots.add.media.library"]
+      scrollTo(app, element: library)
+      XCTAssertTrue(library.waitForExistence(timeout: 10))
+      XCTAssertTrue(library.isEnabled)
+      library.tap()
+      XCTAssertTrue(
+        app.descendants(matching: .any)["radroots.add.media.prepared"]
+          .waitForExistence(timeout: 30)
+      )
+    case .event:
+      try enterText(app, identifier: "radroots.add.title", value: marker)
+    case .foodAvailability:
+      try enterText(app, identifier: "radroots.add.title", value: marker)
+      try enterText(app, identifier: "radroots.add.summary", value: "Fresh local food")
+      try enterText(app, identifier: "radroots.add.content", value: "Available today")
+      try enterText(app, identifier: "radroots.add.location", value: "Town square")
+      try enterText(app, identifier: "radroots.add.price", value: "3")
+      try enterText(app, identifier: "radroots.add.currency", value: "CAD")
+      let unit = app.descendants(matching: .any)["radroots.add.unit"]
+      scrollTo(app, element: unit)
+      XCTAssertTrue(unit.waitForExistence(timeout: 10))
+      unit.tap()
+      let pounds = app.buttons["lb"]
+      XCTAssertTrue(pounds.waitForExistence(timeout: 10))
+      pounds.tap()
+    }
+    try submitSuccessfully(app)
+  }
+
+  @MainActor
+  private func publishWithValidationRecovery(
+    _ app: XCUIApplication,
+    attempt: PersonaAttempt
+  ) throws {
+    guard attempt.flow == .event else {
+      throw QualificationError.invalidPersonaFixture
+    }
+    try beginDraft(app, type: attempt.flow.uiLabel)
+    try enterText(app, identifier: "radroots.add.content", value: attempt.marker)
+    guard let submit = readySubmit(app), let value = submitAndWait(app, submit: submit) else {
+      throw QualificationError.missingProductSurface
+    }
+    XCTAssertTrue(value.contains("Error code"))
+    let content = app.descendants(matching: .any)["radroots.add.content"]
+    scrollTo(app, element: content)
+    XCTAssertEqual(content.value as? String, attempt.marker)
+    try enterText(app, identifier: "radroots.add.title", value: attempt.marker)
+    try submitSuccessfully(app)
+  }
+
+  @MainActor
+  private func publishWithTransportRetry(
+    _ app: XCUIApplication,
+    configuration: QualificationConfiguration,
+    attempt: PersonaAttempt
+  ) throws -> XCUIApplication {
+    guard attempt.flow == .ask else {
+      throw QualificationError.invalidPersonaFixture
+    }
+    try beginDraft(app, type: attempt.flow.uiLabel)
+    try enterText(app, identifier: "radroots.add.content", value: attempt.marker)
+    guard let submit = readySubmit(app), let value = submitAndWait(app, submit: submit) else {
+      throw QualificationError.missingProductSurface
+    }
+    XCTAssertTrue(
+      value.localizedCaseInsensitiveContains("retry") || value.contains("Error code")
+    )
+    app.terminate()
+
+    let relaunched = launchPersona(configuration)
+    guard openAdd(relaunched) != nil, openDrafts(relaunched) else {
+      throw QualificationError.missingProductSurface
+    }
+    let retry = relaunched.buttons["Retry"].firstMatch
+    XCTAssertTrue(retry.waitForExistence(timeout: 20))
+    retry.tap()
+    let retryCompleted = NSPredicate { _, _ in !retry.exists || !retry.isEnabled }
+    let expectation = XCTNSPredicateExpectation(predicate: retryCompleted, object: relaunched)
+    XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 180), .completed)
+    let done = relaunched.buttons["Done"]
+    XCTAssertTrue(done.waitForExistence(timeout: 10))
+    done.tap()
+    return relaunched
+  }
+
+  private func loadPersonaSuite() throws -> PersonaSuite {
+    let bundle = Bundle(for: RadrootsRemoteQualificationUITests.self)
+    let url = try XCTUnwrap(
+      bundle.url(forResource: "local-social-personas.v1", withExtension: "json")
+    )
+    let data = try Data(contentsOf: url, options: [.mappedIfSafe])
+    guard data.count <= 64 * 1024 else {
+      throw QualificationError.invalidPersonaFixture
+    }
+    return try JSONDecoder().decode(PersonaSuite.self, from: data)
+  }
+
+  private func activateFixture(persona: String, at path: String) throws {
+    guard ["P01", "P02", "P03", "P04", "P05"].contains(persona) else {
+      throw QualificationError.invalidPersonaFixture
+    }
+    let data = try JSONSerialization.data(
+      withJSONObject: [
+        "schema": "radroots.ios.local-social.persona-control.v1",
+        "active_persona": persona,
+        "blossom_enabled": true,
+      ],
+      options: [.sortedKeys]
+    )
+    try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
   }
 
   @MainActor
@@ -1099,6 +1302,20 @@ private struct QualificationConfiguration {
     ]
   }
 
+  func forPersona(_ alias: String) -> Self {
+    let digest = SHA256.hash(
+      data: Data("radroots.ios.local-social.persona-run.v1\0\(runID)\0\(alias)".utf8)
+    )
+    let suffix = digest.prefix(12).map { String(format: "%02x", $0) }.joined()
+    return Self(
+      runID: "persona-\(alias.lowercased())-\(suffix)",
+      relayURLs: relayURLs,
+      blossomOrigins: blossomOrigins,
+      fixtureControl: fixtureControl,
+      networkProfile: networkProfile
+    )
+  }
+
   static func environment(
     _ values: [String: String] = ProcessInfo.processInfo.environment
   ) throws -> Self {
@@ -1155,9 +1372,74 @@ private struct BootstrapReceipt: Codable {
   let interactiveAuthenticationRequired: Bool
 }
 
+private struct PersonaSuite: Decodable {
+  let schema: String
+  let schemaVersion: UInt16
+  let locale: String
+  let mediaFixtureSHA256: String
+  let personas: [Persona]
+
+  enum CodingKeys: String, CodingKey {
+    case schema
+    case schemaVersion = "schema_version"
+    case locale
+    case mediaFixtureSHA256 = "media_fixture_sha256"
+    case personas
+  }
+}
+
+private struct Persona: Decodable {
+  let alias: String
+  let syntheticAgeBand: String
+  let interactionProfile: String
+  let attempts: [PersonaAttempt]
+
+  enum CodingKeys: String, CodingKey {
+    case alias
+    case syntheticAgeBand = "synthetic_age_band"
+    case interactionProfile = "interaction_profile"
+    case attempts
+  }
+}
+
+private struct PersonaAttempt: Decodable {
+  let id: String
+  let order: Int
+  let flow: PersonaFlow
+  let marker: String
+  let expectedFailure: String
+
+  enum CodingKeys: String, CodingKey {
+    case id
+    case order
+    case flow
+    case marker
+    case expectedFailure = "expected_failure"
+  }
+}
+
+private enum PersonaFlow: String, Decodable {
+  case update = "Update"
+  case photoUpdate = "PhotoUpdate"
+  case ask = "Ask"
+  case event = "Event"
+  case foodAvailability = "FoodAvailability"
+
+  var uiLabel: String {
+    switch self {
+    case .update: "Update"
+    case .photoUpdate: "Photo update"
+    case .ask: "Ask"
+    case .event: "Event"
+    case .foodAvailability: "Food availability"
+    }
+  }
+}
+
 private enum QualificationError: Error {
   case missingEnvironment
   case invalidPublicKey
   case missingProductSurface
   case productSubmissionFailed
+  case invalidPersonaFixture
 }

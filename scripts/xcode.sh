@@ -173,6 +173,16 @@ case "$operation" in
                 evidence_command=verify-accessibility
                 simulator_id=${destination##*id=}
                 previous_content_size=
+                persona_fixture=
+                persona_result=
+                ;;
+            persona)
+                test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas
+                evidence_command=verify-persona
+                simulator_id=${destination##*id=}
+                previous_content_size=
+                persona_fixture=test-fixtures/local-social-personas.v1.json
+                persona_result="$XCODE_RESULTS/$result_name.persona-result.json"
                 ;;
             *)
                 echo "error: unsupported local-social-ui-test scenario: $scenario" >&2
@@ -185,16 +195,41 @@ case "$operation" in
         evidence="$XCODE_RESULTS/$result_name.fixture.json"
         ready="$XCODE_RESULTS/$result_name.ready.json"
         control="$XCODE_RESULTS/$result_name.enable-uploads"
-        if [[ -e "$result_bundle" || -e "$evidence" || -e "$ready" || -e "$control" ]]; then
+        if [[ -e "$result_bundle" || -e "$evidence" || -e "$ready" || -e "$control" || ( -n "${persona_result:-}" && -e "$persona_result" ) ]]; then
             echo "error: local-social-ui-test result already exists: $result_name" >&2
             exit 1
         fi
-        python3 scripts/local-social-fixture.py serve \
-            --relay-port "$relay_port" \
-            --blossom-port "$blossom_port" \
-            --evidence "$evidence" \
-            --ready "$ready" \
-            --control "$control" &
+        if [[ "$scenario" == persona ]]; then
+            if [[ -n "$(git status --porcelain --untracked-files=all)" ]]; then
+                echo "error: persona qualification requires one clean exact source tree" >&2
+                exit 1
+            fi
+            source_commit=$(git rev-parse HEAD)
+            source_tree=$(git rev-parse 'HEAD^{tree}')
+            upstream=$(git rev-parse '@{upstream}')
+            if [[ "$source_commit" != "$upstream" ]]; then
+                echo "error: persona qualification source is not equal to its configured upstream" >&2
+                exit 1
+            fi
+            python3 scripts/local-social-fixture.py verify-persona-fixture \
+                --fixture "$persona_fixture" \
+                --fixture-schema test-fixtures/local-social-personas.v1.schema.json \
+                --result-schema test-fixtures/local-social-persona-results.v1.schema.json
+            python3 scripts/local-social-fixture.py serve \
+                --relay-port "$relay_port" \
+                --blossom-port "$blossom_port" \
+                --evidence "$evidence" \
+                --ready "$ready" \
+                --control "$control" \
+                --persona-fixture "$persona_fixture" &
+        else
+            python3 scripts/local-social-fixture.py serve \
+                --relay-port "$relay_port" \
+                --blossom-port "$blossom_port" \
+                --evidence "$evidence" \
+                --ready "$ready" \
+                --control "$control" &
+        fi
         fixture_pid=$!
         cleanup_fixture() {
             kill "$fixture_pid" 2>/dev/null || true
@@ -217,7 +252,7 @@ case "$operation" in
             echo "error: local-social fixture readiness timed out" >&2
             exit 1
         fi
-        if [[ "$scenario" == accessibility ]]; then
+        if [[ "$scenario" == accessibility || "$scenario" == persona ]]; then
             xcrun simctl boot "$simulator_id" >/dev/null 2>&1 || true
             xcrun simctl bootstatus "$simulator_id" -b >/dev/null
             previous_content_size=$(xcrun simctl ui "$simulator_id" content_size)
@@ -253,7 +288,21 @@ case "$operation" in
         if ((test_status != 0)); then
             exit "$test_status"
         fi
-        python3 scripts/local-social-fixture.py "$evidence_command" --evidence "$evidence"
+        if [[ "$scenario" == persona ]]; then
+            python3 scripts/local-social-fixture.py "$evidence_command" \
+                --fixture "$persona_fixture" \
+                --fixture-schema test-fixtures/local-social-personas.v1.schema.json \
+                --result-schema test-fixtures/local-social-persona-results.v1.schema.json \
+                --evidence "$evidence" \
+                --result-bundle "$result_bundle" \
+                --output "$persona_result" \
+                --source-commit "$source_commit" \
+                --source-tree "$source_tree" \
+                --run-id "$qualification_run_id" \
+                --simulator-id "$simulator_id"
+        else
+            python3 scripts/local-social-fixture.py "$evidence_command" --evidence "$evidence"
+        fi
         ;;
     remote-ui-test)
         destination=${2:?remote-ui-test requires a simulator destination}

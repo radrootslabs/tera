@@ -90,8 +90,25 @@ Xcode's elementless clipping diagnostics and narrowly identified contrast
 false positives for disabled controls, system-chrome overlap, and the
 black-on-white Submit button.
 
-This automated gate does not substitute for the parent-owned five-participant
-formative study. No human-usability claim belongs in this standalone capsule.
+Passing `persona` runs the strict five-persona, 15-attempt deterministic
+local-social matrix serially. Each persona receives a fresh run-scoped native
+identity and isolated durable store while one bounded loopback Nostr relay and
+Blossom service record exact event, media, retry, and subscription evidence:
+
+```sh
+RADROOTS_IOS_UI_TEST_RUN_ID=local-social-persona-run-001 \
+cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
+  'platform=iOS Simulator,id=SIMULATOR-UDID' \
+  local-social-persona-run-001 \
+  persona
+```
+
+The persona fixture and result contracts are strict and deny unknown input.
+The test uses ordinary visible controls, native-generated signing identities,
+real app stores, and generated Rust FFI; it retains no raw secret or raw event
+content. This is deterministic non-human conformance evidence. It does not
+claim human usability, demographic or population validity, observed
+VoiceOver-user experience, release readiness, or production qualification.
 
 ## Package surface
 

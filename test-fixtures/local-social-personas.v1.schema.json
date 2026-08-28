@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://radroots.org/schemas/ios/local-social-personas.v1.schema.json",
+  "title": "Radroots iOS local-social deterministic persona suite",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "locale", "media_fixture_sha256", "personas"],
+  "properties": {
+    "schema": {"const": "radroots.ios.local-social.personas.v1"},
+    "schema_version": {"const": 1},
+    "locale": {"const": "en_US"},
+    "media_fixture_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "personas": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/persona"}
+    }
+  },
+  "$defs": {
+    "persona": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["alias", "synthetic_age_band", "interaction_profile", "attempts"],
+      "properties": {
+        "alias": {"enum": ["P01", "P02", "P03", "P04", "P05"]},
+        "synthetic_age_band": {"enum": ["age_18_27", "adult_other"]},
+        "interaction_profile": {
+          "enum": [
+            "experienced_direct",
+            "novice_progressive_disclosure",
+            "nontechnical_validation_recovery",
+            "novice_accessibility_keyboard",
+            "general_transport_retry_relaunch"
+          ]
+        },
+        "attempts": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {"$ref": "#/$defs/attempt"}
+        }
+      }
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "order", "flow", "marker", "expected_failure"],
+      "properties": {
+        "id": {"type": "string", "pattern": "^P0[1-5]-A0[1-3]$"},
+        "order": {"type": "integer", "minimum": 1, "maximum": 15},
+        "flow": {"enum": ["Update", "PhotoUpdate", "Ask", "Event", "FoodAvailability"]},
+        "marker": {"type": "string", "pattern": "^rr-p0[1-5]-a0[1-3]-(update|photo|ask|event|food)$", "maxLength": 24},
+        "expected_failure": {"enum": ["none", "validation_recovery", "transport_retry_relaunch"]}
+      }
+    }
+  }
+}

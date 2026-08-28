@@ -92,7 +92,9 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
     bundleIdentifier: String,
     transfer: any RadrootsBackgroundTransfer
   ) throws -> Self {
-    let roots = try RadrootsAppleFileRoots.appContainer(appIdentifier: bundleIdentifier)
+    let roots = try RadrootsRemoteQualificationEnvironment.applicationFileRoots(
+      appIdentifier: bundleIdentifier
+    )
     let fileAccess = RadrootsAppleFileAccess(roots: roots)
     let picker: any RadrootsMediaPicker
     #if DEBUG
@@ -541,6 +543,10 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
           "remote qualification accepts one image"
         )
       }
+      try RadrootsAppleFileAccess(roots: roots).write(
+        .inline(try RadrootsRemoteQualificationEnvironment.mediaFixtureData()),
+        to: file
+      )
       let url = try roots.resolvedURL(for: file)
       let values = try url.resourceValues(
         forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey]
