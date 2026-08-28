@@ -1169,7 +1169,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let addRoot = app.descendants(matching: .any)["radroots.add.root"]
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
     let started = NSPredicate { _, _ in
-      if progress.exists || addRoot.exists && !addRoot.isEnabled {
+      if progress.exists || addRoot.value as? String == "Working" {
         return true
       }
       if status.exists, !status.label.isEmpty, status.label != priorStatusLabel {
@@ -1182,7 +1182,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       return false
     }
     let settled = NSPredicate { _, _ in
-      addRoot.exists && addRoot.isEnabled && !progress.exists
+      addRoot.value as? String == "Ready" && !progress.exists
     }
     let settleExpectation = XCTNSPredicateExpectation(predicate: settled, object: app)
     return XCTWaiter.wait(for: [settleExpectation], timeout: 180) == .completed

@@ -99,6 +99,7 @@ struct RadrootsAddView: View {
     .headerProminence(.increased)
     .tint(.primary)
     .accessibilityIdentifier("radroots.add.root")
+    .accessibilityValue(store.isWorking ? "Working" : "Ready")
     .safeAreaInset(edge: .bottom, spacing: 0) {
       if !dynamicTypeSize.isAccessibilitySize {
         submitButton
