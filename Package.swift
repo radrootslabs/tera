@@ -13,7 +13,7 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/radrootslabs/apple_kit.git",
-            revision: "86f5548e9e00c2b7ad3c1d6837bff8bc41bd0f24"
+            revision: "e61386529422a6413a852f0233a196a88f4ded51"
         ),
     ],
     targets: [

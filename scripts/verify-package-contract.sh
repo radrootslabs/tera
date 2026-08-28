@@ -44,6 +44,7 @@ grep -Fq "NSPrivacyAccessedAPICategoryUserDefaults" \
 grep -Fq "CA92.1" "$repo_root/Radroots/Resources/PrivacyInfo.xcprivacy"
 plutil -lint "$repo_root/Radroots/Resources/PrivacyInfo.xcprivacy" >/dev/null
 plutil -lint "$repo_root/Radroots/Info.plist" >/dev/null
+plutil -lint "$repo_root/RadrootsUITests/Info.plist" >/dev/null
 
 grep -Fq '<key>NSCameraUsageDescription</key>' "$repo_root/Radroots/Info.plist"
 grep -Fq '<key>NSFaceIDUsageDescription</key>' "$repo_root/Radroots/Info.plist"
@@ -75,6 +76,17 @@ grep -Fq 'RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS = wss:$(SLASH)$(SLASH)radroots.org
     "$repo_root/Radroots/Config/Base.xcconfig"
 grep -Fq 'RADROOTS_FIELD_IOS_BLOSSOM_ORIGINS = https:$(SLASH)$(SLASH)blossom.radroots.org' \
     "$repo_root/Radroots/Config/Base.xcconfig"
+grep -Fq '<key>RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL</key>' \
+    "$repo_root/RadrootsUITests/Info.plist"
+grep -Fq '<key>RADROOTS_IOS_UI_TEST_NETWORK_PROFILE</key>' \
+    "$repo_root/RadrootsUITests/Info.plist"
+grep -Fq 'local-social-ui-test)' "$repo_root/scripts/xcode.sh"
+grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario' \
+    "$repo_root/scripts/xcode.sh"
+grep -Fq '#if DEBUG' "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
+grep -Fq 'case "simulator": runtimeMode = "simulator"' \
+    "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
+test -f "$repo_root/scripts/local-social-fixture.py"
 
 if rg -n \
     'AsyncImage|URLSession\.shared|Data\(contentsOf:[[:space:]]*URL' \

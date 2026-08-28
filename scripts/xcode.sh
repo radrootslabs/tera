@@ -132,6 +132,93 @@ case "$operation" in
             "CODE_SIGN_IDENTITY=Apple Development" \
             build
         ;;
+    local-social-ui-test)
+        destination=${2:?local-social-ui-test requires a simulator destination}
+        result_name=${3:?local-social-ui-test requires a result name}
+        qualification_run_id=${RADROOTS_IOS_UI_TEST_RUN_ID:?RADROOTS_IOS_UI_TEST_RUN_ID is required}
+        relay_port=${RADROOTS_IOS_LOCAL_SOCIAL_RELAY_PORT:-21000}
+        blossom_port=${RADROOTS_IOS_LOCAL_SOCIAL_BLOSSOM_PORT:-21100}
+        if [[ ! "$destination" =~ ^platform=iOS\ Simulator,id=[A-Fa-f0-9-]+$ ]]; then
+            echo "error: local-social-ui-test destination must be one exact simulator id" >&2
+            exit 64
+        fi
+        if [[ ! "$result_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
+            echo "error: local-social-ui-test result name is invalid" >&2
+            exit 64
+        fi
+        if [[ ! "$qualification_run_id" =~ ^[a-z0-9][a-z0-9-]{6,62}[a-z0-9]$ ]]; then
+            echo "error: local-social-ui-test run id is invalid" >&2
+            exit 64
+        fi
+        for port in "$relay_port" "$blossom_port"; do
+            if [[ ! "$port" =~ ^[0-9]+$ ]] || ((port < 1024 || port > 65535)); then
+                echo "error: local-social-ui-test port is invalid" >&2
+                exit 64
+            fi
+        done
+        if [[ "$relay_port" == "$blossom_port" ]]; then
+            echo "error: local-social-ui-test ports must be distinct" >&2
+            exit 64
+        fi
+        : "${XCODE_RESULTS:?XCODE_RESULTS is required}"
+        mkdir -p "$XCODE_RESULTS"
+        result_bundle="$XCODE_RESULTS/$result_name.xcresult"
+        evidence="$XCODE_RESULTS/$result_name.fixture.json"
+        ready="$XCODE_RESULTS/$result_name.ready.json"
+        control="$XCODE_RESULTS/$result_name.enable-uploads"
+        if [[ -e "$result_bundle" || -e "$evidence" || -e "$ready" || -e "$control" ]]; then
+            echo "error: local-social-ui-test result already exists: $result_name" >&2
+            exit 1
+        fi
+        python3 scripts/local-social-fixture.py serve \
+            --relay-port "$relay_port" \
+            --blossom-port "$blossom_port" \
+            --evidence "$evidence" \
+            --ready "$ready" \
+            --control "$control" &
+        fixture_pid=$!
+        cleanup_fixture() {
+            kill "$fixture_pid" 2>/dev/null || true
+            wait "$fixture_pid" 2>/dev/null || true
+        }
+        trap cleanup_fixture EXIT INT TERM
+        for _ in {1..100}; do
+            [[ -f "$ready" ]] && break
+            kill -0 "$fixture_pid" 2>/dev/null || {
+                echo "error: local-social fixture exited before readiness" >&2
+                exit 1
+            }
+            sleep 0.1
+        done
+        if [[ ! -f "$ready" ]]; then
+            echo "error: local-social fixture readiness timed out" >&2
+            exit 1
+        fi
+        set +e
+        xcodebuild \
+            -project Radroots.xcodeproj \
+            -scheme Radroots \
+            -configuration Debug \
+            -destination "$destination" \
+            "${output_args[@]}" \
+            "${offline_args[@]}" \
+            -resultBundlePath "$result_bundle" \
+            "-only-testing:RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario" \
+            "RADROOTS_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
+            "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS=ws://127.0.0.1:$relay_port" \
+            "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=http://127.0.0.1:$blossom_port" \
+            "RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL=$control" \
+            "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE=simulator" \
+            test
+        test_status=$?
+        set -e
+        cleanup_fixture
+        trap - EXIT INT TERM
+        if ((test_status != 0)); then
+            exit "$test_status"
+        fi
+        python3 scripts/local-social-fixture.py verify --evidence "$evidence"
+        ;;
     remote-ui-test)
         destination=${2:?remote-ui-test requires a simulator destination}
         test_selector=${3:?remote-ui-test requires a RadrootsUITests selector}
@@ -173,6 +260,7 @@ case "$operation" in
             "RADROOTS_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
             "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS=$relay_urls" \
             "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=$blossom_origins" \
+            "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE=public" \
             test
         ;;
     physical-ui-build|physical-ui-test)
@@ -237,7 +325,8 @@ case "$operation" in
             "CODE_SIGN_IDENTITY=Apple Development" \
             "RADROOTS_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
             "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS=$relay_urls" \
-            "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=$blossom_origins"
+            "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=$blossom_origins" \
+            "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE=public"
         )
         if [[ "$operation" == "physical-ui-build" ]]; then
             exec xcodebuild "${physical_args[@]}" build-for-testing
@@ -258,7 +347,7 @@ case "$operation" in
             test-without-building
         ;;
     *)
-        echo "usage: $0 {resolve|package-build|package-test|project-build|project-test|physical-app-build|remote-ui-test|physical-ui-build|physical-ui-test}" >&2
+        echo "usage: $0 {resolve|package-build|package-test|project-build|project-test|local-social-ui-test|remote-ui-test|physical-ui-build|physical-ui-test}" >&2
         exit 64
         ;;
 esac

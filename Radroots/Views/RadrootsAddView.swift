@@ -1,9 +1,20 @@
 import SwiftUI
 
 struct RadrootsAddView: View {
+  private enum FocusedField: Hashable {
+    case title
+    case summary
+    case content
+    case location
+    case price
+    case currency
+    case quantity
+    case media(String)
+  }
+
   @ObservedObject var store: RadrootsAddStore
   @State private var showsDrafts = false
-  @FocusState private var isContentEditorFocused: Bool
+  @FocusState private var focusedField: FocusedField?
 
   var body: some View {
     Form {
@@ -114,7 +125,7 @@ struct RadrootsAddView: View {
       }
       ToolbarItemGroup(placement: .keyboard) {
         Spacer()
-        Button("Done") { isContentEditorFocused = false }
+        Button("Done") { focusedField = nil }
           .accessibilityIdentifier("radroots.add.keyboard.done")
       }
     }
@@ -143,9 +154,11 @@ struct RadrootsAddView: View {
   private var eventFields: some View {
     Section("Event") {
       TextField("Title", text: optional(\.title))
+        .focused($focusedField, equals: .title)
         .accessibilityIdentifier("radroots.add.title")
       contentEditor(prompt: "Event details (optional)")
       TextField("Location (optional)", text: optional(\.location))
+        .focused($focusedField, equals: .location)
         .accessibilityIdentifier("radroots.add.location")
       Picker("When", selection: optionalTiming) {
         ForEach(RadrootsEventTiming.allCases) { timing in
@@ -167,18 +180,25 @@ struct RadrootsAddView: View {
   private var foodFields: some View {
     Section("Food availability") {
       TextField("Food", text: optional(\.title))
+        .focused($focusedField, equals: .title)
         .accessibilityIdentifier("radroots.add.title")
       TextField("Short summary", text: optional(\.summary))
+        .focused($focusedField, equals: .summary)
+        .accessibilityIdentifier("radroots.add.summary")
       contentEditor(prompt: "Details")
       TextField("Location", text: optional(\.location))
+        .focused($focusedField, equals: .location)
         .accessibilityIdentifier("radroots.add.location")
     }
     Section("Price and quantity") {
       TextField("Price", text: optional(\.priceAmount))
         .keyboardType(.decimalPad)
+        .focused($focusedField, equals: .price)
         .accessibilityIdentifier("radroots.add.price")
       TextField("Currency", text: optional(\.currency))
         .textInputAutocapitalization(.characters)
+        .focused($focusedField, equals: .currency)
+        .accessibilityIdentifier("radroots.add.currency")
       Picker("Unit", selection: optional(\.unit)) {
         Text("Choose a unit").tag("")
         ForEach(unitChoices, id: \.self) { unit in
@@ -188,6 +208,7 @@ struct RadrootsAddView: View {
       .accessibilityIdentifier("radroots.add.unit")
       TextField("Quantity available (optional)", text: optional(\.quantity))
         .keyboardType(.decimalPad)
+        .focused($focusedField, equals: .quantity)
     }
   }
 
@@ -209,6 +230,7 @@ struct RadrootsAddView: View {
               set: { store.updateMediaAlt(id: media.id, alt: $0) }
             )
           )
+          .focused($focusedField, equals: .media(media.id))
           .accessibilityIdentifier("radroots.add.media.alt.\(media.id)")
           Button("Remove photo", role: .destructive) { store.removeMedia(id: media.id) }
         }
@@ -245,7 +267,7 @@ struct RadrootsAddView: View {
     ZStack(alignment: .topLeading) {
       TextEditor(text: required(\.content))
         .frame(minHeight: 110)
-        .focused($isContentEditorFocused)
+        .focused($focusedField, equals: .content)
         .accessibilityIdentifier("radroots.add.content")
       if store.form.content.isEmpty {
         Text(prompt)

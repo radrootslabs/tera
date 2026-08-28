@@ -55,6 +55,23 @@ not installed. `make clean` removes only rebuildable external build output and
 the ignored XCFramework; it preserves tracked generated bindings, locks,
 snapshots, project sources, and user files.
 
+The focused local-social scenario starts bounded loopback Nostr and Blossom
+fixtures, then exercises the real app stores and installed Rust FFI on one
+exact simulator. The test saves an unverified photo draft, relaunches, retries
+from the durable draft against the enabled fixture, publishes all five product
+types, and proves Today and the outbox survive another relaunch:
+
+```sh
+RADROOTS_IOS_UI_TEST_RUN_ID=local-social-example \
+cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
+  'platform=iOS Simulator,id=SIMULATOR-UDID' \
+  local-social-example
+```
+
+This harness is Debug-only, binds only explicit loopback ports, records bounded
+protocol evidence under the extbuild results root, and cannot become a
+production endpoint fallback.
+
 ## Package surface
 
 `Package.swift` publishes the `RadrootsApp` library used by the generated Xcode

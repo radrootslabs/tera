@@ -29,8 +29,8 @@ struct RadrootsTodayView: View {
           Text("Pull to refresh or add the first update to this local network.")
         } actions: {
           Button("Refresh") { Task { await store.reload() } }
+            .accessibilityIdentifier("radroots.today.refresh")
         }
-        .accessibilityIdentifier("radroots.today.empty")
       case .failed(let message) where store.cards.isEmpty:
         unavailableView(
           title: "Today is unavailable",
@@ -78,7 +78,6 @@ struct RadrootsTodayView: View {
       )
     }
     .task { await store.start() }
-    .accessibilityIdentifier("radroots.today.root")
   }
 
   private var feed: some View {
