@@ -1045,8 +1045,8 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       XCTFail("The local relay refresh did not materialize the Today feed")
       throw QualificationError.missingProductSurface
     }
-    for _ in 0..<8 { feed.swipeDown() }
     for marker in markers.reversed() {
+      for _ in 0..<8 { feed.swipeDown() }
       let card = app.descendants(matching: .any).matching(
         NSPredicate(format: "label CONTAINS %@", marker)
       ).firstMatch
