@@ -1023,6 +1023,9 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     for _ in 0..<8 where !element.exists || !element.isHittable {
       root.swipeUp()
     }
+    for _ in 0..<8 where !element.exists || !element.isHittable {
+      root.swipeDown()
+    }
   }
 
   @MainActor
