@@ -1101,7 +1101,6 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let priorStatusLabel = status.exists ? status.label : nil
     let priorSubmitValue = submit.value as? String
     submit.tap()
-    scrollTo(app, element: submit)
     guard
       waitForWorkToFinish(
         app,
@@ -1122,7 +1121,18 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       XCTFail("The terminal Add submission control was unavailable")
       return nil
     }
-    return submit.value as? String ?? "missing"
+    let terminalValue = submit.value as? String ?? "missing"
+    let statusChanged = status.exists
+      && !status.label.isEmpty
+      && status.label != priorStatusLabel
+    guard statusChanged || terminalValue != priorSubmitValue && terminalValue != "Working" else {
+      XCTFail(
+        "The Add submission did not expose changed terminal evidence; "
+          + submissionDiagnostics(app, submit: submit)
+      )
+      return nil
+    }
+    return terminalValue
   }
 
   @MainActor
@@ -1156,18 +1166,26 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     priorStatusLabel: String?,
     priorSubmitValue: String?
   ) -> Bool {
+    let addRoot = app.descendants(matching: .any)["radroots.add.root"]
     let progress = app.descendants(matching: .any)["radroots.add.progress"]
-    let finished = NSPredicate { _, _ in
-      guard !progress.exists else { return false }
+    let started = NSPredicate { _, _ in
+      if progress.exists || addRoot.exists && !addRoot.isEnabled {
+        return true
+      }
       if status.exists, !status.label.isEmpty, status.label != priorStatusLabel {
         return true
       }
-      guard submit.exists else { return false }
-      let submitValue = submit.value as? String
-      return submitValue != priorSubmitValue && submitValue != "Working"
+      return submit.exists && submit.value as? String != priorSubmitValue
     }
-    let expectation = XCTNSPredicateExpectation(predicate: finished, object: app)
-    return XCTWaiter.wait(for: [expectation], timeout: 180) == .completed
+    let startExpectation = XCTNSPredicateExpectation(predicate: started, object: app)
+    guard XCTWaiter.wait(for: [startExpectation], timeout: 10) == .completed else {
+      return false
+    }
+    let settled = NSPredicate { _, _ in
+      addRoot.exists && addRoot.isEnabled && !progress.exists
+    }
+    let settleExpectation = XCTNSPredicateExpectation(predicate: settled, object: app)
+    return XCTWaiter.wait(for: [settleExpectation], timeout: 180) == .completed
   }
 
   @MainActor
