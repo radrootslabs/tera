@@ -564,8 +564,43 @@ def classify_attempt(
     values = [event.get("content")]
     for tag in event.get("tags", []):
         values.extend(tag)
-    matches = [attempt for attempt in attempts.values() if attempt["marker"] in values]
+    matches = [
+        attempt
+        for attempt in attempts.values()
+        if (
+            photo_attempt_matches(event, attempt)
+            if attempt.get("flow") == "PhotoUpdate"
+            else attempt["marker"] in values
+        )
+    ]
     return matches[0] if len(matches) == 1 else None
+
+
+def photo_attempt_matches(event: dict[str, Any], attempt: dict[str, Any]) -> bool:
+    if attempt.get("flow") != "PhotoUpdate":
+        return False
+    content = event.get("content")
+    if not isinstance(content, str):
+        return False
+    lines = content.split("\n")
+    if len(lines) != 2 or lines[0] != attempt.get("marker"):
+        return False
+    url = lines[1]
+    match = re.fullmatch(
+        r"http://127\.0\.0\.1:([1-9][0-9]{0,4})/([0-9a-f]{64})\.png", url
+    )
+    if match is None or int(match.group(1)) > 65535:
+        return False
+    digest = match.group(2)
+    imeta = [
+        tag
+        for tag in event.get("tags", [])
+        if isinstance(tag, list) and tag[:1] == ["imeta"]
+    ]
+    return len(imeta) == 1 and all(
+        field in imeta[0]
+        for field in (f"url {url}", f"x {digest}", "m image/png")
+    )
 
 
 def identity_digest(public_key: str | None) -> str:

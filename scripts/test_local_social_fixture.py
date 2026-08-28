@@ -209,6 +209,49 @@ class LocalSocialFixtureTests(unittest.TestCase):
             )
             self.assertIsNone(fixture.read_control(path))
 
+    def test_attempt_classification_accepts_only_exact_photo_wire_shape(self) -> None:
+        marker = "rr-p01-a02-photo"
+        digest = "a" * 64
+        url = f"http://127.0.0.1:21101/{digest}.png"
+        attempt = {"flow": "PhotoUpdate", "marker": marker}
+        event = {
+            "content": f"{marker}\n{url}",
+            "tags": [
+                [
+                    "imeta",
+                    f"url {url}",
+                    f"x {digest}",
+                    "m image/png",
+                    "dim 1x1",
+                    "size 1",
+                    "alt Local qualification image",
+                ]
+            ],
+        }
+
+        self.assertIs(
+            fixture.classify_attempt(event, {"P01-A02": attempt}), attempt
+        )
+        for mutation in (
+            lambda value: value.update({"content": marker}),
+            lambda value: value.update({"content": f"prefix {marker}\n{url}"}),
+            lambda value: value.update(
+                {"content": f"{marker}\nhttps://example.com/{digest}.png"}
+            ),
+            lambda value: value["tags"][0].remove(f"x {digest}"),
+        ):
+            changed = copy.deepcopy(event)
+            mutation(changed)
+            self.assertIsNone(
+                fixture.classify_attempt(changed, {"P01-A02": attempt})
+            )
+
+        text_attempt = {"flow": "Update", "marker": "rr-p01-a01-update"}
+        embedded = {"content": "prefix rr-p01-a01-update", "tags": []}
+        self.assertIsNone(
+            fixture.classify_attempt(embedded, {"P01-A01": text_attempt})
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

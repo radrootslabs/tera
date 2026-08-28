@@ -107,10 +107,10 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     try publishFood(app, marker: markers[3])
 
     let expected = [marker] + markers
-    assertTodayContains(app, markers: expected)
+    try assertTodayContains(app, markers: expected)
     app.terminate()
     app = launchToRoot(configuration)
-    assertTodayContains(app, markers: expected)
+    try assertTodayContains(app, markers: expected)
 
     guard openAdd(app) != nil, openDrafts(app) else {
       return XCTFail("The durable outbox was unavailable after the final relaunch")
@@ -189,13 +189,13 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
         default:
           throw QualificationError.invalidPersonaFixture
         }
-        assertTodayContains(app, markers: [attempt.marker])
+        try assertTodayContains(app, markers: [attempt.marker])
       }
 
       let markers = persona.attempts.map(\.marker)
       app.terminate()
       app = launchPersona(configuration)
-      assertTodayContains(app, markers: markers)
+      try assertTodayContains(app, markers: markers)
       XCTAssertEqual(try readPublicKey(app), publicKey)
       app.terminate()
     }
@@ -947,19 +947,31 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
 
   @MainActor
   private func beginDraft(_ app: XCUIApplication, type: String) throws {
-    guard let picker = openAdd(app) else {
+    guard openAdd(app) != nil else {
       XCTFail("The Add bottom tab did not present the real Add store")
       throw QualificationError.missingProductSurface
     }
     let newDraft = app.buttons["radroots.add.new"]
-    XCTAssertTrue(newDraft.waitForExistence(timeout: 10))
+    guard newDraft.waitForExistence(timeout: 10), waitUntilHittable(newDraft, timeout: 10) else {
+      XCTFail("The New draft action was unavailable")
+      throw QualificationError.missingProductSurface
+    }
     newDraft.tap()
+    scrollAddFormToTop(app)
+    let picker = app.descendants(matching: .any)["radroots.add.type"]
+    guard picker.waitForExistence(timeout: 10), waitUntilHittable(picker, timeout: 10) else {
+      XCTFail("The Add type picker was unavailable")
+      throw QualificationError.missingProductSurface
+    }
     if picker.value as? String == type {
       return
     }
     picker.tap()
     let option = app.buttons[type]
-    XCTAssertTrue(option.waitForExistence(timeout: 10))
+    guard option.waitForExistence(timeout: 10), waitUntilHittable(option, timeout: 10) else {
+      XCTFail("The Add type picker did not present \(type)")
+      throw QualificationError.missingProductSurface
+    }
     option.tap()
     guard waitForValue(picker, value: type, timeout: 10) else {
       XCTFail("The Add type picker did not select \(type)")
@@ -1019,7 +1031,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func assertTodayContains(_ app: XCUIApplication, markers: [String]) {
+  private func assertTodayContains(_ app: XCUIApplication, markers: [String]) throws {
     app.tabBars.buttons["Today"].tap()
     let refresh = app.buttons["radroots.today.refresh"]
     if refresh.waitForExistence(timeout: 5) {
@@ -1028,7 +1040,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let feed = app.descendants(matching: .any)["radroots.today.feed"].firstMatch
     guard feed.waitForExistence(timeout: 30) else {
       XCTFail("The local relay refresh did not materialize the Today feed")
-      return
+      throw QualificationError.missingProductSurface
     }
     for marker in markers.reversed() {
       let card = app.descendants(matching: .any).matching(
@@ -1037,7 +1049,10 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       for _ in 0..<6 where !card.exists {
         feed.swipeUp()
       }
-      XCTAssertTrue(card.waitForExistence(timeout: 30), "Missing Today card \(marker)")
+      guard card.waitForExistence(timeout: 30) else {
+        XCTFail("Missing Today card \(marker)")
+        throw QualificationError.missingProductSurface
+      }
     }
   }
 
