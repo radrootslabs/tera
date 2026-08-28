@@ -467,6 +467,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   @MainActor
   private func assertProgressiveDisclosure(_ app: XCUIApplication, type: String) {
     scrollAddFormToTop(app)
+    defer { scrollAddFormToTop(app) }
     let expected = expectedAddFields[type] ?? []
     for identifier in allAddFields {
       let element = app.descendants(matching: .any)[identifier]
