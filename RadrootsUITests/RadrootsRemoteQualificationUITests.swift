@@ -1034,9 +1034,11 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   private func assertTodayContains(_ app: XCUIApplication, markers: [String]) throws {
     app.tabBars.buttons["Today"].tap()
     let refresh = app.buttons["radroots.today.refresh"]
-    if refresh.waitForExistence(timeout: 5) {
-      refresh.tap()
+    guard refresh.waitForExistence(timeout: 10), refresh.isHittable else {
+      XCTFail("The ordinary Today refresh action was unavailable")
+      throw QualificationError.missingProductSurface
     }
+    refresh.tap()
     let feed = app.descendants(matching: .any)["radroots.today.feed"].firstMatch
     guard feed.waitForExistence(timeout: 30) else {
       XCTFail("The local relay refresh did not materialize the Today feed")

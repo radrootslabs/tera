@@ -90,7 +90,7 @@ struct RadrootsTodayView: View {
           .tint(.primary)
           .frame(minWidth: 44, minHeight: 44)
           .contentShape(Rectangle())
-          .accessibilityIdentifier("radroots.today.refresh")
+          .accessibilityIdentifier("radroots.today.refresh.empty")
       }
       .frame(maxWidth: .infinity)
       .padding()
@@ -157,6 +157,14 @@ struct RadrootsTodayView: View {
       .accessibilityLabel("Choose local network")
       .accessibilityValue(store.selectedContext?.label ?? "None")
       .accessibilityIdentifier("radroots.support.context")
+    }
+    ToolbarItem(placement: .topBarTrailing) {
+      Button {
+        Task { await store.reload() }
+      } label: {
+        Label("Refresh", systemImage: "arrow.clockwise")
+      }
+      .accessibilityIdentifier("radroots.today.refresh")
     }
     ToolbarItem(placement: .topBarTrailing) {
       Button {
