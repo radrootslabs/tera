@@ -1,8 +1,7 @@
 import Foundation
+@testable import RadrootsApp
 import RadrootsKit
 import XCTest
-
-@testable import RadrootsApp
 
 final class RadrootsLifecycleTests: XCTestCase {
   func testBackgroundEventsCompleteExactlyOnceBeforeAndAfterAttachment() async {
@@ -31,7 +30,7 @@ final class RadrootsLifecycleTests: XCTestCase {
 
   func testBackgroundEventQueueIsBoundedAndShutdownCompletesPendingEvents() async {
     let router = RadrootsBackgroundEventRouter()
-    let probes = (0..<12).map { _ in CompletionProbe() }
+    let probes = (0 ..< 12).map { _ in CompletionProbe() }
 
     for probe in probes {
       await router.handle(
@@ -73,7 +72,7 @@ final class RadrootsLifecycleTests: XCTestCase {
     let privateKey = String(repeating: "ab", count: 32)
     let privatePath = "/Users/private/radroots/private.json"
 
-    for index in 0..<40 {
+    for index in 0 ..< 40 {
       await coordinator.record(
         "ios.lifecycle.test_event",
         fields: [
@@ -111,7 +110,8 @@ final class RadrootsLifecycleTests: XCTestCase {
   private func makeRoots() throws -> RadrootsAppleFileRoots {
     let base = FileManager.default.temporaryDirectory
       .appendingPathComponent(
-        "radroots-ios-lifecycle-tests-\(UUID().uuidString)", isDirectory: true)
+        "radroots-ios-lifecycle-tests-\(UUID().uuidString)", isDirectory: true
+      )
     return try RadrootsAppleFileRoots(
       appIdentifier: "org.radroots.tests",
       dataRoot: base.appendingPathComponent("data", isDirectory: true),
@@ -141,7 +141,7 @@ final class RadrootsLifecycleTests: XCTestCase {
             writeLastAttemptUnixMilliseconds: nil,
             readNextAttemptUnixMilliseconds: nil,
             writeNextAttemptUnixMilliseconds: nil
-          )
+          ),
         ]
       ),
       blossomConfiguration: nil,

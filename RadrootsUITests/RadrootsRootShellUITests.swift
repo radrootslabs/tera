@@ -39,13 +39,13 @@ final class RadrootsRootShellUITests: XCTestCase {
         tabBar.buttons["Today"].tap()
         XCTAssertTrue(today.waitForExistence(timeout: 5))
 
-        app.open(try XCTUnwrap(URL(string: "radroots://add")))
+        try app.open(XCTUnwrap(URL(string: "radroots://add")))
         XCTAssertTrue(add.waitForExistence(timeout: 2))
 
-        app.open(try XCTUnwrap(URL(string: "radroots://today")))
+        try app.open(XCTUnwrap(URL(string: "radroots://today")))
         XCTAssertTrue(today.waitForExistence(timeout: 2))
 
-        app.open(try XCTUnwrap(URL(string: "radroots://add/extra")))
+        try app.open(XCTUnwrap(URL(string: "radroots://add/extra")))
         XCTAssertTrue(today.waitForExistence(timeout: 2))
         XCTAssertFalse(add.exists)
     }

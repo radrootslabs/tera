@@ -81,8 +81,8 @@ final class RadrootsSupportingStoreTests: XCTestCase {
         XCTAssertEqual(store.settings?.identity.identities.count, 1)
         store.networkEnvironment = .physicalDevice
         store.relays = [
-            RadrootsRelayPreference(url: "wss://radroots.org/", access: .readWrite),
-            RadrootsRelayPreference(url: "wss://read.example/", access: .readOnly),
+          RadrootsRelayPreference(url: "wss://radroots.org/", access: .readWrite),
+          RadrootsRelayPreference(url: "wss://read.example/", access: .readOnly),
         ]
         store.blossomPrimaryOrigin = "https://blossom.radroots.org"
         store.allowCellularUploads = false
@@ -147,40 +147,40 @@ final class RadrootsSupportingStoreTests: XCTestCase {
 
     private static func configuration() -> RadrootsRuntimeLaunchConfiguration {
         RadrootsRuntimeLaunchConfiguration(
-            applicationSupportDirectory: "/tmp/radroots-supporting-tests",
-            publicKeyHex: String(repeating: "a", count: 64),
-            sourceGenerationHex: String(repeating: "c", count: 64),
-            sourceGenerationCreatedAtUnixMilliseconds: 1,
-            protectedData: .available,
-            networkProfile: .simulator,
-            writableRelays: ["ws://127.0.0.1:7447"],
-            blossom: RadrootsBlossomEndpointConfiguration(
-                hostKind: .simulator,
-                endpointAuthority: .loopbackDevelopment,
-                primaryOrigin: "http://127.0.0.1:3000",
-                fallbackOrigins: []
-            ),
-            app: RadrootsRuntimeAppMetadata(
-                bundleIdentifier: "org.radroots.supporting-tests",
-                version: "0.1.0-alpha",
-                buildNumber: "1",
-                buildSHA: nil
-            ),
-            signerGeneration: "supporting-tests",
-            signer: SupportingSigner(),
-            adoptBootstrapSettings: false
+          applicationSupportDirectory: "/tmp/radroots-supporting-tests",
+          publicKeyHex: String(repeating: "a", count: 64),
+          sourceGenerationHex: String(repeating: "c", count: 64),
+          sourceGenerationCreatedAtUnixMilliseconds: 1,
+          protectedData: .available,
+          networkProfile: .simulator,
+          writableRelays: ["ws://127.0.0.1:7447"],
+          blossom: RadrootsBlossomEndpointConfiguration(
+            hostKind: .simulator,
+            endpointAuthority: .loopbackDevelopment,
+            primaryOrigin: "http://127.0.0.1:3000",
+            fallbackOrigins: []
+          ),
+          app: RadrootsRuntimeAppMetadata(
+            bundleIdentifier: "org.radroots.supporting-tests",
+            version: "0.1.0-alpha",
+            buildNumber: "1",
+            buildSHA: nil
+          ),
+          signerGeneration: "supporting-tests",
+          signer: SupportingSigner(),
+          adoptBootstrapSettings: false
         )
     }
 
     private static func context(id: String) -> RadrootsLocalNetwork {
         RadrootsLocalNetwork(
-            schemaVersion: 1,
-            id: id,
-            label: "Farm",
-            relayURLs: ["ws://127.0.0.1:7447"],
-            locality: "Metchosin",
-            followedAuthors: [],
-            generation: 1
+          schemaVersion: 1,
+          id: id,
+          label: "Farm",
+          relayURLs: ["ws://127.0.0.1:7447"],
+          locality: "Metchosin",
+          followedAuthors: [],
+          generation: 1
         )
     }
 }
@@ -213,16 +213,16 @@ private actor SupportingBackend: RadrootsRuntimeBackend {
 
     func snapshotValue() -> RadrootsRuntimeSnapshot {
         RadrootsRuntimeSnapshot(
-            identity: RadrootsRuntimeIdentity(
-                publicKeyHex: String(repeating: "a", count: 64),
-                hostSignerConfigured: true
-            ),
-            relay: nil,
-            blossomConfiguration: nil,
-            blossomEvidence: nil,
-            crateName: "radroots_mobile_ffi",
-            crateVersion: "0.1.0-alpha",
-            isClosed: closed
+          identity: RadrootsRuntimeIdentity(
+            publicKeyHex: String(repeating: "a", count: 64),
+            hostSignerConfigured: true
+          ),
+          relay: nil,
+          blossomConfiguration: nil,
+          blossomEvidence: nil,
+          crateName: "radroots_mobile_ffi",
+          crateVersion: "0.1.0-alpha",
+          isClosed: closed
         )
     }
 
@@ -235,18 +235,18 @@ private actor SupportingBackend: RadrootsRuntimeBackend {
     }
 
     func refreshToday(
-        context _: RadrootsLocalNetwork,
-        nowUnixSeconds _: UInt64,
-        update _: RadrootsTodayProjectionUpdate
+      context _: RadrootsLocalNetwork,
+      nowUnixSeconds _: UInt64,
+      update _: RadrootsTodayProjectionUpdate
     ) throws -> RadrootsTodayRefreshReceipt {
         throw unsupported()
     }
 
     func search(
-        context: RadrootsLocalNetwork,
-        query: String,
-        limit _: UInt16,
-        asOfUnixSeconds _: UInt64
+      context: RadrootsLocalNetwork,
+      query: String,
+      limit _: UInt16,
+      asOfUnixSeconds _: UInt64
     ) async throws -> [RadrootsSearchResult] {
         request = SearchRequest(contextID: context.id, query: query)
         if searchDelayNanoseconds > 0 {
@@ -255,20 +255,20 @@ private actor SupportingBackend: RadrootsRuntimeBackend {
         let card = Self.card()
         let profile = Self.profile()
         return [
-            RadrootsSearchResult(type: .card, id: "card", card: card, profile: nil),
-            RadrootsSearchResult(type: .card, id: "card", card: card, profile: nil),
-            RadrootsSearchResult(type: .profile, id: "profile", card: nil, profile: profile),
+          RadrootsSearchResult(type: .card, id: "card", card: card, profile: nil),
+          RadrootsSearchResult(type: .card, id: "card", card: card, profile: nil),
+          RadrootsSearchResult(type: .profile, id: "profile", card: nil, profile: profile),
         ]
     }
 
     func me(
-        context _: RadrootsLocalNetwork,
-        asOfUnixSeconds _: UInt64
+      context _: RadrootsLocalNetwork,
+      asOfUnixSeconds _: UInt64
     ) -> RadrootsMeSnapshot {
         RadrootsMeSnapshot(
-            publicKey: String(repeating: "a", count: 64),
-            profile: Self.profile(),
-            cards: [Self.card()]
+          publicKey: String(repeating: "a", count: 64),
+          profile: Self.profile(),
+          cards: [Self.card()]
         )
     }
 
@@ -286,24 +286,24 @@ private actor SupportingBackend: RadrootsRuntimeBackend {
             throw failure(code: "invalid_relay_endpoint")
         }
         settings = RadrootsMobileSettings(
-            revision: settings.revision + 1,
-            identity: settings.identity,
-            networkEnvironment: input.networkEnvironment,
-            relays: input.relays,
-            blossomAuthority: input.blossomAuthority,
-            blossomPrimaryOrigin: input.blossomPrimaryOrigin,
-            blossomFallbackOrigins: input.blossomFallbackOrigins,
-            allowCellularDownloads: input.allowCellularDownloads,
-            allowCellularUploads: input.allowCellularUploads,
-            allowBackgroundTransfers: input.allowBackgroundTransfers,
-            mediaCacheBytes: input.mediaCacheBytes,
-            mediaCacheArtifacts: input.mediaCacheArtifacts
+          revision: settings.revision + 1,
+          identity: settings.identity,
+          networkEnvironment: input.networkEnvironment,
+          relays: input.relays,
+          blossomAuthority: input.blossomAuthority,
+          blossomPrimaryOrigin: input.blossomPrimaryOrigin,
+          blossomFallbackOrigins: input.blossomFallbackOrigins,
+          allowCellularDownloads: input.allowCellularDownloads,
+          allowCellularUploads: input.allowCellularUploads,
+          allowBackgroundTransfers: input.allowBackgroundTransfers,
+          mediaCacheBytes: input.mediaCacheBytes,
+          mediaCacheArtifacts: input.mediaCacheArtifacts
         )
         return RadrootsSettingsTransition(
-            settings: settings,
-            runtimeRestartRequired: true,
-            outboxRequeueRequired: true,
-            mediaCacheInvalidationRequired: true
+          settings: settings,
+          runtimeRestartRequired: true,
+          outboxRequeueRequired: true,
+          mediaCacheInvalidationRequired: true
         )
     }
 
@@ -314,31 +314,31 @@ private actor SupportingBackend: RadrootsRuntimeBackend {
 
     func advanceProfile(operationID _: String) -> RadrootsProfileStatus {
         profileStatus(
-            state: .complete,
-            revision: 2,
-            settlement: RadrootsOperationSettlement(
-                artifacts: 0,
-                signed: 1,
-                admitted: 1,
-                pending: 0,
-                retryable: 0,
-                indeterminate: 0,
-                failedTerminal: 0,
-                cancelled: 0,
-                deliveryPlans: 1,
-                deliverySatisfied: 1,
-                deliveryPending: 0,
-                deliveryRetryable: 0,
-                deliveryExhausted: 0,
-                deliveryFailedTerminal: 0,
-                deliveryCancelled: 0
-            )
+          state: .complete,
+          revision: 2,
+          settlement: RadrootsOperationSettlement(
+            artifacts: 0,
+            signed: 1,
+            admitted: 1,
+            pending: 0,
+            retryable: 0,
+            indeterminate: 0,
+            failedTerminal: 0,
+            cancelled: 0,
+            deliveryPlans: 1,
+            deliverySatisfied: 1,
+            deliveryPending: 0,
+            deliveryRetryable: 0,
+            deliveryExhausted: 0,
+            deliveryFailedTerminal: 0,
+            deliveryCancelled: 0
+          )
         )
     }
 
     func subscribe(
-        bufferCapacity _: Int,
-        receive _: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
+      bufferCapacity _: Int,
+      receive _: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
     ) -> any RadrootsRuntimeSubscriptionToken {
         SupportingSubscriptionToken()
     }
@@ -359,116 +359,116 @@ private actor SupportingBackend: RadrootsRuntimeBackend {
 
     private func failure(code: String) -> RadrootsRuntimeFailure {
         RadrootsRuntimeFailure(
-            schemaVersion: 1,
-            code: code,
-            category: "invalid_argument",
-            retryable: false,
-            recoveryActions: [],
-            operationID: "test.settings",
-            capabilityID: nil,
-            safeMessage: "The settings value is invalid."
+          schemaVersion: 1,
+          code: code,
+          category: "invalid_argument",
+          retryable: false,
+          recoveryActions: [],
+          operationID: "test.settings",
+          capabilityID: nil,
+          safeMessage: "The settings value is invalid."
         )
     }
 
     private func profileStatus(
-        state: RadrootsOutboxState,
-        revision: UInt64,
-        settlement: RadrootsOperationSettlement?
+      state: RadrootsOutboxState,
+      revision: UInt64,
+      settlement: RadrootsOperationSettlement?
     ) -> RadrootsProfileStatus {
         RadrootsProfileStatus(
-            id: "profile-operation",
-            revision: revision,
-            authorPublicKey: String(repeating: "a", count: 64),
-            state: state,
-            deliveryID: state == .complete ? "delivery" : nil,
-            createdAtUnixMilliseconds: 1,
-            updatedAtUnixMilliseconds: revision,
-            settlement: settlement
+          id: "profile-operation",
+          revision: revision,
+          authorPublicKey: String(repeating: "a", count: 64),
+          state: state,
+          deliveryID: state == .complete ? "delivery" : nil,
+          createdAtUnixMilliseconds: 1,
+          updatedAtUnixMilliseconds: revision,
+          settlement: settlement
         )
     }
 
     private static func initialSettings() -> RadrootsMobileSettings {
         RadrootsMobileSettings(
-            revision: 1,
-            identity: RadrootsSettingsIdentityState(
-                identities: [
-                    RadrootsSettingsIdentity(
-                        id: "identity",
-                        publicKeyHex: String(repeating: "a", count: 64)
-                    ),
-                ],
-                activeIdentityID: "identity",
-                lockState: .unlocked,
-                pendingImportOperationID: nil
-            ),
-            networkEnvironment: .simulator,
-            relays: [
-                RadrootsRelayPreference(url: "ws://127.0.0.1:7447", access: .readWrite),
+          revision: 1,
+          identity: RadrootsSettingsIdentityState(
+            identities: [
+              RadrootsSettingsIdentity(
+                id: "identity",
+                publicKeyHex: String(repeating: "a", count: 64)
+              ),
             ],
-            blossomAuthority: .loopbackDevelopment,
-            blossomPrimaryOrigin: "http://127.0.0.1:3000",
-            blossomFallbackOrigins: [],
-            allowCellularDownloads: true,
-            allowCellularUploads: true,
-            allowBackgroundTransfers: true,
-            mediaCacheBytes: 256 * 1_048_576,
-            mediaCacheArtifacts: 1024
+            activeIdentityID: "identity",
+            lockState: .unlocked,
+            pendingImportOperationID: nil
+          ),
+          networkEnvironment: .simulator,
+          relays: [
+            RadrootsRelayPreference(url: "ws://127.0.0.1:7447", access: .readWrite),
+          ],
+          blossomAuthority: .loopbackDevelopment,
+          blossomPrimaryOrigin: "http://127.0.0.1:3000",
+          blossomFallbackOrigins: [],
+          allowCellularDownloads: true,
+          allowCellularUploads: true,
+          allowBackgroundTransfers: true,
+          mediaCacheBytes: 256 * 1_048_576,
+          mediaCacheArtifacts: 1024
         )
     }
 
     private func unsupported() -> RadrootsRuntimeFailure {
         .local(
-            operation: "test.supporting",
-            code: "test.unsupported",
-            safeMessage: "Unsupported test operation."
+          operation: "test.supporting",
+          code: "test.unsupported",
+          safeMessage: "Unsupported test operation."
         )
     }
 
     private static func profile() -> RadrootsProfileSummary {
         RadrootsProfileSummary(
-            authorPublicKey: String(repeating: "a", count: 64),
-            name: "moss",
-            displayName: "Moss Farm",
-            about: "Local roots",
-            picture: nil,
-            banner: nil,
-            nip05: "moss@example.com",
-            website: "https://moss.example",
-            lightningAddress: "moss@example.com"
+          authorPublicKey: String(repeating: "a", count: 64),
+          name: "moss",
+          displayName: "Moss Farm",
+          about: "Local roots",
+          picture: nil,
+          banner: nil,
+          nip05: "moss@example.com",
+          website: "https://moss.example",
+          lightningAddress: "moss@example.com"
         )
     }
 
     private static func card() -> RadrootsTodayCard {
         RadrootsTodayCard(
-            id: "card",
-            type: .foodAvailability,
-            sourceEventID: String(repeating: "e", count: 64),
-            sourceAddress: nil,
-            authorPublicKey: String(repeating: "a", count: 64),
-            contractID: "radroots.food_availability.v1",
-            title: "Carrots",
-            content: "Freshly picked",
-            authoredAtUnixSeconds: 1_800_000_000,
-            effectiveAtUnixSeconds: 1_800_000_000,
-            eventStartUnixSeconds: nil,
-            eventEndUnixSeconds: nil,
-            location: "Metchosin",
-            priceAmount: "3",
-            priceCurrency: "CAD",
-            priceUnit: "lb",
-            quantity: "12",
-            foodSummary: "Fresh carrots",
-            foodPublishedAtUnixSeconds: 1_800_000_000,
-            foodStatus: "active",
-            contextRank: 1,
-            inclusionReason: "local",
-            media: [],
-            lifecycle: .active,
-            rankDigest: nil,
-            authorProfile: profile(),
-            thread: [],
-            localOperationID: nil,
-            localOperationState: nil
+          id: "card",
+          type: .foodAvailability,
+          sourceEventID: String(repeating: "e", count: 64),
+          sourceAddress: nil,
+          authorPublicKey: String(repeating: "a", count: 64),
+          contractID: "radroots.food_availability.v1",
+          title: "Carrots",
+          content: "Freshly picked",
+          authoredAtUnixSeconds: 1_800_000_000,
+          effectiveAtUnixSeconds: 1_800_000_000,
+          eventStartUnixSeconds: nil,
+          eventEndUnixSeconds: nil,
+          location: "Metchosin",
+          priceAmount: "3",
+          priceCurrency: "CAD",
+          priceUnit: "lb",
+          quantity: "12",
+          foodSummary: "Fresh carrots",
+          foodPublishedAtUnixSeconds: 1_800_000_000,
+          foodStatus: "active",
+          contextRank: 1,
+          inclusionReason: "local",
+          media: [],
+          lifecycle: .active,
+          rankDigest: nil,
+          authorProfile: profile(),
+          thread: [],
+          localOperationID: nil,
+          localOperationState: nil
         )
     }
 }

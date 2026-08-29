@@ -41,10 +41,10 @@ final class RadrootsRuntimeClientTests: XCTestCase {
             $0?.generation
         }
         let secondValues = await [
-            secondIterator.next(),
-            secondIterator.next(),
-            secondIterator.next(),
-            secondIterator.next(),
+          secondIterator.next(),
+          secondIterator.next(),
+          secondIterator.next(),
+          secondIterator.next(),
         ].compactMap { $0?.generation }
 
         XCTAssertEqual(firstValues, [9, 10])
@@ -56,9 +56,9 @@ final class RadrootsRuntimeClientTests: XCTestCase {
 
     func testOverlappingStopsAwaitOneTypedShutdownFailure() async throws {
         let failure = RadrootsRuntimeFailure.local(
-            operation: "test.shutdown",
-            code: "test.shutdown_failed",
-            safeMessage: "Shutdown did not complete."
+          operation: "test.shutdown",
+          code: "test.shutdown_failed",
+          safeMessage: "Shutdown did not complete."
         )
         let harness = RuntimeHarness(shutdownFailure: failure)
         let client = RadrootsRuntimeClient(factory: harness.start)
@@ -145,8 +145,8 @@ final class RadrootsRuntimeClientTests: XCTestCase {
     func testStartupDeadlineReturnsPromptlyAndClosesLateBackend() async throws {
         let harness = RuntimeHarness(startDelayNanoseconds: 60_000_000)
         let client = RadrootsRuntimeClient(
-            factory: harness.start,
-            deadlines: makeDeadlines(startup: 5_000_000)
+          factory: harness.start,
+          deadlines: makeDeadlines(startup: 5_000_000)
         )
 
         do {
@@ -217,8 +217,8 @@ final class RadrootsRuntimeClientTests: XCTestCase {
     func testOperationDeadlineAndLateValueCannotEscape() async throws {
         let harness = RuntimeHarness(snapshotDelayNanoseconds: 60_000_000)
         let client = RadrootsRuntimeClient(
-            factory: harness.start,
-            deadlines: makeDeadlines(operation: 5_000_000)
+          factory: harness.start,
+          deadlines: makeDeadlines(operation: 5_000_000)
         )
         _ = try await client.start(configuration: makeConfiguration(generation: "09"))
 
@@ -262,8 +262,8 @@ final class RadrootsRuntimeClientTests: XCTestCase {
     func testShutdownDeadlineQuarantinesBackendUntilLateSuccess() async throws {
         let harness = RuntimeHarness(shutdownDelayNanoseconds: 60_000_000)
         let client = RadrootsRuntimeClient(
-            factory: harness.start,
-            deadlines: makeDeadlines(shutdown: 5_000_000)
+          factory: harness.start,
+          deadlines: makeDeadlines(shutdown: 5_000_000)
         )
         _ = try await client.start(configuration: makeConfiguration(generation: "0a"))
 
@@ -292,9 +292,9 @@ final class RadrootsRuntimeClientTests: XCTestCase {
         let client = RadrootsRuntimeClient(factory: harness.start)
         let snapshot = try await client.start(configuration: makeConfiguration(generation: "0b"))
         let store = RadrootsTodayStore(
-            runtimeClient: client,
-            contexts: [.defaultContext(snapshot: snapshot)],
-            observationDelay: { _ in try await Task.sleep(nanoseconds: 20_000_000) }
+          runtimeClient: client,
+          contexts: [.defaultContext(snapshot: snapshot)],
+          observationDelay: { _ in try await Task.sleep(nanoseconds: 20_000_000) }
         )
 
         await store.start()
@@ -314,16 +314,16 @@ final class RadrootsRuntimeClientTests: XCTestCase {
     }
 
     private func makeDeadlines(
-        startup: UInt64 = 1_000_000_000,
-        operation: UInt64 = 1_000_000_000,
-        subscription: UInt64 = 1_000_000_000,
-        shutdown: UInt64 = 1_000_000_000
+      startup: UInt64 = 1_000_000_000,
+      operation: UInt64 = 1_000_000_000,
+      subscription: UInt64 = 1_000_000_000,
+      shutdown: UInt64 = 1_000_000_000
     ) -> RadrootsRuntimeDeadlinePolicy {
         RadrootsRuntimeDeadlinePolicy(
-            startupNanoseconds: startup,
-            operationNanoseconds: operation,
-            subscriptionNanoseconds: subscription,
-            shutdownNanoseconds: shutdown
+          startupNanoseconds: startup,
+          operationNanoseconds: operation,
+          subscriptionNanoseconds: subscription,
+          shutdownNanoseconds: shutdown
         )
     }
 
@@ -342,37 +342,37 @@ final class RadrootsRuntimeClientTests: XCTestCase {
 
     private func makeConfiguration(generation: String) -> RadrootsRuntimeLaunchConfiguration {
         RadrootsRuntimeLaunchConfiguration(
-            applicationSupportDirectory: "/tmp/radroots-runtime-tests-\(generation)",
-            publicKeyHex: String(repeating: generation, count: 32),
-            sourceGenerationHex: String(repeating: generation, count: 32),
-            sourceGenerationCreatedAtUnixMilliseconds: 1,
-            protectedData: .available,
-            networkProfile: .simulator,
-            writableRelays: ["ws://127.0.0.1:7447"],
-            blossom: RadrootsBlossomEndpointConfiguration(
-                hostKind: .simulator,
-                endpointAuthority: .loopbackDevelopment,
-                primaryOrigin: "http://127.0.0.1:3000",
-                fallbackOrigins: []
-            ),
-            app: RadrootsRuntimeAppMetadata(
-                bundleIdentifier: "org.radroots.tests",
-                version: "0.1.0-alpha",
-                buildNumber: "1",
-                buildSHA: nil
-            ),
-            signerGeneration: generation,
-            signer: TestRuntimeSigner(),
-            adoptBootstrapSettings: false
+          applicationSupportDirectory: "/tmp/radroots-runtime-tests-\(generation)",
+          publicKeyHex: String(repeating: generation, count: 32),
+          sourceGenerationHex: String(repeating: generation, count: 32),
+          sourceGenerationCreatedAtUnixMilliseconds: 1,
+          protectedData: .available,
+          networkProfile: .simulator,
+          writableRelays: ["ws://127.0.0.1:7447"],
+          blossom: RadrootsBlossomEndpointConfiguration(
+            hostKind: .simulator,
+            endpointAuthority: .loopbackDevelopment,
+            primaryOrigin: "http://127.0.0.1:3000",
+            fallbackOrigins: []
+          ),
+          app: RadrootsRuntimeAppMetadata(
+            bundleIdentifier: "org.radroots.tests",
+            version: "0.1.0-alpha",
+            buildNumber: "1",
+            buildSHA: nil
+          ),
+          signerGeneration: generation,
+          signer: TestRuntimeSigner(),
+          adoptBootstrapSettings: false
         )
     }
 
     private func change(generation: UInt64) -> RadrootsRuntimeChange {
         RadrootsRuntimeChange(
-            schemaVersion: 1,
-            generation: generation,
-            kind: .today,
-            entityID: "card-\(generation)"
+          schemaVersion: 1,
+          generation: generation,
+          kind: .today,
+          entityID: "card-\(generation)"
         )
     }
 }
@@ -400,11 +400,11 @@ private actor RuntimeHarness {
     private var receivers: [UUID: @Sendable (RadrootsRuntimeChange) async -> Void] = [:]
 
     init(
-        startDelayNanoseconds: UInt64 = 0,
-        snapshotDelayNanoseconds: UInt64 = 0,
-        shutdownDelayNanoseconds: UInt64 = 10_000_000,
-        subscriptionFailures: Int = 0,
-        shutdownFailure: RadrootsRuntimeFailure? = nil
+      startDelayNanoseconds: UInt64 = 0,
+      snapshotDelayNanoseconds: UInt64 = 0,
+      shutdownDelayNanoseconds: UInt64 = 10_000_000,
+      subscriptionFailures: Int = 0,
+      shutdownFailure: RadrootsRuntimeFailure? = nil
     ) {
         self.startDelayNanoseconds = startDelayNanoseconds
         self.snapshotDelayNanoseconds = snapshotDelayNanoseconds
@@ -423,15 +423,15 @@ private actor RuntimeHarness {
             }.value
         }
         let backend = TestRuntimeBackend(
-            harness: self,
-            publicKeyHex: configuration.publicKeyHex,
-            snapshotDelayNanoseconds: snapshotDelayNanoseconds,
-            shutdownDelayNanoseconds: shutdownDelayNanoseconds,
-            shutdownFailure: shutdownFailure
+          harness: self,
+          publicKeyHex: configuration.publicKeyHex,
+          snapshotDelayNanoseconds: snapshotDelayNanoseconds,
+          shutdownDelayNanoseconds: shutdownDelayNanoseconds,
+          shutdownFailure: shutdownFailure
         )
         return await RadrootsRuntimeBackendStart(
-            backend: backend,
-            snapshot: backend.snapshotValue()
+          backend: backend,
+          snapshot: backend.snapshotValue()
         )
     }
 
@@ -442,9 +442,9 @@ private actor RuntimeHarness {
         if subscriptionFailures > 0 {
             subscriptionFailures -= 1
             throw RadrootsRuntimeFailure.local(
-                operation: "test.subscribe",
-                code: "test.subscribe_retryable",
-                safeMessage: "The test subscription is temporarily unavailable."
+              operation: "test.subscribe",
+              code: "test.subscribe_retryable",
+              safeMessage: "The test subscription is temporarily unavailable."
             )
         }
         let id = UUID()
@@ -494,27 +494,27 @@ private actor TestRuntimeBackend: RadrootsRuntimeBackend {
     private var closed = false
 
     init(
-        harness: RuntimeHarness,
-        publicKeyHex: String,
-        snapshotDelayNanoseconds: UInt64,
-        shutdownDelayNanoseconds: UInt64,
-        shutdownFailure: RadrootsRuntimeFailure?
+      harness: RuntimeHarness,
+      publicKeyHex: String,
+      snapshotDelayNanoseconds: UInt64,
+      shutdownDelayNanoseconds: UInt64,
+      shutdownFailure: RadrootsRuntimeFailure?
     ) {
         self.harness = harness
         self.snapshotDelayNanoseconds = snapshotDelayNanoseconds
         self.shutdownDelayNanoseconds = shutdownDelayNanoseconds
         self.shutdownFailure = shutdownFailure
         snapshotValueStored = RadrootsRuntimeSnapshot(
-            identity: RadrootsRuntimeIdentity(
-                publicKeyHex: publicKeyHex,
-                hostSignerConfigured: true
-            ),
-            relay: nil,
-            blossomConfiguration: nil,
-            blossomEvidence: nil,
-            crateName: "radroots_mobile_ffi",
-            crateVersion: "0.1.0-alpha",
-            isClosed: false
+          identity: RadrootsRuntimeIdentity(
+            publicKeyHex: publicKeyHex,
+            hostSignerConfigured: true
+          ),
+          relay: nil,
+          blossomConfiguration: nil,
+          blossomEvidence: nil,
+          crateName: "radroots_mobile_ffi",
+          crateVersion: "0.1.0-alpha",
+          isClosed: false
         )
     }
 
@@ -530,9 +530,9 @@ private actor TestRuntimeBackend: RadrootsRuntimeBackend {
         }
         if closed {
             throw RadrootsRuntimeFailure.local(
-                operation: "test.snapshot",
-                code: "test.closed",
-                safeMessage: "The test runtime is closed."
+              operation: "test.snapshot",
+              code: "test.closed",
+              safeMessage: "The test runtime is closed."
             )
         }
         return snapshotValueStored
@@ -540,27 +540,27 @@ private actor TestRuntimeBackend: RadrootsRuntimeBackend {
 
     func todayPage(request _: RadrootsTodayPageRequest) throws -> RadrootsTodayPage {
         throw RadrootsRuntimeFailure.local(
-            operation: "test.today.page",
-            code: "test.unsupported",
-            safeMessage: "Today is not configured for this lifecycle test."
+          operation: "test.today.page",
+          code: "test.unsupported",
+          safeMessage: "Today is not configured for this lifecycle test."
         )
     }
 
     func refreshToday(
-        context _: RadrootsLocalNetwork,
-        nowUnixSeconds _: UInt64,
-        update _: RadrootsTodayProjectionUpdate
+      context _: RadrootsLocalNetwork,
+      nowUnixSeconds _: UInt64,
+      update _: RadrootsTodayProjectionUpdate
     ) throws -> RadrootsTodayRefreshReceipt {
         throw RadrootsRuntimeFailure.local(
-            operation: "test.today.refresh",
-            code: "test.unsupported",
-            safeMessage: "Today is not configured for this lifecycle test."
+          operation: "test.today.refresh",
+          code: "test.unsupported",
+          safeMessage: "Today is not configured for this lifecycle test."
         )
     }
 
     func subscribe(
-        bufferCapacity _: Int,
-        receive: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
+      bufferCapacity _: Int,
+      receive: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
     ) async throws -> any RadrootsRuntimeSubscriptionToken {
         let id = try await harness.addReceiver(receive)
         return TestSubscriptionToken(harness: harness, id: id)

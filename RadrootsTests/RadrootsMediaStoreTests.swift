@@ -44,14 +44,14 @@ final class RadrootsMediaStoreTests: XCTestCase {
     func testRetryableRetrievalFailurePresentsOfflineState() async throws {
         let backend = MediaBackend(
             retrievalFailure: RadrootsRuntimeFailure(
-                schemaVersion: 1,
-                code: "media_network_offline",
-                category: "network",
-                retryable: true,
-                recoveryActions: ["retry"],
-                operationID: "test.media.retrieve",
-                capabilityID: "blossom_source",
-                safeMessage: "The photo service is offline."
+              schemaVersion: 1,
+              code: "media_network_offline",
+              category: "network",
+              retryable: true,
+              recoveryActions: ["retry"],
+              operationID: "test.media.retrieve",
+              capabilityID: "blossom_source",
+              safeMessage: "The photo service is offline."
             )
         )
         let client = try await startedClient(backend: backend)
@@ -95,8 +95,8 @@ final class RadrootsMediaStoreTests: XCTestCase {
 
     @MainActor
     private func waitUntil(
-        attempts: Int = 100,
-        condition: () -> Bool
+      attempts: Int = 100,
+      condition: () -> Bool
     ) async {
         for _ in 0 ..< attempts {
             if condition() {
@@ -110,40 +110,40 @@ final class RadrootsMediaStoreTests: XCTestCase {
 
     private func makeConfiguration() -> RadrootsRuntimeLaunchConfiguration {
         RadrootsRuntimeLaunchConfiguration(
-            applicationSupportDirectory: "/tmp/radroots-media-tests",
-            publicKeyHex: String(repeating: "ab", count: 32),
-            sourceGenerationHex: String(repeating: "cd", count: 32),
-            sourceGenerationCreatedAtUnixMilliseconds: 1,
-            protectedData: .available,
-            networkProfile: .simulator,
-            writableRelays: ["ws://127.0.0.1:21000"],
-            blossom: RadrootsBlossomEndpointConfiguration(
-                hostKind: .simulator,
-                endpointAuthority: .loopbackDevelopment,
-                primaryOrigin: "http://127.0.0.1:21100",
-                fallbackOrigins: []
-            ),
-            app: RadrootsRuntimeAppMetadata(
-                bundleIdentifier: "org.radroots.media-tests",
-                version: "0.1.0-alpha",
-                buildNumber: "1",
-                buildSHA: nil
-            ),
-            signerGeneration: "media-tests",
-            signer: MediaTestSigner(),
-            adoptBootstrapSettings: false
+          applicationSupportDirectory: "/tmp/radroots-media-tests",
+          publicKeyHex: String(repeating: "ab", count: 32),
+          sourceGenerationHex: String(repeating: "cd", count: 32),
+          sourceGenerationCreatedAtUnixMilliseconds: 1,
+          protectedData: .available,
+          networkProfile: .simulator,
+          writableRelays: ["ws://127.0.0.1:21000"],
+          blossom: RadrootsBlossomEndpointConfiguration(
+            hostKind: .simulator,
+            endpointAuthority: .loopbackDevelopment,
+            primaryOrigin: "http://127.0.0.1:21100",
+            fallbackOrigins: []
+          ),
+          app: RadrootsRuntimeAppMetadata(
+            bundleIdentifier: "org.radroots.media-tests",
+            version: "0.1.0-alpha",
+            buildNumber: "1",
+            buildSHA: nil
+          ),
+          signerGeneration: "media-tests",
+          signer: MediaTestSigner(),
+          adoptBootstrapSettings: false
         )
     }
 
     private func makeContext() -> RadrootsLocalNetwork {
         RadrootsLocalNetwork(
-            schemaVersion: 1,
-            id: "media-context",
-            label: "Media context",
-            relayURLs: ["ws://127.0.0.1:21000"],
-            locality: nil,
-            followedAuthors: [],
-            generation: 1
+          schemaVersion: 1,
+          id: "media-context",
+          label: "Media context",
+          relayURLs: ["ws://127.0.0.1:21000"],
+          locality: nil,
+          followedAuthors: [],
+          generation: 1
         )
     }
 
@@ -151,15 +151,15 @@ final class RadrootsMediaStoreTests: XCTestCase {
         verification: RadrootsMediaVerificationState
     ) -> RadrootsMediaReference {
         RadrootsMediaReference(
-            referenceFingerprint: String(repeating: "f", count: 64),
-            url: "https://blossom.example/\(String(repeating: "a", count: 64)).png",
-            sha256: String(repeating: "a", count: 64),
-            mediaType: "image/png",
-            width: 1,
-            height: 1,
-            byteSize: nil,
-            alt: "A farm photo",
-            verification: verification
+          referenceFingerprint: String(repeating: "f", count: 64),
+          url: "https://blossom.example/\(String(repeating: "a", count: 64)).png",
+          sha256: String(repeating: "a", count: 64),
+          mediaType: "image/png",
+          width: 1,
+          height: 1,
+          byteSize: nil,
+          alt: "A farm photo",
+          verification: verification
         )
     }
 
@@ -169,12 +169,12 @@ final class RadrootsMediaStoreTests: XCTestCase {
         )!
     ) -> RadrootsVerifiedMediaArtifact {
         RadrootsVerifiedMediaArtifact(
-            artifactID: String(repeating: "a", count: 64),
-            bytes: bytes,
-            byteSize: UInt64(bytes.count),
-            mediaType: "image/png",
-            width: 1,
-            height: 1
+          artifactID: String(repeating: "a", count: 64),
+          bytes: bytes,
+          byteSize: UInt64(bytes.count),
+          mediaType: "image/png",
+          width: 1,
+          height: 1
         )!
     }
 }
@@ -199,9 +199,9 @@ private actor MediaBackend: RadrootsRuntimeBackend {
     private var closed = false
 
     init(
-        cachedArtifact: RadrootsVerifiedMediaArtifact? = nil,
-        retrievedArtifact: RadrootsVerifiedMediaArtifact? = nil,
-        retrievalFailure: RadrootsRuntimeFailure? = nil
+      cachedArtifact: RadrootsVerifiedMediaArtifact? = nil,
+      retrievedArtifact: RadrootsVerifiedMediaArtifact? = nil,
+      retrievalFailure: RadrootsRuntimeFailure? = nil
     ) {
         self.cachedArtifact = cachedArtifact
         self.retrievedArtifact = retrievedArtifact
@@ -210,16 +210,16 @@ private actor MediaBackend: RadrootsRuntimeBackend {
 
     func snapshot() -> RadrootsRuntimeSnapshot {
         RadrootsRuntimeSnapshot(
-            identity: RadrootsRuntimeIdentity(
-                publicKeyHex: String(repeating: "ab", count: 32),
-                hostSignerConfigured: true
-            ),
-            relay: nil,
-            blossomConfiguration: nil,
-            blossomEvidence: nil,
-            crateName: "radroots_mobile_ffi",
-            crateVersion: "0.1.0-alpha",
-            isClosed: closed
+          identity: RadrootsRuntimeIdentity(
+            publicKeyHex: String(repeating: "ab", count: 32),
+            hostSignerConfigured: true
+          ),
+          relay: nil,
+          blossomConfiguration: nil,
+          blossomEvidence: nil,
+          crateName: "radroots_mobile_ffi",
+          crateVersion: "0.1.0-alpha",
+          isClosed: closed
         )
     }
 
@@ -228,16 +228,16 @@ private actor MediaBackend: RadrootsRuntimeBackend {
     }
 
     func refreshToday(
-        context _: RadrootsLocalNetwork,
-        nowUnixSeconds _: UInt64,
-        update _: RadrootsTodayProjectionUpdate
+      context _: RadrootsLocalNetwork,
+      nowUnixSeconds _: UInt64,
+      update _: RadrootsTodayProjectionUpdate
     ) throws -> RadrootsTodayRefreshReceipt {
         throw testFailure(operation: "test.media.refresh")
     }
 
     func retrieveMedia(
-        context _: RadrootsLocalNetwork,
-        reference _: RadrootsMediaReference
+      context _: RadrootsLocalNetwork,
+      reference _: RadrootsMediaReference
     ) throws -> RadrootsVerifiedMediaArtifact {
         retrieveCalls += 1
         if let retrievalFailure {
@@ -250,16 +250,16 @@ private actor MediaBackend: RadrootsRuntimeBackend {
     }
 
     func verifiedMediaArtifact(
-        context _: RadrootsLocalNetwork,
-        artifactID _: String
+      context _: RadrootsLocalNetwork,
+      artifactID _: String
     ) -> RadrootsVerifiedMediaArtifact? {
         cachedCalls += 1
         return cachedArtifact
     }
 
     func invalidateMediaArtifact(
-        context _: RadrootsLocalNetwork,
-        artifactID: String
+      context _: RadrootsLocalNetwork,
+      artifactID: String
     ) -> Bool {
         invalidatedIDs.append(artifactID)
         cachedArtifact = nil
@@ -267,8 +267,8 @@ private actor MediaBackend: RadrootsRuntimeBackend {
     }
 
     func subscribe(
-        bufferCapacity _: Int,
-        receive _: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
+      bufferCapacity _: Int,
+      receive _: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
     ) -> any RadrootsRuntimeSubscriptionToken {
         MediaSubscriptionToken()
     }
@@ -289,9 +289,9 @@ private actor MediaBackend: RadrootsRuntimeBackend {
 
     private func testFailure(operation: String) -> RadrootsRuntimeFailure {
         .local(
-            operation: operation,
-            code: "test.media.unsupported",
-            safeMessage: "This test operation is unsupported."
+          operation: operation,
+          code: "test.media.unsupported",
+          safeMessage: "This test operation is unsupported."
         )
     }
 }

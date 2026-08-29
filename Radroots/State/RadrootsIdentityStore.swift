@@ -65,10 +65,10 @@ actor RadrootsIdentityStore {
     private let userDefaults: UserDefaults
 
     init(
-        custody: RadrootsIdentityCustody,
-        secureStore: any RadrootsSecureStore,
-        servicePrefix: String,
-        userDefaults: UserDefaults = .standard
+      custody: RadrootsIdentityCustody,
+      secureStore: any RadrootsSecureStore,
+      servicePrefix: String,
+      userDefaults: UserDefaults = .standard
     ) {
         self.custody = custody
         self.secureStore = secureStore
@@ -78,9 +78,9 @@ actor RadrootsIdentityStore {
 
     @MainActor
     static func production(
-        servicePrefix: String,
-        protectedDataAvailable: @escaping @Sendable () -> Bool,
-        qualification: RadrootsRemoteQualificationEnvironment? = nil
+      servicePrefix: String,
+      protectedDataAvailable: @escaping @Sendable () -> Bool,
+      qualification: RadrootsRemoteQualificationEnvironment? = nil
     ) throws -> RadrootsIdentityStore {
         let namespace = "radroots_identity_v1"
         let secureStore = RadrootsAppleKeychainSecureStore(servicePrefix: servicePrefix)
@@ -89,8 +89,8 @@ actor RadrootsIdentityStore {
         #if DEBUG
             if qualification != nil {
                 configuration = try RadrootsIdentityCustodyConfiguration(
-                    namespace: namespace,
-                    secretPolicy: .secureLocalSecret
+                  namespace: namespace,
+                  secretPolicy: .secureLocalSecret
                 )
                 userPresence = RadrootsRemoteQualificationUserPresence()
             } else {
@@ -103,22 +103,22 @@ actor RadrootsIdentityStore {
             userPresence = RadrootsAppleUserPresence()
         #endif
         let custody = try RadrootsIdentityCustody(
-            configuration: configuration,
-            secureStore: secureStore,
-            metadataStore: RadrootsAppleIdentityMetadataStore(
-                namespace: namespace,
-                keyPrefix: qualification?.identityMetadataKeyPrefix
+          configuration: configuration,
+          secureStore: secureStore,
+          metadataStore: RadrootsAppleIdentityMetadataStore(
+            namespace: namespace,
+            keyPrefix: qualification?.identityMetadataKeyPrefix
                     ?? "org.radroots.ios.identity"
-            ),
-            userPresence: userPresence,
-            protectedData: RadrootsProtectedDataProvider {
+          ),
+          userPresence: userPresence,
+          protectedData: RadrootsProtectedDataProvider {
                 protectedDataAvailable() ? .available : .unavailable
             }
         )
         return RadrootsIdentityStore(
-            custody: custody,
-            secureStore: secureStore,
-            servicePrefix: servicePrefix
+          custody: custody,
+          secureStore: secureStore,
+          servicePrefix: servicePrefix
         )
     }
 
@@ -129,8 +129,8 @@ actor RadrootsIdentityStore {
         }
 
         let legacySecretKey = RadrootsSecureStoreKey(
-            namespace: "nostr_identity",
-            name: "selected_secret_hex"
+          namespace: "nostr_identity",
+          name: "selected_secret_hex"
         )
         let hasLegacySecret: Bool
         do {
@@ -146,25 +146,25 @@ actor RadrootsIdentityStore {
             throw RadrootsIdentityStoreError.corruptLegacyMetadata
         }
         return RadrootsAppIdentity(
-            state: .recoveryRequired,
-            identityHandle: nil,
-            publicKeyHex: legacyMetadata?.publicKeyHex.lowercased(),
-            label: legacyMetadata?.label,
-            signerGeneration: nil,
-            recoveryCode: "identity.legacy_migration_required"
+          state: .recoveryRequired,
+          identityHandle: nil,
+          publicKeyHex: legacyMetadata?.publicKeyHex.lowercased(),
+          label: legacyMetadata?.label,
+          signerGeneration: nil,
+          recoveryCode: "identity.legacy_migration_required"
         )
     }
 
     private func migrateLegacyIdentity() async throws -> RadrootsAppIdentity {
         let legacySecretKey = RadrootsSecureStoreKey(
-            namespace: "nostr_identity",
-            name: "selected_secret_hex"
+          namespace: "nostr_identity",
+          name: "selected_secret_hex"
         )
         let legacyMetadata = try loadLegacyMetadata()
         do {
             let migrated = try await custody.migrateLegacyIdentity(
-                from: legacySecretKey,
-                label: legacyMetadata?.label
+              from: legacySecretKey,
+              label: legacyMetadata?.label
             )
             if let metadata = legacyMetadata,
                metadata.publicKeyHex.lowercased() != migrated.identity?.publicKeyHex
@@ -187,8 +187,8 @@ actor RadrootsIdentityStore {
     }
 
     func importIdentity(
-        _ material: RadrootsIdentitySecretMaterial,
-        label: String? = nil
+      _ material: RadrootsIdentitySecretMaterial,
+      label: String? = nil
     ) async throws -> RadrootsAppIdentity {
         try await custody.importIdentity(material, label: label).appValue
     }
@@ -205,8 +205,8 @@ actor RadrootsIdentityStore {
         let snapshot = await custody.snapshot()
         if snapshot.state == .absent {
             let legacyKey = RadrootsSecureStoreKey(
-                namespace: "nostr_identity",
-                name: "selected_secret_hex"
+              namespace: "nostr_identity",
+              name: "selected_secret_hex"
             )
             if try secureStore.contains(legacyKey) {
                 return try await migrateLegacyIdentity()
@@ -227,9 +227,9 @@ actor RadrootsIdentityStore {
             throw RadrootsIdentityStoreError.unavailable
         }
         return RadrootsAppleCustodySigner(
-            custody: custody,
-            signerHandle: signerHandle,
-            publicKeyHex: publicKeyHex
+          custody: custody,
+          signerHandle: signerHandle,
+          publicKeyHex: publicKeyHex
         )
     }
 
@@ -253,12 +253,12 @@ actor RadrootsIdentityStore {
 
     private static func appIdentity(_ snapshot: RadrootsIdentitySnapshot) -> RadrootsAppIdentity {
         RadrootsAppIdentity(
-            state: snapshot.state.appValue,
-            identityHandle: snapshot.identity?.identityHandle,
-            publicKeyHex: snapshot.identity?.publicKeyHex,
-            label: snapshot.identity?.label,
-            signerGeneration: snapshot.signerHandle,
-            recoveryCode: snapshot.recoveryCode
+          state: snapshot.state.appValue,
+          identityHandle: snapshot.identity?.identityHandle,
+          publicKeyHex: snapshot.identity?.publicKeyHex,
+          label: snapshot.identity?.label,
+          signerGeneration: snapshot.signerHandle,
+          recoveryCode: snapshot.recoveryCode
         )
     }
 }
@@ -295,12 +295,12 @@ private final class RadrootsAppleCustodySigner: RadrootsRuntimeSigner, @unchecke
         do {
             let result = try await custody.sign(
                 RadrootsOpaqueSignRequest(
-                    operationID: request.operationID,
-                    signerHandle: signerHandle,
-                    publicKeyHex: request.publicKeyHex,
-                    digest: request.digest,
-                    purpose: request.purpose.appleValue,
-                    deadlineUnixMilliseconds: request.deadlineUnixMilliseconds
+                  operationID: request.operationID,
+                  signerHandle: signerHandle,
+                  publicKeyHex: request.publicKeyHex,
+                  digest: request.digest,
+                  purpose: request.purpose.appleValue,
+                  deadlineUnixMilliseconds: request.deadlineUnixMilliseconds
                 )
             )
             return .signed(signatureHex: result.signature.map { String(format: "%02x", $0) }.joined())
@@ -328,12 +328,12 @@ private final class RadrootsAppleCustodySigner: RadrootsRuntimeSigner, @unchecke
 private extension RadrootsIdentitySnapshot {
     var appValue: RadrootsAppIdentity {
         RadrootsAppIdentity(
-            state: state.appValue,
-            identityHandle: identity?.identityHandle,
-            publicKeyHex: identity?.publicKeyHex,
-            label: identity?.label,
-            signerGeneration: signerHandle,
-            recoveryCode: recoveryCode
+          state: state.appValue,
+          identityHandle: identity?.identityHandle,
+          publicKeyHex: identity?.publicKeyHex,
+          label: identity?.label,
+          signerGeneration: signerHandle,
+          recoveryCode: recoveryCode
         )
     }
 }

@@ -1,8 +1,7 @@
 import CryptoKit
+@testable import RadrootsApp
 import RadrootsKit
 import XCTest
-
-@testable import RadrootsApp
 
 final class RadrootsAddStoreTests: XCTestCase {
   func testBackgroundUploadResumesReceiptRetriesAndCompletedStateWithoutDuplicateEnqueue()
@@ -389,7 +388,7 @@ final class RadrootsAddStoreTests: XCTestCase {
     let recordedRetraction = await backend.lastRetraction()
     let retraction = try XCTUnwrap(recordedRetraction)
     XCTAssertEqual(retraction.commandType, .createFoodAvailability)
-    XCTAssertEqual(retraction.targetKind, 30_402)
+    XCTAssertEqual(retraction.targetKind, 30402)
     XCTAssertEqual(retraction.targetCardID, String(repeating: "c", count: 64))
     XCTAssertEqual(retraction.targetEventID, String(repeating: "e", count: 64))
     XCTAssertEqual(retraction.targetAddress, Self.card().sourceAddress)
@@ -545,7 +544,7 @@ final class RadrootsAddStoreTests: XCTestCase {
     await store.start()
     store.selectType(.createPhotoUpdate)
 
-    for _ in 0..<20 {
+    for _ in 0 ..< 20 {
       await store.importPhotos()
     }
     XCTAssertEqual(store.form.media.count, 20)
@@ -664,8 +663,10 @@ final class RadrootsAddStoreTests: XCTestCase {
   private static func waitUntil(
     _ predicate: @escaping @Sendable () async -> Bool
   ) async -> Bool {
-    for _ in 0..<1_000 {
-      if await predicate() { return true }
+    for _ in 0 ..< 1000 {
+      if await predicate() {
+        return true
+      }
       try? await Task.sleep(nanoseconds: 1_000_000)
     }
     return false
@@ -897,7 +898,7 @@ private actor AddBackend: RadrootsRuntimeBackend {
               writeLastAttemptUnixMilliseconds: nil,
               readNextAttemptUnixMilliseconds: nil,
               writeNextAttemptUnixMilliseconds: nil
-            )
+            ),
           ] : []
       ),
       blossomConfiguration: RadrootsBlossomConfigurationStatus(
@@ -965,14 +966,14 @@ private actor AddBackend: RadrootsRuntimeBackend {
         schemaVersion: 1,
         commandType: .createUpdate,
         label: "Update",
-        fields: [text("content", "Update", .multilineText, true, 65_535)]
+        fields: [text("content", "Update", .multilineText, true, 65535)]
       ),
       RadrootsAddSchema(
         schemaVersion: 1,
         commandType: .createPhotoUpdate,
         label: "Photo update",
         fields: [
-          text("content", "Update", .multilineText, true, 65_535),
+          text("content", "Update", .multilineText, true, 65535),
           media(true, 20),
         ]
       ),
@@ -981,7 +982,7 @@ private actor AddBackend: RadrootsRuntimeBackend {
         commandType: .createAsk,
         label: "Ask",
         fields: [
-          text("content", "Question", .multilineText, true, 65_535),
+          text("content", "Question", .multilineText, true, 65535),
           media(false, 20),
         ]
       ),
@@ -992,7 +993,7 @@ private actor AddBackend: RadrootsRuntimeBackend {
         fields: [
           text("identifier", "Identifier", .text, true, 256),
           text("title", "Title", .text, true, 256),
-          text("content", "Description", .multilineText, false, 65_535),
+          text("content", "Description", .multilineText, false, 65535),
           text("event_start", "Starts", .dateTime, true, nil),
           text("event_end", "Ends", .dateTime, false, nil),
           text("location", "Location", .location, false, 256),
@@ -1007,7 +1008,7 @@ private actor AddBackend: RadrootsRuntimeBackend {
           text("identifier", "Identifier", .text, true, 256),
           text("title", "Food", .text, true, 256),
           text("summary", "Summary", .text, true, 256),
-          text("content", "Details", .multilineText, true, 65_535),
+          text("content", "Details", .multilineText, true, 65535),
           text("location", "Pickup location", .location, true, 256),
           text("price_amount", "Price", .decimal, true, 64),
           field("currency", "Currency", .choice, true, [], 3, nil),
@@ -1213,7 +1214,8 @@ private actor AddBackend: RadrootsRuntimeBackend {
     guard current.revision == expectedRevision else { throw unsupported() }
     let value = replacing(
       current, revision: current.revision + 1, state: .queued,
-      updatedAt: current.updatedAtUnixMilliseconds + 1)
+      updatedAt: current.updatedAtUnixMilliseconds + 1
+    )
     values[id] = value
     return value
   }
@@ -1222,7 +1224,8 @@ private actor AddBackend: RadrootsRuntimeBackend {
     let current = try draftStatus(id: id)
     let value = replacing(
       current, revision: current.revision + 1, state: .queued,
-      updatedAt: current.updatedAtUnixMilliseconds + 1)
+      updatedAt: current.updatedAtUnixMilliseconds + 1
+    )
     values[id] = value
     return value
   }
@@ -1334,7 +1337,8 @@ private actor AddBackend: RadrootsRuntimeBackend {
     let current = try storedDraft(id: id)
     let value = replacing(
       current, revision: expectedRevision, state: .complete,
-      updatedAt: current.updatedAtUnixMilliseconds)
+      updatedAt: current.updatedAtUnixMilliseconds
+    )
     values[id] = value
     return value
   }
@@ -1346,7 +1350,8 @@ private actor AddBackend: RadrootsRuntimeBackend {
     let current = try draftStatus(id: id)
     let value = replacing(
       current, revision: current.revision + 1, state: .cancelled,
-      updatedAt: current.updatedAtUnixMilliseconds + 1)
+      updatedAt: current.updatedAtUnixMilliseconds + 1
+    )
     values[id] = value
     return value
   }
@@ -1451,7 +1456,8 @@ private actor AddBackend: RadrootsRuntimeBackend {
 
   private func unsupported() -> RadrootsRuntimeFailure {
     .local(
-      operation: "test.add", code: "test.unsupported", safeMessage: "Unsupported test operation.")
+      operation: "test.add", code: "test.unsupported", safeMessage: "Unsupported test operation."
+    )
   }
 }
 
@@ -1544,7 +1550,7 @@ private final class BackgroundUploadFixture: @unchecked Sendable {
           possibleOrphan: false,
           orphanReasonCode: nil,
           orphanRecordedAtUnixMilliseconds: nil
-        )
+        ),
       ],
       settlement: nil,
       isRevision: false
@@ -1698,7 +1704,7 @@ private actor BackgroundTransferHarness: RadrootsBackgroundTransfer {
     case .accepted:
       acceptedSettlementCount += 1
       values[identifier] = try snapshot(request: value.request, state: .completed)
-    case .rejected(let code):
+    case let .rejected(code):
       values[identifier] = try RadrootsBackgroundTransferSnapshot(
         request: value.request,
         state: .failed,

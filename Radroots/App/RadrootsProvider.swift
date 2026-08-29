@@ -8,8 +8,8 @@ struct RadrootsProvider<Content: View>: View {
     private let content: () -> Content
 
     init(
-        appModel: @autoclosure @escaping () -> RadrootsAppModel = RadrootsAppModel(),
-        @ViewBuilder content: @escaping () -> Content
+      appModel: @autoclosure @escaping () -> RadrootsAppModel = RadrootsAppModel(),
+      @ViewBuilder content: @escaping () -> Content
     ) {
         _appModel = StateObject(wrappedValue: appModel())
         self.content = content

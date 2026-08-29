@@ -34,7 +34,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     app.launch()
 
     let failureCode = app.descendants(matching: .any)["radroots.runtime.failure_code"]
-    for _ in 0..<8 where !failureCode.exists {
+    for _ in 0 ..< 8 where !failureCode.exists {
       for identifier in [
         "radroots.identity.create",
         "radroots.identity.unlock",
@@ -69,13 +69,34 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     guard preparePhotoUpdate(app, marker: marker) != nil else { return }
     let save = app.buttons["radroots.add.save"]
     scrollTo(app, element: save)
-    XCTAssertTrue(save.waitForExistence(timeout: 10))
-    XCTAssertTrue(waitUntilHittable(save, timeout: 10))
+    guard save.waitForExistence(timeout: 10),
+      waitUntilHittable(save, timeout: 10),
+      isUnobscured(save, above: app.tabBars.firstMatch)
+    else {
+      return XCTFail("The prepared Photo update could not be saved through the visible UI")
+    }
+    let addRoot = app.descendants(matching: .any)["radroots.add.root"]
     save.tap()
     let saved = app.staticTexts.matching(identifier: "radroots.add.status").firstMatch
-    XCTAssertTrue(
-      waitForLabel(saved, label: "Draft saved on this device.", timeout: 20)
-    )
+    let saveStarted = NSPredicate { _, _ in
+      addRoot.value as? String == "Working"
+        || saved.exists && saved.label == "Draft saved on this device."
+    }
+    let startExpectation = XCTNSPredicateExpectation(predicate: saveStarted, object: app)
+    guard XCTWaiter.wait(for: [startExpectation], timeout: 10) == .completed else {
+      return XCTFail("The visible Save draft action did not start durable persistence")
+    }
+    let saveSettled = NSPredicate { _, _ in
+      addRoot.value as? String == "Ready"
+    }
+    let settleExpectation = XCTNSPredicateExpectation(predicate: saveSettled, object: app)
+    guard XCTWaiter.wait(for: [settleExpectation], timeout: 60) == .completed else {
+      return XCTFail("The visible Save draft action did not finish durable persistence")
+    }
+    scrollAddFormToTop(app)
+    guard waitForLabel(saved, label: "Draft saved on this device.", timeout: 10) else {
+      return XCTFail("The visible Add status did not confirm the durable draft save")
+    }
     XCTAssertTrue(assertUnverifiedDraft(app))
     app.terminate()
 
@@ -115,10 +136,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     guard openAdd(app) != nil, openDrafts(app) else {
       return XCTFail("The durable outbox was unavailable after the final relaunch")
     }
-    XCTAssertGreaterThanOrEqual(
-      app.buttons.matching(NSPredicate(format: "label == 'View'")).count,
-      5
-    )
+    assertDraftOutboxContainsAtLeast(app, count: expected.count)
     app.buttons["Done"].tap()
   }
 
@@ -375,7 +393,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCUIDevice.shared.press(.home)
     Thread.sleep(forTimeInterval: 60)
 
-    for _ in 0..<24 {
+    for _ in 0 ..< 24 {
       app.activate()
       if app.tabBars.firstMatch.waitForExistence(timeout: 5) {
         return
@@ -443,7 +461,8 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       if issue.auditType == .contrast,
         let element = issue.element,
         element.identifier.isEmpty,
-        element.label.isEmpty {
+        element.label.isEmpty
+      {
         return true
       }
       if issue.auditType == .contrast,
@@ -474,12 +493,16 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let navigationBar = app.navigationBars.firstMatch
     if navigationBar.exists {
       let boundary = navigationBar.frame.maxY
-      if frame.minY < boundary && frame.maxY > boundary { return true }
+      if frame.minY < boundary, frame.maxY > boundary {
+        return true
+      }
     }
     let tabBar = app.tabBars.firstMatch
     if tabBar.exists {
       let boundary = tabBar.frame.minY
-      if frame.minY < boundary && frame.maxY > boundary { return true }
+      if frame.minY < boundary, frame.maxY > boundary {
+        return true
+      }
     }
     return false
   }
@@ -529,38 +552,38 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     case "radroots.add.content":
       switch type {
       case "Update":
-        return "What’s happening locally?"
+        "What’s happening locally?"
       case "Photo update":
-        return "What should neighbors know?"
+        "What should neighbors know?"
       case "Ask":
-        return "What do you need or want to know?"
+        "What do you need or want to know?"
       case "Event":
-        return "Event details (optional)"
+        "Event details (optional)"
       case "Food availability":
-        return "Details"
+        "Details"
       default:
         preconditionFailure("Unrecognized Add type: \(type)")
       }
     case "radroots.add.title":
-      return type == "Food availability" ? "Food" : "Title"
+      type == "Food availability" ? "Food" : "Title"
     case "radroots.add.summary":
-      return "Short summary"
+      "Short summary"
     case "radroots.add.location":
-      return type == "Food availability" ? "Location" : "Location (optional)"
+      type == "Food availability" ? "Location" : "Location (optional)"
     case "radroots.add.event_timing":
-      return "When, Specific time"
+      "When, Specific time"
     case "radroots.add.event.start":
-      return "Starts"
+      "Starts"
     case "radroots.add.event.end":
-      return "Ends"
+      "Ends"
     case "radroots.add.price":
-      return "Price"
+      "Price"
     case "radroots.add.currency":
-      return "Currency"
+      "Currency"
     case "radroots.add.unit":
-      return "Unit, Choose a unit"
+      "Unit, Choose a unit"
     case "radroots.add.quantity":
-      return "Quantity available (optional)"
+      "Quantity available (optional)"
     default:
       preconditionFailure("Unrecognized Add field identifier: \(identifier)")
     }
@@ -610,7 +633,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
 
   @MainActor
   private func reachRoot(_ app: XCUIApplication) {
-    for _ in 0..<6 {
+    for _ in 0 ..< 6 {
       if app.tabBars.firstMatch.waitForExistence(timeout: 3) {
         return
       }
@@ -644,7 +667,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     }
     let meList = meSheet.descendants(matching: .collectionView).firstMatch
     let settings = app.descendants(matching: .any)["radroots.support.settings"]
-    for _ in 0..<8 where !settings.exists {
+    for _ in 0 ..< 8 where !settings.exists {
       meList.swipeUp()
     }
     guard settings.waitForExistence(timeout: 20) else {
@@ -689,7 +712,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     account.tap()
 
     let settings = app.descendants(matching: .any)["radroots.support.settings"]
-    for _ in 0..<5 where !settings.exists {
+    for _ in 0 ..< 5 where !settings.exists {
       app.swipeUp()
     }
     guard settings.waitForExistence(timeout: 20) else { return "settings=unavailable" }
@@ -704,7 +727,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let serverErrorCode = app.descendants(matching: .any)[
       "radroots.settings.blossom.server_error_code"
     ]
-    for _ in 0..<6 where !httpStatus.exists || !errorCode.exists || !serverErrorCode.exists {
+    for _ in 0 ..< 6 where !httpStatus.exists || !errorCode.exists || !serverErrorCode.exists {
       app.swipeUp()
     }
     _ = httpStatus.waitForExistence(timeout: 10)
@@ -720,7 +743,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let add = app.tabBars.buttons["Add"]
     guard add.waitForExistence(timeout: 10) else { return nil }
     let type = app.descendants(matching: .any)["radroots.add.type"]
-    for _ in 0..<3 {
+    for _ in 0 ..< 3 {
       add.tap()
       if type.waitForExistence(timeout: 10) {
         return type
@@ -739,7 +762,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCTAssertTrue(newDraft.waitForExistence(timeout: 10))
     newDraft.tap()
 
-    for _ in 0..<3 where !app.buttons["Photo update"].exists {
+    for _ in 0 ..< 3 where !app.buttons["Photo update"].exists {
       type.tap()
       _ = app.buttons["Photo update"].waitForExistence(timeout: 10)
     }
@@ -755,7 +778,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
 
     let content = app.descendants(matching: .any)["radroots.add.content"]
     var selectedPhotoUpdate = false
-    for _ in 0..<3 where !selectedPhotoUpdate {
+    for _ in 0 ..< 3 where !selectedPhotoUpdate {
       photoUpdate.tap()
       selectedPhotoUpdate = waitForValue(type, value: "Photo update", timeout: 10)
       if !selectedPhotoUpdate, !photoUpdate.exists {
@@ -780,11 +803,25 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 5))
 
     let library = app.descendants(matching: .any)["radroots.add.media.library"]
-    XCTAssertTrue(library.waitForExistence(timeout: 10))
-    XCTAssertTrue(library.isEnabled)
+    scrollTo(app, element: library)
+    guard library.waitForExistence(timeout: 10), waitUntilHittable(library, timeout: 10) else {
+      XCTFail("The Photo Library action did not become available through the visible UI")
+      return nil
+    }
     library.tap()
+    let preparedStatus = app.staticTexts.matching(
+      NSPredicate(format: "label == 'Photo prepared. Add descriptive text before publishing.'")
+    ).firstMatch
+    guard preparedStatus.waitForExistence(timeout: 60) else {
+      XCTFail("The selected Photo update did not report the visible prepared state")
+      return nil
+    }
     let prepared = app.descendants(matching: .any)["radroots.add.media.prepared"]
-    XCTAssertTrue(prepared.waitForExistence(timeout: 30))
+    scrollTo(app, element: prepared)
+    guard prepared.waitForExistence(timeout: 10) else {
+      XCTFail("The selected Photo update did not reach the visible prepared state")
+      return nil
+    }
     return readySubmit(app)
   }
 
@@ -1056,7 +1093,12 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   @MainActor
   private func scrollTo(_ app: XCUIApplication, element: XCUIElement) {
     let root = app.descendants(matching: .any)["radroots.add.root"]
-    for attempt in 0..<16 where !element.exists || !element.isHittable {
+    let tabBar = app.tabBars.firstMatch
+    for attempt in 0 ..< 16 where !isVisibleInAddViewport(
+      element,
+      root: root,
+      above: tabBar
+    ) {
       if element.exists {
         let targetFrame = element.frame
         let rootFrame = root.frame
@@ -1074,9 +1116,27 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
+  private func isVisibleInAddViewport(
+    _ element: XCUIElement,
+    root: XCUIElement,
+    above obstruction: XCUIElement
+  ) -> Bool {
+    guard element.exists, element.isHittable, root.exists, obstruction.exists else {
+      return false
+    }
+    let frame = element.frame
+    let rootFrame = root.frame
+    return frame.height > 0
+      && frame.minY >= rootFrame.minY
+      && frame.maxY <= min(rootFrame.maxY, obstruction.frame.minY)
+  }
+
+  @MainActor
   private func scrollAddFormToTop(_ app: XCUIApplication) {
     let root = app.descendants(matching: .any)["radroots.add.root"]
-    for _ in 0..<8 { root.swipeDown() }
+    for _ in 0 ..< 8 {
+      root.swipeDown()
+    }
   }
 
   @MainActor
@@ -1094,11 +1154,13 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       throw QualificationError.missingProductSurface
     }
     for marker in markers.reversed() {
-      for _ in 0..<8 { feed.swipeDown() }
+      for _ in 0 ..< 8 {
+        feed.swipeDown()
+      }
       let card = app.descendants(matching: .any).matching(
         NSPredicate(format: "label CONTAINS %@", marker)
       ).firstMatch
-      for _ in 0..<6 where !card.exists {
+      for _ in 0 ..< 6 where !card.exists {
         feed.swipeUp()
       }
       guard card.waitForExistence(timeout: 30) else {
@@ -1112,7 +1174,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   private func readySubmit(_ app: XCUIApplication) -> XCUIElement? {
     let submit = app.descendants(matching: .any)["radroots.add.submit"]
     let addRoot = app.descendants(matching: .any)["radroots.add.root"]
-    for _ in 0..<8 {
+    for _ in 0 ..< 8 {
       if isUnobscured(submit, above: app.tabBars.firstMatch) {
         break
       }
@@ -1196,6 +1258,39 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
+  private func assertDraftOutboxContainsAtLeast(_ app: XCUIApplication, count: Int) {
+    let sheet = app.descendants(matching: .any)["radroots.add.drafts.sheet"]
+    let list = sheet.descendants(matching: .collectionView).firstMatch
+    guard list.waitForExistence(timeout: 10) else {
+      return XCTFail("The visible Drafts list was unavailable")
+    }
+
+    for _ in 0 ..< 8 {
+      list.swipeDown()
+    }
+    var identifiers = Set<String>()
+    let rows = app.descendants(matching: .any).matching(
+      NSPredicate(format: "identifier BEGINSWITH 'radroots.add.draft.'")
+    )
+    for _ in 0 ..< 12 where identifiers.count < count {
+      for index in 0 ..< rows.count {
+        let identifier = rows.element(boundBy: index).identifier
+        if !identifier.contains(".media_status.") {
+          identifiers.insert(identifier)
+        }
+      }
+      if identifiers.count < count {
+        list.swipeUp()
+      }
+    }
+    XCTAssertGreaterThanOrEqual(
+      identifiers.count,
+      count,
+      "The visible Drafts list omitted persisted outbox rows; identifiers=\(identifiers.sorted())"
+    )
+  }
+
+  @MainActor
   private func waitForWorkToFinish(
     _ app: XCUIApplication,
     submit: XCUIElement,
@@ -1258,7 +1353,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let drafts = app.buttons["radroots.add.drafts"]
     guard drafts.waitForExistence(timeout: 10) else { return false }
     let sheet = app.descendants(matching: .any)["radroots.add.drafts.sheet"]
-    for _ in 0..<3 {
+    for _ in 0 ..< 3 {
       drafts.tap()
       if sheet.waitForExistence(timeout: 10) {
         return true
@@ -1277,7 +1372,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   @MainActor
   private func focusForTextInput(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
     let focused = NSPredicate(format: "hasKeyboardFocus == true")
-    for _ in 0..<3 {
+    for _ in 0 ..< 3 {
       element.tap()
       let expectation = XCTNSPredicateExpectation(predicate: focused, object: element)
       if XCTWaiter.wait(for: [expectation], timeout: timeout / 3) == .completed {

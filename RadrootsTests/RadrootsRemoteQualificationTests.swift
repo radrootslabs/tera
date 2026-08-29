@@ -1,8 +1,7 @@
 import CryptoKit
+@testable import RadrootsApp
 import RadrootsKit
 import XCTest
-
-@testable import RadrootsApp
 
 final class RadrootsRemoteQualificationTests: XCTestCase {
   func testQualificationIsOptInAndCarriesOnlyPublicInputs() throws {
@@ -48,14 +47,14 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
     XCTAssertThrowsError(
       try RadrootsRemoteQualificationEnvironment.current(
         environment: base.merging([
-          RadrootsRemoteQualificationEnvironment.runIDKey: "../../bad"
+          RadrootsRemoteQualificationEnvironment.runIDKey: "../../bad",
         ]) { _, new in new }
       )
     )
     XCTAssertThrowsError(
       try RadrootsRemoteQualificationEnvironment.current(
         environment: base.merging([
-          RadrootsRemoteQualificationEnvironment.networkProfileKey: "automatic"
+          RadrootsRemoteQualificationEnvironment.networkProfileKey: "automatic",
         ]) { _, new in new }
       )
     )
@@ -84,7 +83,7 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
       try RadrootsRemoteQualificationEnvironment.current(
         environment: base.merging([
           RadrootsRemoteQualificationEnvironment.blossomOriginsKey:
-            "https://one.example,https://two.example"
+            "https://one.example,https://two.example",
         ]) { _, new in new }
       )
     )
@@ -92,7 +91,7 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
       try RadrootsRemoteQualificationEnvironment.current(
         environment: base.merging([
           RadrootsRemoteQualificationEnvironment.mediaRelativePathKey:
-            "../../private-key"
+            "../../private-key",
         ]) { _, new in new }
       )
     )
@@ -139,8 +138,8 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
   }
 
   func testQualificationMediaFixtureHasPinnedDigest() throws {
-    let digest = SHA256.hash(
-      data: try RadrootsRemoteQualificationEnvironment.mediaFixtureData()
+    let digest = try SHA256.hash(
+      data: RadrootsRemoteQualificationEnvironment.mediaFixtureData()
     )
     XCTAssertEqual(
       digest.map { String(format: "%02x", $0) }.joined(),

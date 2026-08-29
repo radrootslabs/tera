@@ -8,6 +8,8 @@ SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
 .NOTPARALLEL:
 
 .PHONY: all doctor bootstrap ffi-bootstrap artifact-check package-contract-check \
+	swift-quality \
+	linux-shared-rust \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-write \
 	api-snapshot-check release-evidence-write release-preflight verify clean distclean
@@ -25,6 +27,12 @@ artifact-check: doctor
 
 package-contract-check: doctor
 	cargo extbuild run -- scripts/verify-package-contract.sh
+
+swift-quality: doctor
+	cargo extbuild run -- scripts/swift-quality.sh
+
+linux-shared-rust: doctor
+	cargo extbuild run -- scripts/linux-shared-rust.sh
 
 package-resolve: artifact-check package-contract-check
 	cargo extbuild run -- scripts/swift-package.sh resolve
@@ -67,7 +75,7 @@ release-evidence-write: doctor
 release-preflight: artifact-check package-contract-check
 	cargo extbuild run -- scripts/release-preflight.sh
 
-verify: artifact-check package-contract-check package-build package-test \
+verify: swift-quality linux-shared-rust artifact-check package-contract-check package-build package-test \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-check
 
 clean: doctor

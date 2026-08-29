@@ -24,7 +24,7 @@ struct RadrootsSearchSheet: View {
           ProgressView("Searching…")
         case .empty:
           ContentUnavailableView.search(text: store.query)
-        case .failed(let message):
+        case let .failed(message):
           ContentUnavailableView {
             Label("Search unavailable", systemImage: "exclamationmark.triangle")
           } description: {
@@ -52,7 +52,7 @@ struct RadrootsSearchSheet: View {
   private var resultList: some View {
     List(store.results) { result in
       switch (result.card, result.profile) {
-      case (let card?, _):
+      case let (card?, _):
         NavigationLink {
           RadrootsTodayDetailView(
             card: card,
@@ -68,7 +68,7 @@ struct RadrootsSearchSheet: View {
           RadrootsTodayCardView(card: card, context: context, mediaStore: mediaStore)
         }
         .accessibilityIdentifier("radroots.search.card.\(result.id)")
-      case (_, let profile?):
+      case let (_, profile?):
         NavigationLink {
           RadrootsProfileView(profile: profile, context: context, mediaStore: mediaStore)
         } label: {
@@ -110,7 +110,7 @@ struct RadrootsMeSheet: View {
         switch store.state {
         case .idle, .loading:
           ProgressView("Loading your profile…")
-        case .failed(let message) where store.snapshot == nil:
+        case let .failed(message) where store.snapshot == nil:
           ContentUnavailableView {
             Label("Profile unavailable", systemImage: "person.crop.circle.badge.exclamationmark")
           } description: {
@@ -408,7 +408,7 @@ struct RadrootsSettingsView: View {
         TextField("Display name", text: $settingsStore.profileDisplayName)
           .accessibilityIdentifier("radroots.settings.profile.display_name")
         TextField("About", text: $settingsStore.profileAbout, axis: .vertical)
-          .lineLimit(3...8)
+          .lineLimit(3 ... 8)
           .accessibilityIdentifier("radroots.settings.profile.about")
         TextField("NIP-05 identifier", text: $settingsStore.profileNip05)
           .textInputAutocapitalization(.never)
@@ -488,7 +488,7 @@ struct RadrootsSettingsView: View {
           text: $settingsStore.blossomFallbackOrigins,
           axis: .vertical
         )
-        .lineLimit(2...5)
+        .lineLimit(2 ... 5)
         .textInputAutocapitalization(.never)
         .keyboardType(.URL)
         Toggle("Cellular downloads", isOn: $settingsStore.allowCellularDownloads)
@@ -499,13 +499,13 @@ struct RadrootsSettingsView: View {
         Stepper(
           "Cache: \(settingsStore.mediaCacheMegabytes) MB",
           value: $settingsStore.mediaCacheMegabytes,
-          in: 16...2048,
+          in: 16 ... 2048,
           step: 16
         )
         Stepper(
           "Artifacts: \(settingsStore.mediaCacheArtifacts)",
           value: $settingsStore.mediaCacheArtifacts,
-          in: 1...10000,
+          in: 1 ... 10000,
           step: 100
         )
         Button("Save network and storage settings") {

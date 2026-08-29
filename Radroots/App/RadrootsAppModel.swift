@@ -271,7 +271,7 @@ final class RadrootsAppModel: ObservableObject {
       await finishSessionOperation()
       return
     }
-    if case .running(let snapshot) = result {
+    if case let .running(snapshot) = result {
       productStores?.configure(snapshot: snapshot)
     }
     phase = result

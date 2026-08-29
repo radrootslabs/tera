@@ -77,8 +77,8 @@ actor RadrootsSessionStore {
       ?? requiredString(
         "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX", bundle: bundle
       )
-    let bootstrap = RadrootsConfigurationBootstrap(
-      runtimeMode: try qualification?.runtimeMode
+    let bootstrap = try RadrootsConfigurationBootstrap(
+      runtimeMode: qualification?.runtimeMode
         ?? requiredString("RADROOTS_FIELD_IOS_RUNTIME_MODE", bundle: bundle),
       relayURLs: qualification?.relayURLs
         ?? array("RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS", bundle: bundle),

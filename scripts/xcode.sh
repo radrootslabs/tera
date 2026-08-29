@@ -165,14 +165,16 @@ case "$operation" in
             five-flow)
                 test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario
                 evidence_command=verify
-                simulator_id=
+                simulator_id=${destination##*id=}
                 previous_content_size=
+                requested_content_size=large
                 ;;
             accessibility)
                 test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialAccessibilitySemantics
                 evidence_command=verify-accessibility
                 simulator_id=${destination##*id=}
                 previous_content_size=
+                requested_content_size=accessibility-extra-extra-extra-large
                 persona_fixture=
                 persona_result=
                 ;;
@@ -181,6 +183,7 @@ case "$operation" in
                 evidence_command=verify-persona
                 simulator_id=${destination##*id=}
                 previous_content_size=
+                requested_content_size=accessibility-extra-extra-extra-large
                 persona_fixture=test-fixtures/local-social-personas.v1.json
                 persona_result="$XCODE_RESULTS/$result_name.persona-result.json"
                 ;;
@@ -261,19 +264,17 @@ case "$operation" in
             echo "error: local-social fixture readiness timed out" >&2
             exit 1
         fi
-        if [[ "$scenario" == accessibility || "$scenario" == persona ]]; then
-            xcrun simctl boot "$simulator_id" >/dev/null 2>&1 || true
-            xcrun simctl bootstatus "$simulator_id" -b >/dev/null
-            previous_content_size=$(xcrun simctl ui "$simulator_id" content_size)
-            case "$previous_content_size" in
-                extra-small|small|medium|large|extra-large|extra-extra-large|extra-extra-extra-large|accessibility-medium|accessibility-large|accessibility-extra-large|accessibility-extra-extra-large|accessibility-extra-extra-extra-large) ;;
-                *)
-                    echo "error: simulator content-size state is unavailable" >&2
-                    exit 1
-                    ;;
-            esac
-            xcrun simctl ui "$simulator_id" content_size accessibility-extra-extra-extra-large
-        fi
+        xcrun simctl boot "$simulator_id" >/dev/null 2>&1 || true
+        xcrun simctl bootstatus "$simulator_id" -b >/dev/null
+        previous_content_size=$(xcrun simctl ui "$simulator_id" content_size)
+        case "$previous_content_size" in
+            extra-small|small|medium|large|extra-large|extra-extra-large|extra-extra-extra-large|accessibility-medium|accessibility-large|accessibility-extra-large|accessibility-extra-extra-large|accessibility-extra-extra-extra-large) ;;
+            *)
+                echo "error: simulator content-size state is unavailable" >&2
+                exit 1
+                ;;
+        esac
+        xcrun simctl ui "$simulator_id" content_size "$requested_content_size"
         set +e
         xcodebuild \
             -project Radroots.xcodeproj \

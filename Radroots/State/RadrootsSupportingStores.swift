@@ -20,8 +20,8 @@ final class RadrootsSearchStore: ObservableObject {
     private var generation: UInt64 = 0
 
     init(
-        runtimeClient: RadrootsRuntimeClient,
-        now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
+      runtimeClient: RadrootsRuntimeClient,
+      now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
     ) {
         self.runtimeClient = runtimeClient
         self.now = now
@@ -65,10 +65,10 @@ final class RadrootsSearchStore: ObservableObject {
         state = .loading
         do {
             let loaded = try await runtimeClient.search(
-                context: context,
-                query: normalized,
-                limit: 50,
-                asOfUnixSeconds: now()
+              context: context,
+              query: normalized,
+              limit: 50,
+              asOfUnixSeconds: now()
             )
             guard requestedGeneration == generation, !Task.isCancelled else { return }
             results = Self.unique(loaded)
@@ -114,9 +114,9 @@ final class RadrootsMeStore: ObservableObject {
     private var observationGeneration: UInt64 = 0
 
     init(
-        runtimeClient: RadrootsRuntimeClient,
-        now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) },
-        observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
+      runtimeClient: RadrootsRuntimeClient,
+      now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) },
+      observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
             RadrootsRuntimeObservationBackoff.sleep
     ) {
         self.runtimeClient = runtimeClient
@@ -161,8 +161,8 @@ final class RadrootsMeStore: ObservableObject {
         }
         do {
             let loaded = try await runtimeClient.me(
-                context: context,
-                asOfUnixSeconds: now()
+              context: context,
+              asOfUnixSeconds: now()
             )
             guard requestedGeneration == generation, !Task.isCancelled else { return }
             snapshot = loaded
@@ -318,25 +318,25 @@ final class RadrootsSettingsStore: ObservableObject {
         do {
             let transition = try await runtimeClient.replaceMobileSettings(
                 input: RadrootsReplaceSettings(
-                    expectedRevision: settings.revision,
-                    networkEnvironment: networkEnvironment,
-                    relays: relays,
-                    blossomAuthority: blossomAuthority,
-                    blossomPrimaryOrigin: blossomPrimaryOrigin,
-                    blossomFallbackOrigins: fallbacks,
-                    allowCellularDownloads: allowCellularDownloads,
-                    allowCellularUploads: allowCellularUploads,
-                    allowBackgroundTransfers: allowBackgroundTransfers,
-                    mediaCacheBytes: UInt64(max(mediaCacheMegabytes, 1)) * 1_048_576,
-                    mediaCacheArtifacts: UInt32(max(mediaCacheArtifacts, 1))
+                  expectedRevision: settings.revision,
+                  networkEnvironment: networkEnvironment,
+                  relays: relays,
+                  blossomAuthority: blossomAuthority,
+                  blossomPrimaryOrigin: blossomPrimaryOrigin,
+                  blossomFallbackOrigins: fallbacks,
+                  allowCellularDownloads: allowCellularDownloads,
+                  allowCellularUploads: allowCellularUploads,
+                  allowBackgroundTransfers: allowBackgroundTransfers,
+                  mediaCacheBytes: UInt64(max(mediaCacheMegabytes, 1)) * 1_048_576,
+                  mediaCacheArtifacts: UInt32(max(mediaCacheArtifacts, 1))
                 )
             )
             guard requestedGeneration == generation, !Task.isCancelled else { return false }
             apply(transition.settings)
             let effects = [
-                transition.runtimeRestartRequired ? "runtime restart" : nil,
-                transition.outboxRequeueRequired ? "outbox requeue" : nil,
-                transition.mediaCacheInvalidationRequired ? "media cache refresh" : nil,
+              transition.runtimeRestartRequired ? "runtime restart" : nil,
+              transition.outboxRequeueRequired ? "outbox requeue" : nil,
+              transition.mediaCacheInvalidationRequired ? "media cache refresh" : nil,
             ].compactMap(\.self)
             message = effects.isEmpty
                 ? "Settings saved."
@@ -362,13 +362,13 @@ final class RadrootsSettingsStore: ObservableObject {
         do {
             let status = try await runtimeClient.saveProfileMetadata(
                 input: RadrootsProfileMetadataInput(
-                    name: profileName,
-                    displayName: optional(profileDisplayName),
-                    about: optional(profileAbout),
-                    picture: nil,
-                    banner: nil,
-                    nip05: optional(profileNip05),
-                    bot: profileBot
+                  name: profileName,
+                  displayName: optional(profileDisplayName),
+                  about: optional(profileAbout),
+                  picture: nil,
+                  banner: nil,
+                  nip05: optional(profileNip05),
+                  bot: profileBot
                 )
             )
             guard requestedGeneration == generation, !Task.isCancelled else { return }
@@ -392,8 +392,8 @@ final class RadrootsSettingsStore: ObservableObject {
         guard let profileStatus else { return }
         await runProfileOperation {
             try await self.runtimeClient.cancelProfile(
-                operationID: profileStatus.id,
-                expectedRevision: profileStatus.revision
+              operationID: profileStatus.id,
+              expectedRevision: profileStatus.revision
             )
         }
     }

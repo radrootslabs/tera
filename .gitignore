@@ -49,6 +49,8 @@ Thumbs.db
 
 # Testing
 test*.json
+__pycache__/
+*.py[cod]
 
 # Editors
 .vscode/

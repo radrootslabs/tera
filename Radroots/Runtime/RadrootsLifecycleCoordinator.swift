@@ -163,7 +163,8 @@ actor RadrootsDiagnosticsBuffer: RadrootsTelemetry {
         fields: Dictionary(
           uniqueKeysWithValues: event.fields.map { field in
             (field.key, field.value.renderedValue)
-          }),
+          }
+        ),
         occurredAtUnixMilliseconds: Int64(event.occurredAt.timeIntervalSince1970 * 1000)
       )
     }

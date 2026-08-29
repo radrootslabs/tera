@@ -6,64 +6,64 @@ import XCTest
 final class RadrootsStateMigrationTests: XCTestCase {
     func testRelayValidationMatchesRuntimeProfiles() throws {
         XCTAssertEqual(
-            try RadrootsNetworkValidator.relays(
-                ["wss://radroots.org", "WSS://WRITE.EXAMPLE:443/"],
-                profile: .publicNetwork
-            ),
-            ["wss://write.example"]
+          try RadrootsNetworkValidator.relays(
+            ["wss://radroots.org", "WSS://WRITE.EXAMPLE:443/"],
+            profile: .publicNetwork
+          ),
+          ["wss://write.example"]
         )
         XCTAssertEqual(
-            try RadrootsNetworkValidator.relays(
-                ["ws://127.0.0.1:7447"],
-                profile: .simulator
-            ),
-            ["ws://127.0.0.1:7447"]
+          try RadrootsNetworkValidator.relays(
+            ["ws://127.0.0.1:7447"],
+            profile: .simulator
+          ),
+          ["ws://127.0.0.1:7447"]
         )
         for accepted in [
-            "ws://10.0.0.5:7447",
-            "ws://172.16.0.5:7447",
-            "ws://172.31.255.254:7447",
-            "ws://192.168.0.5:7447",
-            "ws://[fc00::5]:7447",
-            "ws://[fd00::5]:7447",
-            "wss://10.0.0.5:7447",
+          "ws://10.0.0.5:7447",
+          "ws://172.16.0.5:7447",
+          "ws://172.31.255.254:7447",
+          "ws://192.168.0.5:7447",
+          "ws://[fc00::5]:7447",
+          "ws://[fd00::5]:7447",
+          "wss://10.0.0.5:7447",
         ] {
             XCTAssertNoThrow(
-                try RadrootsNetworkValidator.relays([accepted], profile: .device),
-                "Expected device policy to admit \(accepted)"
+              try RadrootsNetworkValidator.relays([accepted], profile: .device),
+              "Expected device policy to admit \(accepted)"
             )
         }
         for denied in [
-            "ws://8.8.8.8:7447",
-            "ws://device.example:7447",
-            "wss://device.example:7447",
-            "ws://0.0.0.0:7447",
-            "ws://127.0.0.1:7447",
-            "ws://169.254.1.1:7447",
-            "ws://172.32.0.5:7447",
-            "ws://100.64.0.5:7447",
-            "ws://224.0.0.1:7447",
-            "ws://[::]:7447",
-            "ws://[::1]:7447",
-            "ws://[fe80::1]:7447",
-            "ws://[ff02::1]:7447",
-            "ws://[2001:4860:4860::8888]:7447",
+          "ws://8.8.8.8:7447",
+          "ws://device.example:7447",
+          "wss://device.example:7447",
+          "ws://0.0.0.0:7447",
+          "ws://127.0.0.1:7447",
+          "ws://169.254.1.1:7447",
+          "ws://172.32.0.5:7447",
+          "ws://100.64.0.5:7447",
+          "ws://224.0.0.1:7447",
+          "ws://[::]:7447",
+          "ws://[::1]:7447",
+          "ws://[fe80::1]:7447",
+          "ws://[ff02::1]:7447",
+          "ws://[2001:4860:4860::8888]:7447",
         ] {
             XCTAssertThrowsError(
-                try RadrootsNetworkValidator.relays([denied], profile: .device),
-                "Expected device policy to deny \(denied)"
+              try RadrootsNetworkValidator.relays([denied], profile: .device),
+              "Expected device policy to deny \(denied)"
             )
         }
         for denied in [
-            "ws://public.example",
-            "wss://localhost",
-            "wss://10.0.0.1",
-            "wss://user@example.com",
-            "wss://relay.example?token=value",
+          "ws://public.example",
+          "wss://localhost",
+          "wss://10.0.0.1",
+          "wss://user@example.com",
+          "wss://relay.example?token=value",
         ] {
             XCTAssertThrowsError(
-                try RadrootsNetworkValidator.relays([denied], profile: .publicNetwork),
-                "Expected public policy to deny \(denied)"
+              try RadrootsNetworkValidator.relays([denied], profile: .publicNetwork),
+              "Expected public policy to deny \(denied)"
             )
         }
     }
@@ -73,21 +73,21 @@ final class RadrootsStateMigrationTests: XCTestCase {
         defer { fixture.remove() }
         let fileAccess = RadrootsAppleFileAccess(roots: fixture.roots)
         try fileAccess.write(
-            .inline(
+          .inline(
                 Data(
                     """
                     {"format":"radroots_field_ios_relay_settings_v1","relays":["ws://127.0.0.1:7447"]}
                     """.utf8
                 )
-            ),
-            to: RadrootsFileReference(
-                scope: .data,
-                relativePath: "settings/relay_settings.json"
-            )
+          ),
+          to: RadrootsFileReference(
+            scope: .data,
+            relativePath: "settings/relay_settings.json"
+          )
         )
         let store = RadrootsConfigurationStore(
-            bootstrap: fixture.bootstrap,
-            roots: fixture.roots
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
         )
         let first = try await store.load()
         let second = try await store.load()
@@ -95,11 +95,11 @@ final class RadrootsStateMigrationTests: XCTestCase {
         XCTAssertEqual(first.writableRelays, ["ws://127.0.0.1:7447"])
 
         try fileAccess.write(
-            .inline(Data("not-json".utf8)),
-            to: RadrootsFileReference(
-                scope: .data,
-                relativePath: "settings/radroots_configuration_v3.json"
-            )
+          .inline(Data("not-json".utf8)),
+          to: RadrootsFileReference(
+            scope: .data,
+            relativePath: "settings/radroots_configuration_v3.json"
+          )
         )
         do {
             _ = try await store.load()
@@ -114,17 +114,17 @@ final class RadrootsStateMigrationTests: XCTestCase {
         defer { fixture.remove() }
         let fileAccess = RadrootsAppleFileAccess(roots: fixture.roots)
         try fileAccess.write(
-            .inline(
+          .inline(
                 Data(
                     """
                     {"format":"radroots_ios_configuration_v2","profile":"simulator","writableRelays":["ws://127.0.0.1:7447"],"blossomOrigins":["http://127.0.0.1:3000","http://localhost:3001"]}
                     """.utf8
                 )
-            ),
-            to: RadrootsFileReference(
-                scope: .data,
-                relativePath: "settings/radroots_configuration_v2.json"
-            )
+          ),
+          to: RadrootsFileReference(
+            scope: .data,
+            relativePath: "settings/radroots_configuration_v2.json"
+          )
         )
         let store = RadrootsConfigurationStore(bootstrap: fixture.bootstrap, roots: fixture.roots)
 
@@ -133,13 +133,13 @@ final class RadrootsStateMigrationTests: XCTestCase {
 
         XCTAssertEqual(first, second)
         XCTAssertEqual(
-            first.blossom,
-            RadrootsBlossomEndpointConfiguration(
-                hostKind: .simulator,
-                endpointAuthority: .loopbackDevelopment,
-                primaryOrigin: "http://127.0.0.1:3000",
-                fallbackOrigins: ["http://localhost:3001"]
-            )
+          first.blossom,
+          RadrootsBlossomEndpointConfiguration(
+            hostKind: .simulator,
+            endpointAuthority: .loopbackDevelopment,
+            primaryOrigin: "http://127.0.0.1:3000",
+            fallbackOrigins: ["http://localhost:3001"]
+          )
         )
         let persisted = try configurationObject(fileAccess)
         XCTAssertEqual(persisted["format"] as? String, "radroots_ios_configuration_v3")
@@ -151,12 +151,12 @@ final class RadrootsStateMigrationTests: XCTestCase {
 
         let fingerprint = String(repeating: "a", count: 64)
         try await store.confirmCanonicalBlossomConfiguration(
-            canonicalBlossomConfiguration(
-                primaryOrigin: "http://127.0.0.1:3000",
-                fallbackOrigins: ["http://localhost:3001"],
-                fingerprint: fingerprint
-            ),
-            expectedGeneration: first.generation
+          canonicalBlossomConfiguration(
+            primaryOrigin: "http://127.0.0.1:3000",
+            fallbackOrigins: ["http://localhost:3001"],
+            fingerprint: fingerprint
+          ),
+          expectedGeneration: first.generation
         )
         let confirmed = try configurationObject(fileAccess)
         XCTAssertEqual(confirmed["canonicalBlossomConfigFingerprint"] as? String, fingerprint)
@@ -168,25 +168,25 @@ final class RadrootsStateMigrationTests: XCTestCase {
         defer { fixture.remove() }
         let fileAccess = RadrootsAppleFileAccess(roots: fixture.roots)
         _ = try await RadrootsConfigurationStore(
-            bootstrap: fixture.bootstrap,
-            roots: fixture.roots
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
         ).load()
         let originalFingerprint = String(repeating: "b", count: 64)
         let originalStore = RadrootsConfigurationStore(
-            bootstrap: fixture.bootstrap,
-            roots: fixture.roots
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
         )
         try await originalStore.confirmCanonicalBlossomConfiguration(
-            canonicalBlossomConfiguration(fingerprint: originalFingerprint),
-            expectedGeneration: 1
+          canonicalBlossomConfiguration(fingerprint: originalFingerprint),
+          expectedGeneration: 1
         )
         let production = RadrootsConfigurationBootstrap(
-            runtimeMode: "production",
-            relayURLs: ["wss://write.example"],
-            blossomOrigins: ["https://blossom.example"],
-            keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
-            bundleIdentifier: fixture.bootstrap.bundleIdentifier,
-            appMetadata: fixture.bootstrap.appMetadata
+          runtimeMode: "production",
+          relayURLs: ["wss://write.example"],
+          blossomOrigins: ["https://blossom.example"],
+          keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
+          bundleIdentifier: fixture.bootstrap.bundleIdentifier,
+          appMetadata: fixture.bootstrap.appMetadata
         )
         let store = RadrootsConfigurationStore(bootstrap: production, roots: fixture.roots)
 
@@ -198,13 +198,13 @@ final class RadrootsStateMigrationTests: XCTestCase {
         XCTAssertEqual(recovered.previousBlossomConfigFingerprint, originalFingerprint)
         XCTAssertEqual(recovered.writableRelays, ["wss://write.example"])
         XCTAssertEqual(
-            recovered.blossom,
-            RadrootsBlossomEndpointConfiguration(
-                hostKind: .physicalDevice,
-                endpointAuthority: .publicWebPKI,
-                primaryOrigin: "https://blossom.example",
-                fallbackOrigins: []
-            )
+          recovered.blossom,
+          RadrootsBlossomEndpointConfiguration(
+            hostKind: .physicalDevice,
+            endpointAuthority: .publicWebPKI,
+            primaryOrigin: "https://blossom.example",
+            fallbackOrigins: []
+          )
         )
         let repeated = try await store.load()
         XCTAssertEqual(repeated, recovered)
@@ -214,8 +214,8 @@ final class RadrootsStateMigrationTests: XCTestCase {
         XCTAssertEqual(persisted["activationState"] as? String, "reconfiguration_required")
         XCTAssertNil(persisted["canonicalBlossomConfigFingerprint"])
         XCTAssertEqual(
-            persisted["previousBlossomConfigFingerprint"] as? String,
-            originalFingerprint
+          persisted["previousBlossomConfigFingerprint"] as? String,
+          originalFingerprint
         )
     }
 
@@ -223,26 +223,26 @@ final class RadrootsStateMigrationTests: XCTestCase {
         let fixture = try StateFixture()
         defer { fixture.remove() }
         let original = RadrootsConfigurationStore(
-            bootstrap: fixture.bootstrap,
-            roots: fixture.roots
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
         )
         let first = try await original.load()
         let originalFingerprint = String(repeating: "c", count: 64)
         try await original.confirmCanonicalBlossomConfiguration(
-            canonicalBlossomConfiguration(fingerprint: originalFingerprint),
-            expectedGeneration: first.generation
+          canonicalBlossomConfiguration(fingerprint: originalFingerprint),
+          expectedGeneration: first.generation
         )
         let changedBootstrap = RadrootsConfigurationBootstrap(
-            runtimeMode: fixture.bootstrap.runtimeMode,
-            relayURLs: ["ws://127.0.0.1:7448"],
-            blossomOrigins: ["http://127.0.0.1:3001"],
-            keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
-            bundleIdentifier: fixture.bootstrap.bundleIdentifier,
-            appMetadata: fixture.bootstrap.appMetadata
+          runtimeMode: fixture.bootstrap.runtimeMode,
+          relayURLs: ["ws://127.0.0.1:7448"],
+          blossomOrigins: ["http://127.0.0.1:3001"],
+          keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
+          bundleIdentifier: fixture.bootstrap.bundleIdentifier,
+          appMetadata: fixture.bootstrap.appMetadata
         )
         let changed = RadrootsConfigurationStore(
-            bootstrap: changedBootstrap,
-            roots: fixture.roots
+          bootstrap: changedBootstrap,
+          roots: fixture.roots
         )
 
         let pending = try await changed.load()
@@ -255,11 +255,11 @@ final class RadrootsStateMigrationTests: XCTestCase {
 
         let replacementFingerprint = String(repeating: "d", count: 64)
         try await changed.confirmCanonicalBlossomConfiguration(
-            canonicalBlossomConfiguration(
-                primaryOrigin: "http://127.0.0.1:3001",
-                fingerprint: replacementFingerprint
-            ),
-            expectedGeneration: pending.generation
+          canonicalBlossomConfiguration(
+            primaryOrigin: "http://127.0.0.1:3001",
+            fingerprint: replacementFingerprint
+          ),
+          expectedGeneration: pending.generation
         )
         let active = try await changed.load()
         XCTAssertEqual(active.activationState, .current)
@@ -269,8 +269,8 @@ final class RadrootsStateMigrationTests: XCTestCase {
             RadrootsAppleFileAccess(roots: fixture.roots)
         )
         XCTAssertEqual(
-            persisted["canonicalBlossomConfigFingerprint"] as? String,
-            replacementFingerprint
+          persisted["canonicalBlossomConfigFingerprint"] as? String,
+          replacementFingerprint
         )
     }
 
@@ -278,25 +278,25 @@ final class RadrootsStateMigrationTests: XCTestCase {
         let fixture = try StateFixture()
         defer { fixture.remove() }
         let original = RadrootsConfigurationStore(
-            bootstrap: fixture.bootstrap,
-            roots: fixture.roots
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
         )
         let first = try await original.load()
         try await original.confirmCanonicalBlossomConfiguration(
-            canonicalBlossomConfiguration(fingerprint: String(repeating: "f", count: 64)),
-            expectedGeneration: first.generation
+          canonicalBlossomConfiguration(fingerprint: String(repeating: "f", count: 64)),
+          expectedGeneration: first.generation
         )
         let changedBootstrap = RadrootsConfigurationBootstrap(
-            runtimeMode: fixture.bootstrap.runtimeMode,
-            relayURLs: ["ws://127.0.0.1:7448"],
-            blossomOrigins: ["http://127.0.0.1:3001"],
-            keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
-            bundleIdentifier: fixture.bootstrap.bundleIdentifier,
-            appMetadata: fixture.bootstrap.appMetadata
+          runtimeMode: fixture.bootstrap.runtimeMode,
+          relayURLs: ["ws://127.0.0.1:7448"],
+          blossomOrigins: ["http://127.0.0.1:3001"],
+          keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
+          bundleIdentifier: fixture.bootstrap.bundleIdentifier,
+          appMetadata: fixture.bootstrap.appMetadata
         )
         let changed = RadrootsConfigurationStore(
-            bootstrap: changedBootstrap,
-            roots: fixture.roots
+          bootstrap: changedBootstrap,
+          roots: fixture.roots
         )
         let pending = try await changed.load()
 
@@ -319,26 +319,26 @@ final class RadrootsStateMigrationTests: XCTestCase {
         let fixture = try StateFixture()
         defer { fixture.remove() }
         let bootstrap = RadrootsConfigurationBootstrap(
-            runtimeMode: "production",
-            relayURLs: [],
-            blossomOrigins: ["https://media.example"],
-            keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
-            bundleIdentifier: fixture.bootstrap.bundleIdentifier,
-            appMetadata: fixture.bootstrap.appMetadata
+          runtimeMode: "production",
+          relayURLs: [],
+          blossomOrigins: ["https://media.example"],
+          keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
+          bundleIdentifier: fixture.bootstrap.bundleIdentifier,
+          appMetadata: fixture.bootstrap.appMetadata
         )
         let store = RadrootsConfigurationStore(bootstrap: bootstrap, roots: fixture.roots)
         let selected = try await store.load()
 
         try await store.confirmCanonicalBlossomConfiguration(
-            RadrootsBlossomConfigurationStatus(
-                schemaVersion: 1,
-                hostKind: "physical_device",
-                endpointAuthority: "public_webpki",
-                primaryOrigin: "https://media.example",
-                fallbackOrigins: [],
-                configFingerprint: String(repeating: "e", count: 64)
-            ),
-            expectedGeneration: selected.generation
+          RadrootsBlossomConfigurationStatus(
+            schemaVersion: 1,
+            hostKind: "physical_device",
+            endpointAuthority: "public_webpki",
+            primaryOrigin: "https://media.example",
+            fallbackOrigins: [],
+            configFingerprint: String(repeating: "e", count: 64)
+          ),
+          expectedGeneration: selected.generation
         )
 
         let persisted = try configurationObject(
@@ -353,30 +353,30 @@ final class RadrootsStateMigrationTests: XCTestCase {
         defer { fixture.remove() }
         let fileAccess = RadrootsAppleFileAccess(roots: fixture.roots)
         try fileAccess.write(
-            .inline(
+          .inline(
                 Data(
                     """
                     {"format":"radroots_ios_configuration_v3","profile":"simulator","writableRelays":["ws://127.0.0.1:7447"],"blossom":{"hostKind":"physical_device","endpointAuthority":"public_web_pki","primaryOrigin":"https://wrong.example","fallbackOrigins":[]}}
                     """.utf8
                 )
-            ),
-            to: RadrootsFileReference(
-                scope: .data,
-                relativePath: "settings/radroots_configuration_v3.json"
-            )
+          ),
+          to: RadrootsFileReference(
+            scope: .data,
+            relativePath: "settings/radroots_configuration_v3.json"
+          )
         )
         let store = RadrootsConfigurationStore(bootstrap: fixture.bootstrap, roots: fixture.roots)
 
         let recovered = try await store.load()
 
         XCTAssertEqual(
-            recovered.blossom,
-            RadrootsBlossomEndpointConfiguration(
-                hostKind: .simulator,
-                endpointAuthority: .loopbackDevelopment,
-                primaryOrigin: "http://127.0.0.1:3000",
-                fallbackOrigins: []
-            )
+          recovered.blossom,
+          RadrootsBlossomEndpointConfiguration(
+            hostKind: .simulator,
+            endpointAuthority: .loopbackDevelopment,
+            primaryOrigin: "http://127.0.0.1:3000",
+            fallbackOrigins: []
+          )
         )
     }
 
@@ -384,11 +384,11 @@ final class RadrootsStateMigrationTests: XCTestCase {
         _ fileAccess: RadrootsAppleFileAccess
     ) throws -> [String: Any] {
         let source = try fileAccess.read(
-            RadrootsFileReference(
-                scope: .data,
-                relativePath: "settings/radroots_configuration_v3.json"
-            ),
-            mode: .inline
+          RadrootsFileReference(
+            scope: .data,
+            relativePath: "settings/radroots_configuration_v3.json"
+          ),
+          mode: .inline
         )
         guard case let .inline(data) = source,
               let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -399,17 +399,17 @@ final class RadrootsStateMigrationTests: XCTestCase {
     }
 
     private func canonicalBlossomConfiguration(
-        primaryOrigin: String = "http://127.0.0.1:3000",
-        fallbackOrigins: [String] = [],
-        fingerprint: String
+      primaryOrigin: String = "http://127.0.0.1:3000",
+      fallbackOrigins: [String] = [],
+      fingerprint: String
     ) -> RadrootsBlossomConfigurationStatus {
         RadrootsBlossomConfigurationStatus(
-            schemaVersion: 1,
-            hostKind: "simulator",
-            endpointAuthority: "loopback_development",
-            primaryOrigin: primaryOrigin,
-            fallbackOrigins: fallbackOrigins,
-            configFingerprint: fingerprint
+          schemaVersion: 1,
+          hostKind: "simulator",
+          endpointAuthority: "loopback_development",
+          primaryOrigin: primaryOrigin,
+          fallbackOrigins: fallbackOrigins,
+          configFingerprint: fingerprint
         )
     }
 
@@ -417,25 +417,25 @@ final class RadrootsStateMigrationTests: XCTestCase {
         let fixture = try StateFixture()
         defer { fixture.remove() }
         let firstStore = RadrootsConfigurationStore(
-            bootstrap: fixture.bootstrap,
-            roots: fixture.roots
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
         )
         let first = try await firstStore.sourceGeneration()
         let secondStore = RadrootsConfigurationStore(
-            bootstrap: fixture.bootstrap,
-            roots: fixture.roots
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
         )
         let second = try await secondStore.sourceGeneration()
         XCTAssertEqual(first, second)
 
         let key = String(repeating: "ab", count: 32)
         XCTAssertEqual(
-            RadrootsStableVisualIdentity(publicKeyHex: key),
-            RadrootsStableVisualIdentity(publicKeyHex: key)
+          RadrootsStableVisualIdentity(publicKeyHex: key),
+          RadrootsStableVisualIdentity(publicKeyHex: key)
         )
         XCTAssertNotEqual(
-            RadrootsStableVisualIdentity(publicKeyHex: key).digestHex,
-            RadrootsStableVisualIdentity(publicKeyHex: String(repeating: "cd", count: 32)).digestHex
+          RadrootsStableVisualIdentity(publicKeyHex: key).digestHex,
+          RadrootsStableVisualIdentity(publicKeyHex: String(repeating: "cd", count: 32)).digestHex
         )
     }
 
@@ -448,28 +448,28 @@ final class RadrootsStateMigrationTests: XCTestCase {
             UserDefaults(suiteName: servicePrefix)?.removePersistentDomain(forName: servicePrefix)
         }
         let legacyKey = RadrootsSecureStoreKey(
-            namespace: "nostr_identity",
-            name: "selected_secret_hex"
+          namespace: "nostr_identity",
+          name: "selected_secret_hex"
         )
         try secureStore.put(
-            Data(String(repeating: "01", count: 32).utf8),
-            for: legacyKey,
-            policy: .secureLocalSecret
+          Data(String(repeating: "01", count: 32).utf8),
+          for: legacyKey,
+          policy: .secureLocalSecret
         )
         let custody = try RadrootsIdentityCustody(
-            configuration: RadrootsIdentityCustodyConfiguration(
-                namespace: "radroots_identity_v1",
-                secretPolicy: .secureLocalSecret
-            ),
-            secureStore: secureStore,
-            metadataStore: metadataStore,
-            userPresence: AllowingUserPresence()
+          configuration: RadrootsIdentityCustodyConfiguration(
+            namespace: "radroots_identity_v1",
+            secretPolicy: .secureLocalSecret
+          ),
+          secureStore: secureStore,
+          metadataStore: metadataStore,
+          userPresence: AllowingUserPresence()
         )
         let store = RadrootsIdentityStore(
-            custody: custody,
-            secureStore: secureStore,
-            servicePrefix: servicePrefix,
-            userDefaults: defaults
+          custody: custody,
+          secureStore: secureStore,
+          servicePrefix: servicePrefix,
+          userDefaults: defaults
         )
         let first = try await store.loadAndMigrate()
         XCTAssertEqual(first.state, .recoveryRequired)
@@ -489,23 +489,23 @@ final class RadrootsStateMigrationTests: XCTestCase {
             UserDefaults(suiteName: servicePrefix)?.removePersistentDomain(forName: servicePrefix)
         }
         defaults.set(
-            Data("not-json".utf8),
-            forKey: "field_ios.identity.public_metadata.\(servicePrefix)"
+          Data("not-json".utf8),
+          forKey: "field_ios.identity.public_metadata.\(servicePrefix)"
         )
         let custody = try RadrootsIdentityCustody(
-            configuration: RadrootsIdentityCustodyConfiguration(
-                namespace: "radroots_identity_v1",
-                secretPolicy: .secureLocalSecret
-            ),
-            secureStore: secureStore,
-            metadataStore: InMemoryIdentityMetadataStore(),
-            userPresence: AllowingUserPresence()
+          configuration: RadrootsIdentityCustodyConfiguration(
+            namespace: "radroots_identity_v1",
+            secretPolicy: .secureLocalSecret
+          ),
+          secureStore: secureStore,
+          metadataStore: InMemoryIdentityMetadataStore(),
+          userPresence: AllowingUserPresence()
         )
         let store = RadrootsIdentityStore(
-            custody: custody,
-            secureStore: secureStore,
-            servicePrefix: servicePrefix,
-            userDefaults: defaults
+          custody: custody,
+          secureStore: secureStore,
+          servicePrefix: servicePrefix,
+          userDefaults: defaults
         )
         do {
             _ = try await store.loadAndMigrate()
@@ -518,32 +518,32 @@ final class RadrootsStateMigrationTests: XCTestCase {
     func testRuntimeSignerUsesCanonicalOperationIDInsteadOfSignerRequestDigest() async throws {
         let secureStore = InMemorySecureStore()
         let custody = try RadrootsIdentityCustody(
-            configuration: RadrootsIdentityCustodyConfiguration(
-                namespace: "radroots_identity_v1",
-                secretPolicy: .secureLocalSecret
-            ),
-            secureStore: secureStore,
-            metadataStore: InMemoryIdentityMetadataStore(),
-            userPresence: AllowingUserPresence()
+          configuration: RadrootsIdentityCustodyConfiguration(
+            namespace: "radroots_identity_v1",
+            secretPolicy: .secureLocalSecret
+          ),
+          secureStore: secureStore,
+          metadataStore: InMemoryIdentityMetadataStore(),
+          userPresence: AllowingUserPresence()
         )
         let servicePrefix = "org.radroots.tests.signer.\(UUID().uuidString.lowercased())"
         let store = RadrootsIdentityStore(
-            custody: custody,
-            secureStore: secureStore,
-            servicePrefix: servicePrefix
+          custody: custody,
+          secureStore: secureStore,
+          servicePrefix: servicePrefix
         )
         let identity = try await store.create()
         let signer = try await store.signer(for: identity)
         let operationID = UUID().uuidString.lowercased()
 
-        let outcome = await signer.sign(
+        let outcome = try await signer.sign(
             RadrootsRuntimeSigningRequest(
-                operationID: operationID,
-                signerRequestID: String(repeating: "ab", count: 32),
-                publicKeyHex: try XCTUnwrap(identity.publicKeyHex),
-                purpose: .blossomUpload,
-                deadlineUnixMilliseconds: UInt64(Date().timeIntervalSince1970 * 1000) + 60_000,
-                digest: Data(repeating: 0xcd, count: 32)
+              operationID: operationID,
+              signerRequestID: String(repeating: "ab", count: 32),
+              publicKeyHex: XCTUnwrap(identity.publicKeyHex),
+              purpose: .blossomUpload,
+              deadlineUnixMilliseconds: UInt64(Date().timeIntervalSince1970 * 1000) + 60000,
+              digest: Data(repeating: 0xCD, count: 32)
             )
         )
 
@@ -564,23 +564,23 @@ private struct StateFixture {
             .appendingPathComponent("radroots-state-tests-\(UUID().uuidString.lowercased())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false)
         roots = try RadrootsAppleFileRoots(
-            appIdentifier: "org.radroots.tests",
-            dataRoot: root.appendingPathComponent("data"),
-            cacheRoot: root.appendingPathComponent("cache"),
-            temporaryRoot: root.appendingPathComponent("tmp")
+          appIdentifier: "org.radroots.tests",
+          dataRoot: root.appendingPathComponent("data"),
+          cacheRoot: root.appendingPathComponent("cache"),
+          temporaryRoot: root.appendingPathComponent("tmp")
         )
         bootstrap = RadrootsConfigurationBootstrap(
-            runtimeMode: "localhost-dev",
-            relayURLs: ["ws://127.0.0.1:8080"],
-            blossomOrigins: ["http://127.0.0.1:3000"],
-            keychainServicePrefix: "org.radroots.tests",
+          runtimeMode: "localhost-dev",
+          relayURLs: ["ws://127.0.0.1:8080"],
+          blossomOrigins: ["http://127.0.0.1:3000"],
+          keychainServicePrefix: "org.radroots.tests",
+          bundleIdentifier: "org.radroots.tests",
+          appMetadata: RadrootsRuntimeAppMetadata(
             bundleIdentifier: "org.radroots.tests",
-            appMetadata: RadrootsRuntimeAppMetadata(
-                bundleIdentifier: "org.radroots.tests",
-                version: "0.1.0-alpha",
-                buildNumber: "1",
-                buildSHA: nil
-            )
+            version: "0.1.0-alpha",
+            buildNumber: "1",
+            buildSHA: nil
+          )
         )
     }
 
@@ -594,9 +594,9 @@ private final class InMemorySecureStore: RadrootsSecureStore, @unchecked Sendabl
     private var values: [RadrootsSecureStoreKey: Data] = [:]
 
     func put(
-        _ value: Data,
-        for key: RadrootsSecureStoreKey,
-        policy _: RadrootsSecretAccessPolicy
+      _ value: Data,
+      for key: RadrootsSecureStoreKey,
+      policy _: RadrootsSecretAccessPolicy
     ) throws {
         lock.withLock { values[key] = value }
     }
@@ -638,10 +638,10 @@ private final class InMemoryIdentityMetadataStore: RadrootsIdentityMetadataStore
 private struct AllowingUserPresence: RadrootsUserPresence {
     func currentStatus() async throws -> RadrootsUserPresenceStatus {
         RadrootsUserPresenceStatus(
-            support: .deviceCredential,
-            biometryKind: .none,
-            canEvaluateDeviceCredential: true,
-            canEvaluateBiometrics: false
+          support: .deviceCredential,
+          biometryKind: .none,
+          canEvaluateDeviceCredential: true,
+          canEvaluateBiometrics: false
         )
     }
 

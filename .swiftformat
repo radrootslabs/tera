@@ -1,0 +1,4 @@
+--exclude .build,RadrootsFFI/.build,Radroots/Generated,Radroots.xcodeproj,.swiftpm
+--indent 2
+--swift-version 6.0
+--disable extensionAccessControl,indent,redundantFileprivate

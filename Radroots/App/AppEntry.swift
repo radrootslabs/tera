@@ -19,7 +19,7 @@ struct AppEntry: View {
 
   var body: some View {
     Group {
-      if case .running(let snapshot) = appModel.phase {
+      if case let .running(snapshot) = appModel.phase {
         RadrootsRootShell(
           snapshot: snapshot,
           stores: appModel.productStores

@@ -26,7 +26,7 @@ struct RadrootsAddView: View {
           ProgressView("Loading Add…")
             .accessibilityIdentifier("radroots.add.loading")
         }
-      case .failed(let message):
+      case let .failed(message):
         Section {
           Label(message, systemImage: "exclamationmark.triangle")
             .foregroundStyle(.secondary)
@@ -265,7 +265,8 @@ struct RadrootsAddView: View {
         .accessibilityValue(
           "\(media.width) by \(media.height), "
             + ByteCountFormatter.string(
-              fromByteCount: Int64(clamping: media.byteSize), countStyle: .file)
+              fromByteCount: Int64(clamping: media.byteSize), countStyle: .file
+            )
         )
       }
 

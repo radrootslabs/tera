@@ -153,7 +153,7 @@ final class RadrootsMediaStore: ObservableObject {
 
   private static func failureState(_ error: Error) -> RadrootsMediaPresentationState {
     let failure: RadrootsRuntimeFailure? =
-      if case RadrootsRuntimeClientError.support(let value) = error {
+      if case let RadrootsRuntimeClientError.support(value) = error {
         value
       } else {
         error as? RadrootsRuntimeFailure

@@ -31,14 +31,14 @@ final class RadrootsTodayStore: ObservableObject {
     private var observationGeneration: UInt64 = 0
 
     init(
-        runtimeClient: RadrootsRuntimeClient,
-        contexts: [RadrootsLocalNetwork] = [],
-        selectedContextID: String? = nil,
-        pageSize: UInt16 = 20,
-        now: @escaping @Sendable () -> UInt64 = {
+      runtimeClient: RadrootsRuntimeClient,
+      contexts: [RadrootsLocalNetwork] = [],
+      selectedContextID: String? = nil,
+      pageSize: UInt16 = 20,
+      now: @escaping @Sendable () -> UInt64 = {
             UInt64(Date().timeIntervalSince1970)
         },
-        observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
+      observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
             RadrootsRuntimeObservationBackoff.sleep
     ) {
         self.runtimeClient = runtimeClient
@@ -128,8 +128,8 @@ final class RadrootsTodayStore: ObservableObject {
     }
 
     func reload(
-        refreshProjection: Bool = true,
-        update: RadrootsTodayProjectionUpdate = .incremental
+      refreshProjection: Bool = true,
+      update: RadrootsTodayProjectionUpdate = .incremental
     ) async {
         guard let context = selectedContext else {
             cards = []
@@ -150,9 +150,9 @@ final class RadrootsTodayStore: ObservableObject {
         if refreshProjection {
             do {
                 _ = try await runtimeClient.refreshToday(
-                    context: context,
-                    nowUnixSeconds: now(),
-                    update: update
+                  context: context,
+                  nowUnixSeconds: now(),
+                  update: update
                 )
             } catch {
                 refreshFailure = error
@@ -163,9 +163,9 @@ final class RadrootsTodayStore: ObservableObject {
             let asOf = now()
             let page = try await runtimeClient.todayPage(
                 request: .first(
-                    context: context,
-                    limit: pageSize,
-                    asOfUnixSeconds: asOf
+                  context: context,
+                  limit: pageSize,
+                  asOfUnixSeconds: asOf
                 )
             )
             guard generation == requestGeneration, !Task.isCancelled else { return }

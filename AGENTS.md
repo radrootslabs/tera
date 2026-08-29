@@ -76,6 +76,12 @@ This file applies to the complete standalone iOS app repository. A closer
   `cargo extbuild run -- ...`.
 - `make package-contract-check` is the narrow standalone source-lock,
   package-lock, privacy, version, and forbidden-root guard.
+- `make swift-quality` applies the checked-in SwiftFormat and SwiftLint policy
+  to repository-owned package, app, unit-test, API-test, and UI-test sources;
+  generated bindings and dependency/build output are excluded.
+- `make linux-shared-rust` runs the locked source-lock workspace in the pinned
+  Linux x86_64 Rust runner while keeping Cargo caches and output under the
+  extbuild project root.
 - `make bootstrap` performs networked source/artifact bootstrap. `make verify`
   is the complete package, Xcode build/test, UI, and API-snapshot lane. Use an
   explicitly installed simulator name when the default is unavailable.

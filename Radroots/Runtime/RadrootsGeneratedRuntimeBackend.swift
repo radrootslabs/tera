@@ -638,7 +638,7 @@ private final class RadrootsGeneratedRuntimeBackend: RadrootsRuntimeBackend, @un
   }
 
   private static func failure(from error: Error) -> RadrootsRuntimeFailure {
-    if case RadrootsAppError.Failure(let report) = error {
+    if case let RadrootsAppError.Failure(report) = error {
       return RadrootsRuntimeFailure(
         schemaVersion: report.schemaVersion,
         code: report.code,
@@ -781,7 +781,7 @@ extension RadrootsRuntimeSigningOutcome {
   }
 
   fileprivate var signatureHex: String? {
-    if case .signed(let signatureHex) = self {
+    if case let .signed(signatureHex) = self {
       return signatureHex
     }
     return nil

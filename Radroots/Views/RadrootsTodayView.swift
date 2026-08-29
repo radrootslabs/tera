@@ -24,14 +24,14 @@ struct RadrootsTodayView: View {
           .accessibilityIdentifier("radroots.today.loading")
       case .empty:
         emptyView
-      case .failed(let message) where store.cards.isEmpty:
+      case let .failed(message) where store.cards.isEmpty:
         unavailableView(
           title: "Today is unavailable",
           message: message,
           systemImage: "exclamationmark.triangle"
         )
         .accessibilityIdentifier("radroots.today.error")
-      case .offline(let message) where store.cards.isEmpty:
+      case let .offline(message) where store.cards.isEmpty:
         unavailableView(
           title: "You’re offline",
           message: message,
@@ -99,9 +99,9 @@ struct RadrootsTodayView: View {
 
   private var feed: some View {
     List {
-      if case .offline(let message) = store.state {
+      if case let .offline(message) = store.state {
         statusBanner(message: message, systemImage: "wifi.slash")
-      } else if case .failed(let message) = store.state {
+      } else if case let .failed(message) = store.state {
         statusBanner(message: message, systemImage: "exclamationmark.triangle")
       }
 
@@ -375,7 +375,7 @@ struct RadrootsLocalMediaContent: View {
     let state = store.state(for: media, context: context)
     Group {
       switch state {
-      case .ready(let artifact):
+      case let .ready(artifact):
         if let image = UIImage(data: artifact.bytes) {
           Image(uiImage: image)
             .resizable()

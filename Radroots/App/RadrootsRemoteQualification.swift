@@ -110,7 +110,7 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
 
     private static func requiredRunID(_ raw: String?) throws -> String {
       guard let raw,
-        (8...64).contains(raw.utf8.count),
+        (8 ... 64).contains(raw.utf8.count),
         raw == raw.lowercased(),
         raw.unicodeScalars.allSatisfy({
           CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyz0123456789-")

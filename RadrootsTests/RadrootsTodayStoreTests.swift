@@ -9,24 +9,24 @@ final class RadrootsTodayStoreTests: XCTestCase {
         let second = makeCard(id: "b", type: .ask, authoredAt: 1_800_000_000)
         let backend = TodayBackend(
             pages: [
-                "one:first": RadrootsTodayPage(
-                    asOfUnixSeconds: 1_800_000_100,
-                    items: [first],
-                    nextCursor: "same-time"
-                ),
-                "one:same-time": RadrootsTodayPage(
-                    asOfUnixSeconds: 1_800_000_100,
-                    items: [first, second],
-                    nextCursor: nil
-                ),
+              "one:first": RadrootsTodayPage(
+                asOfUnixSeconds: 1_800_000_100,
+                items: [first],
+                nextCursor: "same-time"
+              ),
+              "one:same-time": RadrootsTodayPage(
+                asOfUnixSeconds: 1_800_000_100,
+                items: [first, second],
+                nextCursor: nil
+              ),
             ]
         )
         let client = try await startedClient(backend: backend)
         let store = RadrootsTodayStore(
-            runtimeClient: client,
-            contexts: [context],
-            pageSize: 1,
-            now: { 1_800_000_100 }
+          runtimeClient: client,
+          contexts: [context],
+          pageSize: 1,
+          now: { 1_800_000_100 }
         )
 
         await store.reload(refreshProjection: false)
@@ -47,25 +47,25 @@ final class RadrootsTodayStoreTests: XCTestCase {
         let stale = makeCard(id: "stale", type: .update)
         let current = makeCard(id: "current", type: .photoUpdate)
         let backend = TodayBackend(
-            pages: [
-                "slow:first": RadrootsTodayPage(
-                    asOfUnixSeconds: 1_800_000_100,
-                    items: [stale],
-                    nextCursor: nil
-                ),
-                "current:first": RadrootsTodayPage(
-                    asOfUnixSeconds: 1_800_000_100,
-                    items: [current],
-                    nextCursor: nil
-                ),
-            ],
-            delays: ["slow": 80_000_000]
+          pages: [
+            "slow:first": RadrootsTodayPage(
+              asOfUnixSeconds: 1_800_000_100,
+              items: [stale],
+              nextCursor: nil
+            ),
+            "current:first": RadrootsTodayPage(
+              asOfUnixSeconds: 1_800_000_100,
+              items: [current],
+              nextCursor: nil
+            ),
+          ],
+          delays: ["slow": 80_000_000]
         )
         let client = try await startedClient(backend: backend)
         let store = RadrootsTodayStore(
-            runtimeClient: client,
-            contexts: [firstContext, secondContext],
-            now: { 1_800_000_100 }
+          runtimeClient: client,
+          contexts: [firstContext, secondContext],
+          now: { 1_800_000_100 }
         )
 
         let staleRequest = Task { await store.reload(refreshProjection: false) }
@@ -82,45 +82,45 @@ final class RadrootsTodayStoreTests: XCTestCase {
     @MainActor
     func testFiveCardsExposeProfileThreadMediaOverlayAndAccessibleProductFields() {
         let profile = RadrootsProfileSummary(
-            authorPublicKey: String(repeating: "a", count: 64),
-            name: "fieldnotes",
-            displayName: "Field Notes Farm",
-            about: nil,
-            picture: nil,
-            banner: nil,
-            nip05: "farm@example.com",
-            website: nil,
-            lightningAddress: nil
+          authorPublicKey: String(repeating: "a", count: 64),
+          name: "fieldnotes",
+          displayName: "Field Notes Farm",
+          about: nil,
+          picture: nil,
+          banner: nil,
+          nip05: "farm@example.com",
+          website: nil,
+          lightningAddress: nil
         )
         let failedMedia = RadrootsMediaReference(
-            referenceFingerprint: String(repeating: "d", count: 64),
-            url: "https://blossom.example/\(String(repeating: "b", count: 64))",
-            sha256: String(repeating: "b", count: 64),
-            mediaType: "image/jpeg",
-            width: 1200,
-            height: 800,
-            byteSize: 400,
-            alt: "Carrots in a basket",
-            verification: .failed
+          referenceFingerprint: String(repeating: "d", count: 64),
+          url: "https://blossom.example/\(String(repeating: "b", count: 64))",
+          sha256: String(repeating: "b", count: 64),
+          mediaType: "image/jpeg",
+          width: 1200,
+          height: 800,
+          byteSize: 400,
+          alt: "Carrots in a basket",
+          verification: .failed
         )
         let thread = RadrootsThreadEntry(
-            id: "reply",
-            authorPublicKey: String(repeating: "c", count: 64),
-            content: "Are these available Saturday?",
-            authoredAtUnixSeconds: 1_800_000_001,
-            type: .reply,
-            root: "root",
-            parentEventID: "root",
-            authorProfile: nil
+          id: "reply",
+          authorPublicKey: String(repeating: "c", count: 64),
+          content: "Are these available Saturday?",
+          authoredAtUnixSeconds: 1_800_000_001,
+          type: .reply,
+          root: "root",
+          parentEventID: "root",
+          authorProfile: nil
         )
         let cards = RadrootsTodayCardType.allCases.map { type in
             makeCard(
-                id: type.rawValue,
-                type: type,
-                profile: profile,
-                media: type == .photoUpdate ? [failedMedia] : [],
-                thread: type == .ask ? [thread] : [],
-                localState: type == .foodAvailability ? "partially_delivered" : nil
+              id: type.rawValue,
+              type: type,
+              profile: profile,
+              media: type == .photoUpdate ? [failedMedia] : [],
+              thread: type == .ask ? [thread] : [],
+              localState: type == .foodAvailability ? "partially_delivered" : nil
             )
         }
 
@@ -139,35 +139,35 @@ final class RadrootsTodayStoreTests: XCTestCase {
         let context = makeContext(id: "offline", label: "Offline")
         let cached = makeCard(id: "cached", type: .update)
         let failure = RadrootsRuntimeFailure(
-            schemaVersion: 1,
-            code: "today_relay_offline",
-            category: "relay",
-            retryable: true,
-            recoveryActions: ["retry"],
-            operationID: "test.today.refresh",
-            capabilityID: "nostr_source",
-            safeMessage: "Saved posts are available offline."
+          schemaVersion: 1,
+          code: "today_relay_offline",
+          category: "relay",
+          retryable: true,
+          recoveryActions: ["retry"],
+          operationID: "test.today.refresh",
+          capabilityID: "nostr_source",
+          safeMessage: "Saved posts are available offline."
         )
         let backend = TodayBackend(
-            pages: [
-                "offline:first": RadrootsTodayPage(
-                    asOfUnixSeconds: 1_800_000_100,
-                    items: [cached],
-                    nextCursor: "cached-next"
-                ),
-                "offline:cached-next": RadrootsTodayPage(
-                    asOfUnixSeconds: 1_800_000_100,
-                    items: [makeCard(id: "cached-next", type: .ask)],
-                    nextCursor: nil
-                ),
-            ],
-            refreshFailure: failure
+          pages: [
+            "offline:first": RadrootsTodayPage(
+              asOfUnixSeconds: 1_800_000_100,
+              items: [cached],
+              nextCursor: "cached-next"
+            ),
+            "offline:cached-next": RadrootsTodayPage(
+              asOfUnixSeconds: 1_800_000_100,
+              items: [makeCard(id: "cached-next", type: .ask)],
+              nextCursor: nil
+            ),
+          ],
+          refreshFailure: failure
         )
         let client = try await startedClient(backend: backend)
         let store = RadrootsTodayStore(
-            runtimeClient: client,
-            contexts: [context],
-            now: { 1_800_000_100 }
+          runtimeClient: client,
+          contexts: [context],
+          now: { 1_800_000_100 }
         )
 
         await store.reload()
@@ -191,83 +191,83 @@ final class RadrootsTodayStoreTests: XCTestCase {
 
     private func makeConfiguration() -> RadrootsRuntimeLaunchConfiguration {
         RadrootsRuntimeLaunchConfiguration(
-            applicationSupportDirectory: "/tmp/radroots-today-tests",
-            publicKeyHex: String(repeating: "ab", count: 32),
-            sourceGenerationHex: String(repeating: "cd", count: 32),
-            sourceGenerationCreatedAtUnixMilliseconds: 1,
-            protectedData: .available,
-            networkProfile: .simulator,
-            writableRelays: ["ws://127.0.0.1:7447"],
-            blossom: RadrootsBlossomEndpointConfiguration(
-                hostKind: .simulator,
-                endpointAuthority: .loopbackDevelopment,
-                primaryOrigin: "http://127.0.0.1:3000",
-                fallbackOrigins: []
-            ),
-            app: RadrootsRuntimeAppMetadata(
-                bundleIdentifier: "org.radroots.today-tests",
-                version: "0.1.0-alpha",
-                buildNumber: "1",
-                buildSHA: nil
-            ),
-            signerGeneration: "today-tests",
-            signer: TodayTestSigner(),
-            adoptBootstrapSettings: false
+          applicationSupportDirectory: "/tmp/radroots-today-tests",
+          publicKeyHex: String(repeating: "ab", count: 32),
+          sourceGenerationHex: String(repeating: "cd", count: 32),
+          sourceGenerationCreatedAtUnixMilliseconds: 1,
+          protectedData: .available,
+          networkProfile: .simulator,
+          writableRelays: ["ws://127.0.0.1:7447"],
+          blossom: RadrootsBlossomEndpointConfiguration(
+            hostKind: .simulator,
+            endpointAuthority: .loopbackDevelopment,
+            primaryOrigin: "http://127.0.0.1:3000",
+            fallbackOrigins: []
+          ),
+          app: RadrootsRuntimeAppMetadata(
+            bundleIdentifier: "org.radroots.today-tests",
+            version: "0.1.0-alpha",
+            buildNumber: "1",
+            buildSHA: nil
+          ),
+          signerGeneration: "today-tests",
+          signer: TodayTestSigner(),
+          adoptBootstrapSettings: false
         )
     }
 }
 
 private func makeContext(id: String, label: String) -> RadrootsLocalNetwork {
     RadrootsLocalNetwork(
-        schemaVersion: 1,
-        id: id,
-        label: label,
-        relayURLs: ["ws://127.0.0.1:7447"],
-        locality: nil,
-        followedAuthors: [],
-        generation: 1
+      schemaVersion: 1,
+      id: id,
+      label: label,
+      relayURLs: ["ws://127.0.0.1:7447"],
+      locality: nil,
+      followedAuthors: [],
+      generation: 1
     )
 }
 
 private func makeCard(
-    id: String,
-    type: RadrootsTodayCardType,
-    authoredAt: UInt64 = 1_800_000_000,
-    profile: RadrootsProfileSummary? = nil,
-    media: [RadrootsMediaReference] = [],
-    thread: [RadrootsThreadEntry] = [],
-    localState: String? = nil
+  id: String,
+  type: RadrootsTodayCardType,
+  authoredAt: UInt64 = 1_800_000_000,
+  profile: RadrootsProfileSummary? = nil,
+  media: [RadrootsMediaReference] = [],
+  thread: [RadrootsThreadEntry] = [],
+  localState: String? = nil
 ) -> RadrootsTodayCard {
     RadrootsTodayCard(
-        id: id,
-        type: type,
-        sourceEventID: "event-\(id)",
-        sourceAddress: type == .event || type == .foodAvailability ? "address-\(id)" : nil,
-        authorPublicKey: String(repeating: "a", count: 64),
-        contractID: "contract-\(type.rawValue)",
-        title: type == .event ? "Saturday market" : type == .foodAvailability ? "Carrots" : nil,
-        content: type == .ask ? "Who has seedlings?" : "Fresh from the field",
-        authoredAtUnixSeconds: authoredAt,
-        effectiveAtUnixSeconds: authoredAt,
-        eventStartUnixSeconds: type == .event ? authoredAt + 3600 : nil,
-        eventEndUnixSeconds: nil,
-        location: type == .event || type == .foodAvailability ? "Town square" : nil,
-        priceAmount: type == .foodAvailability ? "3" : nil,
-        priceCurrency: type == .foodAvailability ? "CAD" : nil,
-        priceUnit: type == .foodAvailability ? "lb" : nil,
-        quantity: type == .foodAvailability ? "12" : nil,
-        foodSummary: type == .foodAvailability ? "Fresh carrots" : nil,
-        foodPublishedAtUnixSeconds: type == .foodAvailability ? authoredAt : nil,
-        foodStatus: type == .foodAvailability ? "active" : nil,
-        contextRank: 1,
-        inclusionReason: "locality_missing_fallback",
-        media: media,
-        lifecycle: .active,
-        rankDigest: "rank-\(id)",
-        authorProfile: profile,
-        thread: thread,
-        localOperationID: localState == nil ? nil : "operation-\(id)",
-        localOperationState: localState
+      id: id,
+      type: type,
+      sourceEventID: "event-\(id)",
+      sourceAddress: type == .event || type == .foodAvailability ? "address-\(id)" : nil,
+      authorPublicKey: String(repeating: "a", count: 64),
+      contractID: "contract-\(type.rawValue)",
+      title: type == .event ? "Saturday market" : type == .foodAvailability ? "Carrots" : nil,
+      content: type == .ask ? "Who has seedlings?" : "Fresh from the field",
+      authoredAtUnixSeconds: authoredAt,
+      effectiveAtUnixSeconds: authoredAt,
+      eventStartUnixSeconds: type == .event ? authoredAt + 3600 : nil,
+      eventEndUnixSeconds: nil,
+      location: type == .event || type == .foodAvailability ? "Town square" : nil,
+      priceAmount: type == .foodAvailability ? "3" : nil,
+      priceCurrency: type == .foodAvailability ? "CAD" : nil,
+      priceUnit: type == .foodAvailability ? "lb" : nil,
+      quantity: type == .foodAvailability ? "12" : nil,
+      foodSummary: type == .foodAvailability ? "Fresh carrots" : nil,
+      foodPublishedAtUnixSeconds: type == .foodAvailability ? authoredAt : nil,
+      foodStatus: type == .foodAvailability ? "active" : nil,
+      contextRank: 1,
+      inclusionReason: "locality_missing_fallback",
+      media: media,
+      lifecycle: .active,
+      rankDigest: "rank-\(id)",
+      authorProfile: profile,
+      thread: thread,
+      localOperationID: localState == nil ? nil : "operation-\(id)",
+      localOperationState: localState
     )
 }
 
@@ -288,9 +288,9 @@ private actor TodayBackend: RadrootsRuntimeBackend {
     private var closed = false
 
     init(
-        pages: [String: RadrootsTodayPage],
-        delays: [String: UInt64] = [:],
-        refreshFailure: RadrootsRuntimeFailure? = nil
+      pages: [String: RadrootsTodayPage],
+      delays: [String: UInt64] = [:],
+      refreshFailure: RadrootsRuntimeFailure? = nil
     ) {
         self.pages = pages
         self.delays = delays
@@ -299,16 +299,16 @@ private actor TodayBackend: RadrootsRuntimeBackend {
 
     func snapshot() -> RadrootsRuntimeSnapshot {
         RadrootsRuntimeSnapshot(
-            identity: RadrootsRuntimeIdentity(
-                publicKeyHex: String(repeating: "ab", count: 32),
-                hostSignerConfigured: true
-            ),
-            relay: nil,
-            blossomConfiguration: nil,
-            blossomEvidence: nil,
-            crateName: "radroots_mobile_ffi",
-            crateVersion: "0.1.0-alpha",
-            isClosed: closed
+          identity: RadrootsRuntimeIdentity(
+            publicKeyHex: String(repeating: "ab", count: 32),
+            hostSignerConfigured: true
+          ),
+          relay: nil,
+          blossomConfiguration: nil,
+          blossomEvidence: nil,
+          crateName: "radroots_mobile_ffi",
+          crateVersion: "0.1.0-alpha",
+          isClosed: closed
         )
     }
 
@@ -319,36 +319,36 @@ private actor TodayBackend: RadrootsRuntimeBackend {
         let key = "\(request.context.id):\(request.cursor ?? "first")"
         guard let page = pages[key] else {
             throw RadrootsRuntimeFailure.local(
-                operation: "test.today.page",
-                code: "test.page_missing",
-                safeMessage: "The requested test page is missing."
+              operation: "test.today.page",
+              code: "test.page_missing",
+              safeMessage: "The requested test page is missing."
             )
         }
         return page
     }
 
     func refreshToday(
-        context _: RadrootsLocalNetwork,
-        nowUnixSeconds _: UInt64,
-        update: RadrootsTodayProjectionUpdate
+      context _: RadrootsLocalNetwork,
+      nowUnixSeconds _: UInt64,
+      update: RadrootsTodayProjectionUpdate
     ) throws -> RadrootsTodayRefreshReceipt {
         if let refreshFailure {
             throw refreshFailure
         }
         return RadrootsTodayRefreshReceipt(
-            update: update,
-            sourceEvents: 0,
-            visibleCards: 0,
-            profiles: 0,
-            threadEntries: 0,
-            contentGeneration: 1,
-            changed: false
+          update: update,
+          sourceEvents: 0,
+          visibleCards: 0,
+          profiles: 0,
+          threadEntries: 0,
+          contentGeneration: 1,
+          changed: false
         )
     }
 
     func subscribe(
-        bufferCapacity _: Int,
-        receive _: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
+      bufferCapacity _: Int,
+      receive _: @escaping @Sendable (RadrootsRuntimeChange) async -> Void
     ) -> any RadrootsRuntimeSubscriptionToken {
         TodaySubscriptionToken()
     }

@@ -353,7 +353,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
       return snapshot
     }
     let candidates = parsed.filter { snapshot in
-      return snapshot.state != .completed
+      snapshot.state != .completed
         || Self.persistedRequestMatches(snapshot.request, request: request)
     }
     try Task.checkCancellation()
@@ -544,7 +544,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
         )
       }
       try RadrootsAppleFileAccess(roots: roots).write(
-        .inline(try RadrootsRemoteQualificationEnvironment.mediaFixtureData()),
+        .inline(RadrootsRemoteQualificationEnvironment.mediaFixtureData()),
         to: file
       )
       let url = try roots.resolvedURL(for: file)
@@ -554,7 +554,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
       guard values.isRegularFile == true,
         values.isSymbolicLink != true,
         let size = values.fileSize,
-        (1...40 * 1024 * 1024).contains(size)
+        (1 ... 40 * 1024 * 1024).contains(size)
       else {
         throw RadrootsCaptureIntakeError.unavailable(
           "remote qualification image is unavailable"

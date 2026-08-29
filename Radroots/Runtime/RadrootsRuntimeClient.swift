@@ -547,7 +547,7 @@ actor RadrootsRuntimeClient {
         }
       },
       onAbandonedResult: { result in
-        guard case .success(let started) = result else { return }
+        guard case let .success(started) = result else { return }
         let cleanup = RadrootsRuntimeBoundedTask<RadrootsRuntimeShutdownReceipt>(
           deadlineNanoseconds: cleanupDeadline,
           operation: {
@@ -923,7 +923,7 @@ actor RadrootsRuntimeClient {
         }
       },
       onAbandonedResult: { result in
-        guard case .success(let token) = result else { return }
+        guard case let .success(token) = result else { return }
         let cancellation = RadrootsRuntimeBoundedTask<Void>(
           deadlineNanoseconds: subscriptionDeadline,
           operation: {
@@ -946,18 +946,18 @@ actor RadrootsRuntimeClient {
           var subscription = subscriptions[id]
     else {
       subscriptions.removeValue(forKey: id)?.continuation.finish()
-      if case .completed(.success(let token)) = outcome {
+      if case let .completed(.success(token)) = outcome {
         cancelTokenDetached(token)
       }
       throw RadrootsRuntimeClientError.superseded
     }
 
     switch outcome {
-    case .completed(.success(let token)):
+    case let .completed(.success(token)):
       subscription.token = token
       subscriptions[id] = subscription
       return pair.stream
-    case .completed(.failure(let failure)):
+    case let .completed(.failure(failure)):
       subscriptions.removeValue(forKey: id)?.continuation.finish()
       throw RadrootsRuntimeClientError.subscription(failure)
     case .timedOut:
@@ -1029,7 +1029,7 @@ actor RadrootsRuntimeClient {
 
     if startupOperation?.identity == operation.identity {
       startupOperation = nil
-    } else if case .completed(.success(let started)) = outcome,
+    } else if case let .completed(.success(started)) = outcome,
               configuration == operation.configuration,
               case .running = lifecycleState
     {
@@ -1039,12 +1039,12 @@ actor RadrootsRuntimeClient {
     }
 
     switch outcome {
-    case .completed(.success(let started)):
+    case let .completed(.success(started)):
       backend = started.backend
       configuration = operation.configuration
       lifecycleState = .running(generation: operation.identity.generation)
       return started.snapshot
-    case .completed(.failure(let failure)):
+    case let .completed(.failure(failure)):
       lifecycleState = .failed(generation: operation.identity.generation, failure: failure)
       throw RadrootsRuntimeClientError.startup(failure)
     case .timedOut:
@@ -1140,11 +1140,11 @@ actor RadrootsRuntimeClient {
     }
 
     switch outcome {
-    case .completed(.success(let receipt)):
+    case let .completed(.success(receipt)):
       quarantinedBackend = nil
       lifecycleState = .stopped
       return receipt
-    case .completed(.failure(let failure)):
+    case let .completed(.failure(failure)):
       quarantinedBackend = operation.backend
       lifecycleState = .failed(generation: operation.identity.generation, failure: failure)
       throw RadrootsRuntimeClientError.shutdown(failure)
@@ -1197,9 +1197,9 @@ actor RadrootsRuntimeClient {
       throw RadrootsRuntimeClientError.superseded
     }
     switch outcome {
-    case .completed(.success(let value)):
+    case let .completed(.success(value)):
       return value
-    case .completed(.failure(let failure)):
+    case let .completed(.failure(failure)):
       throw failure
     case .timedOut:
       throw Self.deadlineFailure(identity: identity)
@@ -1341,25 +1341,25 @@ actor RadrootsRuntimeClient {
         safeMessage: "The Radroots runtime operation was cancelled."
       )
     }
-    if case RadrootsRuntimeClientError.startup(let failure) = error {
+    if case let RadrootsRuntimeClientError.startup(failure) = error {
       return failure
     }
-    if case RadrootsRuntimeClientError.subscription(let failure) = error {
+    if case let RadrootsRuntimeClientError.subscription(failure) = error {
       return failure
     }
-    if case RadrootsRuntimeClientError.status(let failure) = error {
+    if case let RadrootsRuntimeClientError.status(failure) = error {
       return failure
     }
-    if case RadrootsRuntimeClientError.today(let failure) = error {
+    if case let RadrootsRuntimeClientError.today(failure) = error {
       return failure
     }
-    if case RadrootsRuntimeClientError.add(let failure) = error {
+    if case let RadrootsRuntimeClientError.add(failure) = error {
       return failure
     }
-    if case RadrootsRuntimeClientError.support(let failure) = error {
+    if case let RadrootsRuntimeClientError.support(failure) = error {
       return failure
     }
-    if case RadrootsRuntimeClientError.shutdown(let failure) = error {
+    if case let RadrootsRuntimeClientError.shutdown(failure) = error {
       return failure
     }
     return .local(

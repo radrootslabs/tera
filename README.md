@@ -50,6 +50,11 @@ resolved revisions without automatic dependency updates:
 make verify
 ```
 
+The complete lane includes the repository-owned Swift formatting and lint
+policy and the pinned Linux x86_64 shared-Rust runner. Run those focused checks
+independently with `make swift-quality` and `make linux-shared-rust`; both keep
+their build output under extbuild.
+
 Use `SIMULATOR_NAME="Device Name" make verify` when the default simulator is
 not installed. `make clean` removes only rebuildable external build output and
 the ignored XCFramework; it preserves tracked generated bindings, locks,

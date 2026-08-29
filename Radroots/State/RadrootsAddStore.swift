@@ -50,7 +50,7 @@ final class RadrootsAddStore: ObservableObject {
       UInt64(Date().timeIntervalSince1970)
     },
     nowUnixMilliseconds: @escaping @Sendable () -> UInt64 = {
-      UInt64(Date().timeIntervalSince1970 * 1_000)
+      UInt64(Date().timeIntervalSince1970 * 1000)
     },
     observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
       RadrootsRuntimeObservationBackoff.sleep
@@ -514,7 +514,7 @@ final class RadrootsAddStore: ObservableObject {
       )
       try Task.checkCancellation()
       revisionOperationID = revision.operationID
-      self.revisionTarget = nil
+      revisionTarget = nil
       accept(revision)
       return revision.replacement
     }
@@ -718,7 +718,7 @@ final class RadrootsAddStore: ObservableObject {
     lastFailureCode = nil
     let task = Task { @MainActor [weak self] in
       guard let self else { return }
-      await self.execute(operation, generation: requestedGeneration)
+      await execute(operation, generation: requestedGeneration)
     }
     operationTask = task
     await task.value
@@ -771,8 +771,8 @@ final class RadrootsAddStore: ObservableObject {
     }
     if type == .createEvent {
       let now = nowUnixSeconds()
-      let start = now.addingReportingOverflow(3_600).overflow ? now : now + 3_600
-      let end = start.addingReportingOverflow(3_600).overflow ? start : start + 3_600
+      let start = now.addingReportingOverflow(3600).overflow ? now : now + 3600
+      let end = start.addingReportingOverflow(3600).overflow ? start : start + 3600
       form.eventStartUnixSeconds = start
       form.eventEndUnixSeconds = end
       form.eventStartDate = eventDateFormatter.string(
@@ -810,10 +810,9 @@ final class RadrootsAddStore: ObservableObject {
   }
 
   private static func failure(for error: Error) -> RadrootsRuntimeFailure? {
-    if case RadrootsRuntimeClientError.add(let failure) = error {
+    if case let RadrootsRuntimeClientError.add(failure) = error {
       return failure
     }
     return error as? RadrootsRuntimeFailure
   }
-
 }

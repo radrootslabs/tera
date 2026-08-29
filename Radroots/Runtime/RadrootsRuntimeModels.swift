@@ -467,13 +467,13 @@ extension RadrootsRuntimeClientError: LocalizedError {
       "The Radroots runtime is not running."
     case .superseded:
       "A newer runtime lifecycle request replaced this request."
-    case .startup(let failure),
-      .subscription(let failure),
-      .status(let failure),
-      .today(let failure),
-      .add(let failure),
-      .support(let failure),
-      .shutdown(let failure):
+    case let .startup(failure),
+      let .subscription(failure),
+      let .status(failure),
+      let .today(failure),
+      let .add(failure),
+      let .support(failure),
+      let .shutdown(failure):
       failure.safeMessage
     }
   }
@@ -717,11 +717,11 @@ struct RadrootsTodayCard: Sendable, Equatable, Hashable, Identifiable {
       guard sourceAddress == nil else { return nil }
       return 1
     case .event:
-      guard let kind = sourceAddressKind, kind == 31_922 || kind == 31_923 else { return nil }
+      guard let kind = sourceAddressKind, kind == 31922 || kind == 31923 else { return nil }
       return kind
     case .foodAvailability:
-      guard sourceAddressKind == 30_402 else { return nil }
-      return 30_402
+      guard sourceAddressKind == 30402 else { return nil }
+      return 30402
     }
   }
 
@@ -887,7 +887,7 @@ enum RadrootsProductSurfaceContract {
     guard schemas.map(\.commandType) == expectedCommands,
       schemas.allSatisfy({ $0.schemaVersion == 1 && $0.label == $0.commandType.label }),
       schemas.allSatisfy({ schema in
-        schema.fields.allSatisfy({ $0.schemaVersion == 1 })
+        schema.fields.allSatisfy { $0.schemaVersion == 1 }
           && Set(schema.fields.map(\.id)).count == schema.fields.count
       }),
       schemas.allSatisfy({ $0.fields.map(\.id) == expectedFieldIDs(for: $0.commandType) }),

@@ -6,8 +6,8 @@ public final class RadrootsAppDelegate: NSObject, UIApplicationDelegate {
     }
 
     public func application(
-        _ application: UIApplication,
-        didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
+      _ application: UIApplication,
+      didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         #if DEBUG
             if (try? RadrootsRemoteQualificationEnvironment.current()) != nil {
@@ -18,15 +18,15 @@ public final class RadrootsAppDelegate: NSObject, UIApplicationDelegate {
     }
 
     public func application(
-        _: UIApplication,
-        handleEventsForBackgroundURLSession identifier: String,
-        completionHandler: @escaping () -> Void
+      _: UIApplication,
+      handleEventsForBackgroundURLSession identifier: String,
+      completionHandler: @escaping () -> Void
     ) {
         let completion = RadrootsCompletionOnce(completionHandler)
         Task {
             await RadrootsBackgroundEventRouter.shared.handle(
-                identifier: identifier,
-                completion: completion
+              identifier: identifier,
+              completion: completion
             )
         }
     }

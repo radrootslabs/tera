@@ -87,6 +87,13 @@ grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialAcce
     "$repo_root/scripts/xcode.sh"
 grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas' \
     "$repo_root/scripts/xcode.sh"
+grep -Fq 'requested_content_size=large' "$repo_root/scripts/xcode.sh"
+grep -Fq 'requested_content_size=accessibility-extra-extra-extra-large' \
+    "$repo_root/scripts/xcode.sh"
+grep -Fq 'xcrun simctl ui "$simulator_id" content_size "$requested_content_size"' \
+    "$repo_root/scripts/xcode.sh"
+grep -Fq 'xcrun simctl ui "$simulator_id" content_size "$previous_content_size"' \
+    "$repo_root/scripts/xcode.sh"
 grep -Fq 'verify-accessibility' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-persona-fixture' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-persona' "$repo_root/scripts/local-social-fixture.py"
@@ -126,6 +133,14 @@ grep -Fq '#if DEBUG' "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
 grep -Fq 'case "simulator": runtimeMode = "simulator"' \
     "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
 test -f "$repo_root/scripts/local-social-fixture.py"
+test -f "$repo_root/.swiftformat"
+test -f "$repo_root/.swiftlint.yml"
+test -x "$repo_root/scripts/swift-quality.sh"
+test -x "$repo_root/scripts/linux-shared-rust.sh"
+grep -Fq -- '--no-cache' "$repo_root/scripts/swift-quality.sh"
+grep -Fq 'swift-quality: doctor' "$repo_root/Makefile"
+grep -Fq 'linux-shared-rust: doctor' "$repo_root/Makefile"
+grep -Fq 'verify: swift-quality linux-shared-rust' "$repo_root/Makefile"
 
 if rg -n \
     'AsyncImage|URLSession\.shared|Data\(contentsOf:[[:space:]]*URL' \

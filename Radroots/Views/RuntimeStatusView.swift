@@ -196,9 +196,9 @@ private struct RadrootsSecureIdentityImportField: UIViewRepresentable {
         let container = UIView()
         container.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-            stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-            stack.topAnchor.constraint(equalTo: container.topAnchor),
+          stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+          stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
+          stack.topAnchor.constraint(equalTo: container.topAnchor),
         ])
         context.coordinator.field = field
         context.coordinator.errorLabel = error
