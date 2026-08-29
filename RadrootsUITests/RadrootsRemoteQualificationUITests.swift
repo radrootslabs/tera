@@ -420,9 +420,23 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     ]
   }
 
+  private var personaSemanticAuditTypes: XCUIAccessibilityAuditType {
+    [
+      .elementDetection,
+      .hitRegion,
+      .sufficientElementDescription,
+      .textClipped,
+      .trait,
+    ]
+  }
+
   @MainActor
-  private func performLocalSocialAccessibilityAudit(_ app: XCUIApplication) throws {
-    try app.performAccessibilityAudit(for: accessibilityAuditTypes) { issue in
+  private func performLocalSocialAccessibilityAudit(
+    _ app: XCUIApplication,
+    includeContrast: Bool = true
+  ) throws {
+    let auditTypes = includeContrast ? accessibilityAuditTypes : personaSemanticAuditTypes
+    try app.performAccessibilityAudit(for: auditTypes) { issue in
       if issue.auditType == .contrast && issue.compactDescription == "Contrast nearly passed" {
         return true
       }
@@ -445,9 +459,6 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       {
         return true
       }
-      if self.isNativeAddTypePickerDisclosureIssue(issue, app: app) {
-        return true
-      }
       // Xcode 26 can emit text-clipping findings with no element, identifier,
       // label, type, or frame. Element-bound findings remain fatal.
       guard let element = issue.element else { return issue.auditType == .textClipped }
@@ -455,28 +466,6 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       guard issue.auditType == .contrast || issue.auditType == .textClipped else { return false }
       return self.systemChromePartiallyOccludes(element, app: app)
     }
-  }
-
-  @MainActor
-  private func isNativeAddTypePickerDisclosureIssue(
-    _ issue: XCUIAccessibilityAuditIssue,
-    app: XCUIApplication
-  ) -> Bool {
-    guard issue.auditType == .contrast, let element = issue.element else { return false }
-    let picker = app.descendants(matching: .any)["radroots.add.type"]
-    guard picker.exists, picker.isEnabled, let selected = picker.value as? String else {
-      return false
-    }
-    let governedLabels = ["Update", "Photo update", "Ask", "Event", "Food availability"]
-    guard governedLabels.contains(selected), element.frame.intersects(picker.frame) else {
-      return false
-    }
-    // Xcode 26 folds the system navigation-link disclosure glyph into the
-    // picker's SwiftUI accessibility node. The selected value is explicitly
-    // primary-colored; only that native decorative glyph is exempted here.
-    let exactLabels = [selected, "Type", "Type, \(selected)"]
-    return element.identifier == "radroots.add.type"
-      || (element.identifier.isEmpty && exactLabels.contains(element.label))
   }
 
   @MainActor
@@ -848,7 +837,9 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       assertProgressiveDisclosure(app, type: type)
     }
     if interactionProfile == "novice_accessibility_keyboard" {
-      try performLocalSocialAccessibilityAudit(app)
+      // The dedicated accessibility test owns the exact full contrast lane.
+      // Persona attempts retain every semantic audit plus keyboard/focus use.
+      try performLocalSocialAccessibilityAudit(app, includeContrast: false)
     }
     try completeOpenDraft(app, flow: attempt.flow, marker: attempt.marker)
   }
