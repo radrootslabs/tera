@@ -662,12 +662,18 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       XCTFail("Settings was unavailable through the visible Me sheet")
       throw QualificationError.missingProductSurface
     }
-    settings.tap()
-
     let publicKey = app.descendants(matching: .any)[
       "radroots.settings.identity.public_key"
     ]
-    XCTAssertTrue(publicKey.waitForExistence(timeout: 10))
+    guard waitUntilHittable(settings, timeout: 10) else {
+      XCTFail("Settings did not become hittable through the visible Me sheet")
+      throw QualificationError.missingProductSurface
+    }
+    settings.tap()
+    guard publicKey.waitForExistence(timeout: 10) else {
+      XCTFail("Settings did not present the native identity public key")
+      throw QualificationError.missingProductSurface
+    }
     guard let value = publicKey.value as? String,
       value.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil
     else {
