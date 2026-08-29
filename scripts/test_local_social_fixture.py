@@ -253,6 +253,78 @@ class LocalSocialFixtureTests(unittest.TestCase):
                     changed, suite, "3" * 64, "4" * 64, "5" * 64
                 )
 
+    def test_simulator_metadata_uses_exact_result_bundle_device(self) -> None:
+        udid = "11111111-2222-3333-4444-555555555555"
+        result_bundle = Path("result.xcresult")
+        simctl_devices = {
+            "devices": {
+                "com.apple.CoreSimulator.SimRuntime.iOS-26-5": [
+                    {
+                        "udid": udid,
+                        "isAvailable": True,
+                        "name": "iPhone 17 Pro",
+                    }
+                ]
+            }
+        }
+        result_summary = {
+            "failedTests": 0,
+            "passedTests": 1,
+            "result": "Passed",
+            "skippedTests": 0,
+            "devicesAndConfigurations": [
+                {
+                    "device": {
+                        "architecture": "arm64",
+                        "deviceId": udid,
+                        "osVersion": "26.5",
+                        "platform": "iOS Simulator",
+                    }
+                }
+            ],
+        }
+
+        with mock.patch.object(
+            fixture.subprocess,
+            "check_output",
+            side_effect=[json.dumps(simctl_devices), json.dumps(result_summary)],
+        ) as check_output:
+            self.assertEqual(
+                fixture.simulator_metadata(udid.lower(), result_bundle),
+                {"udid": udid, "os": "iOS 26.5", "architecture": "arm64"},
+            )
+        commands = [call.args[0] for call in check_output.call_args_list]
+        self.assertEqual(commands[0][:3], ["xcrun", "simctl", "list"])
+        self.assertEqual(commands[1][:3], ["xcrun", "xcresulttool", "get"])
+        self.assertNotIn("spawn", commands[0] + commands[1])
+
+        for mutation in (
+            lambda value: value["devicesAndConfigurations"][0]["device"].update(
+                {"architecture": "x86_64"}
+            ),
+            lambda value: value["devicesAndConfigurations"][0]["device"].update(
+                {"deviceId": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE"}
+            ),
+            lambda value: value["devicesAndConfigurations"][0]["device"].update(
+                {"osVersion": "17.7"}
+            ),
+            lambda value: value["devicesAndConfigurations"][0]["device"].update(
+                {"platform": "macOS"}
+            ),
+            lambda value: value.update({"result": "Failed", "failedTests": 1}),
+        ):
+            changed = copy.deepcopy(result_summary)
+            mutation(changed)
+            with (
+                mock.patch.object(
+                    fixture.subprocess,
+                    "check_output",
+                    side_effect=[json.dumps(simctl_devices), json.dumps(changed)],
+                ),
+                self.assertRaises(ValueError),
+            ):
+                fixture.simulator_metadata(udid, result_bundle)
+
     def test_control_is_bounded_and_deny_unknown(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory, "control.json")

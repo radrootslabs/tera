@@ -1054,7 +1054,7 @@ def directory_digest(path: Path) -> str:
     return digest.hexdigest()
 
 
-def simulator_metadata(udid: str) -> dict[str, str]:
+def simulator_metadata(udid: str, result_bundle: Path) -> dict[str, str]:
     devices = json.loads(
         subprocess.check_output(["xcrun", "simctl", "list", "devices", "--json"])
     )
@@ -1066,12 +1066,47 @@ def simulator_metadata(udid: str) -> dict[str, str]:
     ]
     if len(matches) != 1:
         raise ValueError("simulator identity is unavailable")
-    runtime, _ = matches[0]
-    version = runtime.rsplit("iOS-", 1)[-1].replace("-", ".")
-    architecture = subprocess.check_output(
-        ["xcrun", "simctl", "spawn", udid, "uname", "-m"], text=True
-    ).strip()
-    if architecture != "arm64" or int(version.split(".")[0]) < 18:
+    runtime, simulator = matches[0]
+    runtime_version = runtime.rsplit("iOS-", 1)[-1].replace("-", ".")
+    summary = json.loads(
+        subprocess.check_output(
+            [
+                "xcrun",
+                "xcresulttool",
+                "get",
+                "test-results",
+                "summary",
+                "--path",
+                str(result_bundle),
+            ]
+        )
+    )
+    result_devices = [
+        row.get("device")
+        for row in summary.get("devicesAndConfigurations", [])
+        if isinstance(row, dict)
+        and isinstance(row.get("device"), dict)
+        and isinstance(row["device"].get("deviceId"), str)
+        and row["device"]["deviceId"].upper() == udid.upper()
+    ]
+    if len(result_devices) != 1:
+        raise ValueError("result bundle simulator identity is unavailable")
+    result_device = result_devices[0]
+    version = result_device.get("osVersion")
+    architecture = result_device.get("architecture")
+    if (
+        summary.get("result") != "Passed"
+        or summary.get("failedTests") != 0
+        or summary.get("passedTests") != 1
+        or summary.get("skippedTests") != 0
+        or simulator.get("isAvailable") is not True
+        or result_device.get("platform") != "iOS Simulator"
+        or version != runtime_version
+        or not isinstance(version, str)
+        or re.fullmatch(r"[1-9][0-9]*(\.[0-9]+){1,2}", version) is None
+        or int(version.split(".", 1)[0]) < 18
+        or architecture != "arm64"
+    ):
         raise ValueError("simulator does not satisfy the development platform contract")
     return {"udid": udid.upper(), "os": f"iOS {version}", "architecture": architecture}
 
@@ -1367,7 +1402,7 @@ def verify_persona(arguments: argparse.Namespace) -> int:
         "fixture_sha256": hashlib.sha256(fixture_raw).hexdigest(),
         "fixture_schema_sha256": hashlib.sha256(fixture_schema_raw).hexdigest(),
         "result_schema_sha256": hashlib.sha256(result_schema_raw).hexdigest(),
-        "simulator": simulator_metadata(arguments.simulator_id),
+        "simulator": simulator_metadata(arguments.simulator_id, result_bundle),
         "result_bundle_sha256": directory_digest(result_bundle),
         "evidence_sha256": hashlib.sha256(evidence_raw).hexdigest(),
         "personas": [
