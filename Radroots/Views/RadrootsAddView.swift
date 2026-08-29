@@ -58,6 +58,7 @@ struct RadrootsAddView: View {
               }
             }
             .pickerStyle(.navigationLink)
+            .foregroundStyle(.primary)
             .disabled(!store.isFormEditable)
             .accessibilityIdentifier("radroots.add.type")
           }
