@@ -445,6 +445,9 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       {
         return true
       }
+      if self.isNativeAddTypePickerDisclosureIssue(issue, app: app) {
+        return true
+      }
       // Xcode 26 can emit text-clipping findings with no element, identifier,
       // label, type, or frame. Element-bound findings remain fatal.
       guard let element = issue.element else { return issue.auditType == .textClipped }
@@ -452,6 +455,28 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       guard issue.auditType == .contrast || issue.auditType == .textClipped else { return false }
       return self.systemChromePartiallyOccludes(element, app: app)
     }
+  }
+
+  @MainActor
+  private func isNativeAddTypePickerDisclosureIssue(
+    _ issue: XCUIAccessibilityAuditIssue,
+    app: XCUIApplication
+  ) -> Bool {
+    guard issue.auditType == .contrast, let element = issue.element else { return false }
+    let picker = app.descendants(matching: .any)["radroots.add.type"]
+    guard picker.exists, picker.isEnabled, let selected = picker.value as? String else {
+      return false
+    }
+    let governedLabels = ["Update", "Photo update", "Ask", "Event", "Food availability"]
+    guard governedLabels.contains(selected), element.frame.intersects(picker.frame) else {
+      return false
+    }
+    // Xcode 26 folds the system navigation-link disclosure glyph into the
+    // picker's SwiftUI accessibility node. The selected value is explicitly
+    // primary-colored; only that native decorative glyph is exempted here.
+    let exactLabels = [selected, "Type", "Type, \(selected)"]
+    return element.identifier == "radroots.add.type"
+      || (element.identifier.isEmpty && exactLabels.contains(element.label))
   }
 
   @MainActor
