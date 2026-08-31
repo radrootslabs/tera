@@ -139,10 +139,10 @@ for fixture in \
 do
     test -f "$repo_root/test-fixtures/$fixture"
 done
-python3 "$repo_root/scripts/local-social-fixture.py" verify-bud11-corpus \
+sh "$repo_root/scripts/persona-verifier.sh" verify-bud11-corpus \
     --corpus "$repo_root/test-fixtures/bud11-upload-authorization-mutations.v1.json" \
     --schema "$repo_root/test-fixtures/bud11-upload-authorization-mutations.v1.schema.json"
-python3 "$repo_root/scripts/local-social-fixture.py" verify-persona-fixture \
+sh "$repo_root/scripts/persona-verifier.sh" verify-persona-fixture \
     --fixture "$repo_root/test-fixtures/local-social-personas.v1.json" \
     --fixture-schema "$repo_root/test-fixtures/local-social-personas.v1.schema.json" \
     --result-schema "$repo_root/test-fixtures/local-social-persona-results.v1.schema.json" \
@@ -154,8 +154,33 @@ grep -Fq 'radroots.ios.local-social.persona-attempt-evidence.v1' \
     "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
 (
     cd "$repo_root"
-    python3 -m unittest scripts/test_local_social_fixture.py
+    uv run --project scripts/persona-verifier --offline --frozen \
+        python -m unittest scripts/test_local_social_fixture.py
 )
+test -f "$repo_root/scripts/persona-verifier/pyproject.toml"
+test -f "$repo_root/scripts/persona-verifier/uv.lock"
+grep -Fq 'requires-python = "==3.14.7"' \
+    "$repo_root/scripts/persona-verifier/pyproject.toml"
+grep -Fq 'jsonschema==4.26.0' \
+    "$repo_root/scripts/persona-verifier/pyproject.toml"
+grep -Fq 'requires-python = "==3.14.7"' \
+    "$repo_root/scripts/persona-verifier/uv.lock"
+grep -Fq 'name = "jsonschema"' "$repo_root/scripts/persona-verifier/uv.lock"
+grep -Fq 'version = "4.26.0"' "$repo_root/scripts/persona-verifier/uv.lock"
+grep -Fq -- '--offline' "$repo_root/scripts/persona-verifier.sh"
+grep -Fq -- '--frozen' "$repo_root/scripts/persona-verifier.sh"
+grep -Fq 'sh scripts/persona-verifier.sh verify-persona-fixture' \
+    "$repo_root/scripts/xcode.sh"
+grep -Fq 'Draft202012Validator.check_schema(root)' \
+    "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'RESULT_BUNDLE_DIGEST_DOMAIN = b"radroots.ios.persona_result_bundle.v1\0"' \
+    "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'MAX_RESULT_BUNDLE_ENTRIES = 65_536' \
+    "$repo_root/scripts/local-social-fixture.py"
+if rg -n 'python3 scripts/local-social-fixture\.py' "$repo_root/scripts"; then
+    echo "error: persona verifier bypasses its locked Python environment" >&2
+    exit 1
+fi
 grep -Fq 'performAccessibilityAudit' \
     "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
 grep -Fq 'element.identifier == "radroots.add.submit"' \
@@ -191,6 +216,8 @@ grep -Fq -- '--no-cache' "$repo_root/scripts/swift-quality.sh"
 grep -Fq 'swift-quality: doctor' "$repo_root/Makefile"
 grep -Fq 'linux-shared-rust: doctor' "$repo_root/Makefile"
 grep -Fq 'verify: swift-quality linux-shared-rust' "$repo_root/Makefile"
+grep -Fq 'persona-verifier-bootstrap: doctor' "$repo_root/Makefile"
+grep -Fq 'bootstrap: persona-verifier-bootstrap' "$repo_root/Makefile"
 
 if rg -n \
     'AsyncImage|URLSession\.shared|Data\(contentsOf:[[:space:]]*URL' \

@@ -137,6 +137,17 @@ executed UI path and monotonic fixture-snapshot deltas. The v2 result is
 reconstructed only from the exact 15 measured attachments and is cross-checked
 against the final fixture totals; a non-loopback attempt fails the run.
 
+The standalone fixture and result verifier runs under the exact Python 3.14.7
+and `jsonschema` 4.26.0 environment locked in
+`scripts/persona-verifier/uv.lock`. `make bootstrap` installs that exact lock
+through extbuild once; qualification and package checks then use only
+`--offline --frozen` resolution. Every JSON input is read with a
+maximum-plus-one bound before decoding, schema files pass Draft 2020-12
+meta-validation, semantic fixtures must agree with their schemas, exported
+attachment inventory is exact, and result-bundle hashing uses a
+domain-separated length-framed preimage with bounded paths, entries, files,
+and aggregate bytes.
+
 The test uses ordinary visible controls, native-generated signing identities,
 real app stores, and generated Rust FFI. This is deterministic non-human
 conformance evidence. It does not claim human usability, demographic or

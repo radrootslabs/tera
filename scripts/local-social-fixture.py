@@ -7,6 +7,7 @@ import argparse
 import base64
 import hashlib
 import http.server
+import importlib.metadata
 import ipaddress
 import json
 import os
@@ -14,14 +15,19 @@ import re
 import signal
 import socket
 import socketserver
+import stat
 import subprocess
 import struct
+import sys
 import tempfile
 import threading
 import time
 import unicodedata
 from pathlib import Path
 from typing import Any
+
+from jsonschema import Draft202012Validator
+from jsonschema.exceptions import SchemaError, ValidationError
 
 MAX_HTTP_BODY = 16 * 1024 * 1024
 MAX_WEBSOCKET_MESSAGE = 2 * 1024 * 1024
@@ -90,6 +96,13 @@ PERSONA_XCRESULT_NODE_URL = (
 MAX_XCRESULT_JSON_BYTES = 1024 * 1024
 MAX_PERSONA_ATTACHMENT_BYTES = 64 * 1024
 MAX_PERSONA_ATTACHMENTS_BYTES = 15 * MAX_PERSONA_ATTACHMENT_BYTES
+MAX_RESULT_BUNDLE_ENTRIES = 65_536
+MAX_RESULT_BUNDLE_FILE_BYTES = 1024 * 1024 * 1024
+MAX_RESULT_BUNDLE_BYTES = 8 * 1024 * 1024 * 1024
+MAX_RESULT_BUNDLE_RELATIVE_PATH_BYTES = 1024
+RESULT_BUNDLE_DIGEST_DOMAIN = b"radroots.ios.persona_result_bundle.v1\0"
+VERIFIER_PYTHON = (3, 14, 7)
+VERIFIER_JSONSCHEMA = "4.26.0"
 PERSONA_ATTACHMENT_NAMES = tuple(
     f"radroots-local-social-P{persona:02d}-A{attempt:02d}.json"
     for persona in range(1, 6)
@@ -110,7 +123,8 @@ def strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def read_json(path: Path, maximum: int = MAX_JSON_BYTES) -> tuple[bytes, Any]:
-    raw = path.read_bytes()
+    with path.open("rb") as stream:
+        raw = stream.read(maximum + 1)
     if not raw or len(raw) > maximum:
         raise ValueError("JSON input is empty or exceeds its byte bound")
     value = json.loads(raw, object_pairs_hook=strict_object)
@@ -118,12 +132,7 @@ def read_json(path: Path, maximum: int = MAX_JSON_BYTES) -> tuple[bytes, Any]:
 
 
 def read_json_bounded(path: Path, maximum: int) -> tuple[bytes, Any]:
-    with path.open("rb") as stream:
-        raw = stream.read(maximum + 1)
-    if not raw or len(raw) > maximum:
-        raise ValueError("JSON input is empty or exceeds its byte bound")
-    value = json.loads(raw, object_pairs_hook=strict_object)
-    return raw, value
+    return read_json(path, maximum)
 
 
 def exact_keys(value: Any, keys: set[str], name: str) -> dict[str, Any]:
@@ -304,7 +313,14 @@ def load_persona_suite(path: Path) -> tuple[bytes, dict[str, Any]]:
 
 
 def validate_schema_file(path: Path, expected_id: str) -> bytes:
+    raw, _ = load_schema_file(path, expected_id)
+    return raw
+
+
+def load_schema_file(path: Path, expected_id: str) -> tuple[bytes, dict[str, Any]]:
     raw, value = read_json(path)
+    if not isinstance(value, dict):
+        raise ValueError("schema boundary is invalid")
     root = exact_keys(value, set(value), "schema")
     if (
         root.get("$schema") != "https://json-schema.org/draft/2020-12/schema"
@@ -313,7 +329,49 @@ def validate_schema_file(path: Path, expected_id: str) -> bytes:
         or root.get("additionalProperties") is not False
     ):
         raise ValueError("schema boundary is invalid")
-    return raw
+    if schema_contains_external_reference(root):
+        raise ValueError("schema contains an external reference")
+    try:
+        Draft202012Validator.check_schema(root)
+    except SchemaError as error:
+        raise ValueError("schema fails Draft 2020-12 meta-validation") from error
+    return raw, root
+
+
+def schema_contains_external_reference(value: Any) -> bool:
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key in {"$ref", "$dynamicRef"} and (
+                not isinstance(item, str) or not item.startswith("#/")
+            ):
+                return True
+            if schema_contains_external_reference(item):
+                return True
+    elif isinstance(value, list):
+        return any(schema_contains_external_reference(item) for item in value)
+    return False
+
+
+def validate_schema_instance(
+    schema: dict[str, Any], value: Any, name: str
+) -> None:
+    try:
+        Draft202012Validator(schema).validate(value)
+    except ValidationError as error:
+        raise ValueError(f"{name} disagrees with its JSON schema") from error
+
+
+def verify_toolchain_identity() -> None:
+    if sys.version_info[:3] != VERIFIER_PYTHON:
+        raise RuntimeError("persona verifier Python identity is unavailable")
+    try:
+        schema_version = importlib.metadata.version("jsonschema")
+    except importlib.metadata.PackageNotFoundError as error:
+        raise RuntimeError(
+            "persona verifier schema dependency is unavailable"
+        ) from error
+    if schema_version != VERIFIER_JSONSCHEMA:
+        raise RuntimeError("persona verifier schema dependency is unavailable")
 
 
 def persona_attempts(suite: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -1272,7 +1330,7 @@ def serve(arguments: argparse.Namespace) -> int:
 
 
 def verify(arguments: argparse.Namespace) -> int:
-    payload = json.loads(Path(arguments.evidence).read_text(encoding="utf-8"))
+    _, payload = read_json(Path(arguments.evidence).resolve())
     if (
         payload.get("schema") != "radroots-ios-local-social-fixture-evidence-v1"
         or payload.get("accepted_events", 0) < 5
@@ -1289,7 +1347,7 @@ def verify(arguments: argparse.Namespace) -> int:
 
 
 def verify_accessibility(arguments: argparse.Namespace) -> int:
-    payload = json.loads(Path(arguments.evidence).read_text(encoding="utf-8"))
+    _, payload = read_json(Path(arguments.evidence).resolve())
     if (
         payload.get("schema") != "radroots-ios-local-social-fixture-evidence-v1"
         or payload.get("accepted_events") != 0
@@ -1304,8 +1362,8 @@ def verify_accessibility(arguments: argparse.Namespace) -> int:
 
 
 def verify_persona_fixture(arguments: argparse.Namespace) -> int:
-    raw, _ = load_persona_suite(Path(arguments.fixture).resolve())
-    fixture_schema = validate_schema_file(
+    raw, suite = load_persona_suite(Path(arguments.fixture).resolve())
+    fixture_schema, fixture_schema_value = load_schema_file(
         Path(arguments.fixture_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-personas.v1.schema.json",
     )
@@ -1321,6 +1379,7 @@ def verify_persona_fixture(arguments: argparse.Namespace) -> int:
         Path(arguments.result_v2_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-persona-results.v2.schema.json",
     )
+    validate_schema_instance(fixture_schema_value, suite, "persona fixture")
     print(
         "local-social persona fixtures verified: "
         f"fixture={hashlib.sha256(raw).hexdigest()} "
@@ -1333,11 +1392,12 @@ def verify_persona_fixture(arguments: argparse.Namespace) -> int:
 
 
 def verify_bud11_corpus(arguments: argparse.Namespace) -> int:
-    raw, _ = load_bud11_mutation_corpus(Path(arguments.corpus).resolve())
-    schema = validate_schema_file(
+    raw, corpus = load_bud11_mutation_corpus(Path(arguments.corpus).resolve())
+    schema, schema_value = load_schema_file(
         Path(arguments.schema).resolve(),
         "https://radroots.org/schemas/ios/bud11-upload-authorization-mutations.v1.schema.json",
     )
+    validate_schema_instance(schema_value, corpus, "BUD-11 corpus")
     print(
         "BUD-11 mutation corpus verified: "
         f"corpus={hashlib.sha256(raw).hexdigest()} "
@@ -1346,29 +1406,100 @@ def verify_bud11_corpus(arguments: argparse.Namespace) -> int:
     return 0
 
 
-def directory_digest(path: Path) -> str:
+def bounded_directory_inventory(
+    path: Path,
+    maximum_entries: int = MAX_RESULT_BUNDLE_ENTRIES,
+    maximum_relative_path_bytes: int = MAX_RESULT_BUNDLE_RELATIVE_PATH_BYTES,
+) -> list[tuple[int, bytes, Path]]:
+    if path.is_symlink() or not path.is_dir():
+        raise ValueError("result bundle is not a regular directory")
+    pending = [(path, Path())]
+    inventory: list[tuple[int, bytes, Path]] = []
+    while pending:
+        directory, relative_directory = pending.pop()
+        with os.scandir(directory) as entries:
+            for entry in entries:
+                relative_path = relative_directory / entry.name
+                try:
+                    relative = relative_path.as_posix().encode("utf-8")
+                except UnicodeError as error:
+                    raise ValueError("result bundle path is not UTF-8") from error
+                if not relative or len(relative) > maximum_relative_path_bytes:
+                    raise ValueError("result bundle path exceeds its byte bound")
+                if len(inventory) >= maximum_entries:
+                    raise ValueError("result bundle exceeds its entry bound")
+                if entry.is_symlink():
+                    raise ValueError("result bundle contains a symbolic link")
+                item = Path(entry.path)
+                if entry.is_dir(follow_symlinks=False):
+                    inventory.append((0, relative, item))
+                    pending.append((item, relative_path))
+                elif entry.is_file(follow_symlinks=False):
+                    inventory.append((1, relative, item))
+                else:
+                    raise ValueError("result bundle contains an unsupported entry")
+    return sorted(inventory, key=lambda item: item[1])
+
+
+def directory_digest(
+    path: Path,
+    maximum_entries: int = MAX_RESULT_BUNDLE_ENTRIES,
+    maximum_file_bytes: int = MAX_RESULT_BUNDLE_FILE_BYTES,
+    maximum_total_bytes: int = MAX_RESULT_BUNDLE_BYTES,
+) -> str:
+    inventory = bounded_directory_inventory(path, maximum_entries)
     digest = hashlib.sha256()
-    for item in sorted(
-        path.rglob("*"), key=lambda value: value.relative_to(path).as_posix()
-    ):
-        relative = item.relative_to(path).as_posix().encode("utf-8")
-        if item.is_symlink():
-            raise ValueError("result bundle contains a symbolic link")
-        if item.is_dir():
-            digest.update(b"d\0" + relative + b"\0")
+    digest.update(RESULT_BUNDLE_DIGEST_DOMAIN)
+    digest.update(len(inventory).to_bytes(4, "big"))
+    total_bytes = 0
+    for kind, relative, item in inventory:
+        digest.update(bytes((kind,)))
+        digest.update(len(relative).to_bytes(8, "big"))
+        digest.update(relative)
+        if kind == 0:
             continue
-        if not item.is_file():
-            raise ValueError("result bundle contains an unsupported entry")
-        digest.update(b"f\0" + relative + b"\0")
-        with item.open("rb") as stream:
-            while chunk := stream.read(64 * 1024):
-                digest.update(chunk)
+        descriptor = os.open(
+            item,
+            os.O_RDONLY | os.O_CLOEXEC | getattr(os, "O_NOFOLLOW", 0),
+        )
+        try:
+            before = os.fstat(descriptor)
+            if not stat.S_ISREG(before.st_mode) or before.st_size < 0:
+                raise ValueError("result bundle contains an unsupported entry")
+            size = before.st_size
+            if size > maximum_file_bytes or total_bytes > maximum_total_bytes - size:
+                raise ValueError("result bundle exceeds its byte bound")
+            digest.update(size.to_bytes(8, "big"))
+            remaining = size
+            with os.fdopen(descriptor, "rb", closefd=False) as stream:
+                while remaining:
+                    chunk = stream.read(min(64 * 1024, remaining))
+                    if not chunk:
+                        raise ValueError("result bundle file changed while hashing")
+                    digest.update(chunk)
+                    remaining -= len(chunk)
+                if stream.read(1):
+                    raise ValueError("result bundle file changed while hashing")
+            after = os.fstat(descriptor)
+            if (
+                before.st_dev != after.st_dev
+                or before.st_ino != after.st_ino
+                or before.st_size != after.st_size
+                or before.st_mode != after.st_mode
+                or before.st_mtime_ns != after.st_mtime_ns
+                or before.st_ctime_ns != after.st_ctime_ns
+            ):
+                raise ValueError("result bundle file changed while hashing")
+            total_bytes += size
+        finally:
+            os.close(descriptor)
     return digest.hexdigest()
 
 
 def simulator_metadata(udid: str, result_bundle: Path) -> dict[str, str]:
-    devices = json.loads(
-        subprocess.check_output(["xcrun", "simctl", "list", "devices", "--json"])
+    devices = run_json_command_bounded(
+        ["xcrun", "simctl", "list", "devices", "--json"],
+        MAX_XCRESULT_JSON_BYTES,
     )
     matches = [
         (runtime, device)
@@ -1380,18 +1511,17 @@ def simulator_metadata(udid: str, result_bundle: Path) -> dict[str, str]:
         raise ValueError("simulator identity is unavailable")
     runtime, simulator = matches[0]
     runtime_version = runtime.rsplit("iOS-", 1)[-1].replace("-", ".")
-    summary = json.loads(
-        subprocess.check_output(
-            [
-                "xcrun",
-                "xcresulttool",
-                "get",
-                "test-results",
-                "summary",
-                "--path",
-                str(result_bundle),
-            ]
-        )
+    summary = run_json_command_bounded(
+        [
+            "xcrun",
+            "xcresulttool",
+            "get",
+            "test-results",
+            "summary",
+            "--path",
+            str(result_bundle),
+        ],
+        MAX_XCRESULT_JSON_BYTES,
     )
     result_devices = [
         row.get("device")
@@ -1794,13 +1924,31 @@ def exact_persona_test_node(value: Any) -> dict[str, Any]:
 
 
 def run_json_command_bounded(command: list[str], maximum: int) -> Any:
-    with tempfile.TemporaryFile() as output:
-        subprocess.run(command, stdout=output, check=True)
-        size = output.tell()
-        if size <= 0 or size > maximum:
-            raise ValueError("command JSON output exceeds its byte bound")
-        output.seek(0)
-        return json.loads(output.read(), object_pairs_hook=strict_object)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE)
+    assert process.stdout is not None
+    raw = process.stdout.read(maximum + 1)
+    process.stdout.close()
+    if len(raw) > maximum:
+        process.kill()
+        process.wait()
+        raise ValueError("command JSON output exceeds its byte bound")
+    return_code = process.wait()
+    if return_code != 0:
+        raise subprocess.CalledProcessError(return_code, command)
+    if not raw:
+        raise ValueError("command JSON output exceeds its byte bound")
+    return json.loads(raw, object_pairs_hook=strict_object)
+
+
+def exported_attachment_inventory(path: Path) -> set[str]:
+    inventory = bounded_directory_inventory(
+        path,
+        len(PERSONA_ATTACHMENT_NAMES) + 1,
+        255,
+    )
+    if any(kind != 1 or b"/" in relative for kind, relative, _ in inventory):
+        raise ValueError("xcresult attachment export inventory is invalid")
+    return {relative.decode("utf-8") for _, relative, _ in inventory}
 
 
 def load_exported_persona_attachments(
@@ -1809,6 +1957,7 @@ def load_exported_persona_attachments(
     *,
     require_measured_network: bool,
 ) -> list[tuple[bytes, dict[str, Any]]]:
+    inventory = exported_attachment_inventory(export_directory)
     manifest_raw, manifest_value = read_json_bounded(
         export_directory / "manifest.json", MAX_XCRESULT_JSON_BYTES
     )
@@ -1828,6 +1977,7 @@ def load_exported_persona_attachments(
     ):
         raise ValueError("xcresult attachment test binding is invalid")
     attachments_by_name: dict[str, tuple[bytes, dict[str, Any]]] = {}
+    exported_names: set[str] = set()
     total_bytes = 0
     allowed_manifest_keys = {
         "exportedFileName",
@@ -1856,6 +2006,7 @@ def load_exported_persona_attachments(
             name not in PERSONA_ATTACHMENT_NAMES
             or name in attachments_by_name
             or not isinstance(exported, str)
+            or exported in exported_names
             or not 1 <= len(exported.encode("utf-8")) <= 255
             or Path(exported).name != exported
             or row_value["isAssociatedWithFailure"] is not False
@@ -1865,6 +2016,7 @@ def load_exported_persona_attachments(
             or not isinstance(row_value["deviceId"], str)
         ):
             raise ValueError("xcresult attempt attachment identity is invalid")
+        exported_names.add(exported)
         path = export_directory / exported
         if path.is_symlink() or not path.is_file():
             raise ValueError("xcresult attempt attachment is not a regular file")
@@ -1882,6 +2034,8 @@ def load_exported_persona_attachments(
         attachments_by_name[name] = (raw, attempt)
     if tuple(sorted(attachments_by_name)) != tuple(sorted(PERSONA_ATTACHMENT_NAMES)):
         raise ValueError("xcresult persona attachment inventory is incomplete")
+    if inventory != {"manifest.json", *exported_names}:
+        raise ValueError("xcresult attachment export inventory is invalid")
     return [attachments_by_name[name] for name in PERSONA_ATTACHMENT_NAMES]
 
 
@@ -2275,18 +2429,19 @@ def validate_persona_result(
 
 def verify_persona(arguments: argparse.Namespace) -> int:
     fixture_raw, suite = load_persona_suite(Path(arguments.fixture).resolve())
-    fixture_schema_raw = validate_schema_file(
+    fixture_schema_raw, fixture_schema = load_schema_file(
         Path(arguments.fixture_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-personas.v1.schema.json",
     )
-    attempt_schema_raw = validate_schema_file(
+    attempt_schema_raw, attempt_schema = load_schema_file(
         Path(arguments.attempt_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-persona-attempt-evidence.v1.schema.json",
     )
-    result_schema_raw = validate_schema_file(
+    result_schema_raw, result_schema = load_schema_file(
         Path(arguments.result_v2_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-persona-results.v2.schema.json",
     )
+    validate_schema_instance(fixture_schema, suite, "persona fixture")
     evidence_path = Path(arguments.evidence).resolve()
     _, evidence_value = read_json(evidence_path)
     evidence = validate_persona_evidence(evidence_value, suite)
@@ -2300,6 +2455,8 @@ def verify_persona(arguments: argparse.Namespace) -> int:
     attachments = extract_persona_attempt_attachments(
         result_bundle, suite, require_measured_network=True
     )
+    for _, attempt in attachments:
+        validate_schema_instance(attempt_schema, attempt, "persona attempt evidence")
     simulator = simulator_metadata(arguments.simulator_id, result_bundle)
     result = reconstruct_persona_result_v2(
         suite,
@@ -2311,6 +2468,7 @@ def verify_persona(arguments: argparse.Namespace) -> int:
         result_bundle_sha256=directory_digest(result_bundle),
         forward_repairs=arguments.forward_repair_commit,
     )
+    validate_schema_instance(result_schema, result, "persona v2 result")
     if (
         result["run_id"] != arguments.run_id
         or result["source"]
@@ -2333,7 +2491,7 @@ def verify_persona(arguments: argparse.Namespace) -> int:
         raise ValueError("persona v2 result is noncanonical")
     print(
         "local-social measured persona result verified: "
-        f"{hashlib.sha256(output.read_bytes()).hexdigest()}"
+        f"{hashlib.sha256(raw).hexdigest()}"
     )
     return 0
 
@@ -2360,21 +2518,23 @@ def verify_persona_result_file(
 
 def verify_persona_result(arguments: argparse.Namespace) -> int:
     fixture_raw, suite = load_persona_suite(Path(arguments.fixture).resolve())
-    fixture_schema_raw = validate_schema_file(
+    fixture_schema_raw, fixture_schema = load_schema_file(
         Path(arguments.fixture_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-personas.v1.schema.json",
     )
-    result_schema_raw = validate_schema_file(
+    result_schema_raw, result_schema = load_schema_file(
         Path(arguments.result_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-persona-results.v1.schema.json",
     )
-    verify_persona_result_file(
+    validate_schema_instance(fixture_schema, suite, "persona fixture")
+    result = verify_persona_result_file(
         Path(arguments.result).resolve(),
         suite,
         hashlib.sha256(fixture_raw).hexdigest(),
         hashlib.sha256(fixture_schema_raw).hexdigest(),
         hashlib.sha256(result_schema_raw).hexdigest(),
     )
+    validate_schema_instance(result_schema, result, "persona v1 result")
     print("local-social persona result contract verified")
     return 0
 
@@ -2425,6 +2585,7 @@ def parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    verify_toolchain_identity()
     arguments = parser().parse_args()
     if arguments.command == "serve":
         return serve(arguments)

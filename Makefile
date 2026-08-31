@@ -7,7 +7,7 @@ SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
 
 .NOTPARALLEL:
 
-.PHONY: all doctor bootstrap ffi-bootstrap artifact-check package-contract-check \
+.PHONY: all doctor bootstrap persona-verifier-bootstrap ffi-bootstrap artifact-check package-contract-check \
 	swift-quality \
 	linux-shared-rust \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
@@ -21,6 +21,9 @@ doctor:
 
 ffi-bootstrap: doctor
 	cargo extbuild run -- $(MAKE) -C $(FFI_ROOT) verify
+
+persona-verifier-bootstrap: doctor
+	cargo extbuild run -- uv sync --project scripts/persona-verifier --frozen
 
 artifact-check: doctor
 	cargo extbuild run -- $(FFI_ROOT)/scripts/verify-installed-artifacts.sh
@@ -43,7 +46,7 @@ project xcodegen: doctor
 xcode-resolve: artifact-check project
 	cargo extbuild run -- scripts/xcode.sh resolve
 
-bootstrap: ffi-bootstrap package-resolve xcode-resolve
+bootstrap: persona-verifier-bootstrap ffi-bootstrap package-resolve xcode-resolve
 
 package-build: artifact-check package-contract-check
 	cargo extbuild run -- scripts/xcode.sh package-build

@@ -76,6 +76,10 @@ This file applies to the complete standalone iOS app repository. A closer
   `cargo extbuild run -- ...`.
 - `make package-contract-check` is the narrow standalone source-lock,
   package-lock, privacy, version, and forbidden-root guard.
+- Persona qualification must use `scripts/persona-verifier.sh`, the exact
+  Python and schema dependency lock under `scripts/persona-verifier/**`, and
+  offline frozen resolution. Populate the exact lock only through
+  `make persona-verifier-bootstrap`; do not bypass it with ambient Python.
 - `make swift-quality` applies the checked-in SwiftFormat and SwiftLint policy
   to repository-owned package, app, unit-test, API-test, and UI-test sources;
   generated bindings and dependency/build output are excluded.

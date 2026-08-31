@@ -231,13 +231,13 @@ case "$operation" in
                     exit 1
                 fi
             fi
-            python3 scripts/local-social-fixture.py verify-persona-fixture \
+            sh scripts/persona-verifier.sh verify-persona-fixture \
                 --fixture "$persona_fixture" \
                 --fixture-schema test-fixtures/local-social-personas.v1.schema.json \
                 --result-schema test-fixtures/local-social-persona-results.v1.schema.json \
                 --attempt-schema test-fixtures/local-social-persona-attempt-evidence.v1.schema.json \
                 --result-v2-schema test-fixtures/local-social-persona-results.v2.schema.json
-            python3 scripts/local-social-fixture.py serve \
+            sh scripts/persona-verifier.sh serve \
                 --relay-port "$relay_port" \
                 --blossom-port "$blossom_port" \
                 --evidence "$evidence" \
@@ -245,7 +245,7 @@ case "$operation" in
                 --control "$control" \
                 --persona-fixture "$persona_fixture" &
         else
-            python3 scripts/local-social-fixture.py serve \
+            sh scripts/persona-verifier.sh serve \
                 --relay-port "$relay_port" \
                 --blossom-port "$blossom_port" \
                 --evidence "$evidence" \
@@ -314,7 +314,7 @@ case "$operation" in
             exit "$test_status"
         fi
         if [[ "$scenario" == persona ]]; then
-            persona_result_command=(python3 scripts/local-social-fixture.py "$evidence_command" \
+            persona_result_command=(sh scripts/persona-verifier.sh "$evidence_command" \
                 --fixture "$persona_fixture" \
                 --fixture-schema test-fixtures/local-social-personas.v1.schema.json \
                 --result-schema test-fixtures/local-social-persona-results.v1.schema.json \
@@ -332,7 +332,7 @@ case "$operation" in
             fi
             "${persona_result_command[@]}"
         else
-            python3 scripts/local-social-fixture.py "$evidence_command" --evidence "$evidence"
+            sh scripts/persona-verifier.sh "$evidence_command" --evidence "$evidence"
         fi
         ;;
     remote-ui-test)

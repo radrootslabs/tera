@@ -472,6 +472,103 @@ class LocalSocialFixtureTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate JSON member"):
                 fixture.read_json(duplicate)
 
+    def test_json_reads_enforce_maximum_plus_one_before_decoding(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory, "bounded.json")
+            path.write_bytes(b'{"x":1}')
+            self.assertEqual(fixture.read_json(path, 7)[1], {"x": 1})
+            path.write_bytes(b'{"x":1}\n')
+            with self.assertRaisesRegex(ValueError, "byte bound"):
+                fixture.read_json(path, 7)
+
+    def test_schemas_pass_meta_validation_and_match_semantic_corpora(self) -> None:
+        fixture_raw, suite = fixture.load_persona_suite(
+            Path("test-fixtures/local-social-personas.v1.json")
+        )
+        self.assertTrue(fixture_raw)
+        _, persona_schema = fixture.load_schema_file(
+            Path("test-fixtures/local-social-personas.v1.schema.json"),
+            "https://radroots.org/schemas/ios/local-social-personas.v1.schema.json",
+        )
+        fixture.validate_schema_instance(persona_schema, suite, "persona fixture")
+        _, corpus = fixture.load_bud11_mutation_corpus(
+            Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
+        )
+        _, corpus_schema = fixture.load_schema_file(
+            Path(
+                "test-fixtures/bud11-upload-authorization-mutations.v1.schema.json"
+            ),
+            "https://radroots.org/schemas/ios/bud11-upload-authorization-mutations.v1.schema.json",
+        )
+        fixture.validate_schema_instance(corpus_schema, corpus, "BUD-11 corpus")
+
+        changed = copy.deepcopy(suite)
+        changed["unexpected"] = True
+        with self.assertRaisesRegex(ValueError, "disagrees"):
+            fixture.validate_schema_instance(persona_schema, changed, "persona fixture")
+
+        with tempfile.TemporaryDirectory() as directory:
+            invalid = Path(directory, "invalid.schema.json")
+            invalid.write_text(
+                json.dumps(
+                    {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "$id": "https://radroots.org/schemas/ios/invalid.json",
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {"x": {"type": "not-a-json-schema-type"}},
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "meta-validation"):
+                fixture.load_schema_file(
+                    invalid, "https://radroots.org/schemas/ios/invalid.json"
+                )
+            invalid.write_text(
+                json.dumps(
+                    {
+                        "$schema": "https://json-schema.org/draft/2020-12/schema",
+                        "$id": "https://radroots.org/schemas/ios/invalid.json",
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "x": {"$ref": "https://example.com/external.json"}
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "external reference"):
+                fixture.load_schema_file(
+                    invalid, "https://radroots.org/schemas/ios/invalid.json"
+                )
+
+    def test_result_bundle_digest_is_framed_bounded_and_pinned(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "a.txt").write_bytes(b"A")
+            (root / "nested").mkdir()
+            (root / "nested" / "b.bin").write_bytes(b"\x00B")
+            self.assertEqual(
+                fixture.directory_digest(root, 3, 2, 3),
+                "25fb5f36c3b044de2716ddfbbd95c2e5eb39cf38a5bcf2feb793cd57ce27147a",
+            )
+            with self.assertRaisesRegex(ValueError, "entry bound"):
+                fixture.directory_digest(root, 2, 2, 3)
+            with self.assertRaisesRegex(ValueError, "byte bound"):
+                fixture.directory_digest(root, 3, 1, 3)
+            with self.assertRaisesRegex(ValueError, "byte bound"):
+                fixture.directory_digest(root, 3, 2, 2)
+
+            alternate = root / "alternate"
+            alternate.mkdir()
+            (alternate / "a").write_bytes(b".txtA")
+            self.assertNotEqual(
+                fixture.directory_digest(root, 5, 8, 16),
+                fixture.directory_digest(alternate, 1, 8, 8),
+            )
+
     def test_fixture_freezes_exact_persona_and_flow_matrix(self) -> None:
         _, suite = fixture.load_persona_suite(
             Path("test-fixtures/local-social-personas.v1.json")
@@ -597,6 +694,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
             ),
             result,
         )
+        fixture.validate_schema_instance(result_schema, result, "persona v1 result")
         for mutation in (
             lambda value: value.update({"unexpected": True}),
             lambda value: value["simulator"].update({"os": "iOS 17.7"}),
@@ -681,6 +779,21 @@ class LocalSocialFixtureTests(unittest.TestCase):
         self.assertEqual(result["retrievals"], 3)
         self.assertEqual(result["non_loopback_attempts"], 0)
         self.assertEqual(len(result["attachments"]), 15)
+        _, attempt_schema = fixture.load_schema_file(
+            Path(
+                "test-fixtures/local-social-persona-attempt-evidence.v1.schema.json"
+            ),
+            "https://radroots.org/schemas/ios/local-social-persona-attempt-evidence.v1.schema.json",
+        )
+        for _, attempt in attachments:
+            fixture.validate_schema_instance(
+                attempt_schema, attempt, "persona attempt evidence"
+            )
+        _, result_schema = fixture.load_schema_file(
+            Path("test-fixtures/local-social-persona-results.v2.schema.json"),
+            "https://radroots.org/schemas/ios/local-social-persona-results.v2.schema.json",
+        )
+        fixture.validate_schema_instance(result_schema, result, "persona v2 result")
 
         _, pending = self.persona_attempt_attachments(measured=False)
         with self.assertRaisesRegex(ValueError, "not measured"):
@@ -769,6 +882,14 @@ class LocalSocialFixtureTests(unittest.TestCase):
             )
             self.assertEqual(len(loaded), 15)
             self.assertEqual(loaded[0][1]["attempt_id"], "P01-A01")
+
+            unexpected = root / "unexpected.json"
+            unexpected.write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "entry bound"):
+                fixture.load_exported_persona_attachments(
+                    root, suite, require_measured_network=True
+                )
+            unexpected.unlink()
 
             rows[0]["suggestedHumanReadableName"] = rows[1][
                 "suggestedHumanReadableName"
@@ -864,15 +985,15 @@ class LocalSocialFixtureTests(unittest.TestCase):
         }
 
         with mock.patch.object(
-            fixture.subprocess,
-            "check_output",
-            side_effect=[json.dumps(simctl_devices), json.dumps(result_summary)],
-        ) as check_output:
+            fixture,
+            "run_json_command_bounded",
+            side_effect=[simctl_devices, result_summary],
+        ) as run_json:
             self.assertEqual(
                 fixture.simulator_metadata(udid.lower(), result_bundle),
                 {"udid": udid, "os": "iOS 26.5", "architecture": "arm64"},
             )
-        commands = [call.args[0] for call in check_output.call_args_list]
+        commands = [call.args[0] for call in run_json.call_args_list]
         self.assertEqual(commands[0][:3], ["xcrun", "simctl", "list"])
         self.assertEqual(commands[1][:3], ["xcrun", "xcresulttool", "get"])
         self.assertNotIn("spawn", commands[0] + commands[1])
@@ -896,13 +1017,38 @@ class LocalSocialFixtureTests(unittest.TestCase):
             mutation(changed)
             with (
                 mock.patch.object(
-                    fixture.subprocess,
-                    "check_output",
-                    side_effect=[json.dumps(simctl_devices), json.dumps(changed)],
+                    fixture,
+                    "run_json_command_bounded",
+                    side_effect=[simctl_devices, changed],
                 ),
                 self.assertRaises(ValueError),
             ):
                 fixture.simulator_metadata(udid, result_bundle)
+
+    def test_subprocess_json_is_bounded_before_decoding(self) -> None:
+        command = [
+            fixture.sys.executable,
+            "-c",
+            "import sys; sys.stdout.write('{\\\"x\\\":1}')",
+        ]
+        self.assertEqual(fixture.run_json_command_bounded(command, 7), {"x": 1})
+        with self.assertRaisesRegex(ValueError, "byte bound"):
+            fixture.run_json_command_bounded(command, 6)
+
+    def test_verifier_toolchain_identity_is_exact(self) -> None:
+        fixture.verify_toolchain_identity()
+        with (
+            mock.patch.object(fixture.sys, "version_info", (3, 14, 6)),
+            self.assertRaisesRegex(RuntimeError, "Python identity"),
+        ):
+            fixture.verify_toolchain_identity()
+        with (
+            mock.patch.object(
+                fixture.importlib.metadata, "version", return_value="4.25.1"
+            ),
+            self.assertRaisesRegex(RuntimeError, "schema dependency"),
+        ):
+            fixture.verify_toolchain_identity()
 
     def test_control_is_bounded_and_deny_unknown(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
