@@ -22,7 +22,11 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
     XCTAssertEqual(value.runID, "gbrqv1-12345678")
     XCTAssertEqual(value.relayURLs, ["wss://write.example"])
     XCTAssertEqual(value.blossomOrigins, ["https://media.example"])
+    XCTAssertEqual(value.networkMode, .publicEndpoint)
     XCTAssertEqual(value.runtimeMode, "production")
+    XCTAssertFalse(value.networkMode.permitsAutomatedUserPresence)
+    XCTAssertFalse(value.networkMode.permitsTestSecretPolicy)
+    XCTAssertFalse(value.automatesIdentity)
     XCTAssertEqual(
       value.mediaFile,
       RadrootsFileReference(scope: .data, relativePath: "qualification/input.png")
@@ -68,6 +72,8 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
       ]) { _, new in new }
     )
     XCTAssertEqual(simulator?.runtimeMode, "simulator")
+    XCTAssertEqual(simulator?.networkMode, .isolatedLoopback)
+    XCTAssertEqual(simulator?.automatesIdentity, true)
     XCTAssertThrowsError(
       try RadrootsRemoteQualificationEnvironment.current(
         environment: base.merging([
@@ -98,13 +104,32 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
   }
 
   func testQualificationUserPresenceIsNoninteractiveAndDebugOnly() async throws {
-    let presence = RadrootsRemoteQualificationUserPresence()
+    let presence = try RadrootsRemoteQualificationUserPresence(mode: .isolatedLoopback)
     let request = try RadrootsUserPresenceRequest(reason: "Automated remote qualification")
     let result = try await presence.verify(request)
     let status = try await presence.currentStatus()
     XCTAssertTrue(result.verified)
     XCTAssertEqual(result.policy, .deviceOwnerAuthentication)
     XCTAssertFalse(status.canEvaluateBiometrics)
+  }
+
+  func testPublicQualificationCannotSelectAutomatedPresence() throws {
+    let publicMode = RadrootsQualificationNetworkMode.publicEndpoint
+    XCTAssertFalse(publicMode.permitsAutomatedUserPresence)
+    XCTAssertFalse(publicMode.permitsTestSecretPolicy)
+    XCTAssertThrowsError(
+      try RadrootsRemoteQualificationUserPresence(mode: publicMode)
+    )
+  }
+
+  func testQualificationModeRejectsMutationsWithoutRenderingInput() {
+    let canary = "private-key-canary"
+    for profile in [nil, "", "SIMULATOR", "public ", "automatic", canary] {
+      XCTAssertThrowsError(try RadrootsQualificationNetworkMode(profile: profile)) { error in
+        XCTAssertFalse(String(describing: error).contains(canary))
+        XCTAssertFalse(error.localizedDescription.contains(canary))
+      }
+    }
   }
 
   func testQualificationUsesRunScopedRootsAndBackgroundSession() throws {

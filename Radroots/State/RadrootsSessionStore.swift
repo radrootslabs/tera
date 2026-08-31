@@ -112,7 +112,7 @@ actor RadrootsSessionStore {
       runtimeClient: runtimeClient,
       roots: roots,
       protectedData: protectedData,
-      automatesQualificationIdentity: qualification != nil
+      automatesQualificationIdentity: qualification?.automatesIdentity == true
     )
   }
 

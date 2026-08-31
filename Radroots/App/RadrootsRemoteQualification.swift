@@ -2,6 +2,35 @@ import Foundation
 import RadrootsKit
 import RadrootsKitBindings
 
+enum RadrootsQualificationNetworkMode: Sendable, Equatable {
+  case isolatedLoopback
+  case publicEndpoint
+
+  init(profile: String?) throws {
+    switch profile {
+    case "simulator": self = .isolatedLoopback
+    case "public": self = .publicEndpoint
+    default:
+      throw RadrootsConfigurationError.invalid("qualification_network_profile")
+    }
+  }
+
+  var runtimeMode: String {
+    switch self {
+    case .isolatedLoopback: "simulator"
+    case .publicEndpoint: "production"
+    }
+  }
+
+  var permitsAutomatedUserPresence: Bool {
+    self == .isolatedLoopback
+  }
+
+  var permitsTestSecretPolicy: Bool {
+    self == .isolatedLoopback
+  }
+}
+
 struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
   static let enabledKey = "RADROOTS_IOS_UI_TEST_REMOTE"
   static let runIDKey = "RADROOTS_IOS_UI_TEST_RUN_ID"
@@ -14,7 +43,15 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
   let relayURLs: [String]
   let blossomOrigins: [String]
   let mediaFile: RadrootsFileReference?
-  let runtimeMode: String
+  let networkMode: RadrootsQualificationNetworkMode
+
+  var runtimeMode: String {
+    networkMode.runtimeMode
+  }
+
+  var automatesIdentity: Bool {
+    networkMode.permitsAutomatedUserPresence && networkMode.permitsTestSecretPolicy
+  }
 
   private static let mediaFixtureBase64 =
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII="
@@ -75,17 +112,13 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
       let runID = try requiredRunID(environment[runIDKey])
       let relays = separatedValues(environment[relayURLsKey])
       let blossoms = separatedValues(environment[blossomOriginsKey])
-      let runtimeMode: String
-      switch environment[networkProfileKey] {
-      case "public": runtimeMode = "production"
-      case "simulator": runtimeMode = "simulator"
-      default:
-        throw RadrootsConfigurationError.invalid("qualification_network_profile")
-      }
+      let networkMode = try RadrootsQualificationNetworkMode(
+        profile: environment[networkProfileKey]
+      )
       guard !relays.isEmpty, blossoms.count == 1 else {
         throw RadrootsConfigurationError.invalid("qualification_blossom_origin")
       }
-      if runtimeMode == "simulator" {
+      if networkMode == .isolatedLoopback {
         guard
           relays.allSatisfy({ isLoopbackEndpoint($0, schemes: ["ws"]) }),
           blossoms.allSatisfy({ isLoopbackEndpoint($0, schemes: ["http"]) })
@@ -104,7 +137,7 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
         relayURLs: relays,
         blossomOrigins: blossoms,
         mediaFile: mediaFile,
-        runtimeMode: runtimeMode
+        networkMode: networkMode
       )
     }
 
@@ -218,6 +251,12 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
   }
 
   final class RadrootsRemoteQualificationUserPresence: RadrootsUserPresence, Sendable {
+    init(mode: RadrootsQualificationNetworkMode) throws {
+      guard mode.permitsAutomatedUserPresence, mode.permitsTestSecretPolicy else {
+        throw RadrootsConfigurationError.invalid("qualification_user_presence")
+      }
+    }
+
     func currentStatus() async throws -> RadrootsUserPresenceStatus {
       RadrootsUserPresenceStatus(
         support: .deviceCredential,

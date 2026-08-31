@@ -75,7 +75,10 @@ cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
 
 This harness is Debug-only, binds only explicit loopback ports, records bounded
 protocol evidence under the extbuild results root, and cannot become a
-production endpoint fallback.
+production endpoint fallback. Its typed isolated-loopback mode is the only
+mode permitted to use automated user presence or test secret policy. Public
+and physical qualification retain normal Apple user presence, remain optional,
+and are not claimed by the deterministic simulator lane.
 
 Passing `accessibility` as the final launcher argument runs Apple's
 accessibility audit over every progressively disclosed Add composition at the

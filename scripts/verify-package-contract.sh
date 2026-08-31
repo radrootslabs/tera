@@ -130,8 +130,20 @@ grep -Fq -- '-UIAccessibilityReduceMotionEnabled' \
     "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
 grep -Fq 'accessibility-extra-extra-extra-large' "$repo_root/scripts/xcode.sh"
 grep -Fq '#if DEBUG' "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
-grep -Fq 'case "simulator": runtimeMode = "simulator"' \
+grep -Fq 'case "simulator": self = .isolatedLoopback' \
     "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
+grep -Fq 'case "public": self = .publicEndpoint' \
+    "$repo_root/Radroots/App/RadrootsRemoteQualification.swift"
+grep -Fq 'if let qualification, qualification.automatesIdentity' \
+    "$repo_root/Radroots/State/RadrootsIdentityStore.swift"
+grep -Fq 'qualification?.automatesIdentity == true' \
+    "$repo_root/Radroots/State/RadrootsSessionStore.swift"
+if rg -n 'if qualification != nil|automatesQualificationIdentity: qualification != nil' \
+    "$repo_root/Radroots" --glob '*.swift'
+then
+    echo "error: qualification existence must not grant automated identity authority" >&2
+    exit 1
+fi
 test -f "$repo_root/scripts/local-social-fixture.py"
 test -f "$repo_root/.swiftformat"
 test -f "$repo_root/.swiftlint.yml"

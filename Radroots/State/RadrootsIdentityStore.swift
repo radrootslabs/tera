@@ -87,12 +87,14 @@ actor RadrootsIdentityStore {
         let configuration: RadrootsIdentityCustodyConfiguration
         let userPresence: any RadrootsUserPresence
         #if DEBUG
-            if qualification != nil {
+            if let qualification, qualification.automatesIdentity {
                 configuration = try RadrootsIdentityCustodyConfiguration(
                   namespace: namespace,
                   secretPolicy: .secureLocalSecret
                 )
-                userPresence = RadrootsRemoteQualificationUserPresence()
+                userPresence = try RadrootsRemoteQualificationUserPresence(
+                  mode: qualification.networkMode
+                )
             } else {
                 configuration = try RadrootsIdentityCustodyConfiguration(namespace: namespace)
                 userPresence = RadrootsAppleUserPresence()
