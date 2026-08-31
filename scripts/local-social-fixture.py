@@ -1554,7 +1554,12 @@ def simulator_metadata(udid: str, result_bundle: Path) -> dict[str, str]:
         or architecture != "arm64"
     ):
         raise ValueError("simulator does not satisfy the development platform contract")
-    return {"udid": udid.upper(), "os": f"iOS {version}", "architecture": architecture}
+    canonical_version = version if version.count(".") == 2 else f"{version}.0"
+    return {
+        "udid": udid.upper(),
+        "os": f"iOS {canonical_version}",
+        "architecture": architecture,
+    }
 
 
 def validate_persona_evidence(value: Any, suite: dict[str, Any]) -> dict[str, Any]:

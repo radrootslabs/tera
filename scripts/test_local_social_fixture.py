@@ -1012,12 +1012,34 @@ class LocalSocialFixtureTests(unittest.TestCase):
         ) as run_json:
             self.assertEqual(
                 fixture.simulator_metadata(udid.lower(), result_bundle),
-                {"udid": udid, "os": "iOS 26.5", "architecture": "arm64"},
+                {"udid": udid, "os": "iOS 26.5.0", "architecture": "arm64"},
             )
         commands = [call.args[0] for call in run_json.call_args_list]
         self.assertEqual(commands[0][:3], ["xcrun", "simctl", "list"])
         self.assertEqual(commands[1][:3], ["xcrun", "xcresulttool", "get"])
         self.assertNotIn("spawn", commands[0] + commands[1])
+
+        patch_summary = copy.deepcopy(result_summary)
+        patch_summary["devicesAndConfigurations"][0]["device"]["osVersion"] = (
+            "26.5.1"
+        )
+        patch_devices = {
+            "devices": {
+                "com.apple.CoreSimulator.SimRuntime.iOS-26-5-1": [
+                    simctl_devices["devices"][
+                        "com.apple.CoreSimulator.SimRuntime.iOS-26-5"
+                    ][0]
+                ]
+            }
+        }
+        with mock.patch.object(
+            fixture,
+            "run_json_command_bounded",
+            side_effect=[patch_devices, patch_summary],
+        ):
+            self.assertEqual(
+                fixture.simulator_metadata(udid, result_bundle)["os"], "iOS 26.5.1"
+            )
 
         for mutation in (
             lambda value: value["devicesAndConfigurations"][0]["device"].update(
