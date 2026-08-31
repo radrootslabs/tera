@@ -1,0 +1,32 @@
+{
+  "schema": "radroots.ios.local-social.bud11-mutations.v1",
+  "schema_version": 1,
+  "vectors": [
+    {"id": "canonical", "mutation": "none", "surface": "http", "expected_accepted": true},
+    {"id": "wrong-scheme", "mutation": "authorization_scheme", "surface": "http", "expected_accepted": false},
+    {"id": "padded-base64", "mutation": "padded_base64", "surface": "http", "expected_accepted": false},
+    {"id": "wrong-kind", "mutation": "wrong_kind", "surface": "http", "expected_accepted": false},
+    {"id": "empty-content", "mutation": "empty_content", "surface": "http", "expected_accepted": false},
+    {"id": "oversized-content", "mutation": "oversized_content", "surface": "http", "expected_accepted": false},
+    {"id": "leading-content-space", "mutation": "leading_content_space", "surface": "http", "expected_accepted": false},
+    {"id": "control-content", "mutation": "control_content", "surface": "http", "expected_accepted": false},
+    {"id": "missing-action", "mutation": "missing_action", "surface": "http", "expected_accepted": false},
+    {"id": "wrong-action", "mutation": "wrong_action", "surface": "http", "expected_accepted": false},
+    {"id": "duplicate-action", "mutation": "duplicate_action", "surface": "http", "expected_accepted": false},
+    {"id": "wrong-hash", "mutation": "wrong_hash", "surface": "http", "expected_accepted": false},
+    {"id": "duplicate-hash", "mutation": "duplicate_hash", "surface": "http", "expected_accepted": false},
+    {"id": "missing-server", "mutation": "missing_server", "surface": "http", "expected_accepted": false},
+    {"id": "wrong-server", "mutation": "wrong_server", "surface": "http", "expected_accepted": false},
+    {"id": "uppercase-server", "mutation": "uppercase_server", "surface": "http", "expected_accepted": false},
+    {"id": "duplicate-server", "mutation": "duplicate_server", "surface": "http", "expected_accepted": false},
+    {"id": "missing-expiration", "mutation": "missing_expiration", "surface": "http", "expected_accepted": false},
+    {"id": "noncanonical-expiration", "mutation": "noncanonical_expiration", "surface": "http", "expected_accepted": false},
+    {"id": "expired", "mutation": "expired", "surface": "http", "expected_accepted": false},
+    {"id": "created-at-not-past", "mutation": "created_at_not_past", "surface": "http", "expected_accepted": false},
+    {"id": "lifetime-too-long", "mutation": "lifetime_too_long", "surface": "http", "expected_accepted": false},
+    {"id": "unknown-tag", "mutation": "unknown_tag", "surface": "http", "expected_accepted": false},
+    {"id": "event-id-mutation", "mutation": "event_id", "surface": "http", "expected_accepted": false},
+    {"id": "signature-mutation", "mutation": "signature", "surface": "http", "expected_accepted": false},
+    {"id": "relay-publication", "mutation": "none", "surface": "relay", "expected_accepted": false}
+  ]
+}

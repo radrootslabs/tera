@@ -1,9 +1,13 @@
+import base64
 import copy
 import hashlib
+import http.client
 import importlib.util
 import json
 import re
+import secrets
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -14,6 +18,140 @@ SPEC = importlib.util.spec_from_file_location("local_social_fixture", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 fixture = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(fixture)
+
+
+def sign_bud11_event(event: dict) -> dict:
+    secret = secrets.randbelow(fixture.SECP256K1_ORDER - 1) + 1
+    public_point = fixture.point_multiply(secret, fixture.SECP256K1_GENERATOR)
+    assert public_point is not None
+    if public_point[1] & 1:
+        secret = fixture.SECP256K1_ORDER - secret
+    public_key = public_point[0].to_bytes(32, "big")
+    signed = copy.deepcopy(event)
+    signed["pubkey"] = public_key.hex()
+    preimage = json.dumps(
+        [
+            0,
+            signed["pubkey"],
+            signed["created_at"],
+            signed["kind"],
+            signed["tags"],
+            signed["content"],
+        ],
+        ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    message = hashlib.sha256(preimage).digest()
+    signed["id"] = message.hex()
+    auxiliary = secrets.token_bytes(32)
+    masked_secret = bytes(
+        left ^ right
+        for left, right in zip(
+            secret.to_bytes(32, "big"),
+            fixture.tagged_hash("BIP0340/aux", auxiliary),
+            strict=True,
+        )
+    )
+    nonce = int.from_bytes(
+        fixture.tagged_hash("BIP0340/nonce", masked_secret + public_key + message),
+        "big",
+    ) % fixture.SECP256K1_ORDER
+    assert nonce != 0
+    nonce_point = fixture.point_multiply(nonce, fixture.SECP256K1_GENERATOR)
+    assert nonce_point is not None
+    if nonce_point[1] & 1:
+        nonce = fixture.SECP256K1_ORDER - nonce
+    challenge = int.from_bytes(
+        fixture.tagged_hash(
+            "BIP0340/challenge",
+            nonce_point[0].to_bytes(32, "big") + public_key + message,
+        ),
+        "big",
+    ) % fixture.SECP256K1_ORDER
+    signature = nonce_point[0].to_bytes(32, "big") + (
+        (nonce + challenge * secret) % fixture.SECP256K1_ORDER
+    ).to_bytes(32, "big")
+    signed["sig"] = signature.hex()
+    assert fixture.valid_nostr_event(signed)
+    assert fixture.verify_nostr_signature(signed)
+    return signed
+
+
+def bud11_event(now_unix_s: int, digest: str) -> dict:
+    return {
+        "created_at": now_unix_s - 5,
+        "kind": fixture.BUD11_EVENT_KIND,
+        "tags": [
+            ["t", "upload"],
+            ["expiration", str(now_unix_s + 295)],
+            ["x", digest],
+            ["server", fixture.BUD11_SERVER_DOMAIN],
+        ],
+        "content": "Upload exact Radroots image",
+    }
+
+
+def mutate_bud11_event(event: dict, mutation: str, now_unix_s: int) -> tuple[dict, str]:
+    changed = copy.deepcopy(event)
+    if mutation == "none":
+        pass
+    elif mutation == "wrong_kind":
+        changed["kind"] = 1
+    elif mutation == "empty_content":
+        changed["content"] = ""
+    elif mutation == "oversized_content":
+        changed["content"] = "x" * (fixture.BUD11_CONTENT_MAX_BYTES + 1)
+    elif mutation == "leading_content_space":
+        changed["content"] = " Upload exact Radroots image"
+    elif mutation == "control_content":
+        changed["content"] = "Upload\0image"
+    elif mutation == "missing_action":
+        changed["tags"].pop(0)
+    elif mutation == "wrong_action":
+        changed["tags"][0][1] = "delete"
+    elif mutation == "duplicate_action":
+        changed["tags"].insert(1, ["t", "upload"])
+    elif mutation == "wrong_hash":
+        changed["tags"][2][1] = "f" * 64
+    elif mutation == "duplicate_hash":
+        changed["tags"].insert(3, copy.deepcopy(changed["tags"][2]))
+    elif mutation == "missing_server":
+        changed["tags"].pop(3)
+    elif mutation == "wrong_server":
+        changed["tags"][3][1] = "media.example"
+    elif mutation == "uppercase_server":
+        changed["tags"][3][1] = "Media.Example"
+    elif mutation == "duplicate_server":
+        changed["tags"].append(copy.deepcopy(changed["tags"][3]))
+    elif mutation == "missing_expiration":
+        changed["tags"].pop(1)
+    elif mutation == "noncanonical_expiration":
+        changed["tags"][1][1] = "0" + changed["tags"][1][1]
+    elif mutation == "expired":
+        changed["tags"][1][1] = str(now_unix_s)
+    elif mutation == "created_at_not_past":
+        changed["created_at"] = now_unix_s + 60
+        changed["tags"][1][1] = str(now_unix_s + 360)
+    elif mutation == "lifetime_too_long":
+        changed["tags"][1][1] = str(changed["created_at"] + 301)
+    elif mutation == "unknown_tag":
+        changed["tags"].append(["client", "radroots"])
+    elif mutation in {"event_id", "signature", "authorization_scheme", "padded_base64"}:
+        pass
+    else:
+        raise AssertionError(f"unsupported mutation: {mutation}")
+    signed = sign_bud11_event(changed)
+    if mutation == "event_id":
+        signed["id"] = ("0" if signed["id"][0] != "0" else "1") + signed["id"][1:]
+    elif mutation == "signature":
+        signed["sig"] = ("0" if signed["sig"][0] != "0" else "1") + signed["sig"][1:]
+    raw = json.dumps(signed, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    header = "Nostr " + base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+    if mutation == "authorization_scheme":
+        header = "Bearer " + header.removeprefix("Nostr ")
+    elif mutation == "padded_base64":
+        header += "="
+    return signed, header
 
 
 class LocalSocialFixtureTests(unittest.TestCase):
@@ -100,6 +238,147 @@ class LocalSocialFixtureTests(unittest.TestCase):
         self.assertFalse(
             fixture.verify_bip340(public_key, message, signature[:-1] + b"\x00")
         )
+
+    def test_bud11_corpus_is_exact_bounded_and_contains_no_sensitive_evidence(self) -> None:
+        path = Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
+        raw, corpus = fixture.load_bud11_mutation_corpus(path)
+        self.assertLessEqual(len(raw), fixture.MAX_JSON_BYTES)
+        self.assertEqual(len(corpus["vectors"]), len(fixture.BUD11_MUTATIONS))
+        self.assertNotRegex(
+            raw.decode("utf-8"),
+            r'"(?:private_key|secret|seed|authorization|event|sig|pubkey)"\s*:',
+        )
+
+    def test_bud11_corpus_rejects_unknown_duplicate_and_missing_vectors(self) -> None:
+        path = Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["unknown"] = True
+        with self.assertRaisesRegex(ValueError, "field inventory"):
+            fixture.validate_bud11_mutation_corpus(value)
+        value = json.loads(path.read_text(encoding="utf-8"))
+        value["vectors"].pop()
+        with self.assertRaisesRegex(ValueError, "inventory"):
+            fixture.validate_bud11_mutation_corpus(value)
+        with tempfile.TemporaryDirectory() as directory:
+            duplicate = Path(directory, "duplicate.json")
+            duplicate.write_text(
+                '{"schema":"x","schema":"x","schema_version":1,"vectors":[]}\n',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate JSON member"):
+                fixture.load_bud11_mutation_corpus(duplicate)
+
+    def test_bud11_scalar_bounds_and_server_domain_grammar_are_fail_closed(self) -> None:
+        self.assertEqual(fixture.canonical_unsigned_decimal("0"), 0)
+        self.assertEqual(
+            fixture.canonical_unsigned_decimal(str(0xFFFF_FFFF_FFFF_FFFF)),
+            0xFFFF_FFFF_FFFF_FFFF,
+        )
+        for value in ["", "00", "+1", "١", "18446744073709551616", "1" * 10_000]:
+            self.assertIsNone(fixture.canonical_unsigned_decimal(value))
+        for value in ["127.0.0.1", "media.example", "a-b.example"]:
+            self.assertTrue(fixture.valid_bud11_server_domain(value), value)
+        for value in [
+            "127.000.0.1",
+            "123",
+            "Media.Example",
+            "https://media.example",
+            "media.example:443",
+            "-media.example",
+            "media-.example",
+        ]:
+            self.assertFalse(fixture.valid_bud11_server_domain(value), value)
+        oversized = "Nostr " + "a" * (
+            fixture.BUD11_AUTHORIZATION_ENCODED_MAX_BYTES + 1
+        )
+        self.assertFalse(
+            fixture.valid_blossom_authorization(
+                oversized,
+                "a" * 64,
+                fixture.BUD11_SERVER_DOMAIN,
+                1,
+            )
+        )
+
+    def test_bud11_mutation_corpus_matches_strict_admission_and_relay_denial(self) -> None:
+        _, corpus = fixture.load_bud11_mutation_corpus(
+            Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
+        )
+        now = int(time.time())
+        digest = hashlib.sha256(b"canonical-bud11-photo").hexdigest()
+        for vector in corpus["vectors"]:
+            with self.subTest(vector=vector["id"]):
+                event, header = mutate_bud11_event(
+                    bud11_event(now, digest), vector["mutation"], now
+                )
+                if vector["surface"] == "http":
+                    accepted = fixture.valid_blossom_authorization(
+                        header,
+                        digest,
+                        fixture.BUD11_SERVER_DOMAIN,
+                        now,
+                    )
+                else:
+                    with tempfile.TemporaryDirectory() as directory:
+                        root = Path(directory)
+                        state = fixture.FixtureState(
+                            root / "evidence.json", root / "control", 21100
+                        )
+                        accepted = bool(state.publish(event))
+                self.assertEqual(accepted, vector["expected_accepted"])
+
+    def test_local_blossom_http_runtime_enforces_the_shared_bud11_corpus(self) -> None:
+        _, corpus = fixture.load_bud11_mutation_corpus(
+            Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
+        )
+        body = b"canonical-bud11-photo"
+        digest = hashlib.sha256(body).hexdigest()
+        now = int(time.time())
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            control = root / "control"
+            control.touch()
+            state = fixture.FixtureState(root / "evidence.json", control, 0)
+            fixture.BlossomHandler.state = state
+            server = fixture.http.server.ThreadingHTTPServer(
+                ("127.0.0.1", 0), fixture.BlossomHandler
+            )
+            state.blossom_port = server.server_address[1]
+            thread = fixture.threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                for vector in corpus["vectors"]:
+                    if vector["surface"] != "http":
+                        continue
+                    with self.subTest(vector=vector["id"]):
+                        _, header = mutate_bud11_event(
+                            bud11_event(now, digest), vector["mutation"], now
+                        )
+                        connection = http.client.HTTPConnection(
+                            "127.0.0.1", state.blossom_port, timeout=5
+                        )
+                        connection.request(
+                            "PUT",
+                            f"/{digest}.png",
+                            body=body,
+                            headers={
+                                "Authorization": header,
+                                "Content-Type": "image/png",
+                                "Content-Length": str(len(body)),
+                            },
+                        )
+                        response = connection.getresponse()
+                        response.read()
+                        connection.close()
+                        self.assertEqual(
+                            response.status == 200, vector["expected_accepted"]
+                        )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+            evidence = json.loads((root / "evidence.json").read_text(encoding="utf-8"))
+            self.assertEqual(evidence["accepted_uploads"], 1)
 
     def test_fixture_rejects_duplicate_and_unknown_fields(self) -> None:
         source = Path("test-fixtures/local-social-personas.v1.json")

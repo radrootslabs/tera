@@ -96,6 +96,7 @@ grep -Fq 'xcrun simctl ui "$simulator_id" content_size "$previous_content_size"'
     "$repo_root/scripts/xcode.sh"
 grep -Fq 'verify-accessibility' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-persona-fixture' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'verify-bud11-corpus' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-persona' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-persona-result' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'add.tap()' "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
@@ -104,12 +105,17 @@ if rg -n 'coordinate\(' "$repo_root/RadrootsUITests" --glob '*.swift'; then
     exit 1
 fi
 for fixture in \
+    bud11-upload-authorization-mutations.v1.json \
+    bud11-upload-authorization-mutations.v1.schema.json \
     local-social-personas.v1.json \
     local-social-personas.v1.schema.json \
     local-social-persona-results.v1.schema.json
 do
     test -f "$repo_root/test-fixtures/$fixture"
 done
+python3 "$repo_root/scripts/local-social-fixture.py" verify-bud11-corpus \
+    --corpus "$repo_root/test-fixtures/bud11-upload-authorization-mutations.v1.json" \
+    --schema "$repo_root/test-fixtures/bud11-upload-authorization-mutations.v1.schema.json"
 python3 "$repo_root/scripts/local-social-fixture.py" verify-persona-fixture \
     --fixture "$repo_root/test-fixtures/local-social-personas.v1.json" \
     --fixture-schema "$repo_root/test-fixtures/local-social-personas.v1.schema.json" \

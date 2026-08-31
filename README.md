@@ -80,6 +80,15 @@ mode permitted to use automated user presence or test secret policy. Public
 and physical qualification retain normal Apple user presence, remain optional,
 and are not claimed by the deterministic simulator lane.
 
+The loopback Blossom fixture admits uploads only with the exact signed BUD-11
+HTTP authorization produced by the installed Rust runtime: kind `24242`,
+bounded non-empty human content, one upload action, one exact SHA-256, one
+lowercase domain-only server scope, and one canonical expiration whose
+lifetime is at most 300 seconds. Event ID and signature verification precede
+admission, and the relay explicitly rejects authorization events. The shared
+mutation corpus contains only field-mutation instructions; it persists no
+private material or signed authorization event.
+
 Passing `accessibility` as the final launcher argument runs Apple's
 accessibility audit over every progressively disclosed Add composition at the
 largest accessibility text size with Reduce Motion enabled. The corresponding

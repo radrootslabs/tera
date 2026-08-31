@@ -7,6 +7,7 @@ import argparse
 import base64
 import hashlib
 import http.server
+import ipaddress
 import json
 import os
 import re
@@ -17,6 +18,7 @@ import subprocess
 import struct
 import threading
 import time
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -25,6 +27,42 @@ MAX_WEBSOCKET_MESSAGE = 2 * 1024 * 1024
 MAX_EVENTS = 256
 MAX_BLOBS = 16
 MAX_JSON_BYTES = 64 * 1024
+BUD11_EVENT_KIND = 24_242
+BUD11_CONTENT_MAX_BYTES = 4_096
+BUD11_AUTHORIZATION_MAX_BYTES = 16 * 1024
+BUD11_AUTHORIZATION_ENCODED_MAX_BYTES = 21_846
+BUD11_MAX_LIFETIME_SECONDS = 300
+BUD11_MAX_CREATED_AGE_SECONDS = 300
+BUD11_SERVER_DOMAIN = "127.0.0.1"
+BUD11_MUTATION_SCHEMA = "radroots.ios.local-social.bud11-mutations.v1"
+BUD11_MUTATIONS = (
+    ("canonical", "none", "http", True),
+    ("wrong-scheme", "authorization_scheme", "http", False),
+    ("padded-base64", "padded_base64", "http", False),
+    ("wrong-kind", "wrong_kind", "http", False),
+    ("empty-content", "empty_content", "http", False),
+    ("oversized-content", "oversized_content", "http", False),
+    ("leading-content-space", "leading_content_space", "http", False),
+    ("control-content", "control_content", "http", False),
+    ("missing-action", "missing_action", "http", False),
+    ("wrong-action", "wrong_action", "http", False),
+    ("duplicate-action", "duplicate_action", "http", False),
+    ("wrong-hash", "wrong_hash", "http", False),
+    ("duplicate-hash", "duplicate_hash", "http", False),
+    ("missing-server", "missing_server", "http", False),
+    ("wrong-server", "wrong_server", "http", False),
+    ("uppercase-server", "uppercase_server", "http", False),
+    ("duplicate-server", "duplicate_server", "http", False),
+    ("missing-expiration", "missing_expiration", "http", False),
+    ("noncanonical-expiration", "noncanonical_expiration", "http", False),
+    ("expired", "expired", "http", False),
+    ("created-at-not-past", "created_at_not_past", "http", False),
+    ("lifetime-too-long", "lifetime_too_long", "http", False),
+    ("unknown-tag", "unknown_tag", "http", False),
+    ("event-id-mutation", "event_id", "http", False),
+    ("signature-mutation", "signature", "http", False),
+    ("relay-publication", "none", "relay", False),
+)
 PERSONA_ALIASES = ("P01", "P02", "P03", "P04", "P05")
 FLOW_KINDS = {
     "Update": 1,
@@ -162,6 +200,60 @@ def validate_persona_suite(value: Any) -> dict[str, Any]:
     return root
 
 
+def validate_bud11_mutation_corpus(value: Any) -> dict[str, Any]:
+    root = exact_keys(value, {"schema", "schema_version", "vectors"}, "BUD-11 corpus")
+    if (
+        root["schema"] != BUD11_MUTATION_SCHEMA
+        or root["schema_version"] != 1
+        or not isinstance(root["vectors"], list)
+    ):
+        raise ValueError("BUD-11 corpus header is invalid")
+    observed = []
+    for value in root["vectors"]:
+        vector = exact_keys(
+            value,
+            {"id", "mutation", "surface", "expected_accepted"},
+            "BUD-11 vector",
+        )
+        if (
+            not isinstance(vector["id"], str)
+            or not isinstance(vector["mutation"], str)
+            or vector["surface"] not in {"http", "relay"}
+            or type(vector["expected_accepted"]) is not bool
+        ):
+            raise ValueError("BUD-11 vector is invalid")
+        observed.append(
+            (
+                vector["id"],
+                vector["mutation"],
+                vector["surface"],
+                vector["expected_accepted"],
+            )
+        )
+    if tuple(observed) != BUD11_MUTATIONS:
+        raise ValueError("BUD-11 corpus inventory is invalid")
+    return root
+
+
+def load_bud11_mutation_corpus(path: Path) -> tuple[bytes, dict[str, Any]]:
+    raw, value = read_json(path)
+    corpus = validate_bud11_mutation_corpus(value)
+    canonical = (
+        "{\n"
+        f'  "schema": {json.dumps(value.get("schema"))},\n'
+        f'  "schema_version": {json.dumps(value.get("schema_version"))},\n'
+        '  "vectors": [\n'
+        + ",\n".join(
+            "    " + json.dumps(vector, ensure_ascii=False)
+            for vector in value.get("vectors", [])
+        )
+        + "\n  ]\n}\n"
+    ).encode("utf-8")
+    if raw != canonical:
+        raise ValueError("BUD-11 corpus is noncanonical")
+    return raw, corpus
+
+
 def flow_marker(flow: str) -> str:
     return {
         "Update": "update",
@@ -259,6 +351,12 @@ class FixtureState:
 
     def publish(self, event: dict[str, Any]) -> bool | None:
         if not valid_nostr_event(event) or not verify_nostr_signature(event):
+            return False
+        if event["kind"] == BUD11_EVENT_KIND:
+            if self._suite is not None:
+                with self._lock:
+                    self._unintended_publications += 1
+                    self._write_evidence_locked()
             return False
         if self._suite is not None:
             return self._publish_persona_event(event)
@@ -363,14 +461,16 @@ class FixtureState:
             persona = control["active_persona"] if control is not None else None
             if self._suite is None:
                 allowed = self.control.is_file() and valid_blossom_authorization(
-                    authorization, expected_hash
+                    authorization, expected_hash, BUD11_SERVER_DOMAIN
                 )
             else:
                 allowed = (
                     control is not None
                     and control["blossom_enabled"]
                     and persona in PHOTO_PERSONAS
-                    and valid_blossom_authorization(authorization, expected_hash)
+                    and valid_blossom_authorization(
+                        authorization, expected_hash, BUD11_SERVER_DOMAIN
+                    )
                 )
             capacity = digest in self._blobs or len(self._blobs) < MAX_BLOBS
             if allowed and capacity and digest == expected_hash:
@@ -523,7 +623,15 @@ def matches(event: dict[str, Any], item: dict[str, Any]) -> bool:
 
 
 def valid_nostr_event(event: dict[str, Any]) -> bool:
-    if set(event) != {"id", "pubkey", "created_at", "kind", "tags", "content", "sig"}:
+    if not isinstance(event, dict) or set(event) != {
+        "id",
+        "pubkey",
+        "created_at",
+        "kind",
+        "tags",
+        "content",
+        "sig",
+    }:
         return False
     if not lowercase_hex(event["id"], 64) or not lowercase_hex(event["pubkey"], 64):
         return False
@@ -701,19 +809,79 @@ def verify_nostr_signature(event: dict[str, Any]) -> bool:
         return False
 
 
-def valid_blossom_authorization(authorization: str, expected_hash: str) -> bool:
+def valid_bud11_server_domain(value: Any) -> bool:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > 253
+        or not value.isascii()
+        or value.lower() != value
+    ):
+        return False
+    try:
+        address = ipaddress.ip_address(value)
+    except ValueError:
+        labels = value.split(".")
+        return not all(label.isdigit() for label in labels) and all(
+            1 <= len(label) <= 63
+            and re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
+            is not None
+            for label in labels
+        )
+    return isinstance(address, ipaddress.IPv4Address) and str(address) == value
+
+
+def valid_bud11_content(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and value
+        and len(value.encode("utf-8")) <= BUD11_CONTENT_MAX_BYTES
+        and value.strip() == value
+        and not any(
+            unicodedata.category(character) == "Cc"
+            and character not in "\t\n\r"
+            for character in value
+        )
+    )
+
+
+def canonical_unsigned_decimal(value: Any) -> int | None:
+    if (
+        not isinstance(value, str)
+        or not value
+        or len(value) > 20
+        or any(character not in "0123456789" for character in value)
+        or (len(value) > 1 and value.startswith("0"))
+    ):
+        return None
+    parsed = int(value)
+    return parsed if parsed <= 0xFFFF_FFFF_FFFF_FFFF else None
+
+
+def valid_blossom_authorization(
+    authorization: str,
+    expected_hash: str,
+    expected_server: str,
+    now_unix_s: int | None = None,
+) -> bool:
+    if not lowercase_hex(expected_hash, 64) or not valid_bud11_server_domain(
+        expected_server
+    ):
+        return False
     if not authorization.startswith("Nostr "):
         return False
     payload = authorization.removeprefix("Nostr ")
     if (
         not payload
+        or len(payload) > BUD11_AUTHORIZATION_ENCODED_MAX_BYTES
         or any(character.isspace() for character in payload)
         or "=" in payload
+        or re.fullmatch(r"[A-Za-z0-9_-]+", payload) is None
     ):
         return False
     try:
         raw = base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4))
-        if len(raw) > 16 * 1024:
+        if len(raw) > BUD11_AUTHORIZATION_MAX_BYTES:
             return False
         if base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii") != payload:
             return False
@@ -722,12 +890,27 @@ def valid_blossom_authorization(authorization: str, expected_hash: str) -> bool:
         return False
     if not valid_nostr_event(event) or not verify_nostr_signature(event):
         return False
-    return any(
-        isinstance(tag, list)
-        and len(tag) >= 2
-        and tag[0] == "x"
-        and tag[1] == expected_hash
-        for tag in event["tags"]
+    if event["kind"] != BUD11_EVENT_KIND or not valid_bud11_content(event["content"]):
+        return False
+    if len(event["tags"]) != 4 or event["tags"][0] != ["t", "upload"]:
+        return False
+    expiration_tag = event["tags"][1]
+    if (
+        len(expiration_tag) != 2
+        or expiration_tag[0] != "expiration"
+        or event["tags"][2] != ["x", expected_hash]
+        or event["tags"][3] != ["server", expected_server]
+    ):
+        return False
+    expiration = canonical_unsigned_decimal(expiration_tag[1])
+    now = int(time.time()) if now_unix_s is None else now_unix_s
+    return (
+        type(now) is int
+        and now >= 0
+        and expiration is not None
+        and event["created_at"] < now < expiration
+        and now - event["created_at"] <= BUD11_MAX_CREATED_AGE_SECONDS
+        and 0 < expiration - event["created_at"] <= BUD11_MAX_LIFETIME_SECONDS
     )
 
 
@@ -1030,6 +1213,20 @@ def verify_persona_fixture(arguments: argparse.Namespace) -> int:
         f"fixture={hashlib.sha256(raw).hexdigest()} "
         f"fixture_schema={hashlib.sha256(fixture_schema).hexdigest()} "
         f"result_schema={hashlib.sha256(result_schema).hexdigest()}"
+    )
+    return 0
+
+
+def verify_bud11_corpus(arguments: argparse.Namespace) -> int:
+    raw, _ = load_bud11_mutation_corpus(Path(arguments.corpus).resolve())
+    schema = validate_schema_file(
+        Path(arguments.schema).resolve(),
+        "https://radroots.org/schemas/ios/bud11-upload-authorization-mutations.v1.schema.json",
+    )
+    print(
+        "BUD-11 mutation corpus verified: "
+        f"corpus={hashlib.sha256(raw).hexdigest()} "
+        f"schema={hashlib.sha256(schema).hexdigest()}"
     )
     return 0
 
@@ -1524,6 +1721,9 @@ def parser() -> argparse.ArgumentParser:
     fixture_command.add_argument("--fixture", required=True)
     fixture_command.add_argument("--fixture-schema", required=True)
     fixture_command.add_argument("--result-schema", required=True)
+    bud11_command = commands.add_parser("verify-bud11-corpus")
+    bud11_command.add_argument("--corpus", required=True)
+    bud11_command.add_argument("--schema", required=True)
     persona_command = commands.add_parser("verify-persona")
     persona_command.add_argument("--fixture", required=True)
     persona_command.add_argument("--fixture-schema", required=True)
@@ -1554,6 +1754,8 @@ def main() -> int:
         return verify_accessibility(arguments)
     if arguments.command == "verify-persona-fixture":
         return verify_persona_fixture(arguments)
+    if arguments.command == "verify-bud11-corpus":
+        return verify_bud11_corpus(arguments)
     if arguments.command == "verify-persona-result":
         return verify_persona_result(arguments)
     return verify_persona(arguments)

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://radroots.org/schemas/ios/bud11-upload-authorization-mutations.v1.schema.json",
+  "title": "Radroots iOS local-social BUD-11 mutation corpus v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "schema_version", "vectors"],
+  "properties": {
+    "schema": {"const": "radroots.ios.local-social.bud11-mutations.v1"},
+    "schema_version": {"const": 1},
+    "vectors": {
+      "type": "array",
+      "minItems": 26,
+      "maxItems": 26,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "mutation", "surface", "expected_accepted"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$", "maxLength": 64},
+          "mutation": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$", "maxLength": 64},
+          "surface": {"enum": ["http", "relay"]},
+          "expected_accepted": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}
