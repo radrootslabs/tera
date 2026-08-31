@@ -1555,7 +1555,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       artifactDigests: []
     )
     let encoder = JSONEncoder()
-    encoder.outputFormatting = [.sortedKeys]
+    encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
     let data = try encoder.encode(evidence)
     XCTAssertLessThanOrEqual(data.count, 64 * 1024)
     let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")

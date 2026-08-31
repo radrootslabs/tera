@@ -852,15 +852,18 @@ class LocalSocialFixtureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             rows = []
-            for name, (raw, _) in zip(
-                fixture.PERSONA_ATTACHMENT_NAMES, attachments, strict=True
+            for index, (name, (raw, _)) in enumerate(
+                zip(fixture.PERSONA_ATTACHMENT_NAMES, attachments, strict=True)
             ):
                 exported = "exported-" + name
+                suggested = (
+                    f"{name[:-5]}_0_00000000-0000-0000-0000-{index:012X}.json"
+                )
                 (root / exported).write_bytes(raw)
                 rows.append(
                     {
                         "exportedFileName": exported,
-                        "suggestedHumanReadableName": name,
+                        "suggestedHumanReadableName": suggested,
                         "isAssociatedWithFailure": False,
                         "configurationName": "Test Scheme Action",
                         "deviceName": "iPhone 17 Pro",
@@ -902,11 +905,25 @@ class LocalSocialFixtureTests(unittest.TestCase):
                     root, suite, require_measured_network=True
                 )
 
+            rows[0]["suggestedHumanReadableName"] = (
+                "radroots-local-social-P01-A01.json"
+            )
+            (root / "manifest.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
+            with self.assertRaises(ValueError):
+                fixture.load_exported_persona_attachments(
+                    root, suite, require_measured_network=True
+                )
+
     def test_xcresult_attachment_read_rejects_maximum_plus_one(self) -> None:
         suite, attachments = self.persona_attempt_attachments()
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            name = fixture.PERSONA_ATTACHMENT_NAMES[0]
+            name = (
+                "radroots-local-social-P01-A01_0_"
+                "00000000-0000-0000-0000-000000000000.json"
+            )
             exported = "oversized.json"
             (root / exported).write_bytes(
                 b"{" + b" " * fixture.MAX_PERSONA_ATTACHMENT_BYTES + b"}"
@@ -921,9 +938,13 @@ class LocalSocialFixtureTests(unittest.TestCase):
                     "deviceId": "11111111-2222-3333-4444-555555555555",
                 }
             ]
-            for index, other_name in enumerate(
+            for index, canonical_name in enumerate(
                 fixture.PERSONA_ATTACHMENT_NAMES[1:], 1
             ):
+                other_name = (
+                    f"{canonical_name[:-5]}_0_"
+                    f"00000000-0000-0000-0000-{index:012X}.json"
+                )
                 other_exported = f"exported-{index}.json"
                 (root / other_exported).write_bytes(attachments[index][0])
                 rows.append(

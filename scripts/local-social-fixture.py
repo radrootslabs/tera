@@ -108,6 +108,10 @@ PERSONA_ATTACHMENT_NAMES = tuple(
     for persona in range(1, 6)
     for attempt in range(1, 4)
 )
+PERSONA_XCRESULT_ATTACHMENT_NAME = re.compile(
+    r"^radroots-local-social-(P0[1-5]-A0[1-3])_0_"
+    r"[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}\.json$"
+)
 FORBIDDEN_EVIDENCE_KEYS = frozenset(
     ("private_key", "secret", "seed", "signed_event", "event_content", "raw_event")
 )
@@ -1951,6 +1955,13 @@ def exported_attachment_inventory(path: Path) -> set[str]:
     return {relative.decode("utf-8") for _, relative, _ in inventory}
 
 
+def xcresult_attachment_attempt_id(name: object) -> str | None:
+    if not isinstance(name, str):
+        return None
+    matched = PERSONA_XCRESULT_ATTACHMENT_NAME.fullmatch(name)
+    return matched.group(1) if matched is not None else None
+
+
 def load_exported_persona_attachments(
     export_directory: Path,
     suite: dict[str, Any],
@@ -2002,9 +2013,13 @@ def load_exported_persona_attachments(
             raise ValueError("xcresult attachment row is invalid")
         exported = row_value["exportedFileName"]
         name = row_value["suggestedHumanReadableName"]
+        attempt_id = xcresult_attachment_attempt_id(name)
+        if attempt_id is None:
+            raise ValueError("xcresult attempt attachment identity is invalid")
+        canonical_name = f"radroots-local-social-{attempt_id}.json"
         if (
-            name not in PERSONA_ATTACHMENT_NAMES
-            or name in attachments_by_name
+            canonical_name not in PERSONA_ATTACHMENT_NAMES
+            or canonical_name in attachments_by_name
             or not isinstance(exported, str)
             or exported in exported_names
             or not 1 <= len(exported.encode("utf-8")) <= 255
@@ -2026,12 +2041,12 @@ def load_exported_persona_attachments(
         attempt = validate_persona_attempt_evidence(
             value, suite, require_measured_network=require_measured_network
         )
-        if name != f"radroots-local-social-{attempt['attempt_id']}.json":
+        if attempt_id != attempt["attempt_id"]:
             raise ValueError("xcresult attachment name does not bind its attempt")
         total_bytes += len(raw)
         if total_bytes > MAX_PERSONA_ATTACHMENTS_BYTES:
             raise ValueError("xcresult attempt attachments exceed their aggregate bound")
-        attachments_by_name[name] = (raw, attempt)
+        attachments_by_name[canonical_name] = (raw, attempt)
     if tuple(sorted(attachments_by_name)) != tuple(sorted(PERSONA_ATTACHMENT_NAMES)):
         raise ValueError("xcresult persona attachment inventory is incomplete")
     if inventory != {"manifest.json", *exported_names}:
