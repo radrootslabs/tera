@@ -80,6 +80,14 @@ grep -Fq '<key>RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL</key>' \
     "$repo_root/RadrootsUITests/Info.plist"
 grep -Fq '<key>RADROOTS_IOS_UI_TEST_NETWORK_PROFILE</key>' \
     "$repo_root/RadrootsUITests/Info.plist"
+for evidence_key in \
+    RADROOTS_IOS_UI_TEST_SOURCE_COMMIT \
+    RADROOTS_IOS_UI_TEST_SOURCE_TREE \
+    RADROOTS_IOS_UI_TEST_APP_BUILD_SHA256 \
+    RADROOTS_IOS_UI_TEST_SIMULATOR_ID
+do
+    grep -Fq "<key>$evidence_key</key>" "$repo_root/RadrootsUITests/Info.plist"
+done
 grep -Fq 'local-social-ui-test)' "$repo_root/scripts/xcode.sh"
 grep -Fq 'RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario' \
     "$repo_root/scripts/xcode.sh"
@@ -109,7 +117,9 @@ for fixture in \
     bud11-upload-authorization-mutations.v1.schema.json \
     local-social-personas.v1.json \
     local-social-personas.v1.schema.json \
-    local-social-persona-results.v1.schema.json
+    local-social-persona-results.v1.schema.json \
+    local-social-persona-attempt-evidence.v1.schema.json \
+    local-social-persona-results.v2.schema.json
 do
     test -f "$repo_root/test-fixtures/$fixture"
 done
@@ -119,7 +129,13 @@ python3 "$repo_root/scripts/local-social-fixture.py" verify-bud11-corpus \
 python3 "$repo_root/scripts/local-social-fixture.py" verify-persona-fixture \
     --fixture "$repo_root/test-fixtures/local-social-personas.v1.json" \
     --fixture-schema "$repo_root/test-fixtures/local-social-personas.v1.schema.json" \
-    --result-schema "$repo_root/test-fixtures/local-social-persona-results.v1.schema.json"
+    --result-schema "$repo_root/test-fixtures/local-social-persona-results.v1.schema.json" \
+    --attempt-schema "$repo_root/test-fixtures/local-social-persona-attempt-evidence.v1.schema.json" \
+    --result-v2-schema "$repo_root/test-fixtures/local-social-persona-results.v2.schema.json"
+grep -Fq 'RadrootsUITests/testLocalSocialDeterministicPersonas' \
+    "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'radroots.ios.local-social.persona-attempt-evidence.v1' \
+    "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
 (
     cd "$repo_root"
     python3 -m unittest scripts/test_local_social_fixture.py

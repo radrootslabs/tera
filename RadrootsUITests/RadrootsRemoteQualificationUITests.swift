@@ -215,6 +215,14 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       app = launchPersona(configuration)
       try assertTodayContains(app, markers: markers)
       XCTAssertEqual(try readPublicKey(app), publicKey)
+      for attempt in persona.attempts {
+        try writePersonaAttemptAttachment(
+          configuration: configuration,
+          persona: persona,
+          attempt: attempt,
+          identityDigest: identityDigest
+        )
+      }
       app.terminate()
     }
     XCTAssertEqual(identityDigests.count, 5)
@@ -1439,6 +1447,93 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     attachment.lifetime = .keepAlways
     add(attachment)
   }
+
+  private func writePersonaAttemptAttachment(
+    configuration: QualificationConfiguration,
+    persona: Persona,
+    attempt: PersonaAttempt,
+    identityDigest: String
+  ) throws {
+    let binding = try XCTUnwrap(configuration.evidenceBinding)
+    let validation = attempt.expectedFailure == "validation_recovery"
+    let retry = attempt.expectedFailure == "transport_retry_relaunch"
+    let progressiveDisclosure =
+      persona.interactionProfile == "novice_progressive_disclosure"
+    let accessibilityKeyboard =
+      persona.interactionProfile == "novice_accessibility_keyboard"
+    let evidence = PersonaAttemptEvidence(
+      schema: "radroots.ios.local-social.persona-attempt-evidence.v1",
+      schemaVersion: 1,
+      testInvocation: .init(
+        target: "RadrootsUITests",
+        identifier: "RadrootsUITests/testLocalSocialDeterministicPersonas",
+        action: "test",
+        configuration: "Debug"
+      ),
+      source: .init(commit: binding.sourceCommit, tree: binding.sourceTree),
+      appBuildSHA256: binding.appBuildSHA256,
+      simulator: .init(
+        udid: binding.simulatorID,
+        os: Self.currentIOSVersion,
+        architecture: "arm64"
+      ),
+      runID: configuration.qualificationRunID,
+      personaRunID: configuration.runID,
+      personaAlias: persona.alias,
+      attemptID: attempt.id,
+      attemptOrder: attempt.order,
+      flow: attempt.flow.rawValue,
+      expectedFailure: attempt.expectedFailure,
+      publicIdentitySHA256: identityDigest,
+      endpointPolicySHA256: Self.endpointPolicyDigest(configuration),
+      uiObservation: .init(
+        validationAttempted: validation,
+        validationRejected: validation,
+        retryAttempts: retry ? 1 : 0,
+        relaunches: retry ? 1 : 0,
+        retentionVerified: true,
+        todayProjectionVerified: true
+      ),
+      networkObservation: .init(state: "pending_step_258"),
+      accessibility: .init(
+        locale: "en_US",
+        contentSize: "accessibility-extra-extra-extra-large",
+        reduceMotion: true,
+        progressiveDisclosure: progressiveDisclosure,
+        labelsValuesTraits: accessibilityKeyboard,
+        keyboardFocus: accessibilityKeyboard,
+        visibleActions: true,
+        voiceoverUserObserved: false
+      ),
+      artifactDigests: []
+    )
+    let encoder = JSONEncoder()
+    encoder.outputFormatting = [.sortedKeys]
+    let data = try encoder.encode(evidence)
+    XCTAssertLessThanOrEqual(data.count, 64 * 1024)
+    let attachment = XCTAttachment(data: data, uniformTypeIdentifier: "public.json")
+    attachment.name = "radroots-local-social-\(attempt.id).json"
+    attachment.lifetime = .keepAlways
+    add(attachment)
+  }
+
+  private static var currentIOSVersion: String {
+    let version = ProcessInfo.processInfo.operatingSystemVersion
+    return "iOS \(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
+  }
+
+  private static func endpointPolicyDigest(
+    _ configuration: QualificationConfiguration
+  ) -> String {
+    var payload = Data("radroots.ios.local-social.endpoint-policy.v1\0".utf8)
+    for value in (configuration.relayURLs + configuration.blossomOrigins).sorted() {
+      let bytes = Data(value.utf8)
+      var length = UInt64(bytes.count).bigEndian
+      withUnsafeBytes(of: &length) { payload.append(contentsOf: $0) }
+      payload.append(bytes)
+    }
+    return SHA256.hash(data: payload).map { String(format: "%02x", $0) }.joined()
+  }
 }
 
 private struct QualificationConfiguration {
@@ -1449,25 +1544,35 @@ private struct QualificationConfiguration {
   static let fixtureControlKey = "RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL"
   static let mediaRelativePathKey = "RADROOTS_IOS_UI_TEST_MEDIA_RELATIVE_PATH"
   static let networkProfileKey = "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE"
+  static let sourceCommitKey = "RADROOTS_IOS_UI_TEST_SOURCE_COMMIT"
+  static let sourceTreeKey = "RADROOTS_IOS_UI_TEST_SOURCE_TREE"
+  static let appBuildSHA256Key = "RADROOTS_IOS_UI_TEST_APP_BUILD_SHA256"
+  static let simulatorIDKey = "RADROOTS_IOS_UI_TEST_SIMULATOR_ID"
 
   let runID: String
+  let qualificationRunID: String
   let relayURLs: [String]
   let blossomOrigins: [String]
   let fixtureControl: String?
   let networkProfile: String
+  let evidenceBinding: PersonaEvidenceBinding?
 
   init(
     runID: String,
     relayURLs: [String],
     blossomOrigins: [String],
     fixtureControl: String? = nil,
-    networkProfile: String = "public"
+    networkProfile: String = "public",
+    qualificationRunID: String? = nil,
+    evidenceBinding: PersonaEvidenceBinding? = nil
   ) {
     self.runID = runID
+    self.qualificationRunID = qualificationRunID ?? runID
     self.relayURLs = relayURLs
     self.blossomOrigins = blossomOrigins
     self.fixtureControl = fixtureControl
     self.networkProfile = networkProfile
+    self.evidenceBinding = evidenceBinding
   }
 
   var launchEnvironment: [String: String] {
@@ -1492,7 +1597,9 @@ private struct QualificationConfiguration {
       relayURLs: relayURLs,
       blossomOrigins: blossomOrigins,
       fixtureControl: fixtureControl,
-      networkProfile: networkProfile
+      networkProfile: networkProfile,
+      qualificationRunID: qualificationRunID,
+      evidenceBinding: evidenceBinding
     )
   }
 
@@ -1515,6 +1622,10 @@ private struct QualificationConfiguration {
     let networkProfile =
       values[networkProfileKey]
       ?? bundle.object(forInfoDictionaryKey: networkProfileKey) as? String
+    let sourceCommit = value(sourceCommitKey, values: values, bundle: bundle)
+    let sourceTree = value(sourceTreeKey, values: values, bundle: bundle)
+    let appBuildSHA256 = value(appBuildSHA256Key, values: values, bundle: bundle)
+    let simulatorID = value(simulatorIDKey, values: values, bundle: bundle)
     if runIDValue?.isEmpty != false, blossomValue?.isEmpty != false {
       throw XCTSkip("remote qualification inputs were not selected")
     }
@@ -1527,17 +1638,175 @@ private struct QualificationConfiguration {
     else {
       throw QualificationError.missingEnvironment
     }
+    let evidenceBinding = PersonaEvidenceBinding(
+      sourceCommit: sourceCommit,
+      sourceTree: sourceTree,
+      appBuildSHA256: appBuildSHA256,
+      simulatorID: simulatorID
+    )
     return Self(
       runID: runID,
       relayURLs: separated(relayValue),
       blossomOrigins: separated(blossom),
       fixtureControl: fixtureControl.flatMap { $0.isEmpty ? nil : $0 },
-      networkProfile: networkProfile
+      networkProfile: networkProfile,
+      evidenceBinding: evidenceBinding
     )
+  }
+
+  private static func value(
+    _ key: String,
+    values: [String: String],
+    bundle: Bundle
+  ) -> String? {
+    (values[key] ?? bundle.object(forInfoDictionaryKey: key) as? String)
+      .flatMap { $0.isEmpty ? nil : $0 }
   }
 
   private static func separated(_ value: String?) -> [String] {
     (value ?? "").split(separator: ",").map(String.init).filter { !$0.isEmpty }
+  }
+}
+
+private struct PersonaEvidenceBinding {
+  let sourceCommit: String
+  let sourceTree: String
+  let appBuildSHA256: String
+  let simulatorID: String
+
+  init?(
+    sourceCommit: String?,
+    sourceTree: String?,
+    appBuildSHA256: String?,
+    simulatorID: String?
+  ) {
+    guard let sourceCommit,
+      sourceCommit.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil,
+      let sourceTree,
+      sourceTree.range(of: "^[0-9a-f]{40}$", options: .regularExpression) != nil,
+      let appBuildSHA256,
+      appBuildSHA256.range(of: "^[0-9a-f]{64}$", options: .regularExpression) != nil,
+      let simulatorID,
+      simulatorID.uppercased().range(
+        of: "^[A-F0-9-]{36}$",
+        options: .regularExpression
+      ) != nil
+    else { return nil }
+    self.sourceCommit = sourceCommit
+    self.sourceTree = sourceTree
+    self.appBuildSHA256 = appBuildSHA256
+    self.simulatorID = simulatorID.uppercased()
+  }
+}
+
+private struct PersonaAttemptTestInvocation: Encodable {
+  let target: String
+  let identifier: String
+  let action: String
+  let configuration: String
+}
+
+private struct PersonaAttemptSource: Encodable {
+  let commit: String
+  let tree: String
+}
+
+private struct PersonaAttemptSimulator: Encodable {
+  let udid: String
+  let os: String
+  let architecture: String
+}
+
+private struct PersonaAttemptUIObservation: Encodable {
+  let validationAttempted: Bool
+  let validationRejected: Bool
+  let retryAttempts: Int
+  let relaunches: Int
+  let retentionVerified: Bool
+  let todayProjectionVerified: Bool
+
+  enum CodingKeys: String, CodingKey {
+    case validationAttempted = "validation_attempted"
+    case validationRejected = "validation_rejected"
+    case retryAttempts = "retry_attempts"
+    case relaunches
+    case retentionVerified = "retention_verified"
+    case todayProjectionVerified = "today_projection_verified"
+  }
+}
+
+private struct PersonaAttemptNetworkObservation: Encodable {
+  let state: String
+}
+
+private struct PersonaAttemptAccessibility: Encodable {
+  let locale: String
+  let contentSize: String
+  let reduceMotion: Bool
+  let progressiveDisclosure: Bool
+  let labelsValuesTraits: Bool
+  let keyboardFocus: Bool
+  let visibleActions: Bool
+  let voiceoverUserObserved: Bool
+
+  enum CodingKeys: String, CodingKey {
+    case locale
+    case contentSize = "content_size"
+    case reduceMotion = "reduce_motion"
+    case progressiveDisclosure = "progressive_disclosure"
+    case labelsValuesTraits = "labels_values_traits"
+    case keyboardFocus = "keyboard_focus"
+    case visibleActions = "visible_actions"
+    case voiceoverUserObserved = "voiceover_user_observed"
+  }
+}
+
+private struct PersonaAttemptArtifactDigest: Encodable {
+  let role: String
+  let sha256: String
+}
+
+private struct PersonaAttemptEvidence: Encodable {
+  let schema: String
+  let schemaVersion: UInt16
+  let testInvocation: PersonaAttemptTestInvocation
+  let source: PersonaAttemptSource
+  let appBuildSHA256: String
+  let simulator: PersonaAttemptSimulator
+  let runID: String
+  let personaRunID: String
+  let personaAlias: String
+  let attemptID: String
+  let attemptOrder: Int
+  let flow: String
+  let expectedFailure: String
+  let publicIdentitySHA256: String
+  let endpointPolicySHA256: String
+  let uiObservation: PersonaAttemptUIObservation
+  let networkObservation: PersonaAttemptNetworkObservation
+  let accessibility: PersonaAttemptAccessibility
+  let artifactDigests: [PersonaAttemptArtifactDigest]
+
+  enum CodingKeys: String, CodingKey {
+    case schema
+    case schemaVersion = "schema_version"
+    case testInvocation = "test_invocation"
+    case source
+    case appBuildSHA256 = "app_build_sha256"
+    case simulator
+    case runID = "run_id"
+    case personaRunID = "persona_run_id"
+    case personaAlias = "persona_alias"
+    case attemptID = "attempt_id"
+    case attemptOrder = "attempt_order"
+    case flow
+    case expectedFailure = "expected_failure"
+    case publicIdentitySHA256 = "public_identity_sha256"
+    case endpointPolicySHA256 = "endpoint_policy_sha256"
+    case uiObservation = "ui_observation"
+    case networkObservation = "network_observation"
+    case accessibility
+    case artifactDigests = "artifact_digests"
   }
 }
 

@@ -210,6 +210,14 @@ case "$operation" in
             source_commit=$(git rev-parse HEAD)
             source_tree=$(git rev-parse 'HEAD^{tree}')
             upstream=$(git rev-parse '@{upstream}')
+            xcode_identity=$(xcodebuild -version | tr '\n' ' ')
+            simulator_sdk_build=$(xcrun --sdk iphonesimulator --show-sdk-build-version)
+            app_build_sha256=$(
+                printf 'radroots.ios.local-social.app-build.v1\0%s\0%s\0%s\0%s\0%s\0%s\0%s\0' \
+                    "$source_commit" "$source_tree" RadrootsUITests test Debug \
+                    "$xcode_identity" "$simulator_sdk_build" \
+                    | shasum -a 256 | awk '{print $1}'
+            )
             persona_repair_commit=${RADROOTS_IOS_UI_TEST_FORWARD_REPAIR_COMMIT:-}
             if [[ "$source_commit" != "$upstream" ]]; then
                 echo "error: persona qualification source is not equal to its configured upstream" >&2
@@ -226,7 +234,9 @@ case "$operation" in
             python3 scripts/local-social-fixture.py verify-persona-fixture \
                 --fixture "$persona_fixture" \
                 --fixture-schema test-fixtures/local-social-personas.v1.schema.json \
-                --result-schema test-fixtures/local-social-persona-results.v1.schema.json
+                --result-schema test-fixtures/local-social-persona-results.v1.schema.json \
+                --attempt-schema test-fixtures/local-social-persona-attempt-evidence.v1.schema.json \
+                --result-v2-schema test-fixtures/local-social-persona-results.v2.schema.json
             python3 scripts/local-social-fixture.py serve \
                 --relay-port "$relay_port" \
                 --blossom-port "$blossom_port" \
@@ -290,6 +300,10 @@ case "$operation" in
             "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=http://127.0.0.1:$blossom_port" \
             "RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL=$control" \
             "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE=simulator" \
+            "RADROOTS_IOS_UI_TEST_SOURCE_COMMIT=${source_commit:-}" \
+            "RADROOTS_IOS_UI_TEST_SOURCE_TREE=${source_tree:-}" \
+            "RADROOTS_IOS_UI_TEST_APP_BUILD_SHA256=${app_build_sha256:-}" \
+            "RADROOTS_IOS_UI_TEST_SIMULATOR_ID=$simulator_id" \
             test
         test_status=$?
         set -e

@@ -225,6 +225,85 @@ class LocalSocialFixtureTests(unittest.TestCase):
         }
         return suite, result
 
+    def persona_attempt_attachments(
+        self,
+        *,
+        measured: bool = True,
+    ) -> tuple[dict, list[tuple[bytes, dict]]]:
+        _, suite = fixture.load_persona_suite(
+            Path("test-fixtures/local-social-personas.v1.json")
+        )
+        attachments = []
+        for persona in suite["personas"]:
+            identity = hashlib.sha256(persona["alias"].encode("ascii")).hexdigest()
+            for index, attempt in enumerate(persona["attempts"]):
+                validation = attempt["expected_failure"] == "validation_recovery"
+                retry = attempt["expected_failure"] == "transport_retry_relaunch"
+                network = {"state": "pending_step_258"}
+                if measured:
+                    network = {
+                        "state": "measured",
+                        "accepted_connections": 1,
+                        "rejected_connections": int(retry),
+                        "non_loopback_attempts": 0,
+                        "subscriptions": int(index == 0),
+                        "accepted_events": 1,
+                        "accepted_uploads": int(attempt["flow"] == "PhotoUpdate"),
+                        "retrievals": int(attempt["flow"] == "PhotoUpdate"),
+                        "unintended_publications": 0,
+                        "events_accepted_during_expected_failure": 0,
+                        "final_candidate_data_loss": 0,
+                    }
+                value = {
+                    "schema": fixture.PERSONA_ATTEMPT_SCHEMA,
+                    "schema_version": 1,
+                    "test_invocation": fixture.persona_invocation(),
+                    "source": {"commit": "1" * 40, "tree": "2" * 40},
+                    "app_build_sha256": "3" * 64,
+                    "simulator": {
+                        "udid": "11111111-2222-3333-4444-555555555555",
+                        "os": "iOS 26.5",
+                        "architecture": "arm64",
+                    },
+                    "run_id": "persona-result-test-001",
+                    "persona_run_id": (
+                        f"persona-{persona['alias'].lower()}-" + "a" * 24
+                    ),
+                    "persona_alias": persona["alias"],
+                    "attempt_id": attempt["id"],
+                    "attempt_order": attempt["order"],
+                    "flow": attempt["flow"],
+                    "expected_failure": attempt["expected_failure"],
+                    "public_identity_sha256": identity,
+                    "endpoint_policy_sha256": "4" * 64,
+                    "ui_observation": {
+                        "validation_attempted": validation,
+                        "validation_rejected": validation,
+                        "retry_attempts": int(retry),
+                        "relaunches": int(retry),
+                        "retention_verified": True,
+                        "today_projection_verified": True,
+                    },
+                    "network_observation": network,
+                    "accessibility": {
+                        "locale": "en_US",
+                        "content_size": "accessibility-extra-extra-extra-large",
+                        "reduce_motion": True,
+                        "progressive_disclosure": persona["interaction_profile"]
+                        == "novice_progressive_disclosure",
+                        "labels_values_traits": persona["interaction_profile"]
+                        == "novice_accessibility_keyboard",
+                        "keyboard_focus": persona["interaction_profile"]
+                        == "novice_accessibility_keyboard",
+                        "visible_actions": True,
+                        "voiceover_user_observed": False,
+                    },
+                    "artifact_digests": [],
+                }
+                raw = fixture.canonical_evidence_bytes(value)
+                attachments.append((raw, value))
+        return suite, attachments
+
     def test_bip340_reference_signature_and_mutation(self) -> None:
         public_key = bytes.fromhex(
             "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9"
@@ -530,6 +609,227 @@ class LocalSocialFixtureTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 fixture.validate_persona_result(
                     changed, suite, "3" * 64, "4" * 64, "5" * 64
+                )
+
+    def test_attempt_evidence_is_strict_bound_and_secret_free(self) -> None:
+        suite, attachments = self.persona_attempt_attachments(measured=False)
+        for raw, value in attachments:
+            self.assertLessEqual(len(raw), fixture.MAX_PERSONA_ATTACHMENT_BYTES)
+            self.assertIs(
+                fixture.validate_persona_attempt_evidence(
+                    value, suite, require_measured_network=False
+                ),
+                value,
+            )
+            self.assertNotRegex(
+                raw.decode("utf-8"),
+                r'"(?:private_key|secret|seed|signed_event|event_content|raw_event)"',
+            )
+            with self.assertRaisesRegex(ValueError, "not measured"):
+                fixture.validate_persona_attempt_evidence(
+                    value, suite, require_measured_network=True
+                )
+
+    def test_attempt_evidence_rejects_one_field_identity_and_outcome_drift(self) -> None:
+        suite, attachments = self.persona_attempt_attachments()
+        _, canonical = attachments[0]
+        mutations = (
+            lambda value: value.update({"unknown": True}),
+            lambda value: value["test_invocation"].update(
+                {"identifier": "RadrootsUITests/testOther"}
+            ),
+            lambda value: value["source"].update({"tree": "A" * 40}),
+            lambda value: value.update({"app_build_sha256": "0" * 63}),
+            lambda value: value.update({"run_id": "x"}),
+            lambda value: value.update({"persona_alias": "P02"}),
+            lambda value: value.update({"attempt_order": 2}),
+            lambda value: value["ui_observation"].update(
+                {"today_projection_verified": False}
+            ),
+            lambda value: value["network_observation"].update(
+                {"non_loopback_attempts": 1}
+            ),
+            lambda value: value["accessibility"].update(
+                {"voiceover_user_observed": True}
+            ),
+            lambda value: value.update({"private_key": "canary"}),
+        )
+        for mutation in mutations:
+            changed = copy.deepcopy(canonical)
+            mutation(changed)
+            with self.assertRaises(ValueError):
+                fixture.validate_persona_attempt_evidence(
+                    changed, suite, require_measured_network=True
+                )
+
+    def test_persona_result_v2_is_reconstructed_only_from_measured_attempts(self) -> None:
+        suite, attachments = self.persona_attempt_attachments()
+        result = fixture.reconstruct_persona_result_v2(
+            suite,
+            attachments,
+            fixture_sha256="5" * 64,
+            fixture_schema_sha256="6" * 64,
+            attempt_schema_sha256="7" * 64,
+            result_schema_sha256="8" * 64,
+            result_bundle_sha256="9" * 64,
+            forward_repairs=[],
+        )
+        self.assertEqual(result["schema"], fixture.PERSONA_RESULT_V2_SCHEMA)
+        self.assertEqual(result["accepted_events"], 15)
+        self.assertEqual(result["expected_failure_rejections"], 2)
+        self.assertEqual(result["accepted_uploads"], 3)
+        self.assertEqual(result["retrievals"], 3)
+        self.assertEqual(result["non_loopback_attempts"], 0)
+        self.assertEqual(len(result["attachments"]), 15)
+
+        _, pending = self.persona_attempt_attachments(measured=False)
+        with self.assertRaisesRegex(ValueError, "not measured"):
+            fixture.reconstruct_persona_result_v2(
+                suite,
+                pending,
+                fixture_sha256="5" * 64,
+                fixture_schema_sha256="6" * 64,
+                attempt_schema_sha256="7" * 64,
+                result_schema_sha256="8" * 64,
+                result_bundle_sha256="9" * 64,
+                forward_repairs=[],
+            )
+
+    def test_xcresult_test_identity_and_attachment_inventory_are_exact(self) -> None:
+        suite, attachments = self.persona_attempt_attachments()
+        tests = {
+            "devices": [],
+            "testNodes": [
+                {
+                    "children": [
+                        {
+                            "name": "testLocalSocialDeterministicPersonas()",
+                            "nodeIdentifier": fixture.PERSONA_XCRESULT_NODE_IDENTIFIER,
+                            "nodeIdentifierURL": fixture.PERSONA_XCRESULT_NODE_URL,
+                            "nodeType": "Test Case",
+                            "result": "Passed",
+                        }
+                    ],
+                    "name": "Radroots",
+                    "nodeType": "Test Plan",
+                    "result": "Passed",
+                }
+            ],
+            "testPlanConfigurations": [],
+        }
+        self.assertEqual(
+            fixture.exact_persona_test_node(tests)["result"], "Passed"
+        )
+        for mutation in (
+            lambda value: value["testNodes"][0]["children"][0].update(
+                {"result": "Failed"}
+            ),
+            lambda value: value["testNodes"][0]["children"][0].update(
+                {"nodeIdentifierURL": "test://wrong"}
+            ),
+            lambda value: value["testNodes"].append(
+                copy.deepcopy(value["testNodes"][0])
+            ),
+        ):
+            changed = copy.deepcopy(tests)
+            mutation(changed)
+            with self.assertRaises(ValueError):
+                fixture.exact_persona_test_node(changed)
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            rows = []
+            for name, (raw, _) in zip(
+                fixture.PERSONA_ATTACHMENT_NAMES, attachments, strict=True
+            ):
+                exported = "exported-" + name
+                (root / exported).write_bytes(raw)
+                rows.append(
+                    {
+                        "exportedFileName": exported,
+                        "suggestedHumanReadableName": name,
+                        "isAssociatedWithFailure": False,
+                        "configurationName": "Test Scheme Action",
+                        "deviceName": "iPhone 17 Pro",
+                        "deviceId": "11111111-2222-3333-4444-555555555555",
+                    }
+                )
+            manifest = [
+                {
+                    "testIdentifier": fixture.PERSONA_XCRESULT_NODE_IDENTIFIER,
+                    "testIdentifierURL": fixture.PERSONA_XCRESULT_NODE_URL,
+                    "attachments": rows,
+                }
+            ]
+            (root / "manifest.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
+            loaded = fixture.load_exported_persona_attachments(
+                root, suite, require_measured_network=True
+            )
+            self.assertEqual(len(loaded), 15)
+            self.assertEqual(loaded[0][1]["attempt_id"], "P01-A01")
+
+            rows[0]["suggestedHumanReadableName"] = rows[1][
+                "suggestedHumanReadableName"
+            ]
+            (root / "manifest.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
+            with self.assertRaises(ValueError):
+                fixture.load_exported_persona_attachments(
+                    root, suite, require_measured_network=True
+                )
+
+    def test_xcresult_attachment_read_rejects_maximum_plus_one(self) -> None:
+        suite, attachments = self.persona_attempt_attachments()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            name = fixture.PERSONA_ATTACHMENT_NAMES[0]
+            exported = "oversized.json"
+            (root / exported).write_bytes(
+                b"{" + b" " * fixture.MAX_PERSONA_ATTACHMENT_BYTES + b"}"
+            )
+            rows = [
+                {
+                    "exportedFileName": exported,
+                    "suggestedHumanReadableName": name,
+                    "isAssociatedWithFailure": False,
+                    "configurationName": "Test Scheme Action",
+                    "deviceName": "iPhone 17 Pro",
+                    "deviceId": "11111111-2222-3333-4444-555555555555",
+                }
+            ]
+            for index, other_name in enumerate(
+                fixture.PERSONA_ATTACHMENT_NAMES[1:], 1
+            ):
+                other_exported = f"exported-{index}.json"
+                (root / other_exported).write_bytes(attachments[index][0])
+                rows.append(
+                    {
+                        "exportedFileName": other_exported,
+                        "suggestedHumanReadableName": other_name,
+                        "isAssociatedWithFailure": False,
+                        "configurationName": "Test Scheme Action",
+                        "deviceName": "iPhone 17 Pro",
+                        "deviceId": "11111111-2222-3333-4444-555555555555",
+                    }
+                )
+            (root / "manifest.json").write_text(
+                json.dumps(
+                    [
+                        {
+                            "testIdentifier": fixture.PERSONA_XCRESULT_NODE_IDENTIFIER,
+                            "testIdentifierURL": fixture.PERSONA_XCRESULT_NODE_URL,
+                            "attachments": rows,
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(ValueError, "byte bound"):
+                fixture.load_exported_persona_attachments(
+                    root, suite, require_measured_network=True
                 )
 
     def test_simulator_metadata_uses_exact_result_bundle_device(self) -> None:

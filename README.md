@@ -120,12 +120,22 @@ cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
   persona
 ```
 
-The persona fixture and result contracts are strict and deny unknown input.
+The persona fixture and historical v1 result remain strict, deny-unknown
+contracts. Each completed attempt now also emits one bounded canonical
+`persona-attempt-evidence.v1` xcresult attachment bound to the exact XCUITest
+target and identifier, test action and configuration, source commit and tree,
+app-build digest, simulator, run, persona, attempt, endpoint policy, and visible
+UI outcome. The attachment never retains a raw secret, signed authorization
+event, or raw event content. Its closed `pending_step_258` network state is not
+a passing network claim: the measured v2 aggregate rejects that state until the
+observable connection and fixture counters are supplied by the next governed
+remediation step.
+
 The test uses ordinary visible controls, native-generated signing identities,
-real app stores, and generated Rust FFI; it retains no raw secret or raw event
-content. This is deterministic non-human conformance evidence. It does not
-claim human usability, demographic or population validity, observed
-VoiceOver-user experience, release readiness, or production qualification.
+real app stores, and generated Rust FFI. This is deterministic non-human
+conformance evidence. It does not claim human usability, demographic or
+population validity, observed VoiceOver-user experience, release readiness,
+or production qualification.
 
 ## Package surface
 

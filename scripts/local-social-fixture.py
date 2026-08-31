@@ -16,6 +16,7 @@ import socket
 import socketserver
 import subprocess
 import struct
+import tempfile
 import threading
 import time
 import unicodedata
@@ -73,6 +74,30 @@ FLOW_KINDS = {
 }
 PHOTO_PERSONAS = frozenset(("P01", "P03", "P04"))
 PERSONA_CONTROL_SCHEMA = "radroots.ios.local-social.persona-control.v1"
+PERSONA_ATTEMPT_SCHEMA = "radroots.ios.local-social.persona-attempt-evidence.v1"
+PERSONA_RESULT_V2_SCHEMA = "radroots.ios.local-social.persona-results.v2"
+PERSONA_TEST_TARGET = "RadrootsUITests"
+PERSONA_TEST_IDENTIFIER = "RadrootsUITests/testLocalSocialDeterministicPersonas"
+PERSONA_TEST_ACTION = "test"
+PERSONA_TEST_CONFIGURATION = "Debug"
+PERSONA_XCRESULT_NODE_IDENTIFIER = (
+    "RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas()"
+)
+PERSONA_XCRESULT_NODE_URL = (
+    "test://com.apple.xcode/Radroots/RadrootsUITests/"
+    "RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas"
+)
+MAX_XCRESULT_JSON_BYTES = 1024 * 1024
+MAX_PERSONA_ATTACHMENT_BYTES = 64 * 1024
+MAX_PERSONA_ATTACHMENTS_BYTES = 15 * MAX_PERSONA_ATTACHMENT_BYTES
+PERSONA_ATTACHMENT_NAMES = tuple(
+    f"radroots-local-social-P{persona:02d}-A{attempt:02d}.json"
+    for persona in range(1, 6)
+    for attempt in range(1, 4)
+)
+FORBIDDEN_EVIDENCE_KEYS = frozenset(
+    ("private_key", "secret", "seed", "signed_event", "event_content", "raw_event")
+)
 
 
 def strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -86,6 +111,15 @@ def strict_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 def read_json(path: Path, maximum: int = MAX_JSON_BYTES) -> tuple[bytes, Any]:
     raw = path.read_bytes()
+    if not raw or len(raw) > maximum:
+        raise ValueError("JSON input is empty or exceeds its byte bound")
+    value = json.loads(raw, object_pairs_hook=strict_object)
+    return raw, value
+
+
+def read_json_bounded(path: Path, maximum: int) -> tuple[bytes, Any]:
+    with path.open("rb") as stream:
+        raw = stream.read(maximum + 1)
     if not raw or len(raw) > maximum:
         raise ValueError("JSON input is empty or exceeds its byte bound")
     value = json.loads(raw, object_pairs_hook=strict_object)
@@ -1208,11 +1242,21 @@ def verify_persona_fixture(arguments: argparse.Namespace) -> int:
         Path(arguments.result_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-persona-results.v1.schema.json",
     )
+    attempt_schema = validate_schema_file(
+        Path(arguments.attempt_schema).resolve(),
+        "https://radroots.org/schemas/ios/local-social-persona-attempt-evidence.v1.schema.json",
+    )
+    result_v2_schema = validate_schema_file(
+        Path(arguments.result_v2_schema).resolve(),
+        "https://radroots.org/schemas/ios/local-social-persona-results.v2.schema.json",
+    )
     print(
         "local-social persona fixtures verified: "
         f"fixture={hashlib.sha256(raw).hexdigest()} "
         f"fixture_schema={hashlib.sha256(fixture_schema).hexdigest()} "
-        f"result_schema={hashlib.sha256(result_schema).hexdigest()}"
+        f"result_schema={hashlib.sha256(result_schema).hexdigest()} "
+        f"attempt_schema={hashlib.sha256(attempt_schema).hexdigest()} "
+        f"result_v2_schema={hashlib.sha256(result_v2_schema).hexdigest()}"
     )
     return 0
 
@@ -1403,6 +1447,585 @@ def valid_ios_runtime(value: Any) -> bool:
     ):
         return False
     return int(value.split()[1].split(".", 1)[0]) >= 18
+
+
+def canonical_evidence_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value, ensure_ascii=True, separators=(",", ":"), sort_keys=True
+    ).encode("utf-8")
+
+
+def evidence_contains_forbidden_key(value: Any) -> bool:
+    if isinstance(value, dict):
+        return any(
+            key.lower() in FORBIDDEN_EVIDENCE_KEYS
+            or evidence_contains_forbidden_key(item)
+            for key, item in value.items()
+        )
+    if isinstance(value, list):
+        return any(evidence_contains_forbidden_key(item) for item in value)
+    return False
+
+
+def persona_invocation() -> dict[str, str]:
+    return {
+        "target": PERSONA_TEST_TARGET,
+        "identifier": PERSONA_TEST_IDENTIFIER,
+        "action": PERSONA_TEST_ACTION,
+        "configuration": PERSONA_TEST_CONFIGURATION,
+    }
+
+
+def validate_persona_attempt_evidence(
+    value: Any,
+    suite: dict[str, Any],
+    *,
+    require_measured_network: bool,
+) -> dict[str, Any]:
+    keys = {
+        "schema",
+        "schema_version",
+        "test_invocation",
+        "source",
+        "app_build_sha256",
+        "simulator",
+        "run_id",
+        "persona_run_id",
+        "persona_alias",
+        "attempt_id",
+        "attempt_order",
+        "flow",
+        "expected_failure",
+        "public_identity_sha256",
+        "endpoint_policy_sha256",
+        "ui_observation",
+        "network_observation",
+        "accessibility",
+        "artifact_digests",
+    }
+    attempt = exact_keys(value, keys, "persona attempt evidence")
+    if evidence_contains_forbidden_key(attempt):
+        raise ValueError("persona attempt evidence contains a forbidden field")
+    if (
+        attempt["schema"] != PERSONA_ATTEMPT_SCHEMA
+        or attempt["schema_version"] != 1
+        or attempt["test_invocation"] != persona_invocation()
+        or not lowercase_hex(attempt["app_build_sha256"], 64)
+        or not lowercase_hex(attempt["public_identity_sha256"], 64)
+        or attempt["public_identity_sha256"] == "0" * 64
+        or not lowercase_hex(attempt["endpoint_policy_sha256"], 64)
+        or not re.fullmatch(
+            r"[a-z0-9][a-z0-9-]{6,62}[a-z0-9]", attempt["run_id"]
+        )
+    ):
+        raise ValueError("persona attempt evidence header is invalid")
+    source = exact_keys(attempt["source"], {"commit", "tree"}, "attempt source")
+    if not lowercase_hex(source["commit"], 40) or not lowercase_hex(
+        source["tree"], 40
+    ):
+        raise ValueError("persona attempt source identity is invalid")
+    simulator = exact_keys(
+        attempt["simulator"], {"udid", "os", "architecture"}, "attempt simulator"
+    )
+    if (
+        not isinstance(simulator["udid"], str)
+        or re.fullmatch(r"[A-F0-9-]{36}", simulator["udid"]) is None
+        or not valid_ios_runtime(simulator["os"])
+        or simulator["architecture"] != "arm64"
+    ):
+        raise ValueError("persona attempt simulator is invalid")
+    expected_attempts = {
+        candidate["id"]: (persona, candidate)
+        for persona in suite["personas"]
+        for candidate in persona["attempts"]
+    }
+    expected = expected_attempts.get(attempt["attempt_id"])
+    if expected is None:
+        raise ValueError("persona attempt identity is unknown")
+    expected_persona, expected_attempt = expected
+    alias = expected_persona["alias"]
+    if (
+        attempt["persona_alias"] != alias
+        or attempt["attempt_order"] != expected_attempt["order"]
+        or attempt["flow"] != expected_attempt["flow"]
+        or attempt["expected_failure"] != expected_attempt["expected_failure"]
+        or re.fullmatch(
+            rf"persona-{alias.lower()}-[0-9a-f]{{24}}", attempt["persona_run_id"]
+        )
+        is None
+    ):
+        raise ValueError("persona attempt binding is invalid")
+    ui = exact_keys(
+        attempt["ui_observation"],
+        {
+            "validation_attempted",
+            "validation_rejected",
+            "retry_attempts",
+            "relaunches",
+            "retention_verified",
+            "today_projection_verified",
+        },
+        "attempt UI observation",
+    )
+    validation = expected_attempt["expected_failure"] == "validation_recovery"
+    retry = expected_attempt["expected_failure"] == "transport_retry_relaunch"
+    if (
+        ui["validation_attempted"] is not validation
+        or ui["validation_rejected"] is not validation
+        or ui["retry_attempts"] != int(retry)
+        or ui["relaunches"] != int(retry)
+        or ui["retention_verified"] is not True
+        or ui["today_projection_verified"] is not True
+    ):
+        raise ValueError("persona attempt UI observation is invalid")
+    network = attempt["network_observation"]
+    if network == {"state": "pending_step_258"}:
+        if require_measured_network:
+            raise ValueError("persona attempt network evidence is not measured")
+    else:
+        network = exact_keys(
+            network,
+            {
+                "state",
+                "accepted_connections",
+                "rejected_connections",
+                "non_loopback_attempts",
+                "subscriptions",
+                "accepted_events",
+                "accepted_uploads",
+                "retrievals",
+                "unintended_publications",
+                "events_accepted_during_expected_failure",
+                "final_candidate_data_loss",
+            },
+            "attempt network observation",
+        )
+        if network["state"] != "measured" or any(
+            type(network[key]) is not int or not 0 <= network[key] <= 4096
+            for key in network
+            if key != "state"
+        ):
+            raise ValueError("persona attempt network observation is invalid")
+        expected_media = int(attempt["flow"] == "PhotoUpdate")
+        if (
+            network["accepted_events"] != 1
+            or network["accepted_uploads"] != expected_media
+            or network["retrievals"] != expected_media
+            or network["non_loopback_attempts"] != 0
+            or network["unintended_publications"] != 0
+            or network["events_accepted_during_expected_failure"] != 0
+            or network["final_candidate_data_loss"] != 0
+        ):
+            raise ValueError("persona attempt measured result is invalid")
+    accessibility = exact_keys(
+        attempt["accessibility"],
+        {
+            "locale",
+            "content_size",
+            "reduce_motion",
+            "progressive_disclosure",
+            "labels_values_traits",
+            "keyboard_focus",
+            "visible_actions",
+            "voiceover_user_observed",
+        },
+        "attempt accessibility observation",
+    )
+    if (
+        accessibility["locale"] != "en_US"
+        or accessibility["content_size"]
+        != "accessibility-extra-extra-extra-large"
+        or accessibility["reduce_motion"] is not True
+        or any(
+            type(accessibility[key]) is not bool
+            for key in (
+                "progressive_disclosure",
+                "labels_values_traits",
+                "keyboard_focus",
+                "visible_actions",
+                "voiceover_user_observed",
+            )
+        )
+        or accessibility["visible_actions"] is not True
+        or accessibility["voiceover_user_observed"] is not False
+        or accessibility["progressive_disclosure"]
+        is not (expected_persona["interaction_profile"] == "novice_progressive_disclosure")
+        or accessibility["keyboard_focus"]
+        is not (expected_persona["interaction_profile"] == "novice_accessibility_keyboard")
+    ):
+        raise ValueError("persona attempt accessibility evidence is invalid")
+    artifacts = attempt["artifact_digests"]
+    if not isinstance(artifacts, list) or len(artifacts) > 4:
+        raise ValueError("persona attempt artifact inventory is invalid")
+    roles: set[str] = set()
+    for artifact in artifacts:
+        artifact = exact_keys(artifact, {"role", "sha256"}, "attempt artifact")
+        if (
+            artifact["role"]
+            not in {"media_input", "uploaded_blob", "retrieved_blob", "ui_snapshot"}
+            or artifact["role"] in roles
+            or not lowercase_hex(artifact["sha256"], 64)
+        ):
+            raise ValueError("persona attempt artifact is invalid")
+        roles.add(artifact["role"])
+    return attempt
+
+
+def exact_persona_test_node(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != {
+        "devices",
+        "testNodes",
+        "testPlanConfigurations",
+    }:
+        raise ValueError("xcresult test inventory is invalid")
+    matches: list[dict[str, Any]] = []
+
+    def visit(node: Any) -> None:
+        if not isinstance(node, dict):
+            raise ValueError("xcresult test node is invalid")
+        if node.get("nodeType") == "Test Case" and (
+            node.get("nodeIdentifier") == PERSONA_XCRESULT_NODE_IDENTIFIER
+            or node.get("nodeIdentifierURL") == PERSONA_XCRESULT_NODE_URL
+        ):
+            matches.append(node)
+        children = node.get("children", [])
+        if not isinstance(children, list):
+            raise ValueError("xcresult child inventory is invalid")
+        for child in children:
+            visit(child)
+
+    nodes = value["testNodes"]
+    if not isinstance(nodes, list):
+        raise ValueError("xcresult test inventory is invalid")
+    for node in nodes:
+        visit(node)
+    if len(matches) != 1:
+        raise ValueError("xcresult exact persona test is unavailable")
+    match = matches[0]
+    if (
+        match.get("nodeIdentifier") != PERSONA_XCRESULT_NODE_IDENTIFIER
+        or match.get("nodeIdentifierURL") != PERSONA_XCRESULT_NODE_URL
+        or match.get("name") != "testLocalSocialDeterministicPersonas()"
+        or match.get("nodeType") != "Test Case"
+        or match.get("result") != "Passed"
+    ):
+        raise ValueError("xcresult exact persona test did not pass")
+    return match
+
+
+def run_json_command_bounded(command: list[str], maximum: int) -> Any:
+    with tempfile.TemporaryFile() as output:
+        subprocess.run(command, stdout=output, check=True)
+        size = output.tell()
+        if size <= 0 or size > maximum:
+            raise ValueError("command JSON output exceeds its byte bound")
+        output.seek(0)
+        return json.loads(output.read(), object_pairs_hook=strict_object)
+
+
+def load_exported_persona_attachments(
+    export_directory: Path,
+    suite: dict[str, Any],
+    *,
+    require_measured_network: bool,
+) -> list[tuple[bytes, dict[str, Any]]]:
+    manifest_raw, manifest_value = read_json_bounded(
+        export_directory / "manifest.json", MAX_XCRESULT_JSON_BYTES
+    )
+    del manifest_raw
+    if not isinstance(manifest_value, list) or len(manifest_value) != 1:
+        raise ValueError("xcresult attachment manifest is invalid")
+    group = exact_keys(
+        manifest_value[0],
+        {"testIdentifier", "testIdentifierURL", "attachments"},
+        "xcresult attachment group",
+    )
+    if (
+        group["testIdentifier"] != PERSONA_XCRESULT_NODE_IDENTIFIER
+        or group["testIdentifierURL"] != PERSONA_XCRESULT_NODE_URL
+        or not isinstance(group["attachments"], list)
+        or len(group["attachments"]) != 15
+    ):
+        raise ValueError("xcresult attachment test binding is invalid")
+    attachments_by_name: dict[str, tuple[bytes, dict[str, Any]]] = {}
+    total_bytes = 0
+    allowed_manifest_keys = {
+        "exportedFileName",
+        "suggestedHumanReadableName",
+        "isAssociatedWithFailure",
+        "configurationName",
+        "deviceName",
+        "deviceId",
+        "timestamp",
+        "repetitionNumber",
+        "arguments",
+    }
+    for row_value in group["attachments"]:
+        if not isinstance(row_value, dict) or not {
+            "exportedFileName",
+            "suggestedHumanReadableName",
+            "isAssociatedWithFailure",
+            "configurationName",
+            "deviceName",
+            "deviceId",
+        }.issubset(row_value) or not set(row_value).issubset(allowed_manifest_keys):
+            raise ValueError("xcresult attachment row is invalid")
+        exported = row_value["exportedFileName"]
+        name = row_value["suggestedHumanReadableName"]
+        if (
+            name not in PERSONA_ATTACHMENT_NAMES
+            or name in attachments_by_name
+            or not isinstance(exported, str)
+            or not 1 <= len(exported.encode("utf-8")) <= 255
+            or Path(exported).name != exported
+            or row_value["isAssociatedWithFailure"] is not False
+            or row_value["configurationName"] != "Test Scheme Action"
+            or not isinstance(row_value["deviceName"], str)
+            or not row_value["deviceName"]
+            or not isinstance(row_value["deviceId"], str)
+        ):
+            raise ValueError("xcresult attempt attachment identity is invalid")
+        path = export_directory / exported
+        if path.is_symlink() or not path.is_file():
+            raise ValueError("xcresult attempt attachment is not a regular file")
+        raw, value = read_json_bounded(path, MAX_PERSONA_ATTACHMENT_BYTES)
+        if raw != canonical_evidence_bytes(value):
+            raise ValueError("persona attempt attachment is noncanonical")
+        attempt = validate_persona_attempt_evidence(
+            value, suite, require_measured_network=require_measured_network
+        )
+        if name != f"radroots-local-social-{attempt['attempt_id']}.json":
+            raise ValueError("xcresult attachment name does not bind its attempt")
+        total_bytes += len(raw)
+        if total_bytes > MAX_PERSONA_ATTACHMENTS_BYTES:
+            raise ValueError("xcresult attempt attachments exceed their aggregate bound")
+        attachments_by_name[name] = (raw, attempt)
+    if tuple(sorted(attachments_by_name)) != tuple(sorted(PERSONA_ATTACHMENT_NAMES)):
+        raise ValueError("xcresult persona attachment inventory is incomplete")
+    return [attachments_by_name[name] for name in PERSONA_ATTACHMENT_NAMES]
+
+
+def extract_persona_attempt_attachments(
+    result_bundle: Path,
+    suite: dict[str, Any],
+    *,
+    require_measured_network: bool,
+) -> list[tuple[bytes, dict[str, Any]]]:
+    tests = run_json_command_bounded(
+        [
+            "xcrun",
+            "xcresulttool",
+            "get",
+            "test-results",
+            "tests",
+            "--path",
+            str(result_bundle),
+        ],
+        MAX_XCRESULT_JSON_BYTES,
+    )
+    exact_persona_test_node(tests)
+    with tempfile.TemporaryDirectory() as directory:
+        export_directory = Path(directory)
+        subprocess.run(
+            [
+                "xcrun",
+                "xcresulttool",
+                "export",
+                "attachments",
+                "--test-id",
+                PERSONA_XCRESULT_NODE_URL,
+                "--path",
+                str(result_bundle),
+                "--output-path",
+                str(export_directory),
+            ],
+            check=True,
+        )
+        return load_exported_persona_attachments(
+            export_directory,
+            suite,
+            require_measured_network=require_measured_network,
+        )
+
+
+def reconstruct_persona_result_v2(
+    suite: dict[str, Any],
+    attachments: list[tuple[bytes, dict[str, Any]]],
+    *,
+    fixture_sha256: str,
+    fixture_schema_sha256: str,
+    attempt_schema_sha256: str,
+    result_schema_sha256: str,
+    result_bundle_sha256: str,
+    forward_repairs: list[str],
+) -> dict[str, Any]:
+    if len(attachments) != 15:
+        raise ValueError("persona result requires exactly 15 attempt attachments")
+    attempts = [
+        validate_persona_attempt_evidence(value, suite, require_measured_network=True)
+        for _, value in attachments
+    ]
+    expected_ids = [
+        candidate["id"]
+        for persona in suite["personas"]
+        for candidate in persona["attempts"]
+    ]
+    if [attempt["attempt_id"] for attempt in attempts] != expected_ids:
+        raise ValueError("persona result attempt inventory is not exact")
+    first = attempts[0]
+    shared_fields = (
+        "test_invocation",
+        "source",
+        "app_build_sha256",
+        "simulator",
+        "run_id",
+        "endpoint_policy_sha256",
+    )
+    if any(
+        attempt[field] != first[field]
+        for attempt in attempts[1:]
+        for field in shared_fields
+    ):
+        raise ValueError("persona attempt evidence spans multiple run identities")
+    for digest in (
+        fixture_sha256,
+        fixture_schema_sha256,
+        attempt_schema_sha256,
+        result_schema_sha256,
+        result_bundle_sha256,
+    ):
+        if not lowercase_hex(digest, 64):
+            raise ValueError("persona result digest identity is invalid")
+    if (
+        not isinstance(forward_repairs, list)
+        or len(forward_repairs) > 16
+        or len(set(forward_repairs)) != len(forward_repairs)
+        or any(not lowercase_hex(revision, 40) for revision in forward_repairs)
+    ):
+        raise ValueError("persona result forward-repair inventory is invalid")
+    identity_by_persona: dict[str, str] = {}
+    persona_rows = []
+    for persona in suite["personas"]:
+        alias = persona["alias"]
+        rows = [attempt for attempt in attempts if attempt["persona_alias"] == alias]
+        identities = {row["public_identity_sha256"] for row in rows}
+        if len(rows) != 3 or len(identities) != 1:
+            raise ValueError("persona result identity reuse is invalid")
+        identity = identities.pop()
+        identity_by_persona[alias] = identity
+        subscriptions = sum(
+            row["network_observation"]["subscriptions"] for row in rows
+        )
+        if subscriptions < 1:
+            raise ValueError("persona result is missing a subscription")
+        persona_rows.append(
+            {
+                "alias": alias,
+                "public_identity_sha256": identity,
+                "subscriptions": subscriptions,
+                "attempt_ids": [row["attempt_id"] for row in rows],
+            }
+        )
+    if len(set(identity_by_persona.values())) != 5:
+        raise ValueError("persona result identities are not distinct")
+    network_rows = [attempt["network_observation"] for attempt in attempts]
+    accepted_events = sum(row["accepted_events"] for row in network_rows)
+    flow_counts = {
+        flow: sum(attempt["flow"] == flow for attempt in attempts)
+        for flow in FLOW_KINDS
+    }
+    event_kind_counts = {
+        str(kind): sum(
+            FLOW_KINDS[attempt["flow"]] == kind
+            and attempt["network_observation"]["accepted_events"] == 1
+            for attempt in attempts
+        )
+        for kind in (1, 31923, 30402)
+    }
+    result = {
+        "schema": PERSONA_RESULT_V2_SCHEMA,
+        "schema_version": 2,
+        "run_id": first["run_id"],
+        "test_invocation": first["test_invocation"],
+        "source": first["source"],
+        "app_build_sha256": first["app_build_sha256"],
+        "endpoint_policy_sha256": first["endpoint_policy_sha256"],
+        "fixture_sha256": fixture_sha256,
+        "fixture_schema_sha256": fixture_schema_sha256,
+        "attempt_schema_sha256": attempt_schema_sha256,
+        "result_schema_sha256": result_schema_sha256,
+        "simulator": first["simulator"],
+        "result_bundle_sha256": result_bundle_sha256,
+        "attachments": [
+            {
+                "attempt_id": attempt["attempt_id"],
+                "sha256": hashlib.sha256(raw).hexdigest(),
+            }
+            for raw, attempt in attachments
+        ],
+        "personas": persona_rows,
+        "flow_counts": flow_counts,
+        "accepted_events": accepted_events,
+        "event_kind_counts": event_kind_counts,
+        "accepted_uploads": sum(row["accepted_uploads"] for row in network_rows),
+        "retrievals": sum(row["retrievals"] for row in network_rows),
+        "distinct_identities": len(set(identity_by_persona.values())),
+        "unknown_attempts": len(
+            set(expected_ids) - {row["attempt_id"] for row in attempts}
+        ),
+        "duplicate_attempts": len(attempts) - len({row["attempt_id"] for row in attempts}),
+        "expected_failure_rejections": sum(
+            attempt["ui_observation"]["validation_rejected"]
+            or attempt["ui_observation"]["retry_attempts"] > 0
+            for attempt in attempts
+        ),
+        "events_accepted_during_expected_failures": sum(
+            row["events_accepted_during_expected_failure"] for row in network_rows
+        ),
+        "accepted_connections": sum(row["accepted_connections"] for row in network_rows),
+        "rejected_connections": sum(row["rejected_connections"] for row in network_rows),
+        "non_loopback_attempts": sum(row["non_loopback_attempts"] for row in network_rows),
+        "unintended_publications": sum(
+            row["unintended_publications"] for row in network_rows
+        ),
+        "final_candidate_data_loss": sum(
+            row["final_candidate_data_loss"] for row in network_rows
+        ),
+        "accessibility": {
+            "locale": "en_US",
+            "content_size": "accessibility-extra-extra-extra-large",
+            "reduce_motion": True,
+            "semantic_attempts": sum(
+                attempt["accessibility"]["labels_values_traits"] for attempt in attempts
+            ),
+            "keyboard_focus_attempts": sum(
+                attempt["accessibility"]["keyboard_focus"] for attempt in attempts
+            ),
+            "voiceover_user_observed": False,
+        },
+        "forward_repairs": forward_repairs,
+        "complete_matrix_rerun": True,
+    }
+    if (
+        result["flow_counts"] != {flow: 3 for flow in FLOW_KINDS}
+        or result["accepted_events"] != 15
+        or result["event_kind_counts"] != {"1": 9, "31923": 3, "30402": 3}
+        or result["accepted_uploads"] != 3
+        or result["retrievals"] != 3
+        or result["distinct_identities"] != 5
+        or result["unknown_attempts"] != 0
+        or result["duplicate_attempts"] != 0
+        or result["expected_failure_rejections"] != 2
+        or result["events_accepted_during_expected_failures"] != 0
+        or result["accepted_connections"] < 1
+        or result["non_loopback_attempts"] != 0
+        or result["unintended_publications"] != 0
+        or result["final_candidate_data_loss"] != 0
+        or result["accessibility"]["semantic_attempts"] < 3
+        or result["accessibility"]["keyboard_focus_attempts"] != 3
+    ):
+        raise ValueError("persona result reconstructed outcome is invalid")
+    return result
 
 
 def validate_persona_result(
@@ -1721,6 +2344,8 @@ def parser() -> argparse.ArgumentParser:
     fixture_command.add_argument("--fixture", required=True)
     fixture_command.add_argument("--fixture-schema", required=True)
     fixture_command.add_argument("--result-schema", required=True)
+    fixture_command.add_argument("--attempt-schema", required=True)
+    fixture_command.add_argument("--result-v2-schema", required=True)
     bud11_command = commands.add_parser("verify-bud11-corpus")
     bud11_command.add_argument("--corpus", required=True)
     bud11_command.add_argument("--schema", required=True)
