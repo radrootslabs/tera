@@ -688,23 +688,13 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     guard meSheet.waitForExistence(timeout: 10) else {
       throw QualificationError.missingProductSurface
     }
-    let meList = meSheet.descendants(matching: .collectionView).firstMatch
-    let settings = app.descendants(matching: .any)["radroots.support.settings"]
-    for _ in 0 ..< 8 where !settings.exists {
-      meList.swipeUp()
-    }
-    guard settings.waitForExistence(timeout: 20) else {
-      XCTFail("Settings was unavailable through the visible Me sheet")
-      throw QualificationError.missingProductSurface
-    }
     let publicKey = app.descendants(matching: .any)[
       "radroots.settings.identity.public_key"
     ]
-    guard waitUntilHittable(settings, timeout: 10) else {
-      XCTFail("Settings did not become hittable through the visible Me sheet")
+    guard openSettingsFromMe(app, meSheet: meSheet) else {
+      XCTFail("Settings was unavailable through the visible Me sheet")
       throw QualificationError.missingProductSurface
     }
-    settings.tap()
     guard publicKey.waitForExistence(timeout: 10) else {
       XCTFail("Settings did not present the native identity public key")
       throw QualificationError.missingProductSurface
@@ -734,12 +724,10 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     guard account.waitForExistence(timeout: 10) else { return "settings=unavailable" }
     account.tap()
 
-    let settings = app.descendants(matching: .any)["radroots.support.settings"]
-    for _ in 0 ..< 5 where !settings.exists {
-      app.swipeUp()
-    }
-    guard settings.waitForExistence(timeout: 20) else { return "settings=unavailable" }
-    settings.tap()
+    let meSheet = app.descendants(matching: .any)["radroots.support.me.sheet"]
+    guard meSheet.waitForExistence(timeout: 10),
+      openSettingsFromMe(app, meSheet: meSheet)
+    else { return "settings=unavailable" }
 
     let httpStatus = app.descendants(matching: .any)[
       "radroots.settings.blossom.http_status"
@@ -1434,6 +1422,29 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let predicate = NSPredicate(format: "exists == true AND hittable == true")
     let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
+  }
+
+  @MainActor
+  private func openSettingsFromMe(
+    _ app: XCUIApplication,
+    meSheet: XCUIElement
+  ) -> Bool {
+    let meList = meSheet.descendants(matching: .collectionView).firstMatch
+    guard meList.waitForExistence(timeout: 10) else { return false }
+    let settings = app.descendants(matching: .any)["radroots.support.settings"]
+    for _ in 0 ..< 8 {
+      if settings.exists,
+        settings.isHittable,
+        settings.frame.minY >= meSheet.frame.minY,
+        settings.frame.maxY <= meSheet.frame.maxY
+      {
+        settings.tap()
+        return app.descendants(matching: .any)["radroots.support.settings.view"]
+          .waitForExistence(timeout: 20)
+      }
+      meList.swipeUp()
+    }
+    return false
   }
 
   @MainActor
