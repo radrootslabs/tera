@@ -78,6 +78,8 @@ grep -Fq 'RADROOTS_FIELD_IOS_BLOSSOM_ORIGINS = https:$(SLASH)$(SLASH)blossom.rad
     "$repo_root/Radroots/Config/Base.xcconfig"
 grep -Fq '<key>RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL</key>' \
     "$repo_root/RadrootsUITests/Info.plist"
+grep -Fq '<key>RADROOTS_IOS_UI_TEST_FIXTURE_EVIDENCE</key>' \
+    "$repo_root/RadrootsUITests/Info.plist"
 grep -Fq '<key>RADROOTS_IOS_UI_TEST_NETWORK_PROFILE</key>' \
     "$repo_root/RadrootsUITests/Info.plist"
 for evidence_key in \
@@ -107,6 +109,20 @@ grep -Fq 'verify-persona-fixture' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-bud11-corpus' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-persona' "$repo_root/scripts/local-social-fixture.py"
 grep -Fq 'verify-persona-result' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'RADROOTS_IOS_UI_TEST_FIXTURE_EVIDENCE' "$repo_root/scripts/xcode.sh"
+grep -Fq 'LoopbackConnectionFactory' "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'attachments = extract_persona_attempt_attachments(' \
+    "$repo_root/scripts/local-social-fixture.py"
+grep -Fq 'result = reconstruct_persona_result_v2(' \
+    "$repo_root/scripts/local-social-fixture.py"
+grep -Fq -- '--attempt-schema test-fixtures/local-social-persona-attempt-evidence.v1.schema.json' \
+    "$repo_root/scripts/xcode.sh"
+grep -Fq -- '--result-v2-schema test-fixtures/local-social-persona-results.v2.schema.json' \
+    "$repo_root/scripts/xcode.sh"
+if rg -n 'pending_step_258' "$repo_root/RadrootsUITests" --glob '*.swift'; then
+    echo "error: XCUITest must emit measured network evidence" >&2
+    exit 1
+fi
 grep -Fq 'add.tap()' "$repo_root/RadrootsUITests/RadrootsRemoteQualificationUITests.swift"
 if rg -n 'coordinate\(' "$repo_root/RadrootsUITests" --glob '*.swift'; then
     echo "error: UI qualification must not use coordinate taps" >&2

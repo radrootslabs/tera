@@ -55,6 +55,42 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
         ]) { _, new in new }
       )
     )
+    for endpoint in [
+      "ws://localhost:21000",
+      "ws://[::1]:21000",
+      "wss://127.0.0.1:21000",
+      "ws://127.0.0.1",
+      "ws://127.0.0.1:0",
+      "ws://user@127.0.0.1:21000",
+      "ws://127.0.0.1:21000/path",
+      "ws://127.0.0.1:21000?query=1",
+    ] {
+      XCTAssertThrowsError(
+        try RadrootsQualificationEndpoint(
+          endpoint,
+          role: .relay,
+          mode: .isolatedLoopback
+        )
+      )
+    }
+    XCTAssertThrowsError(
+      try RadrootsQualificationEndpoint(
+        "https://127.0.0.1:21100",
+        role: .blossom,
+        mode: .publicEndpoint
+      )
+    )
+    XCTAssertThrowsError(
+      try RadrootsRemoteQualificationEnvironment.current(
+        environment: base.merging([
+          RadrootsRemoteQualificationEnvironment.networkProfileKey: "simulator",
+          RadrootsRemoteQualificationEnvironment.relayURLsKey:
+            "ws://127.0.0.1:21000,ws://127.0.0.1:21000",
+          RadrootsRemoteQualificationEnvironment.blossomOriginsKey:
+            "http://127.0.0.1:21100",
+        ]) { _, new in new }
+      )
+    )
     XCTAssertThrowsError(
       try RadrootsRemoteQualificationEnvironment.current(
         environment: base.merging([

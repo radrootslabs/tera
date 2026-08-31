@@ -31,6 +31,47 @@ enum RadrootsQualificationNetworkMode: Sendable, Equatable {
   }
 }
 
+struct RadrootsQualificationEndpoint: Sendable, Equatable {
+  enum Role: Sendable {
+    case relay
+    case blossom
+  }
+
+  let rawValue: String
+
+  init(_ raw: String, role: Role, mode: RadrootsQualificationNetworkMode) throws {
+    guard let value = URLComponents(string: raw),
+      let scheme = value.scheme?.lowercased(),
+      let host = value.host?.lowercased(),
+      !host.isEmpty,
+      value.user == nil,
+      value.password == nil,
+      value.query == nil,
+      value.fragment == nil
+    else {
+      throw RadrootsConfigurationError.invalid("qualification_endpoint")
+    }
+    let expectedScheme = switch (role, mode) {
+    case (.relay, .isolatedLoopback): "ws"
+    case (.blossom, .isolatedLoopback): "http"
+    case (.relay, .publicEndpoint): "wss"
+    case (.blossom, .publicEndpoint): "https"
+    }
+    let loopback = host == "127.0.0.1"
+    let validHost = switch mode {
+    case .isolatedLoopback:
+      loopback
+        && value.port.map { 1 ... 65535 ~= $0 } == true
+        && (value.path.isEmpty || value.path == "/")
+    case .publicEndpoint: !loopback && host != "::1" && host != "localhost"
+    }
+    guard scheme == expectedScheme, validHost else {
+      throw RadrootsConfigurationError.invalid("qualification_endpoint_policy")
+    }
+    rawValue = raw
+  }
+}
+
 struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
   static let enabledKey = "RADROOTS_IOS_UI_TEST_REMOTE"
   static let runIDKey = "RADROOTS_IOS_UI_TEST_RUN_ID"
@@ -118,13 +159,14 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
       guard !relays.isEmpty, blossoms.count == 1 else {
         throw RadrootsConfigurationError.invalid("qualification_blossom_origin")
       }
-      if networkMode == .isolatedLoopback {
-        guard
-          relays.allSatisfy({ isLoopbackEndpoint($0, schemes: ["ws"]) }),
-          blossoms.allSatisfy({ isLoopbackEndpoint($0, schemes: ["http"]) })
-        else {
-          throw RadrootsConfigurationError.invalid("qualification_loopback_endpoint")
-        }
+      let relayEndpoints = try relays.map {
+        try RadrootsQualificationEndpoint($0, role: .relay, mode: networkMode)
+      }
+      let blossomEndpoints = try blossoms.map {
+        try RadrootsQualificationEndpoint($0, role: .blossom, mode: networkMode)
+      }
+      guard Set(relayEndpoints.map(\.rawValue)).count == relayEndpoints.count else {
+        throw RadrootsConfigurationError.invalid("qualification_endpoint_duplicate")
       }
       let mediaFile = try environment[mediaRelativePathKey].map { raw in
         guard raw == "qualification/input.png" else {
@@ -134,8 +176,8 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
       }
       return Self(
         runID: runID,
-        relayURLs: relays,
-        blossomOrigins: blossoms,
+        relayURLs: relayEndpoints.map(\.rawValue),
+        blossomOrigins: blossomEndpoints.map(\.rawValue),
         mediaFile: mediaFile,
         networkMode: networkMode
       )
@@ -164,23 +206,6 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
         .filter { !$0.isEmpty }
     }
 
-    private static func isLoopbackEndpoint(_ raw: String, schemes: Set<String>) -> Bool {
-      guard
-        let components = URLComponents(string: raw),
-        let scheme = components.scheme?.lowercased(),
-        schemes.contains(scheme),
-        components.host == "127.0.0.1",
-        components.port != nil,
-        components.user == nil,
-        components.password == nil,
-        components.query == nil,
-        components.fragment == nil,
-        components.path.isEmpty || components.path == "/"
-      else {
-        return false
-      }
-      return true
-    }
   #else
     static func current(environment _: [String: String] = [:]) throws -> Self? {
       nil

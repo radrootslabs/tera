@@ -379,9 +379,27 @@ class FixtureState:
         self._expected_failure_rejections = 0
         self._transport_rejected_attempts: set[str] = set()
         self._events_accepted_during_expected_failures = 0
+        self._accepted_connections = 0
+        self._rejected_connections = 0
+        self._non_loopback_attempts = 0
         self._production_network_contacts = 0
         self._unintended_publications = 0
         self._write_evidence()
+
+    def observe_connection(self, host: str) -> bool:
+        try:
+            permitted = ipaddress.ip_address(host).is_loopback
+        except ValueError:
+            permitted = False
+        with self._lock:
+            if permitted:
+                self._accepted_connections += 1
+            else:
+                self._rejected_connections += 1
+                self._non_loopback_attempts += 1
+                self._production_network_contacts += 1
+            self._write_evidence_locked()
+        return permitted
 
     def publish(self, event: dict[str, Any]) -> bool | None:
         if not valid_nostr_event(event) or not verify_nostr_signature(event):
@@ -560,6 +578,10 @@ class FixtureState:
                 "upload_attempts": self._upload_attempts,
                 "accepted_uploads": self._accepted_uploads,
                 "retrievals": self._retrievals,
+                "accepted_connections": self._accepted_connections,
+                "rejected_connections": self._rejected_connections,
+                "non_loopback_attempts": self._non_loopback_attempts,
+                "production_network_contacts": self._production_network_contacts,
             }
         else:
             payload = self._persona_evidence()
@@ -613,6 +635,9 @@ class FixtureState:
             "events_accepted_during_expected_failures": (
                 self._events_accepted_during_expected_failures
             ),
+            "accepted_connections": self._accepted_connections,
+            "rejected_connections": self._rejected_connections,
+            "non_loopback_attempts": self._non_loopback_attempts,
             "production_network_contacts": self._production_network_contacts,
             "unintended_publications": self._unintended_publications,
             "final_candidate_data_loss": 0,
@@ -948,9 +973,55 @@ def valid_blossom_authorization(
     )
 
 
-class ReusableThreadingServer(socketserver.ThreadingTCPServer):
+class ObservableLoopbackServerMixin:
+    _fixture_state: FixtureState
+
+    def verify_request(
+        self, request: socket.socket, client_address: tuple[str, int]
+    ) -> bool:
+        del request
+        return self._fixture_state.observe_connection(client_address[0])
+
+
+class ReusableThreadingServer(
+    ObservableLoopbackServerMixin, socketserver.ThreadingTCPServer
+):
     allow_reuse_address = True
     daemon_threads = True
+
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        handler: type[socketserver.BaseRequestHandler],
+        state: FixtureState,
+    ) -> None:
+        self._fixture_state = state
+        super().__init__(server_address, handler)
+
+
+class ObservableLoopbackHTTPServer(
+    ObservableLoopbackServerMixin, http.server.ThreadingHTTPServer
+):
+    def __init__(
+        self,
+        server_address: tuple[str, int],
+        handler: type[http.server.BaseHTTPRequestHandler],
+        state: FixtureState,
+    ) -> None:
+        self._fixture_state = state
+        super().__init__(server_address, handler)
+
+
+class LoopbackConnectionFactory:
+    @staticmethod
+    def relay(port: int, state: FixtureState) -> ReusableThreadingServer:
+        return ReusableThreadingServer(("127.0.0.1", port), RelayHandler, state)
+
+    @staticmethod
+    def blossom(port: int, state: FixtureState) -> ObservableLoopbackHTTPServer:
+        return ObservableLoopbackHTTPServer(
+            ("127.0.0.1", port), BlossomHandler, state
+        )
 
 
 class RelayHandler(socketserver.BaseRequestHandler):
@@ -1163,10 +1234,8 @@ def serve(arguments: argparse.Namespace) -> int:
     state = FixtureState(evidence, control, arguments.blossom_port, suite)
     RelayHandler.state = state
     BlossomHandler.state = state
-    relay = ReusableThreadingServer(("127.0.0.1", arguments.relay_port), RelayHandler)
-    blossom = http.server.ThreadingHTTPServer(
-        ("127.0.0.1", arguments.blossom_port), BlossomHandler
-    )
+    relay = LoopbackConnectionFactory.relay(arguments.relay_port, state)
+    blossom = LoopbackConnectionFactory.blossom(arguments.blossom_port, state)
     threads = [
         threading.Thread(target=relay.serve_forever, daemon=True),
         threading.Thread(target=blossom.serve_forever, daemon=True),
@@ -1211,6 +1280,8 @@ def verify(arguments: argparse.Namespace) -> int:
         or payload.get("upload_attempts", 0) < 1
         or payload.get("accepted_uploads", 0) < 1
         or payload.get("retrievals", 0) < 1
+        or payload.get("non_loopback_attempts") != 0
+        or payload.get("production_network_contacts") != 0
     ):
         raise SystemExit("local-social fixture evidence is incomplete")
     print("local-social fixture evidence verified")
@@ -1358,6 +1429,7 @@ def validate_persona_evidence(value: Any, suite: dict[str, Any]) -> dict[str, An
         "event_kind_counts", "upload_attempts", "accepted_uploads", "retrievals",
         "distinct_identities", "unknown_attempts", "duplicate_attempts",
         "expected_failure_rejections", "events_accepted_during_expected_failures",
+        "accepted_connections", "rejected_connections", "non_loopback_attempts",
         "production_network_contacts",
         "unintended_publications",
         "final_candidate_data_loss",
@@ -1377,12 +1449,20 @@ def validate_persona_evidence(value: Any, suite: dict[str, Any]) -> dict[str, An
         "duplicate_attempts": 0,
         "expected_failure_rejections": 1,
         "events_accepted_during_expected_failures": 0,
+        "non_loopback_attempts": 0,
         "production_network_contacts": 0,
         "unintended_publications": 0,
         "final_candidate_data_loss": 0,
     }
     if any(evidence.get(key) != expected for key, expected in expected_scalars.items()):
         raise ValueError("persona evidence totals are invalid")
+    if (
+        type(evidence["accepted_connections"]) is not int
+        or not 1 <= evidence["accepted_connections"] <= 61_440
+        or type(evidence["rejected_connections"]) is not int
+        or not 0 <= evidence["rejected_connections"] <= 61_440
+    ):
+        raise ValueError("persona connection evidence is invalid")
     if evidence["flow_counts"] != {flow: 3 for flow in FLOW_KINDS}:
         raise ValueError("persona flow counts are invalid")
     if evidence["event_kind_counts"] != {"1": 9, "31923": 3, "30402": 3}:
@@ -2199,12 +2279,16 @@ def verify_persona(arguments: argparse.Namespace) -> int:
         Path(arguments.fixture_schema).resolve(),
         "https://radroots.org/schemas/ios/local-social-personas.v1.schema.json",
     )
+    attempt_schema_raw = validate_schema_file(
+        Path(arguments.attempt_schema).resolve(),
+        "https://radroots.org/schemas/ios/local-social-persona-attempt-evidence.v1.schema.json",
+    )
     result_schema_raw = validate_schema_file(
-        Path(arguments.result_schema).resolve(),
-        "https://radroots.org/schemas/ios/local-social-persona-results.v1.schema.json",
+        Path(arguments.result_v2_schema).resolve(),
+        "https://radroots.org/schemas/ios/local-social-persona-results.v2.schema.json",
     )
     evidence_path = Path(arguments.evidence).resolve()
-    evidence_raw, evidence_value = read_json(evidence_path)
+    _, evidence_value = read_json(evidence_path)
     evidence = validate_persona_evidence(evidence_value, suite)
     result_bundle = Path(arguments.result_bundle).resolve()
     if not result_bundle.is_dir():
@@ -2213,73 +2297,42 @@ def verify_persona(arguments: argparse.Namespace) -> int:
         arguments.source_tree, 40
     ):
         raise ValueError("source identity is invalid")
-    result = {
-        "schema": "radroots.ios.local-social.persona-results.v1",
-        "schema_version": 1,
-        "run_id": arguments.run_id,
-        "source_commit": arguments.source_commit,
-        "source_tree": arguments.source_tree,
-        "fixture_sha256": hashlib.sha256(fixture_raw).hexdigest(),
-        "fixture_schema_sha256": hashlib.sha256(fixture_schema_raw).hexdigest(),
-        "result_schema_sha256": hashlib.sha256(result_schema_raw).hexdigest(),
-        "simulator": simulator_metadata(arguments.simulator_id, result_bundle),
-        "result_bundle_sha256": directory_digest(result_bundle),
-        "evidence_sha256": hashlib.sha256(evidence_raw).hexdigest(),
-        "personas": [
-            {
-                "alias": persona["alias"],
-                "identity_sha256": persona["identity_sha256"],
-                "subscriptions": persona["subscriptions"],
-                "attempts": persona["attempts"],
-            }
-            for persona in evidence["personas"]
-        ],
-        "flow_counts": evidence["flow_counts"],
-        "accepted_events": evidence["accepted_events"],
-        "event_kind_counts": evidence["event_kind_counts"],
-        "accepted_uploads": evidence["accepted_uploads"],
-        "retrievals": evidence["retrievals"],
-        "distinct_identities": evidence["distinct_identities"],
-        "unknown_attempts": evidence["unknown_attempts"],
-        "duplicate_attempts": evidence["duplicate_attempts"],
-        "expected_failure_rejections": evidence["expected_failure_rejections"],
-        "events_accepted_during_expected_failures": evidence[
-            "events_accepted_during_expected_failures"
-        ],
-        "production_network_contacts": evidence["production_network_contacts"],
-        "unintended_publications": evidence["unintended_publications"],
-        "final_candidate_data_loss": evidence["final_candidate_data_loss"],
-        "accessibility": {
-            "locale": "en_US",
-            "content_size": "accessibility-extra-extra-extra-large",
-            "reduce_motion": True,
-            "semantic_audit": "passed",
-            "voiceover_user_observed": False,
-        },
-        "forward_repairs": arguments.forward_repair_commit,
-        "complete_matrix_rerun": True,
-    }
-    fixture_sha256 = hashlib.sha256(fixture_raw).hexdigest()
-    fixture_schema_sha256 = hashlib.sha256(fixture_schema_raw).hexdigest()
-    result_schema_sha256 = hashlib.sha256(result_schema_raw).hexdigest()
-    validate_persona_result(
-        result,
-        suite,
-        fixture_sha256,
-        fixture_schema_sha256,
-        result_schema_sha256,
+    attachments = extract_persona_attempt_attachments(
+        result_bundle, suite, require_measured_network=True
     )
+    simulator = simulator_metadata(arguments.simulator_id, result_bundle)
+    result = reconstruct_persona_result_v2(
+        suite,
+        attachments,
+        fixture_sha256=hashlib.sha256(fixture_raw).hexdigest(),
+        fixture_schema_sha256=hashlib.sha256(fixture_schema_raw).hexdigest(),
+        attempt_schema_sha256=hashlib.sha256(attempt_schema_raw).hexdigest(),
+        result_schema_sha256=hashlib.sha256(result_schema_raw).hexdigest(),
+        result_bundle_sha256=directory_digest(result_bundle),
+        forward_repairs=arguments.forward_repair_commit,
+    )
+    if (
+        result["run_id"] != arguments.run_id
+        or result["source"]
+        != {"commit": arguments.source_commit, "tree": arguments.source_tree}
+        or result["simulator"] != simulator
+        or result["accepted_events"] != evidence["accepted_events"]
+        or result["accepted_uploads"] != evidence["accepted_uploads"]
+        or result["retrievals"] != evidence["retrievals"]
+        or result["non_loopback_attempts"] != evidence["non_loopback_attempts"]
+        or result["unintended_publications"] != evidence["unintended_publications"]
+        or result["final_candidate_data_loss"] != evidence["final_candidate_data_loss"]
+        or result["accepted_connections"] > evidence["accepted_connections"]
+        or result["rejected_connections"] > evidence["rejected_connections"]
+    ):
+        raise ValueError("persona aggregate does not match fixture evidence")
     output = Path(arguments.output).resolve()
     output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
-    verify_persona_result_file(
-        output,
-        suite,
-        fixture_sha256,
-        fixture_schema_sha256,
-        result_schema_sha256,
-    )
+    raw, reloaded = read_json(output)
+    if raw != (json.dumps(reloaded, indent=2) + "\n").encode("utf-8") or reloaded != result:
+        raise ValueError("persona v2 result is noncanonical")
     print(
-        "local-social persona result verified: "
+        "local-social measured persona result verified: "
         f"{hashlib.sha256(output.read_bytes()).hexdigest()}"
     )
     return 0
@@ -2353,6 +2406,8 @@ def parser() -> argparse.ArgumentParser:
     persona_command.add_argument("--fixture", required=True)
     persona_command.add_argument("--fixture-schema", required=True)
     persona_command.add_argument("--result-schema", required=True)
+    persona_command.add_argument("--attempt-schema", required=True)
+    persona_command.add_argument("--result-v2-schema", required=True)
     persona_command.add_argument("--evidence", required=True)
     persona_command.add_argument("--result-bundle", required=True)
     persona_command.add_argument("--output", required=True)

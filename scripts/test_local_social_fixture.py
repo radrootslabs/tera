@@ -931,6 +931,26 @@ class LocalSocialFixtureTests(unittest.TestCase):
             )
             self.assertIsNone(fixture.read_control(path))
 
+    def test_observable_loopback_factory_counts_and_rejects_connections(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            state = fixture.FixtureState(root / "evidence.json", root / "control", 0)
+            server = fixture.LoopbackConnectionFactory.relay(0, state)
+            try:
+                self.assertTrue(
+                    server.verify_request(mock.Mock(), ("127.0.0.1", 20_000))
+                )
+                self.assertFalse(
+                    server.verify_request(mock.Mock(), ("192.0.2.1", 20_001))
+                )
+            finally:
+                server.server_close()
+            _, evidence = fixture.read_json(root / "evidence.json")
+            self.assertEqual(evidence["accepted_connections"], 1)
+            self.assertEqual(evidence["rejected_connections"], 1)
+            self.assertEqual(evidence["non_loopback_attempts"], 1)
+            self.assertEqual(evidence["production_network_contacts"], 1)
+
     def test_attempt_classification_accepts_only_exact_photo_wire_shape(self) -> None:
         marker = "rr-p01-a02-photo"
         digest = "a" * 64

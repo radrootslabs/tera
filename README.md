@@ -80,6 +80,11 @@ mode permitted to use automated user presence or test secret policy. Public
 and physical qualification retain normal Apple user presence, remain optional,
 and are not claimed by the deterministic simulator lane.
 
+The app and XCUITest runner admit the simulator endpoints through closed typed
+policies. The fixture creates both servers through one observable loopback
+connection factory, rejects and counts every non-loopback peer, and records
+accepted and rejected socket counters in its bounded evidence snapshot.
+
 The loopback Blossom fixture admits uploads only with the exact signed BUD-11
 HTTP authorization produced by the installed Rust runtime: kind `24242`,
 bounded non-empty human content, one upload action, one exact SHA-256, one
@@ -126,10 +131,11 @@ contracts. Each completed attempt now also emits one bounded canonical
 target and identifier, test action and configuration, source commit and tree,
 app-build digest, simulator, run, persona, attempt, endpoint policy, and visible
 UI outcome. The attachment never retains a raw secret, signed authorization
-event, or raw event content. Its closed `pending_step_258` network state is not
-a passing network claim: the measured v2 aggregate rejects that state until the
-observable connection and fixture counters are supplied by the next governed
-remediation step.
+event, or raw event content. Validation, retry, relaunch, retention, Today,
+connection, subscription, event, upload, and retrieval fields come from the
+executed UI path and monotonic fixture-snapshot deltas. The v2 result is
+reconstructed only from the exact 15 measured attachments and is cross-checked
+against the final fixture totals; a non-loopback attempt fails the run.
 
 The test uses ordinary visible controls, native-generated signing identities,
 real app stores, and generated Rust FFI. This is deterministic non-human

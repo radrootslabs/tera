@@ -179,9 +179,11 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCTAssertEqual(suite.personas.map(\.alias), ["P01", "P02", "P03", "P04", "P05"])
 
     var identityDigests = Set<String>()
+    var observations = [String: PersonaAttemptObservation]()
     for persona in suite.personas {
       try activateFixture(persona: persona.alias, at: control)
       let configuration = environment.forPersona(persona.alias)
+      var networkBefore = try readFixtureNetwork(configuration)
       var app = launchPersona(configuration)
       let publicKey = try readPublicKey(app)
       let identityDigest = SHA256.hash(data: Data(publicKey.utf8))
@@ -189,17 +191,20 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       XCTAssertTrue(identityDigests.insert(identityDigest).inserted)
 
       for attempt in persona.attempts {
+        let interaction: PersonaInteractionObservation
         switch attempt.expectedFailure {
         case "validation_recovery":
-          try publishWithValidationRecovery(app, attempt: attempt)
+          interaction = try publishWithValidationRecovery(app, attempt: attempt)
         case "transport_retry_relaunch":
-          app = try publishWithTransportRetry(
+          let retry = try publishWithTransportRetry(
             app,
             configuration: configuration,
             attempt: attempt
           )
+          app = retry.app
+          interaction = retry.observation
         case "none":
-          try publishPersonaAttempt(
+          interaction = try publishPersonaAttempt(
             app,
             attempt: attempt,
             interactionProfile: persona.interactionProfile
@@ -208,6 +213,14 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
           throw QualificationError.invalidPersonaFixture
         }
         try assertTodayContains(app, markers: [attempt.marker])
+        let networkAfter = try readFixtureNetwork(configuration)
+        observations[attempt.id] = try PersonaAttemptObservation(
+          interaction: interaction,
+          network: networkAfter.delta(from: networkBefore),
+          todayProjectionVerified: true,
+          retentionVerified: false
+        )
+        networkBefore = networkAfter
       }
 
       let markers = persona.attempts.map(\.marker)
@@ -216,11 +229,13 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       try assertTodayContains(app, markers: markers)
       XCTAssertEqual(try readPublicKey(app), publicKey)
       for attempt in persona.attempts {
+        let observation = try XCTUnwrap(observations[attempt.id])
         try writePersonaAttemptAttachment(
           configuration: configuration,
-          persona: persona,
+          personaAlias: persona.alias,
           attempt: attempt,
-          identityDigest: identityDigest
+          identityDigest: identityDigest,
+          observation: observation.confirmingRetention()
         )
       }
       app.terminate()
@@ -875,18 +890,32 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     _ app: XCUIApplication,
     attempt: PersonaAttempt,
     interactionProfile: String
-  ) throws {
+  ) throws -> PersonaInteractionObservation {
     let type = attempt.flow.uiLabel
     try beginDraft(app, type: type)
+    var progressiveDisclosure = false
+    var accessibilitySemantics = false
     if interactionProfile == "novice_progressive_disclosure" {
       assertProgressiveDisclosure(app, type: type)
+      progressiveDisclosure = true
     }
     if interactionProfile == "novice_accessibility_keyboard" {
       // The dedicated accessibility test owns the exact full contrast lane.
       // Persona attempts retain every semantic audit plus keyboard/focus use.
       try performLocalSocialAccessibilityAudit(app, includeContrast: false)
+      accessibilitySemantics = true
     }
     try completeOpenDraft(app, flow: attempt.flow, marker: attempt.marker)
+    return PersonaInteractionObservation(
+      validationAttempted: false,
+      validationRejected: false,
+      retryAttempts: 0,
+      relaunches: 0,
+      progressiveDisclosure: progressiveDisclosure,
+      accessibilitySemantics: accessibilitySemantics,
+      keyboardFocus: accessibilitySemantics,
+      visibleActions: true
+    )
   }
 
   @MainActor
@@ -948,7 +977,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   private func publishWithValidationRecovery(
     _ app: XCUIApplication,
     attempt: PersonaAttempt
-  ) throws {
+  ) throws -> PersonaInteractionObservation {
     guard attempt.flow == .event else {
       throw QualificationError.invalidPersonaFixture
     }
@@ -963,6 +992,16 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     XCTAssertEqual(content.value as? String, attempt.marker)
     try enterText(app, identifier: "radroots.add.title", value: attempt.marker)
     try submitSuccessfully(app)
+    return PersonaInteractionObservation(
+      validationAttempted: true,
+      validationRejected: true,
+      retryAttempts: 0,
+      relaunches: 0,
+      progressiveDisclosure: false,
+      accessibilitySemantics: false,
+      keyboardFocus: false,
+      visibleActions: true
+    )
   }
 
   @MainActor
@@ -970,7 +1009,7 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     _ app: XCUIApplication,
     configuration: QualificationConfiguration,
     attempt: PersonaAttempt
-  ) throws -> XCUIApplication {
+  ) throws -> (app: XCUIApplication, observation: PersonaInteractionObservation) {
     guard attempt.flow == .ask else {
       throw QualificationError.invalidPersonaFixture
     }
@@ -997,7 +1036,19 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
     let done = relaunched.buttons["Done"]
     XCTAssertTrue(done.waitForExistence(timeout: 10))
     done.tap()
-    return relaunched
+    return (
+      relaunched,
+      PersonaInteractionObservation(
+        validationAttempted: false,
+        validationRejected: false,
+        retryAttempts: 1,
+        relaunches: 1,
+        progressiveDisclosure: false,
+        accessibilitySemantics: false,
+        keyboardFocus: false,
+        visibleActions: true
+      )
+    )
   }
 
   private func loadPersonaSuite() throws -> PersonaSuite {
@@ -1025,6 +1076,23 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       options: [.sortedKeys]
     )
     try data.write(to: URL(fileURLWithPath: path), options: [.atomic])
+  }
+
+  private func readFixtureNetwork(
+    _ configuration: QualificationConfiguration
+  ) throws -> PersonaFixtureNetworkSnapshot {
+    let path = try XCTUnwrap(configuration.fixtureEvidence)
+    let handle = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+    defer { try? handle.close() }
+    let data = try handle.read(upToCount: 64 * 1024 + 1) ?? Data()
+    guard !data.isEmpty, data.count <= 64 * 1024 else {
+      throw QualificationError.invalidFixtureEvidence
+    }
+    let root = try JSONSerialization.jsonObject(with: data)
+    guard let value = root as? [String: Any] else {
+      throw QualificationError.invalidFixtureEvidence
+    }
+    return try PersonaFixtureNetworkSnapshot(value)
   }
 
   @MainActor
@@ -1450,17 +1518,12 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
 
   private func writePersonaAttemptAttachment(
     configuration: QualificationConfiguration,
-    persona: Persona,
+    personaAlias: String,
     attempt: PersonaAttempt,
-    identityDigest: String
+    identityDigest: String,
+    observation: PersonaAttemptObservation
   ) throws {
     let binding = try XCTUnwrap(configuration.evidenceBinding)
-    let validation = attempt.expectedFailure == "validation_recovery"
-    let retry = attempt.expectedFailure == "transport_retry_relaunch"
-    let progressiveDisclosure =
-      persona.interactionProfile == "novice_progressive_disclosure"
-    let accessibilityKeyboard =
-      persona.interactionProfile == "novice_accessibility_keyboard"
     let evidence = PersonaAttemptEvidence(
       schema: "radroots.ios.local-social.persona-attempt-evidence.v1",
       schemaVersion: 1,
@@ -1479,30 +1542,23 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
       ),
       runID: configuration.qualificationRunID,
       personaRunID: configuration.runID,
-      personaAlias: persona.alias,
+      personaAlias: personaAlias,
       attemptID: attempt.id,
       attemptOrder: attempt.order,
       flow: attempt.flow.rawValue,
       expectedFailure: attempt.expectedFailure,
       publicIdentitySHA256: identityDigest,
       endpointPolicySHA256: Self.endpointPolicyDigest(configuration),
-      uiObservation: .init(
-        validationAttempted: validation,
-        validationRejected: validation,
-        retryAttempts: retry ? 1 : 0,
-        relaunches: retry ? 1 : 0,
-        retentionVerified: true,
-        todayProjectionVerified: true
-      ),
-      networkObservation: .init(state: "pending_step_258"),
+      uiObservation: observation.ui,
+      networkObservation: observation.network,
       accessibility: .init(
         locale: "en_US",
         contentSize: "accessibility-extra-extra-extra-large",
         reduceMotion: true,
-        progressiveDisclosure: progressiveDisclosure,
-        labelsValuesTraits: accessibilityKeyboard,
-        keyboardFocus: accessibilityKeyboard,
-        visibleActions: true,
+        progressiveDisclosure: observation.interaction.progressiveDisclosure,
+        labelsValuesTraits: observation.interaction.accessibilitySemantics,
+        keyboardFocus: observation.interaction.keyboardFocus,
+        visibleActions: observation.interaction.visibleActions,
         voiceoverUserObserved: false
       ),
       artifactDigests: []
@@ -1536,12 +1592,80 @@ final class RadrootsRemoteQualificationUITests: XCTestCase {
   }
 }
 
+private struct QualificationEndpointPolicy {
+  private enum Role {
+    case relay
+    case blossom
+  }
+
+  init(relayURLs: [String], blossomOrigins: [String], profile: String) throws {
+    guard !relayURLs.isEmpty,
+      Set(relayURLs).count == relayURLs.count,
+      blossomOrigins.count == 1
+    else {
+      throw QualificationError.invalidEndpointPolicy
+    }
+    if profile == "simulator" {
+      guard
+        relayURLs.allSatisfy({ Self.isEndpoint($0, role: .relay, loopbackOnly: true) }),
+        blossomOrigins.allSatisfy({
+          Self.isEndpoint($0, role: .blossom, loopbackOnly: true)
+        })
+      else {
+        throw QualificationError.invalidEndpointPolicy
+      }
+    } else {
+      guard
+        relayURLs.allSatisfy({ Self.isEndpoint($0, role: .relay, loopbackOnly: false) }),
+        blossomOrigins.allSatisfy({
+          Self.isEndpoint($0, role: .blossom, loopbackOnly: false)
+        })
+      else {
+        throw QualificationError.invalidEndpointPolicy
+      }
+    }
+  }
+
+  private static func isEndpoint(
+    _ raw: String,
+    role: Role,
+    loopbackOnly: Bool
+  ) -> Bool {
+    guard let value = URLComponents(string: raw),
+      value.user == nil,
+      value.password == nil,
+      value.query == nil,
+      value.fragment == nil,
+      let scheme = value.scheme?.lowercased(),
+      let host = value.host?.lowercased(),
+      !host.isEmpty
+    else { return false }
+    let expectedScheme = switch (role, loopbackOnly) {
+    case (.relay, true): "ws"
+    case (.blossom, true): "http"
+    case (.relay, false): "wss"
+    case (.blossom, false): "https"
+    }
+    if loopbackOnly {
+      return scheme == expectedScheme
+        && host == "127.0.0.1"
+        && value.port.map { 1 ... 65535 ~= $0 } == true
+        && (value.path.isEmpty || value.path == "/")
+    }
+    return scheme == expectedScheme
+      && host != "127.0.0.1"
+      && host != "::1"
+      && host != "localhost"
+  }
+}
+
 private struct QualificationConfiguration {
   static let enabledKey = "RADROOTS_IOS_UI_TEST_REMOTE"
   static let runIDKey = "RADROOTS_IOS_UI_TEST_RUN_ID"
   static let relayURLsKey = "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS"
   static let blossomOriginsKey = "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS"
   static let fixtureControlKey = "RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL"
+  static let fixtureEvidenceKey = "RADROOTS_IOS_UI_TEST_FIXTURE_EVIDENCE"
   static let mediaRelativePathKey = "RADROOTS_IOS_UI_TEST_MEDIA_RELATIVE_PATH"
   static let networkProfileKey = "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE"
   static let sourceCommitKey = "RADROOTS_IOS_UI_TEST_SOURCE_COMMIT"
@@ -1554,6 +1678,7 @@ private struct QualificationConfiguration {
   let relayURLs: [String]
   let blossomOrigins: [String]
   let fixtureControl: String?
+  let fixtureEvidence: String?
   let networkProfile: String
   let evidenceBinding: PersonaEvidenceBinding?
 
@@ -1562,6 +1687,7 @@ private struct QualificationConfiguration {
     relayURLs: [String],
     blossomOrigins: [String],
     fixtureControl: String? = nil,
+    fixtureEvidence: String? = nil,
     networkProfile: String = "public",
     qualificationRunID: String? = nil,
     evidenceBinding: PersonaEvidenceBinding? = nil
@@ -1571,6 +1697,7 @@ private struct QualificationConfiguration {
     self.relayURLs = relayURLs
     self.blossomOrigins = blossomOrigins
     self.fixtureControl = fixtureControl
+    self.fixtureEvidence = fixtureEvidence
     self.networkProfile = networkProfile
     self.evidenceBinding = evidenceBinding
   }
@@ -1597,6 +1724,7 @@ private struct QualificationConfiguration {
       relayURLs: relayURLs,
       blossomOrigins: blossomOrigins,
       fixtureControl: fixtureControl,
+      fixtureEvidence: fixtureEvidence,
       networkProfile: networkProfile,
       qualificationRunID: qualificationRunID,
       evidenceBinding: evidenceBinding
@@ -1619,6 +1747,9 @@ private struct QualificationConfiguration {
     let fixtureControl =
       values[fixtureControlKey]
       ?? bundle.object(forInfoDictionaryKey: fixtureControlKey) as? String
+    let fixtureEvidence =
+      values[fixtureEvidenceKey]
+      ?? bundle.object(forInfoDictionaryKey: fixtureEvidenceKey) as? String
     let networkProfile =
       values[networkProfileKey]
       ?? bundle.object(forInfoDictionaryKey: networkProfileKey) as? String
@@ -1638,6 +1769,23 @@ private struct QualificationConfiguration {
     else {
       throw QualificationError.missingEnvironment
     }
+    _ = try QualificationEndpointPolicy(
+      relayURLs: separated(relayValue),
+      blossomOrigins: separated(blossom),
+      profile: networkProfile
+    )
+    if networkProfile == "simulator" {
+      guard
+        let fixtureControl,
+        let fixtureEvidence,
+        fixtureControl.utf8.count <= 1024,
+        fixtureEvidence.utf8.count <= 1024,
+        fixtureControl.hasPrefix("/"),
+        fixtureEvidence.hasPrefix("/")
+      else {
+        throw QualificationError.missingEnvironment
+      }
+    }
     let evidenceBinding = PersonaEvidenceBinding(
       sourceCommit: sourceCommit,
       sourceTree: sourceTree,
@@ -1649,6 +1797,7 @@ private struct QualificationConfiguration {
       relayURLs: separated(relayValue),
       blossomOrigins: separated(blossom),
       fixtureControl: fixtureControl.flatMap { $0.isEmpty ? nil : $0 },
+      fixtureEvidence: fixtureEvidence.flatMap { $0.isEmpty ? nil : $0 },
       networkProfile: networkProfile,
       evidenceBinding: evidenceBinding
     )
@@ -1735,8 +1884,173 @@ private struct PersonaAttemptUIObservation: Encodable {
   }
 }
 
+private struct PersonaInteractionObservation {
+  let validationAttempted: Bool
+  let validationRejected: Bool
+  let retryAttempts: Int
+  let relaunches: Int
+  let progressiveDisclosure: Bool
+  let accessibilitySemantics: Bool
+  let keyboardFocus: Bool
+  let visibleActions: Bool
+}
+
+private struct PersonaAttemptObservation {
+  let interaction: PersonaInteractionObservation
+  let network: PersonaAttemptNetworkObservation
+  let todayProjectionVerified: Bool
+  let retentionVerified: Bool
+
+  var ui: PersonaAttemptUIObservation {
+    PersonaAttemptUIObservation(
+      validationAttempted: interaction.validationAttempted,
+      validationRejected: interaction.validationRejected,
+      retryAttempts: interaction.retryAttempts,
+      relaunches: interaction.relaunches,
+      retentionVerified: retentionVerified,
+      todayProjectionVerified: todayProjectionVerified
+    )
+  }
+
+  func confirmingRetention() -> Self {
+    Self(
+      interaction: interaction,
+      network: network,
+      todayProjectionVerified: todayProjectionVerified,
+      retentionVerified: true
+    )
+  }
+}
+
 private struct PersonaAttemptNetworkObservation: Encodable {
   let state: String
+  let acceptedConnections: Int
+  let rejectedConnections: Int
+  let nonLoopbackAttempts: Int
+  let subscriptions: Int
+  let acceptedEvents: Int
+  let acceptedUploads: Int
+  let retrievals: Int
+  let unintendedPublications: Int
+  let eventsAcceptedDuringExpectedFailure: Int
+  let finalCandidateDataLoss: Int
+
+  enum CodingKeys: String, CodingKey {
+    case state
+    case acceptedConnections = "accepted_connections"
+    case rejectedConnections = "rejected_connections"
+    case nonLoopbackAttempts = "non_loopback_attempts"
+    case subscriptions
+    case acceptedEvents = "accepted_events"
+    case acceptedUploads = "accepted_uploads"
+    case retrievals
+    case unintendedPublications = "unintended_publications"
+    case eventsAcceptedDuringExpectedFailure = "events_accepted_during_expected_failure"
+    case finalCandidateDataLoss = "final_candidate_data_loss"
+  }
+}
+
+private struct PersonaFixtureNetworkSnapshot {
+  private static let keys: Set<String> = [
+    "schema", "schema_version", "personas", "flow_counts", "accepted_events",
+    "event_kind_counts", "upload_attempts", "accepted_uploads", "retrievals",
+    "distinct_identities", "unknown_attempts", "duplicate_attempts",
+    "expected_failure_rejections", "events_accepted_during_expected_failures",
+    "accepted_connections", "rejected_connections", "non_loopback_attempts",
+    "production_network_contacts", "unintended_publications", "final_candidate_data_loss",
+  ]
+
+  let acceptedConnections: Int
+  let rejectedConnections: Int
+  let nonLoopbackAttempts: Int
+  let productionNetworkContacts: Int
+  let subscriptions: Int
+  let acceptedEvents: Int
+  let acceptedUploads: Int
+  let retrievals: Int
+  let unintendedPublications: Int
+  let eventsAcceptedDuringExpectedFailures: Int
+  let finalCandidateDataLoss: Int
+
+  init(_ value: [String: Any]) throws {
+    guard Set(value.keys) == Self.keys,
+      value["schema"] as? String == "radroots.ios.local-social.persona-evidence.v1",
+      value["schema_version"] as? Int == 1,
+      let acceptedConnections = value["accepted_connections"] as? Int,
+      let rejectedConnections = value["rejected_connections"] as? Int,
+      let nonLoopbackAttempts = value["non_loopback_attempts"] as? Int,
+      let productionNetworkContacts = value["production_network_contacts"] as? Int,
+      let acceptedEvents = value["accepted_events"] as? Int,
+      let acceptedUploads = value["accepted_uploads"] as? Int,
+      let retrievals = value["retrievals"] as? Int,
+      let unintendedPublications = value["unintended_publications"] as? Int,
+      let eventsAccepted = value["events_accepted_during_expected_failures"] as? Int,
+      let finalCandidateDataLoss = value["final_candidate_data_loss"] as? Int,
+      let personas = value["personas"] as? [[String: Any]],
+      personas.count == 5,
+      [
+        acceptedConnections, rejectedConnections, nonLoopbackAttempts,
+        productionNetworkContacts,
+        acceptedEvents, acceptedUploads, retrievals, unintendedPublications,
+        eventsAccepted, finalCandidateDataLoss,
+      ].allSatisfy({ 0 ... 61440 ~= $0 })
+    else {
+      throw QualificationError.invalidFixtureEvidence
+    }
+    let subscriptions = try personas.reduce(into: 0) { total, persona in
+      guard let value = persona["subscriptions"] as? Int, 0 ... 4096 ~= value else {
+        throw QualificationError.invalidFixtureEvidence
+      }
+      total += value
+    }
+    self.acceptedConnections = acceptedConnections
+    self.rejectedConnections = rejectedConnections
+    self.nonLoopbackAttempts = nonLoopbackAttempts
+    self.productionNetworkContacts = productionNetworkContacts
+    self.subscriptions = subscriptions
+    self.acceptedEvents = acceptedEvents
+    self.acceptedUploads = acceptedUploads
+    self.retrievals = retrievals
+    self.unintendedPublications = unintendedPublications
+    eventsAcceptedDuringExpectedFailures = eventsAccepted
+    self.finalCandidateDataLoss = finalCandidateDataLoss
+  }
+
+  func delta(from prior: Self) throws -> PersonaAttemptNetworkObservation {
+    let current = [
+      acceptedConnections, rejectedConnections, nonLoopbackAttempts, subscriptions,
+      productionNetworkContacts,
+      acceptedEvents, acceptedUploads, retrievals, unintendedPublications,
+      eventsAcceptedDuringExpectedFailures, finalCandidateDataLoss,
+    ]
+    let previous = [
+      prior.acceptedConnections, prior.rejectedConnections, prior.nonLoopbackAttempts,
+      prior.subscriptions, prior.productionNetworkContacts, prior.acceptedEvents,
+      prior.acceptedUploads, prior.retrievals,
+      prior.unintendedPublications, prior.eventsAcceptedDuringExpectedFailures,
+      prior.finalCandidateDataLoss,
+    ]
+    guard zip(current, previous).allSatisfy({ pair in pair.0 >= pair.1 }) else {
+      throw QualificationError.invalidFixtureEvidence
+    }
+    let values = zip(current, previous).map { pair in pair.0 - pair.1 }
+    guard values[2] == 0, values[4] == 0 else {
+      throw QualificationError.invalidEndpointPolicy
+    }
+    return PersonaAttemptNetworkObservation(
+      state: "measured",
+      acceptedConnections: values[0],
+      rejectedConnections: values[1],
+      nonLoopbackAttempts: values[2],
+      subscriptions: values[3],
+      acceptedEvents: values[5],
+      acceptedUploads: values[6],
+      retrievals: values[7],
+      unintendedPublications: values[8],
+      eventsAcceptedDuringExpectedFailure: values[9],
+      finalCandidateDataLoss: values[10]
+    )
+  }
 }
 
 private struct PersonaAttemptAccessibility: Encodable {
@@ -1887,6 +2201,8 @@ private enum PersonaFlow: String, Decodable {
 
 private enum QualificationError: Error {
   case missingEnvironment
+  case invalidEndpointPolicy
+  case invalidFixtureEvidence
   case invalidPublicKey
   case missingProductSurface
   case productSubmissionFailed
