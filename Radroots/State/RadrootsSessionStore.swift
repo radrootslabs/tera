@@ -44,6 +44,7 @@ actor RadrootsSessionStore {
   private let roots: RadrootsAppleFileRoots
   private let protectedData: RadrootsProtectedDataMonitor
   private let automatesQualificationIdentity: Bool
+  private let qualificationEvidenceStore: RadrootsRemoteQualificationEvidenceStore?
   private var generation: UInt64 = 0
   private var phase: RadrootsSessionPhase = .starting
 
@@ -53,7 +54,8 @@ actor RadrootsSessionStore {
     runtimeClient: RadrootsRuntimeClient,
     roots: RadrootsAppleFileRoots,
     protectedData: RadrootsProtectedDataMonitor,
-    automatesQualificationIdentity: Bool = false
+    automatesQualificationIdentity: Bool = false,
+    qualificationEvidenceStore: RadrootsRemoteQualificationEvidenceStore? = nil
   ) {
     self.configurationStore = configurationStore
     self.identityStore = identityStore
@@ -61,6 +63,7 @@ actor RadrootsSessionStore {
     self.roots = roots
     self.protectedData = protectedData
     self.automatesQualificationIdentity = automatesQualificationIdentity
+    self.qualificationEvidenceStore = qualificationEvidenceStore
   }
 
   @MainActor
@@ -72,6 +75,11 @@ actor RadrootsSessionStore {
       throw RadrootsConfigurationError.missing("bundle_identifier")
     }
     let qualification = try RadrootsRemoteQualificationEnvironment.current()
+    #if DEBUG
+      let qualificationEvidenceStore = try RadrootsRemoteQualificationEvidence.prepare()
+    #else
+      let qualificationEvidenceStore: RadrootsRemoteQualificationEvidenceStore? = nil
+    #endif
     let servicePrefix =
       try qualification?.keychainServicePrefix
       ?? requiredString(
@@ -112,7 +120,8 @@ actor RadrootsSessionStore {
       runtimeClient: runtimeClient,
       roots: roots,
       protectedData: protectedData,
-      automatesQualificationIdentity: qualification?.automatesIdentity == true
+      automatesQualificationIdentity: qualification?.automatesIdentity == true,
+      qualificationEvidenceStore: qualificationEvidenceStore
     )
   }
 
@@ -303,6 +312,7 @@ actor RadrootsSessionStore {
     do {
       _ = try await runtimeClient.stop()
       await identityStore.lock()
+      try qualificationEvidenceStore?.cleanup()
       phase = .stopped
     } catch let RadrootsRuntimeClientError.shutdown(failure) {
       phase = .failed(failure)

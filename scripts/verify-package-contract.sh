@@ -201,6 +201,18 @@ grep -Fq 'if let qualification, qualification.automatesIdentity' \
     "$repo_root/Radroots/State/RadrootsIdentityStore.swift"
 grep -Fq 'qualification?.automatesIdentity == true' \
     "$repo_root/Radroots/State/RadrootsSessionStore.swift"
+grep -Fq 'radroots.ios.remote-qualification.authorization-digest.v1\0' \
+    "$repo_root/Radroots/App/RadrootsRemoteQualificationEvidence.swift"
+grep -Fq 'try qualificationEvidenceStore?.cleanup()' \
+    "$repo_root/Radroots/State/RadrootsSessionStore.swift"
+if rg -n \
+    'try\?[[:space:]]+RadrootsRemoteQualificationEvidence|RadrootsRemoteQualificationBlossomAuthorization|data\.write\([[:space:]]*to:[^\n]*document' \
+    "$repo_root/Radroots" \
+    --glob '*.swift'
+then
+    echo "error: qualification evidence may persist or ignore signed authorization material" >&2
+    exit 1
+fi
 if rg -n 'if qualification != nil|automatesQualificationIdentity: qualification != nil' \
     "$repo_root/Radroots" --glob '*.swift'
 then

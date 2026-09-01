@@ -1,13 +1,22 @@
 import Foundation
 import RadrootsKitBindings
 
-private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked Sendable {
+final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked Sendable {
+  typealias QualificationEvidenceRecorder = @Sendable (HostSigningRequest, String) throws -> Void
+
   private let signer: any RadrootsRuntimeSigner
   private let clock: RadrootsClock
+  private let qualificationEvidenceRecorder: QualificationEvidenceRecorder
 
-  init(signer: any RadrootsRuntimeSigner, clock: RadrootsClock = .system) {
+  init(
+    signer: any RadrootsRuntimeSigner,
+    clock: RadrootsClock = .system,
+    qualificationEvidenceRecorder: @escaping QualificationEvidenceRecorder =
+      RadrootsRemoteQualificationEvidence.recordBlossomAuthorization
+  ) {
     self.signer = signer
     self.clock = clock
+    self.qualificationEvidenceRecorder = qualificationEvidenceRecorder
   }
 
   func signerStatus() async -> SignerStatusRecord {
@@ -19,7 +28,7 @@ private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked 
 
   func sign(request: HostSigningRequest) async -> HostSigningResult {
     guard (try? clock.unixMilliseconds()) != nil else {
-      return failedClockResult(for: request)
+      return failedSigningResult(for: request)
     }
     let purpose = request.purpose.appValue
     let outcome = await signer.sign(
@@ -36,14 +45,15 @@ private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked 
       if request.purpose == .blossomUpload,
          let signatureHex = outcome.signatureHex
       {
-        try? RadrootsRemoteQualificationEvidence.recordBlossomAuthorization(
-          request: request,
-          signatureHex: signatureHex
-        )
+        do {
+          try qualificationEvidenceRecorder(request, signatureHex)
+        } catch {
+          return failedSigningResult(for: request)
+        }
       }
     #endif
     guard let completedAtUnixMilliseconds = try? clock.unixMilliseconds() else {
-      return failedClockResult(for: request)
+      return failedSigningResult(for: request)
     }
     return HostSigningResult(
       schemaVersion: 1,
@@ -57,7 +67,7 @@ private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked 
     )
   }
 
-  private func failedClockResult(for request: HostSigningRequest) -> HostSigningResult {
+  private func failedSigningResult(for request: HostSigningRequest) -> HostSigningResult {
     HostSigningResult(
       schemaVersion: 1,
       outcome: .failed,

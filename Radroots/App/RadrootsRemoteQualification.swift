@@ -214,67 +214,6 @@ struct RadrootsRemoteQualificationEnvironment: Sendable, Equatable {
 }
 
 #if DEBUG
-  private struct RadrootsRemoteQualificationBlossomAuthorization: Codable {
-    let schema: String
-    let schemaVersion: UInt16
-    let id: String
-    let pubkey: String
-    let createdAt: UInt64
-    let kind: UInt32
-    let tags: [[String]]
-    let content: String
-    let signature: String
-
-    enum CodingKeys: String, CodingKey {
-      case schema
-      case schemaVersion = "schema_version"
-      case id
-      case pubkey
-      case createdAt = "created_at"
-      case kind
-      case tags
-      case content
-      case signature = "sig"
-    }
-  }
-
-  enum RadrootsRemoteQualificationEvidence {
-    static func recordBlossomAuthorization(
-      request: HostSigningRequest,
-      signatureHex: String
-    ) throws {
-      guard try RadrootsRemoteQualificationEnvironment.current() != nil else { return }
-      let evidence = RadrootsRemoteQualificationBlossomAuthorization(
-        schema: "radroots-ios-remote-qualification-bud11-v1",
-        schemaVersion: 1,
-        id: request.expectedEventId,
-        pubkey: request.publicKey,
-        createdAt: request.createdAtUnixS,
-        kind: request.kind,
-        tags: request.tags,
-        content: request.content,
-        signature: signatureHex
-      )
-      let encoder = JSONEncoder()
-      encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-      let data = try encoder.encode(evidence)
-      guard
-        let documents = FileManager.default.urls(
-          for: .documentDirectory,
-          in: .userDomainMask
-        ).first
-      else {
-        throw CocoaError(.fileNoSuchFile)
-      }
-      try data.write(
-        to: documents.appendingPathComponent(
-          "radroots-remote-qualification-bud11.json"
-        ),
-        options: .atomic
-      )
-    }
-  }
-
   final class RadrootsRemoteQualificationUserPresence: RadrootsUserPresence, Sendable {
     init(mode: RadrootsQualificationNetworkMode) throws {
       guard mode.permitsAutomatedUserPresence, mode.permitsTestSecretPolicy else {

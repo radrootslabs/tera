@@ -1,6 +1,7 @@
 import CryptoKit
 @testable import RadrootsApp
 import RadrootsKit
+import RadrootsKitBindings
 import XCTest
 
 final class RadrootsRemoteQualificationTests: XCTestCase {
@@ -206,5 +207,134 @@ final class RadrootsRemoteQualificationTests: XCTestCase {
       digest.map { String(format: "%02x", $0) }.joined(),
       "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460"
     )
+  }
+
+  func testAuthorizationEvidenceIsRedactedEphemeralAndRelaunchCleaned() throws {
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      UUID().uuidString,
+      isDirectory: true
+    )
+    defer { try? FileManager.default.removeItem(at: root) }
+    let temporary = root.appendingPathComponent("temporary", isDirectory: true)
+    let documents = root.appendingPathComponent("documents", isDirectory: true)
+    try FileManager.default.createDirectory(
+      at: temporary,
+      withIntermediateDirectories: true
+    )
+    try FileManager.default.createDirectory(
+      at: documents,
+      withIntermediateDirectories: true
+    )
+    let store = RadrootsRemoteQualificationEvidenceStore(
+      runID: "persona-p01-12345678",
+      temporaryRoot: temporary,
+      documentsRoot: documents
+    )
+    try Data("signed-authorization-canary".utf8).write(
+      to: store.legacyAuthorizationFile
+    )
+
+    try store.prepare()
+    XCTAssertFalse(FileManager.default.fileExists(atPath: store.legacyAuthorizationFile.path))
+    try store.record(request: qualificationSigningRequest(), signatureHex: String(repeating: "b", count: 128))
+
+    let data = try Data(contentsOf: store.evidenceFile)
+    XCTAssertLessThanOrEqual(
+      data.count,
+      RadrootsRemoteQualificationAuthorizationEvidence.maximumEncodedBytes
+    )
+    let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    XCTAssertEqual(
+      Set(object.keys),
+      Set(["schema", "schema_version", "authorization_digest_sha256"])
+    )
+    XCTAssertEqual(
+      object["authorization_digest_sha256"] as? String,
+      "fc3a74758a976c6f8dc37a4168520627de9ae8bc6a8433af3064fda94ea3e21b"
+    )
+    let rendered = try XCTUnwrap(String(bytes: data, encoding: .utf8))
+    for forbidden in [
+      "signed-authorization-canary", "operation-canary", "artifact-canary",
+      "request-canary", "content-canary", String(repeating: "a", count: 64),
+      String(repeating: "b", count: 128),
+    ] {
+      XCTAssertFalse(rendered.contains(forbidden))
+    }
+    let attributes = try FileManager.default.attributesOfItem(atPath: store.evidenceFile.path)
+    XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.intValue, 0o600)
+
+    try store.prepare()
+    XCTAssertFalse(FileManager.default.fileExists(atPath: store.evidenceFile.path))
+    XCTAssertFalse(FileManager.default.fileExists(atPath: store.directory.path))
+  }
+
+  func testAuthorizationEvidenceDigestIsDomainSeparatedAndFieldSensitive() {
+    let request = qualificationSigningRequest()
+    let baseline = RadrootsRemoteQualificationAuthorizationEvidence(
+      runID: "persona-p01-12345678",
+      request: request,
+      signatureHex: String(repeating: "b", count: 128)
+    )
+    let changedRun = RadrootsRemoteQualificationAuthorizationEvidence(
+      runID: "persona-p02-12345678",
+      request: request,
+      signatureHex: String(repeating: "b", count: 128)
+    )
+    let changedSignature = RadrootsRemoteQualificationAuthorizationEvidence(
+      runID: "persona-p01-12345678",
+      request: request,
+      signatureHex: String(repeating: "c", count: 128)
+    )
+    XCTAssertNotEqual(baseline.authorizationDigestSHA256, changedRun.authorizationDigestSHA256)
+    XCTAssertNotEqual(
+      baseline.authorizationDigestSHA256,
+      changedSignature.authorizationDigestSHA256
+    )
+    XCTAssertTrue(
+      RadrootsRemoteQualificationAuthorizationEvidence.digestDomain.hasSuffix("\0")
+    )
+  }
+
+  func testAuthorizationEvidenceWriteFailureFailsSigningResult() async {
+    let signer = RadrootsGeneratedHostSigner(
+      signer: QualificationSignedSigner(),
+      clock: .fixed(unixSeconds: 1_800_000_000),
+      qualificationEvidenceRecorder: { _, _ in
+        throw CocoaError(.fileWriteNoPermission)
+      }
+    )
+    let result = await signer.sign(request: qualificationSigningRequest())
+    XCTAssertEqual(result.outcome, .failed)
+    XCTAssertNil(result.signatureHex)
+    XCTAssertEqual(result.completedAtUnixMs, 0)
+  }
+
+  private func qualificationSigningRequest() -> HostSigningRequest {
+    HostSigningRequest(
+      schemaVersion: 1,
+      operationKind: "blossom-upload",
+      operationId: "operation-canary",
+      artifactId: "artifact-canary",
+      signerRequestId: "request-canary",
+      publicKey: String(repeating: "a", count: 64),
+      purpose: .blossomUpload,
+      deadlineUnixMs: 1_800_000_300_000,
+      eventIdDigest: Data(repeating: 0xAA, count: 32),
+      expectedEventId: String(repeating: "a", count: 64),
+      createdAtUnixS: 1_800_000_000,
+      kind: 24242,
+      tags: [["t", "content-canary"]],
+      content: "content-canary"
+    )
+  }
+}
+
+private struct QualificationSignedSigner: RadrootsRuntimeSigner {
+  func availability() async -> RadrootsRuntimeSignerAvailability {
+    .ready
+  }
+
+  func sign(_: RadrootsRuntimeSigningRequest) async -> RadrootsRuntimeSigningOutcome {
+    .signed(signatureHex: String(repeating: "b", count: 128))
   }
 }
