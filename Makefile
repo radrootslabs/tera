@@ -8,7 +8,7 @@ SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
 .NOTPARALLEL:
 
 .PHONY: all doctor bootstrap persona-verifier-bootstrap ffi-bootstrap artifact-check package-contract-check \
-	swift-quality \
+	swift-quality maintainability-check \
 	linux-shared-rust \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-write \
@@ -33,6 +33,10 @@ package-contract-check: doctor
 
 swift-quality: doctor
 	cargo extbuild run -- scripts/swift-quality.sh
+
+maintainability-check: doctor
+	cargo extbuild run -- uv run --offline --project scripts/persona-verifier \
+		python scripts/maintainability_ratchet.py verify
 
 linux-shared-rust: doctor
 	cargo extbuild run -- scripts/linux-shared-rust.sh

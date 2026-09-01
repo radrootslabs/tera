@@ -11,7 +11,7 @@ SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-import package_contract as contract
+import package_contract as contract  # noqa: E402
 
 
 class PackageContractTests(unittest.TestCase):
@@ -69,9 +69,7 @@ class PackageContractTests(unittest.TestCase):
         with self.assertRaisesRegex(contract.PackageContractError, "unsupported"):
             contract.parse_make_assignments(
                 "ifneq ($(UNREACHABLE),)\n"
-                "override RADROOTS_FIELD_LIB_GIT_REV := "
-                + "a" * 40
-                + "\nendif\n"
+                "override RADROOTS_FIELD_LIB_GIT_REV := " + "a" * 40 + "\nendif\n"
             )
 
     def test_duplicate_xcconfig_assignment_is_rejected(self) -> None:

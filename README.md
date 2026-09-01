@@ -55,6 +55,14 @@ policy and the pinned Linux x86_64 shared-Rust runner. Run those focused checks
 independently with `make swift-quality` and `make linux-shared-rust`; both keep
 their build output under extbuild.
 
+`make swift-quality` also applies the exact checked SwiftLint complexity
+baseline and the repository-owned Swift/Python maintainability ratchet. New
+Swift files are capped at 600 physical lines, new Python files at 800, and new
+Python functions at complexity 10. Existing larger files and functions are a
+closed, non-growing inventory; the newly separated user-message classifier
+and package verification modules must remain below the new-file limits. Run
+`make maintainability-check` for the narrow size and Python-complexity gate.
+
 Use `SIMULATOR_NAME="Device Name" make verify` when the default simulator is
 not installed. `make clean` removes only rebuildable external build output and
 the ignored XCFramework; it preserves tracked generated bindings, locks,
@@ -172,6 +180,9 @@ bounded data. It also runs the locked fixture and verifier unit suites.
 Comments, examples, unreachable source, and arbitrary matching text cannot
 satisfy a behavior-bearing package assertion; application behavior is proven
 by the compiled Swift and simulator test lanes.
+The contract also binds the exact Ruff development tool, both maintainability
+baselines, and their executable verifier, so local lint behavior cannot drift
+with an ambient Python installation.
 
 The unsigned release-evidence lane also regenerates a deterministic CycloneDX
 SBOM from the locked Rust and Swift dependency graphs and binds it to the

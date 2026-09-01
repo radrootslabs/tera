@@ -6,3 +6,8 @@ dependencies = ["jsonschema==4.26.0"]
 
 [tool.uv]
 package = false
+
+[dependency-groups]
+dev = [
+    "ruff==0.12.12",
+]

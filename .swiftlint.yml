@@ -10,8 +10,8 @@ disabled_rules:
   - closure_parameter_position
   - opening_brace
   - trailing_comma
-  # Existing package architecture is governed by tests and API checks; these
-  # metric and naming policies are not retrofit as Step 070 admission gates.
+  # Complexity/size metrics are run separately by swift-quality.sh against a
+  # checked exact baseline, so existing debt cannot hide new regressions.
   - cyclomatic_complexity
   - file_length
   - function_body_length

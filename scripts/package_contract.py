@@ -129,33 +129,43 @@ def parse_xcconfig_assignments(text: str) -> dict[str, str]:
 
 def parse_project_package(text: str, package_name: str) -> dict[str, str]:
     lines = text.splitlines()
-    packages_line = next(
-        (index for index, line in enumerate(lines) if line == "packages:"),
-        None,
+    packages_line, packages_end = _project_package_bounds(lines)
+    start = _project_package_start(lines, packages_line, packages_end, package_name)
+    return _project_package_fields(lines[start + 1 :])
+
+
+def _project_package_bounds(lines: list[str]) -> tuple[int, int]:
+    start = next(
+        (index for index, line in enumerate(lines) if line == "packages:"), None
     )
-    if packages_line is None:
+    if start is None:
         raise PackageContractError("project package inventory is absent")
-    expected_header = f"  {package_name}:"
-    packages_end = next(
+    end = next(
         (
             index
-            for index in range(packages_line + 1, len(lines))
+            for index in range(start + 1, len(lines))
             if lines[index] and not lines[index].startswith((" ", "#"))
         ),
         len(lines),
     )
-    start = next(
-        (
-            index
-            for index in range(packages_line + 1, packages_end)
-            if lines[index] == expected_header
-        ),
-        None,
+    return start, end
+
+
+def _project_package_start(
+    lines: list[str], start: int, end: int, package_name: str
+) -> int:
+    expected = f"  {package_name}:"
+    result = next(
+        (index for index in range(start + 1, end) if lines[index] == expected), None
     )
-    if start is None:
+    if result is None:
         raise PackageContractError("project package entry is absent")
+    return result
+
+
+def _project_package_fields(lines: list[str]) -> dict[str, str]:
     values: dict[str, str] = {}
-    for line in lines[start + 1 :]:
+    for line in lines:
         if line and not line.startswith("    "):
             break
         match = re.fullmatch(r"    ([a-z_]+): (\S+)", line)
@@ -224,7 +234,9 @@ def _swift_package(repo_root: Path) -> dict[str, Any]:
     try:
         value = json.loads(output)
     except (UnicodeDecodeError, json.JSONDecodeError) as error:
-        raise PackageContractError("Swift package manifest output is malformed") from error
+        raise PackageContractError(
+            "Swift package manifest output is malformed"
+        ) from error
     if not isinstance(value, dict):
         raise PackageContractError("Swift package manifest output is not an object")
     return value
@@ -236,22 +248,9 @@ def _apple_revision(package: dict[str, Any]) -> str:
         raise PackageContractError("Swift package dependencies are absent")
     matches: list[str] = []
     for dependency in dependencies:
-        item = _mapping(dependency, "Swift package dependency")
-        source = item.get("sourceControl")
-        if not isinstance(source, list) or len(source) != 1:
-            continue
-        identity = _mapping(source[0], "Swift package source")
-        remote = identity.get("location")
-        revision = identity.get("requirement")
-        remote_values = remote.get("remote") if isinstance(remote, dict) else None
-        if (
-            isinstance(remote_values, list)
-            and remote_values == [{"urlString": APPLE_KIT_REMOTE}]
-            and isinstance(revision, dict)
-            and isinstance(revision.get("revision"), list)
-            and len(revision["revision"]) == 1
-        ):
-            matches.append(revision["revision"][0])
+        candidate = _apple_dependency_revision(dependency)
+        if candidate is not None:
+            matches.append(candidate)
     if (
         len(matches) != 1
         or not isinstance(matches[0], str)
@@ -259,6 +258,25 @@ def _apple_revision(package: dict[str, Any]) -> str:
     ):
         raise PackageContractError("AppleKit dependency is not one exact revision")
     return matches[0]
+
+
+def _apple_dependency_revision(dependency: object) -> object | None:
+    item = _mapping(dependency, "Swift package dependency")
+    source = item.get("sourceControl")
+    if not isinstance(source, list) or len(source) != 1:
+        return None
+    identity = _mapping(source[0], "Swift package source")
+    remote = identity.get("location")
+    requirement = identity.get("requirement")
+    remote_values = remote.get("remote") if isinstance(remote, dict) else None
+    if remote_values != [{"urlString": APPLE_KIT_REMOTE}]:
+        return None
+    if not isinstance(requirement, dict):
+        return None
+    revisions = requirement.get("revision")
+    if not isinstance(revisions, list) or len(revisions) != 1:
+        return None
+    return revisions[0]
 
 
 def _validate_privacy(document: dict[str, Any]) -> None:
@@ -310,13 +328,14 @@ def _validate_ui_test_plist(document: dict[str, Any]) -> None:
         raise PackageContractError("UI test plist inventory is incomplete")
 
 
-def verify(repo_root: Path) -> tuple[str, str]:
-    root = repo_root.resolve()
+def _verify_repository_layout(root: Path) -> None:
     for forbidden in ("docs", ".github", ".act"):
         path = root / forbidden
         if path.exists() or path.is_symlink():
             raise PackageContractError("forbidden public repository root exists")
 
+
+def _verify_cargo_and_source(root: Path) -> tuple[str, str]:
     cargo = _read_toml(root / "Cargo.toml")
     workspace = _mapping(cargo.get("workspace"), "Cargo workspace")
     workspace_package = _mapping(workspace.get("package"), "Cargo workspace package")
@@ -370,7 +389,10 @@ def verify(repo_root: Path) -> tuple[str, str]:
     _exact(consumer.get("repository"), LIB_REMOTE, "consumer Lib remote")
     _exact(consumer.get("revision"), lib_revision, "consumer Lib revision")
     _exact(consumer.get("version"), release_version, "consumer Lib version")
+    return release_version, lib_revision
 
+
+def _verify_apple_dependencies(root: Path) -> str:
     package = _swift_package(root)
     _exact(package.get("name"), "radroots_ios_app", "Swift package name")
     _exact(package.get("defaultLocalization"), "en", "Swift localization")
@@ -380,13 +402,20 @@ def verify(repo_root: Path) -> tuple[str, str]:
         raise PackageContractError("project AppleKit field inventory differs")
     _exact(project.get("url"), APPLE_KIT_REMOTE, "project AppleKit remote")
     _exact(project.get("revision"), apple_revision, "project AppleKit revision")
+    return apple_revision
 
+
+def _verify_apple_configuration(root: Path) -> None:
     _validate_privacy(_read_plist(root / "Radroots/Resources/PrivacyInfo.xcprivacy"))
     _validate_app_plist(_read_plist(root / "Radroots/Info.plist"))
     _validate_ui_test_plist(_read_plist(root / "RadrootsUITests/Info.plist"))
 
-    base = parse_xcconfig_assignments(_read_text(root / "Radroots/Config/Base.xcconfig"))
-    debug = parse_xcconfig_assignments(_read_text(root / "Radroots/Config/Debug.xcconfig"))
+    base = parse_xcconfig_assignments(
+        _read_text(root / "Radroots/Config/Base.xcconfig")
+    )
+    debug = parse_xcconfig_assignments(
+        _read_text(root / "Radroots/Config/Debug.xcconfig")
+    )
     if set(base) != {
         "RADROOTS_FIELD_IOS_RUNTIME_MODE",
         "RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS",
@@ -423,9 +452,12 @@ def verify(repo_root: Path) -> tuple[str, str]:
         "debug Blossom origin",
     )
 
+
+def _verify_package_locks(root: Path, apple_revision: str) -> None:
     resolved_paths = (
         root / "Package.resolved",
-        root / "Radroots.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+        root
+        / "Radroots.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     )
     resolved = [_read_json(path) for path in resolved_paths]
     for document in resolved:
@@ -433,6 +465,8 @@ def verify(repo_root: Path) -> tuple[str, str]:
     if resolved[0].get("pins") != resolved[1].get("pins"):
         raise PackageContractError("Swift and Xcode package locks disagree")
 
+
+def _verify_persona_toolchain(root: Path) -> None:
     verifier_project = _read_toml(root / "scripts/persona-verifier/pyproject.toml")
     verifier_lock = _read_toml(root / "scripts/persona-verifier/uv.lock")
     verifier_metadata = _mapping(verifier_project.get("project"), "verifier project")
@@ -446,6 +480,10 @@ def verify(repo_root: Path) -> tuple[str, str]:
         ["jsonschema==4.26.0"],
         "verifier dependencies",
     )
+    dependency_groups = _mapping(
+        verifier_project.get("dependency-groups"), "verifier dependency groups"
+    )
+    _exact(dependency_groups, {"dev": ["ruff==0.12.12"]}, "verifier dev tools")
     _exact(verifier_lock.get("requires-python"), "==3.14.7", "verifier lock Python")
     package_rows = verifier_lock.get("package")
     if not isinstance(package_rows, list):
@@ -456,13 +494,19 @@ def verify(repo_root: Path) -> tuple[str, str]:
         if isinstance(item, dict)
     }
     _exact(locked_packages.get("jsonschema"), "4.26.0", "verifier jsonschema lock")
+    _exact(locked_packages.get("ruff"), "0.12.12", "verifier ruff lock")
 
+
+def _verify_required_files(root: Path) -> None:
     required_files = (
         ".swiftformat",
         ".swiftlint.yml",
+        "scripts/maintainability_ratchet.py",
         "scripts/local-social-fixture.py",
         "scripts/swift-quality.sh",
         "scripts/linux-shared-rust.sh",
+        "test-fixtures/maintainability-baseline.v1.json",
+        "test-fixtures/swiftlint-maintainability-baseline.v1.json",
         "test-fixtures/bud11-upload-authorization-mutations.v1.json",
         "test-fixtures/bud11-upload-authorization-mutations.v1.schema.json",
         "test-fixtures/local-social-personas.v1.json",
@@ -476,6 +520,17 @@ def verify(repo_root: Path) -> tuple[str, str]:
     for relative in ("scripts/swift-quality.sh", "scripts/linux-shared-rust.sh"):
         if not os.access(root / relative, os.X_OK):
             raise PackageContractError("required package command is not executable")
+
+
+def verify(repo_root: Path) -> tuple[str, str]:
+    root = repo_root.resolve()
+    _verify_repository_layout(root)
+    release_version, _ = _verify_cargo_and_source(root)
+    apple_revision = _verify_apple_dependencies(root)
+    _verify_apple_configuration(root)
+    _verify_package_locks(root, apple_revision)
+    _verify_persona_toolchain(root)
+    _verify_required_files(root)
     return release_version, apple_revision
 
 

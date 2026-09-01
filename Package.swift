@@ -59,6 +59,7 @@ let package = Package(
         "Runtime/RadrootsLifecycleCoordinator.swift",
         "Runtime/RadrootsRuntimeClient.swift",
         "Runtime/RadrootsRuntimeModels.swift",
+        "Runtime/RadrootsUserMessageClassifier.swift",
         "Runtime/RadrootsUserMessages.swift",
         "State/RadrootsAddStore.swift",
         "State/RadrootsConfigurationStore.swift",

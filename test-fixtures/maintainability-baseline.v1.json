@@ -1,0 +1,56 @@
+{
+  "schema": "radroots.ios.maintainability-baseline.v1",
+  "schema_version": 1,
+  "source_revision": "c63002bcc4d3f6656e93aabe4fca6bd771376629",
+  "thresholds": {
+    "swift_file_lines": 600,
+    "python_file_lines": 800,
+    "python_function_complexity": 10
+  },
+  "swift_file_exception": [
+    {"path": "Radroots/Runtime/RadrootsGeneratedRuntimeBackend.swift", "maximum_lines": 1696},
+    {"path": "Radroots/Runtime/RadrootsRuntimeClient.swift", "maximum_lines": 1371},
+    {"path": "Radroots/Runtime/RadrootsRuntimeModels.swift", "maximum_lines": 1244},
+    {"path": "Radroots/State/RadrootsAddStore.swift", "maximum_lines": 810},
+    {"path": "Radroots/State/RadrootsConfigurationStore.swift", "maximum_lines": 759},
+    {"path": "Radroots/Views/RadrootsSupportingViews.swift", "maximum_lines": 629},
+    {"path": "RadrootsTests/RadrootsAddStoreTests.swift", "maximum_lines": 1784},
+    {"path": "RadrootsTests/RadrootsStateMigrationTests.swift", "maximum_lines": 718},
+    {"path": "RadrootsUITests/RadrootsRemoteQualificationUITests.swift", "maximum_lines": 2212}
+  ],
+  "python_file_exception": [
+    {"path": "scripts/local-social-fixture.py", "maximum_lines": 2626},
+    {"path": "scripts/test_local_social_fixture.py", "maximum_lines": 1188}
+  ],
+  "python_complexity_exception": [
+    {"function": "scripts/local-social-fixture.py:BlossomHandler.do_PUT", "maximum_complexity": 11},
+    {"function": "scripts/local-social-fixture.py:FixtureState._publish_persona_event", "maximum_complexity": 13},
+    {"function": "scripts/local-social-fixture.py:FixtureState.upload", "maximum_complexity": 14},
+    {"function": "scripts/local-social-fixture.py:RelayHandler.handle", "maximum_complexity": 26},
+    {"function": "scripts/local-social-fixture.py:bounded_directory_inventory", "maximum_complexity": 12},
+    {"function": "scripts/local-social-fixture.py:directory_digest", "maximum_complexity": 16},
+    {"function": "scripts/local-social-fixture.py:exact_persona_test_node", "maximum_complexity": 11},
+    {"function": "scripts/local-social-fixture.py:load_exported_persona_attachments", "maximum_complexity": 31},
+    {"function": "scripts/local-social-fixture.py:matches", "maximum_complexity": 22},
+    {"function": "scripts/local-social-fixture.py:photo_attempt_matches", "maximum_complexity": 12},
+    {"function": "scripts/local-social-fixture.py:reconstruct_persona_result_v2", "maximum_complexity": 66},
+    {"function": "scripts/local-social-fixture.py:simulator_metadata", "maximum_complexity": 23},
+    {"function": "scripts/local-social-fixture.py:valid_blossom_authorization", "maximum_complexity": 29},
+    {"function": "scripts/local-social-fixture.py:valid_bud11_server_domain", "maximum_complexity": 12},
+    {"function": "scripts/local-social-fixture.py:valid_nostr_event", "maximum_complexity": 16},
+    {"function": "scripts/local-social-fixture.py:validate_persona_attempt_evidence", "maximum_complexity": 59},
+    {"function": "scripts/local-social-fixture.py:validate_persona_evidence", "maximum_complexity": 31},
+    {"function": "scripts/local-social-fixture.py:validate_persona_result", "maximum_complexity": 43},
+    {"function": "scripts/local-social-fixture.py:validate_persona_suite", "maximum_complexity": 28},
+    {"function": "scripts/local-social-fixture.py:verify_bip340", "maximum_complexity": 11},
+    {"function": "scripts/local-social-fixture.py:verify_persona", "maximum_complexity": 18},
+    {"function": "scripts/test_local_social_fixture.py:mutate_bud11_event", "maximum_complexity": 29}
+  ],
+  "bounded_module": [
+    "Radroots/Runtime/RadrootsUserMessageClassifier.swift",
+    "Radroots/Runtime/RadrootsUserMessages.swift",
+    "scripts/maintainability_ratchet.py",
+    "scripts/package_contract.py",
+    "scripts/test_package_contract.py"
+  ]
+}

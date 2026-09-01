@@ -82,7 +82,14 @@ This file applies to the complete standalone iOS app repository. A closer
   `make persona-verifier-bootstrap`; do not bypass it with ambient Python.
 - `make swift-quality` applies the checked-in SwiftFormat and SwiftLint policy
   to repository-owned package, app, unit-test, API-test, and UI-test sources;
-  generated bindings and dependency/build output are excluded.
+  generated bindings and dependency/build output are excluded. It also runs
+  the exact checked SwiftLint debt baseline, locked Ruff checks, and the
+  closed size/complexity ratchet. Do not broaden a legacy exception or add a
+  new exception to admit new code; decompose the new responsibility instead.
+- `make maintainability-check` is the narrow fail-closed physical-line and
+  Python-AST complexity gate. Its source revision records the pre-ratchet
+  inventory, exception ceilings may only decrease or disappear, and newly
+  bounded modules must remain below the fixed thresholds.
 - `make linux-shared-rust` runs the locked source-lock workspace in the pinned
   Linux x86_64 Rust runner while keeping Cargo caches and output under the
   extbuild project root.
