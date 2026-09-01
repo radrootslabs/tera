@@ -20,7 +20,7 @@ final class RadrootsTodayStore: ObservableObject {
 
     private let runtimeClient: RadrootsRuntimeClient
     private let pageSize: UInt16
-    private let now: @Sendable () -> UInt64
+    private let clock: RadrootsClock
     private let observationDelay: @Sendable (UInt32) async throws -> Void
     private var frozenAsOfUnixSeconds: UInt64?
     private var nextCursor: String?
@@ -35,16 +35,14 @@ final class RadrootsTodayStore: ObservableObject {
       contexts: [RadrootsLocalNetwork] = [],
       selectedContextID: String? = nil,
       pageSize: UInt16 = 20,
-      now: @escaping @Sendable () -> UInt64 = {
-            UInt64(Date().timeIntervalSince1970)
-        },
+      clock: RadrootsClock = .system,
       observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
             RadrootsRuntimeObservationBackoff.sleep
     ) {
         self.runtimeClient = runtimeClient
         self.contexts = Self.unique(contexts)
         self.pageSize = min(max(pageSize, 1), 100)
-        self.now = now
+        self.clock = clock
         self.observationDelay = observationDelay
         if let selectedContextID,
            self.contexts.contains(where: { $0.id == selectedContextID })
@@ -151,7 +149,7 @@ final class RadrootsTodayStore: ObservableObject {
             do {
                 _ = try await runtimeClient.refreshToday(
                   context: context,
-                  nowUnixSeconds: now(),
+                  nowUnixSeconds: clock.unixSeconds(),
                   update: update
                 )
             } catch {
@@ -160,7 +158,7 @@ final class RadrootsTodayStore: ObservableObject {
         }
 
         do {
-            let asOf = now()
+            let asOf = try clock.unixSeconds()
             let page = try await runtimeClient.todayPage(
                 request: .first(
                   context: context,

@@ -433,7 +433,12 @@ struct RadrootsAddView: View {
           .map { Date(timeIntervalSince1970: TimeInterval($0)) }
           ?? Date().addingTimeInterval(defaultOffset)
       },
-      set: { store.updateForm(keyPath, UInt64(max(1, $0.timeIntervalSince1970))) }
+      set: {
+        guard let value = try? RadrootsClock.unixSeconds(from: $0, requirePositive: true) else {
+          return
+        }
+        store.updateForm(keyPath, value)
+      }
     )
   }
 

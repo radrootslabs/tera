@@ -3,9 +3,11 @@ import RadrootsKitBindings
 
 private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked Sendable {
   private let signer: any RadrootsRuntimeSigner
+  private let clock: RadrootsClock
 
-  init(signer: any RadrootsRuntimeSigner) {
+  init(signer: any RadrootsRuntimeSigner, clock: RadrootsClock = .system) {
     self.signer = signer
+    self.clock = clock
   }
 
   func signerStatus() async -> SignerStatusRecord {
@@ -16,6 +18,9 @@ private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked 
   }
 
   func sign(request: HostSigningRequest) async -> HostSigningResult {
+    guard (try? clock.unixMilliseconds()) != nil else {
+      return failedClockResult(for: request)
+    }
     let purpose = request.purpose.appValue
     let outcome = await signer.sign(
       RadrootsRuntimeSigningRequest(
@@ -37,6 +42,9 @@ private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked 
         )
       }
     #endif
+    guard let completedAtUnixMilliseconds = try? clock.unixMilliseconds() else {
+      return failedClockResult(for: request)
+    }
     return HostSigningResult(
       schemaVersion: 1,
       outcome: outcome.generatedOutcome,
@@ -45,7 +53,20 @@ private final class RadrootsGeneratedHostSigner: RadrootsHostSigner, @unchecked 
       publicKey: request.publicKey,
       purpose: request.purpose,
       signatureHex: outcome.signatureHex,
-      completedAtUnixMs: UInt64(Date().timeIntervalSince1970 * 1000)
+      completedAtUnixMs: completedAtUnixMilliseconds
+    )
+  }
+
+  private func failedClockResult(for request: HostSigningRequest) -> HostSigningResult {
+    HostSigningResult(
+      schemaVersion: 1,
+      outcome: .failed,
+      operationId: request.operationId,
+      signerRequestId: request.signerRequestId,
+      publicKey: request.publicKey,
+      purpose: request.purpose,
+      signatureHex: nil,
+      completedAtUnixMs: 0
     )
   }
 }

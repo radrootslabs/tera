@@ -26,7 +26,7 @@ final class RadrootsTodayStoreTests: XCTestCase {
           runtimeClient: client,
           contexts: [context],
           pageSize: 1,
-          now: { 1_800_000_100 }
+          clock: .fixed(unixSeconds: 1_800_000_100)
         )
 
         await store.reload(refreshProjection: false)
@@ -65,7 +65,7 @@ final class RadrootsTodayStoreTests: XCTestCase {
         let store = RadrootsTodayStore(
           runtimeClient: client,
           contexts: [firstContext, secondContext],
-          now: { 1_800_000_100 }
+          clock: .fixed(unixSeconds: 1_800_000_100)
         )
 
         let staleRequest = Task { await store.reload(refreshProjection: false) }
@@ -167,7 +167,7 @@ final class RadrootsTodayStoreTests: XCTestCase {
         let store = RadrootsTodayStore(
           runtimeClient: client,
           contexts: [context],
-          now: { 1_800_000_100 }
+          clock: .fixed(unixSeconds: 1_800_000_100)
         )
 
         await store.reload()

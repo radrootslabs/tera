@@ -15,16 +15,16 @@ final class RadrootsSearchStore: ObservableObject {
     @Published private(set) var state: RadrootsSupportingLoadState = .idle
 
     private let runtimeClient: RadrootsRuntimeClient
-    private let now: @Sendable () -> UInt64
+    private let clock: RadrootsClock
     private var context: RadrootsLocalNetwork?
     private var generation: UInt64 = 0
 
     init(
       runtimeClient: RadrootsRuntimeClient,
-      now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) }
+      clock: RadrootsClock = .system
     ) {
         self.runtimeClient = runtimeClient
-        self.now = now
+        self.clock = clock
     }
 
     func configure(context: RadrootsLocalNetwork?) {
@@ -68,7 +68,7 @@ final class RadrootsSearchStore: ObservableObject {
               context: context,
               query: normalized,
               limit: 50,
-              asOfUnixSeconds: now()
+              asOfUnixSeconds: clock.unixSeconds()
             )
             guard requestedGeneration == generation, !Task.isCancelled else { return }
             results = Self.unique(loaded)
@@ -102,7 +102,7 @@ final class RadrootsMeStore: ObservableObject {
     @Published private(set) var observationState: RadrootsRuntimeObservationState = .inactive
 
     private let runtimeClient: RadrootsRuntimeClient
-    private let now: @Sendable () -> UInt64
+    private let clock: RadrootsClock
     private let observationDelay: @Sendable (UInt32) async throws -> Void
     private var context: RadrootsLocalNetwork?
     private var generation: UInt64 = 0
@@ -112,12 +112,12 @@ final class RadrootsMeStore: ObservableObject {
 
     init(
       runtimeClient: RadrootsRuntimeClient,
-      now: @escaping @Sendable () -> UInt64 = { UInt64(Date().timeIntervalSince1970) },
+      clock: RadrootsClock = .system,
       observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
             RadrootsRuntimeObservationBackoff.sleep
     ) {
         self.runtimeClient = runtimeClient
-        self.now = now
+        self.clock = clock
         self.observationDelay = observationDelay
     }
 
@@ -159,7 +159,7 @@ final class RadrootsMeStore: ObservableObject {
         do {
             let loaded = try await runtimeClient.me(
               context: context,
-              asOfUnixSeconds: now()
+              asOfUnixSeconds: clock.unixSeconds()
             )
             guard requestedGeneration == generation, !Task.isCancelled else { return }
             snapshot = loaded

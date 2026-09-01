@@ -139,24 +139,40 @@ struct RadrootsDiagnosticRecord: Codable, Sendable, Equatable {
 }
 
 actor RadrootsDiagnosticsBuffer: RadrootsTelemetry {
+  private struct Entry: Sendable {
+    let event: RadrootsTelemetryEvent
+    let occurredAtUnixMilliseconds: Int64
+  }
+
   private let capacity: Int
   private let policy = RadrootsTelemetryRedactionPolicy.default
-  private var events: [RadrootsTelemetryEvent] = []
+  private var events: [Entry] = []
 
   init(capacity: Int = 128) {
     self.capacity = min(max(capacity, 16), 256)
   }
 
   func record(_ event: RadrootsTelemetryEvent) {
-    events.append(policy.redacted(event))
+    guard let occurredAtUnixMilliseconds = try? RadrootsClock.signedUnixMilliseconds(
+      from: event.occurredAt
+    ) else {
+      return
+    }
+    events.append(
+      Entry(
+        event: policy.redacted(event),
+        occurredAtUnixMilliseconds: occurredAtUnixMilliseconds
+      )
+    )
     if events.count > capacity {
       events.removeFirst(events.count - capacity)
     }
   }
 
   func records() -> [RadrootsDiagnosticRecord] {
-    events.map { event in
-      RadrootsDiagnosticRecord(
+    events.map { entry in
+      let event = entry.event
+      return RadrootsDiagnosticRecord(
         name: event.name,
         category: event.category,
         level: event.level.rawValue,
@@ -165,7 +181,7 @@ actor RadrootsDiagnosticsBuffer: RadrootsTelemetry {
             (field.key, field.value.renderedValue)
           }
         ),
-        occurredAtUnixMilliseconds: Int64(event.occurredAt.timeIntervalSince1970 * 1000)
+        occurredAtUnixMilliseconds: entry.occurredAtUnixMilliseconds
       )
     }
   }

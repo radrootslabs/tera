@@ -250,6 +250,18 @@ then
     echo "error: presentation state bypasses the governed user-message catalog" >&2
     exit 1
 fi
+test -f "$repo_root/Radroots/Runtime/RadrootsCheckedTime.swift"
+grep -Fq 'UInt64(exactly: scaled.rounded(.down))' \
+    "$repo_root/Radroots/Runtime/RadrootsCheckedTime.swift"
+grep -Fq 'generation.addingReportingOverflow(1)' \
+    "$repo_root/Radroots/Runtime/RadrootsCheckedTime.swift"
+if rg -n \
+    'UInt64\([^[:cntrl:]]*timeIntervalSince1970|Int64\([^[:cntrl:]]*timeIntervalSince1970|\(upgraded\.generation \?\? 0\) \+ 1' \
+    "$repo_root/Radroots" --glob '*.swift'
+then
+    echo "error: production source bypasses checked time or generation conversion" >&2
+    exit 1
+fi
 
 for resolved in \
     "$repo_root/Package.resolved" \

@@ -6,7 +6,10 @@ final class RadrootsSupportingStoreTests: XCTestCase {
     func testSearchUsesCurrentContextDeduplicatesAndClearsEmptyQueries() async throws {
         let backend = SupportingBackend()
         let client = try await Self.startedClient(backend)
-        let store = RadrootsSearchStore(runtimeClient: client, now: { 1_800_000_000 })
+        let store = RadrootsSearchStore(
+          runtimeClient: client,
+          clock: .fixed(unixSeconds: 1_800_000_000)
+        )
         store.configure(context: Self.context(id: "farm"))
         store.updateQuery(" carrots ")
 
@@ -27,7 +30,10 @@ final class RadrootsSupportingStoreTests: XCTestCase {
     func testSearchContextChangeFencesLateResults() async throws {
         let backend = SupportingBackend(searchDelayNanoseconds: 40_000_000)
         let client = try await Self.startedClient(backend)
-        let store = RadrootsSearchStore(runtimeClient: client, now: { 1_800_000_000 })
+        let store = RadrootsSearchStore(
+          runtimeClient: client,
+          clock: .fixed(unixSeconds: 1_800_000_000)
+        )
         store.configure(context: Self.context(id: "first"))
         store.updateQuery("carrots")
 
@@ -45,7 +51,10 @@ final class RadrootsSupportingStoreTests: XCTestCase {
     func testMePreservesAdoptedProfileFieldsAndCurrentCards() async throws {
         let backend = SupportingBackend()
         let client = try await Self.startedClient(backend)
-        let store = RadrootsMeStore(runtimeClient: client, now: { 1_800_000_000 })
+        let store = RadrootsMeStore(
+          runtimeClient: client,
+          clock: .fixed(unixSeconds: 1_800_000_000)
+        )
         store.configure(context: Self.context(id: "farm"))
 
         await store.start()

@@ -75,17 +75,20 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
   private let picker: any RadrootsMediaPicker
   private let preparer: RadrootsAppleMediaPreparer
   private let transfer: any RadrootsBackgroundTransfer
+  private let clock: RadrootsClock
 
   init(
     roots: RadrootsAppleFileRoots,
     picker: any RadrootsMediaPicker,
     preparer: RadrootsAppleMediaPreparer,
-    transfer: any RadrootsBackgroundTransfer
+    transfer: any RadrootsBackgroundTransfer,
+    clock: RadrootsClock = .system
   ) {
     self.roots = roots
     self.picker = picker
     self.preparer = preparer
     self.transfer = transfer
+    self.clock = clock
   }
 
   static func production(
@@ -310,7 +313,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
     let prepared = try await preparer.prepareImage(
       RadrootsAppleImagePreparationRequest(source: .file(asset.file))
     )
-    return RadrootsPreparedMedia(
+    return try RadrootsPreparedMedia(
       opaqueReference: "media:\(prepared.sha256)",
       remoteURL: nil,
       sha256: prepared.sha256,
@@ -319,7 +322,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
       width: prepared.width,
       height: prepared.height,
       alt: "Farm photo",
-      preparedAtUnixSeconds: UInt64(Date().timeIntervalSince1970)
+      preparedAtUnixSeconds: clock.unixSeconds()
     )
   }
 

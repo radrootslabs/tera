@@ -4,6 +4,24 @@ import RadrootsKit
 import XCTest
 
 final class RadrootsLifecycleTests: XCTestCase {
+  func testDiagnosticsRejectPreEpochAndSignedOverflowTimestamps() async throws {
+    let buffer = RadrootsDiagnosticsBuffer()
+    for timestamp in [
+      TimeInterval(-1),
+      TimeInterval(Int64.max) / 1000 + 1,
+    ] {
+      try await buffer.record(
+        RadrootsTelemetryEvent(
+          name: "ios.lifecycle.invalid_clock",
+          occurredAt: Date(timeIntervalSince1970: timestamp)
+        )
+      )
+    }
+
+    let records = await buffer.records()
+    XCTAssertTrue(records.isEmpty)
+  }
+
   func testBackgroundEventsCompleteExactlyOnceBeforeAndAfterAttachment() async {
     let router = RadrootsBackgroundEventRouter()
     let first = CompletionProbe()

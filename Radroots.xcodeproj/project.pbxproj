@@ -12,6 +12,7 @@
 		27B7FB991398E2BE7034C72E /* RadrootsAddStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42C296DF1E35100FE59C04D3 /* RadrootsAddStoreTests.swift */; };
 		29A679AE87129E7CBAEA72E9 /* RadrootsRemoteQualificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F542C82F0CCB540500C711B /* RadrootsRemoteQualificationUITests.swift */; };
 		3BCAFE2B1A96BBE5D741D8FC /* RadrootsSupportingStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41B94CEAFD958CE92D6B9265 /* RadrootsSupportingStoreTests.swift */; };
+		3FA27C59441DFE8F1B276642 /* RadrootsClockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF79F087C35C4B0CFD5CAA68 /* RadrootsClockTests.swift */; };
 		51FE0A95B71A5D4EDCEB0748 /* RadrootsStateMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C26D512B6CBD1A9BE4780682 /* RadrootsStateMigrationTests.swift */; };
 		53C82BC2E86FCB582E8A8B32 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FD3E502CA8ADE621038AEB47 /* Localizable.strings */; };
 		60B853393C8DF4FDF2C01CAF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 81E991EAE0A0EAB4853747C6 /* PrivacyInfo.xcprivacy */; };
@@ -66,6 +67,7 @@
 		C26D512B6CBD1A9BE4780682 /* RadrootsStateMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsStateMigrationTests.swift; sourceTree = "<group>"; };
 		CAD74320A58874A7F7370505 /* RadrootsUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = RadrootsUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF484F988B3D1D3D81880388 /* RadrootsRootShellUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsRootShellUITests.swift; sourceTree = "<group>"; };
+		CF79F087C35C4B0CFD5CAA68 /* RadrootsClockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsClockTests.swift; sourceTree = "<group>"; };
 		D0451E8A8521D320172FFA35 /* RadrootsRuntimeClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsRuntimeClientTests.swift; sourceTree = "<group>"; };
 		D91770F919A06DB39186281B /* RadrootsTodayStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsTodayStoreTests.swift; sourceTree = "<group>"; };
 		D95CB1F4A964D87D2256DA9C /* RadrootsLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsLifecycleTests.swift; sourceTree = "<group>"; };
@@ -97,6 +99,7 @@
 			isa = PBXGroup;
 			children = (
 				42C296DF1E35100FE59C04D3 /* RadrootsAddStoreTests.swift */,
+				CF79F087C35C4B0CFD5CAA68 /* RadrootsClockTests.swift */,
 				D95CB1F4A964D87D2256DA9C /* RadrootsLifecycleTests.swift */,
 				8E51B7E9599732A711D60E1B /* RadrootsMediaStoreTests.swift */,
 				3EA625EE81EC684D43E43CD0 /* RadrootsRemoteQualificationTests.swift */,
@@ -359,6 +362,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				27B7FB991398E2BE7034C72E /* RadrootsAddStoreTests.swift in Sources */,
+				3FA27C59441DFE8F1B276642 /* RadrootsClockTests.swift in Sources */,
 				CD88BB6222151E0B8242F84A /* RadrootsLifecycleTests.swift in Sources */,
 				AEEF096F40BCBC6D66A3BF32 /* RadrootsMediaStoreTests.swift in Sources */,
 				A8D166BCD8AFCDAF764081BB /* RadrootsRemoteQualificationTests.swift in Sources */,

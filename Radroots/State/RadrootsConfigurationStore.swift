@@ -133,10 +133,16 @@ actor RadrootsConfigurationStore {
 
     private let bootstrap: RadrootsConfigurationBootstrap
     private let fileAccess: RadrootsAppleFileAccess
+    private let clock: RadrootsClock
 
-    init(bootstrap: RadrootsConfigurationBootstrap, roots: RadrootsAppleFileRoots) {
+    init(
+      bootstrap: RadrootsConfigurationBootstrap,
+      roots: RadrootsAppleFileRoots,
+      clock: RadrootsClock = .system
+    ) {
         self.bootstrap = bootstrap
         fileAccess = RadrootsAppleFileAccess(roots: roots)
+        self.clock = clock
     }
 
     func load() throws -> RadrootsAppConfiguration {
@@ -160,10 +166,10 @@ actor RadrootsConfigurationStore {
                     try persist(selected)
                 }
             } else {
-                selected = Self.bootstrapConfiguration(
+                selected = try Self.bootstrapConfiguration(
                   bootstrap,
                   profile: profile,
-                  generation: (upgraded.generation ?? 0) + 1,
+                  generation: Self.nextGeneration(after: upgraded.generation ?? 0),
                   activationState: .reconfigurationRequired,
                   bootstrapFingerprint: bootstrapFingerprint,
                   previousBlossomConfigFingerprint: upgraded.canonicalBlossomConfigFingerprint
@@ -345,10 +351,16 @@ actor RadrootsConfigurationStore {
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
             throw RadrootsConfigurationError.persistenceFailed
         }
+        let createdAtUnixMilliseconds: UInt64
+        do {
+            createdAtUnixMilliseconds = try clock.unixMilliseconds(requirePositive: true)
+        } catch {
+            throw RadrootsConfigurationError.persistenceFailed
+        }
         let value = RadrootsSourceGeneration(
           schemaVersion: 1,
           generationHex: bytes.map { String(format: "%02x", $0) }.joined(),
-          createdAtUnixMilliseconds: max(1, UInt64(Date().timeIntervalSince1970 * 1000))
+          createdAtUnixMilliseconds: createdAtUnixMilliseconds
         )
         do {
             let data = try JSONEncoder.radroots.encode(value)
@@ -409,6 +421,14 @@ actor RadrootsConfigurationStore {
             try fileAccess.write(.inline(data), to: Self.configurationFile)
         } catch {
             throw RadrootsConfigurationError.persistenceFailed
+        }
+    }
+
+    private static func nextGeneration(after generation: UInt64) throws -> UInt64 {
+        do {
+            return try RadrootsCheckedStateTransition.nextGeneration(after: generation)
+        } catch {
+            throw RadrootsConfigurationError.corruptStoredConfiguration
         }
     }
 

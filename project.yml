@@ -53,6 +53,7 @@ targets:
       - path: RadrootsTests/RadrootsAddStoreTests.swift
       - path: RadrootsTests/RadrootsSupportingStoreTests.swift
       - path: RadrootsTests/RadrootsLifecycleTests.swift
+      - path: RadrootsTests/RadrootsClockTests.swift
       - path: RadrootsTests/RadrootsRemoteQualificationTests.swift
       - path: RadrootsTests/RadrootsUserMessagesTests.swift
     settings:

@@ -274,6 +274,45 @@ final class RadrootsStateMigrationTests: XCTestCase {
         )
     }
 
+    func testMaximumStoredGenerationFailsAsCorruptionWithoutWrapping() async throws {
+        let fixture = try StateFixture()
+        defer { fixture.remove() }
+        let fileAccess = RadrootsAppleFileAccess(roots: fixture.roots)
+        _ = try await RadrootsConfigurationStore(
+          bootstrap: fixture.bootstrap,
+          roots: fixture.roots
+        ).load()
+        var persisted = try configurationObject(fileAccess)
+        persisted["generation"] = NSNumber(value: UInt64.max)
+        try fileAccess.write(
+          .inline(JSONSerialization.data(withJSONObject: persisted, options: [.sortedKeys])),
+          to: RadrootsFileReference(
+            scope: .data,
+            relativePath: "settings/radroots_configuration_v3.json"
+          )
+        )
+        let changedBootstrap = RadrootsConfigurationBootstrap(
+          runtimeMode: fixture.bootstrap.runtimeMode,
+          relayURLs: ["ws://127.0.0.1:7448"],
+          blossomOrigins: fixture.bootstrap.blossomOrigins,
+          keychainServicePrefix: fixture.bootstrap.keychainServicePrefix,
+          bundleIdentifier: fixture.bootstrap.bundleIdentifier,
+          appMetadata: fixture.bootstrap.appMetadata
+        )
+        let changed = RadrootsConfigurationStore(
+          bootstrap: changedBootstrap,
+          roots: fixture.roots
+        )
+
+        do {
+            _ = try await changed.load()
+            XCTFail("Maximum persisted generation must fail closed")
+        } catch {
+            XCTAssertEqual(error as? RadrootsConfigurationError, .corruptStoredConfiguration)
+        }
+        XCTAssertEqual(try configurationObject(fileAccess)["generation"] as? UInt64, .max)
+    }
+
     func testBootstrapActivationRetainsSelectedNetworkAndClearsPendingRollbackState() async throws {
         let fixture = try StateFixture()
         defer { fixture.remove() }
@@ -436,6 +475,34 @@ final class RadrootsStateMigrationTests: XCTestCase {
         XCTAssertNotEqual(
           RadrootsStableVisualIdentity(publicKeyHex: key).digestHex,
           RadrootsStableVisualIdentity(publicKeyHex: String(repeating: "cd", count: 32)).digestHex
+        )
+    }
+
+    func testSourceGenerationRejectsInvalidInjectedClockWithoutPersistence() async throws {
+        let fixture = try StateFixture()
+        defer { fixture.remove() }
+        for value in [TimeInterval.nan, -1, TimeInterval.greatestFiniteMagnitude, 0] {
+            let store = RadrootsConfigurationStore(
+              bootstrap: fixture.bootstrap,
+              roots: fixture.roots,
+              clock: RadrootsClock(now: { Date(timeIntervalSince1970: value) })
+            )
+            do {
+                _ = try await store.sourceGeneration()
+                XCTFail("Invalid clock value must fail closed")
+            } catch {
+                XCTAssertEqual(error as? RadrootsConfigurationError, .persistenceFailed)
+            }
+        }
+        let fileAccess = RadrootsAppleFileAccess(roots: fixture.roots)
+        XCTAssertThrowsError(
+          try fileAccess.read(
+            RadrootsFileReference(
+              scope: .data,
+              relativePath: "state/source_generation_v1.json"
+            ),
+            mode: .inline(maxBytes: RadrootsConfigurationStore.maximumStoredConfigurationBytes)
+          )
         )
     }
 

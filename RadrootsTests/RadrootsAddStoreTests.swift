@@ -372,8 +372,7 @@ final class RadrootsAddStoreTests: XCTestCase {
     let store = RadrootsAddStore(
       runtimeClient: client,
       identifier: { String(repeating: "f", count: 32) },
-      nowUnixSeconds: { 1_800_000_200 },
-      nowUnixMilliseconds: { 1_800_000_200_000 }
+      clock: .fixed(unixSeconds: 1_800_000_200)
     )
     await store.configure(snapshot: backend.snapshot())
     await store.start()

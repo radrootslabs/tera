@@ -27,8 +27,7 @@ final class RadrootsAddStore: ObservableObject {
   private let media: (any RadrootsAddMediaHandling)?
   private let observationDelay: @Sendable (UInt32) async throws -> Void
   private let identifier: @Sendable () -> String
-  private let nowUnixSeconds: @Sendable () -> UInt64
-  private let nowUnixMilliseconds: @Sendable () -> UInt64
+  private let clock: RadrootsClock
   private var generation: UInt64 = 0
   private var operationGeneration: UInt64?
   private var operationTask: Task<Void, Never>?
@@ -46,25 +45,19 @@ final class RadrootsAddStore: ObservableObject {
     identifier: @escaping @Sendable () -> String = {
       UUID().uuidString.replacingOccurrences(of: "-", with: "").lowercased()
     },
-    nowUnixSeconds: @escaping @Sendable () -> UInt64 = {
-      UInt64(Date().timeIntervalSince1970)
-    },
-    nowUnixMilliseconds: @escaping @Sendable () -> UInt64 = {
-      UInt64(Date().timeIntervalSince1970 * 1000)
-    },
+    clock: RadrootsClock = .system,
     observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
       RadrootsRuntimeObservationBackoff.sleep
   ) {
     self.runtimeClient = runtimeClient
     self.media = media
     self.identifier = identifier
-    self.nowUnixSeconds = nowUnixSeconds
-    self.nowUnixMilliseconds = nowUnixMilliseconds
+    self.clock = clock
     self.observationDelay = observationDelay
     form = Self.newForm(
       type: initialType,
       identifier: identifier,
-      nowUnixSeconds: nowUnixSeconds
+      clock: clock
     )
   }
 
@@ -178,7 +171,7 @@ final class RadrootsAddStore: ObservableObject {
     form = Self.newForm(
       type: type,
       identifier: identifier,
-      nowUnixSeconds: nowUnixSeconds
+      clock: clock
     )
     message = nil
   }
@@ -197,7 +190,7 @@ final class RadrootsAddStore: ObservableObject {
     form = Self.newForm(
       type: type ?? form.commandType,
       identifier: identifier,
-      nowUnixSeconds: nowUnixSeconds
+      clock: clock
     )
     message = nil
   }
@@ -476,8 +469,8 @@ final class RadrootsAddStore: ObservableObject {
           targetAddress: card.sourceAddress,
           reason: "Removed by author."
         ),
-        authoredAtUnixSeconds: self.nowUnixSeconds(),
-        persistedAtUnixMilliseconds: self.nowUnixMilliseconds()
+        authoredAtUnixSeconds: self.clock.unixSeconds(),
+        persistedAtUnixMilliseconds: self.clock.unixMilliseconds()
       )
       self.accept(status)
       status = try await self.runtimeClient.queueAddIntent(
@@ -761,7 +754,7 @@ final class RadrootsAddStore: ObservableObject {
   private static func newForm(
     type: RadrootsAddCommandType,
     identifier: @Sendable () -> String,
-    nowUnixSeconds: @Sendable () -> UInt64
+    clock: RadrootsClock
   ) -> RadrootsAddForm {
     var form = RadrootsAddForm.empty(type)
     if type == .createEvent || type == .createFoodAvailability {
@@ -771,7 +764,9 @@ final class RadrootsAddStore: ObservableObject {
       }
     }
     if type == .createEvent {
-      let now = nowUnixSeconds()
+      guard let now = try? clock.unixSeconds() else {
+        return form
+      }
       let start = now.addingReportingOverflow(3600).overflow ? now : now + 3600
       let end = start.addingReportingOverflow(3600).overflow ? start : start + 3600
       form.eventStartUnixSeconds = start
