@@ -228,6 +228,29 @@ then
     exit 1
 fi
 
+test -f "$repo_root/Radroots/Runtime/RadrootsUserMessages.swift"
+test -f "$repo_root/Radroots/Resources/en.lproj/Localizable.strings"
+grep -Fq 'enum RadrootsUserMessageKey: String, CaseIterable, Sendable' \
+    "$repo_root/Radroots/Runtime/RadrootsUserMessages.swift"
+grep -Fq 'RadrootsUserMessages.text(for: error, fallback:' \
+    "$repo_root/Radroots/State/RadrootsAddStore.swift"
+if rg -n '\(error as\? LocalizedError\)|\.localizedDescription' \
+    "$repo_root/Radroots" --glob '*.swift'
+then
+    echo "error: production UI projects a raw localized dependency error" >&2
+    exit 1
+fi
+if rg -n 'failure\.safeMessage' \
+    "$repo_root/Radroots/App" \
+    "$repo_root/Radroots/State" \
+    "$repo_root/Radroots/Views" \
+    "$repo_root/Radroots/Runtime/RadrootsLifecycleCoordinator.swift" \
+    --glob '*.swift'
+then
+    echo "error: presentation state bypasses the governed user-message catalog" >&2
+    exit 1
+fi
+
 for resolved in \
     "$repo_root/Package.resolved" \
     "$repo_root/Radroots.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"

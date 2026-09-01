@@ -115,21 +115,13 @@ final class RadrootsAppModel: ObservableObject {
           addMedia: mediaCoordinator
         )
         bootstrapFailure = nil
-      } catch let error as LocalizedError {
-        self.sessionStore = nil
-        productStores = nil
-        bootstrapFailure = .local(
-          operation: "app.bootstrap",
-          code: "ios.app.configuration_invalid",
-          safeMessage: error.errorDescription ?? "Radroots configuration is invalid."
-        )
       } catch {
         self.sessionStore = nil
         productStores = nil
         bootstrapFailure = .local(
           operation: "app.bootstrap",
           code: "ios.app.configuration_invalid",
-          safeMessage: "Radroots configuration is invalid."
+          safeMessage: RadrootsUserMessages.text(for: error, fallback: .configurationInvalid)
         )
       }
     }

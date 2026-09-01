@@ -224,22 +224,13 @@ actor RadrootsSessionStore {
     } catch let RadrootsRuntimeClientError.startup(failure) {
       guard generation == requestedGeneration else { return phase }
       phase = .failed(failure)
-    } catch let error as LocalizedError {
-      guard generation == requestedGeneration else { return phase }
-      phase = .failed(
-        .local(
-          operation: "session.start",
-          code: "ios.session.start_failed",
-          safeMessage: error.errorDescription ?? "Radroots could not start."
-        )
-      )
     } catch {
       guard generation == requestedGeneration else { return phase }
       phase = .failed(
         .local(
           operation: "session.start",
           code: "ios.session.start_failed",
-          safeMessage: "Radroots could not start."
+          safeMessage: RadrootsUserMessages.text(for: error, fallback: .startupFailed)
         )
       )
     }
@@ -451,14 +442,11 @@ actor RadrootsSessionStore {
 
   private func failIdentityOperation(_ error: Error) -> RadrootsSessionPhase {
     generation &+= 1
-    let message =
-      (error as? LocalizedError)?.errorDescription
-      ?? "The local identity operation could not be completed."
     phase = .failed(
       .local(
         operation: "identity.operation",
         code: "ios.identity.operation_failed",
-        safeMessage: message
+        safeMessage: RadrootsUserMessages.text(for: error, fallback: .identityOperationFailed)
       )
     )
     return phase

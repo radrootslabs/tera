@@ -76,6 +76,8 @@ extension RadrootsConfigurationError: LocalizedError {
 }
 
 actor RadrootsConfigurationStore {
+    static let maximumStoredConfigurationBytes = 64 * 1024
+
     private struct StoredConfigurationV3: Codable, Equatable {
         static let format = "radroots_ios_configuration_v3"
 
@@ -385,7 +387,10 @@ actor RadrootsConfigurationStore {
 
     private func read(_ file: RadrootsFileReference) throws -> Data? {
         do {
-            guard case let .inline(data) = try fileAccess.read(file, mode: .inline) else {
+            guard case let .inline(data) = try fileAccess.read(
+              file,
+              mode: .inline(maxBytes: Self.maximumStoredConfigurationBytes)
+            ) else {
                 throw RadrootsConfigurationError.persistenceFailed
             }
             return data

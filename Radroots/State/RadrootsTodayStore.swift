@@ -227,7 +227,7 @@ final class RadrootsTodayStore: ObservableObject {
         var attempt: UInt32 = 0
         while isStarted, observationGeneration == generation, !Task.isCancelled {
             observationState = .subscribing(attempt: attempt &+ 1)
-            var failureMessage = "Runtime observation ended unexpectedly."
+            var failureMessage = RadrootsUserMessages.text(.runtimeObservationUnavailable)
             do {
                 let changes = try await runtimeClient.changes(bufferCapacity: 16)
                 observationState = .active
@@ -242,9 +242,10 @@ final class RadrootsTodayStore: ObservableObject {
                     }
                 }
             } catch {
-                failureMessage =
-                    (error as? LocalizedError)?.errorDescription
-                        ?? "Runtime observation is temporarily unavailable."
+                failureMessage = RadrootsUserMessages.text(
+                  for: error,
+                  fallback: .runtimeObservationUnavailable
+                )
             }
             guard isStarted, observationGeneration == generation, !Task.isCancelled else { break }
             attempt = attempt == .max ? .max : attempt + 1
@@ -282,7 +283,7 @@ final class RadrootsTodayStore: ObservableObject {
             } else {
                 error as? RadrootsRuntimeFailure
             }
-        let message = failure?.safeMessage ?? "Today could not be loaded."
+        let message = RadrootsUserMessages.text(for: error, fallback: .todayUnavailable)
         guard let failure else { return .failed(message: message) }
         let category = failure.category.lowercased()
         if failure.retryable || category.contains("network") || category.contains("relay") {

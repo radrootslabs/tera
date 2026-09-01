@@ -398,9 +398,7 @@ final class RadrootsDiagnosticsStore: ObservableObject {
     } catch {
       activeExport = nil
       preparedExport = nil
-      message =
-        (error as? LocalizedError)?.errorDescription
-        ?? "Diagnostics export could not be prepared."
+      message = RadrootsUserMessages.text(.diagnosticsPrepareFailed)
     }
   }
 
@@ -410,9 +408,9 @@ final class RadrootsDiagnosticsStore: ObservableObject {
     preparedExport = nil
     switch result {
     case .success:
-      message = "Diagnostics exported."
+      message = RadrootsUserMessages.text(.diagnosticsExportSucceeded)
     case .failure:
-      message = "Diagnostics export was cancelled or failed."
+      message = RadrootsUserMessages.text(.diagnosticsExportFailed)
     }
     guard let export else { return }
     Task { await coordinator.releaseDiagnostics(export) }

@@ -13,7 +13,7 @@ packages:
     path: .
   RadrootsKit:
     url: https://github.com/radrootslabs/apple_kit.git
-    revision: e61386529422a6413a852f0233a196a88f4ded51
+    revision: 35aedb6b54ff645b663fecff26082b3e91fcb232
 
 targets:
   Radroots:
@@ -24,6 +24,7 @@ targets:
       - path: Radroots/App/App.swift
       - path: Radroots/Resources/Assets.xcassets
       - path: Radroots/Resources/PrivacyInfo.xcprivacy
+      - path: Radroots/Resources/en.lproj/Localizable.strings
     settings:
       base:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
@@ -53,6 +54,7 @@ targets:
       - path: RadrootsTests/RadrootsSupportingStoreTests.swift
       - path: RadrootsTests/RadrootsLifecycleTests.swift
       - path: RadrootsTests/RadrootsRemoteQualificationTests.swift
+      - path: RadrootsTests/RadrootsUserMessagesTests.swift
     settings:
       base:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64

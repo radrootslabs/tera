@@ -259,7 +259,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
         value,
         verification: accepted
           ? .accepted
-          : .rejected(code: "background_transfer_rust_verification_failed")
+          : .rejected(failure: .verificationRejected)
       )
     } catch is CancellationError {
       throw CancellationError()
@@ -428,8 +428,8 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
         )
       case .failed, .interrupted, .cancelled, .expired:
         throw Self.failure(
-          code: snapshot.errorMessage ?? "ios.add.background_upload_failed",
-          message: "The background photo upload did not complete."
+          code: snapshot.failure?.rawValue ?? "ios.add.background_upload_failed",
+          message: RadrootsUserMessages.text(.backgroundTransferFailed)
         )
       case .queued, .running:
         try await Task.sleep(for: .milliseconds(100))
@@ -539,9 +539,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
       _ request: RadrootsMediaImportRequest
     ) async throws -> RadrootsMediaImportResult {
       guard request.allowedMediaKinds == [.image], request.selectionLimit >= 1 else {
-        throw RadrootsCaptureIntakeError.invalidRequest(
-          "remote qualification accepts one image"
-        )
+        throw RadrootsCaptureIntakeError.invalidRequest
       }
       try RadrootsAppleFileAccess(roots: roots).write(
         .inline(RadrootsRemoteQualificationEnvironment.mediaFixtureData()),
@@ -556,9 +554,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
         let size = values.fileSize,
         (1 ... 40 * 1024 * 1024).contains(size)
       else {
-        throw RadrootsCaptureIntakeError.unavailable(
-          "remote qualification image is unavailable"
-        )
+        throw RadrootsCaptureIntakeError.unavailable
       }
       let asset = try RadrootsMediaAsset(
         source: .libraryImport,
@@ -575,9 +571,7 @@ actor RadrootsAddMediaCoordinator: RadrootsAddMediaHandling {
     func captureMedia(
       _: RadrootsMediaCaptureRequest
     ) async throws -> RadrootsMediaCaptureResult {
-      throw RadrootsCaptureIntakeError.unavailable(
-        "camera capture is outside remote qualification"
-      )
+      throw RadrootsCaptureIntakeError.unavailable
     }
   }
 #endif

@@ -388,7 +388,7 @@ final class RadrootsStateMigrationTests: XCTestCase {
             scope: .data,
             relativePath: "settings/radroots_configuration_v3.json"
           ),
-          mode: .inline
+          mode: .inline(maxBytes: RadrootsConfigurationStore.maximumStoredConfigurationBytes)
         )
         guard case let .inline(data) = source,
               let object = try JSONSerialization.jsonObject(with: data) as? [String: Any]

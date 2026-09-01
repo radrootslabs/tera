@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
   name: "radroots_ios_app",
+  defaultLocalization: "en",
   platforms: [
     .iOS(.v18),
   ],
@@ -13,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/radrootslabs/apple_kit.git",
-      revision: "e61386529422a6413a852f0233a196a88f4ded51"
+      revision: "35aedb6b54ff645b663fecff26082b3e91fcb232"
     ),
   ],
   targets: [
@@ -56,6 +57,7 @@ let package = Package(
         "Runtime/RadrootsLifecycleCoordinator.swift",
         "Runtime/RadrootsRuntimeClient.swift",
         "Runtime/RadrootsRuntimeModels.swift",
+        "Runtime/RadrootsUserMessages.swift",
         "State/RadrootsAddStore.swift",
         "State/RadrootsConfigurationStore.swift",
         "State/RadrootsIdentityStore.swift",
@@ -70,6 +72,7 @@ let package = Package(
       ],
       resources: [
         .process("Resources/PrivacyInfo.xcprivacy"),
+        .process("Resources/en.lproj/Localizable.strings"),
       ]
     ),
     .testTarget(

@@ -441,7 +441,7 @@ struct RadrootsRuntimeFailure: Error, Sendable, Equatable {
 
 extension RadrootsRuntimeFailure: LocalizedError {
   var errorDescription: String? {
-    safeMessage
+    RadrootsUserMessages.text(.runtimeOperationFailed)
   }
 }
 
@@ -460,22 +460,7 @@ enum RadrootsRuntimeClientError: Error, Sendable, Equatable {
 
 extension RadrootsRuntimeClientError: LocalizedError {
   var errorDescription: String? {
-    switch self {
-    case .invalidBufferCapacity:
-      "The requested runtime event buffer is outside the supported range."
-    case .notRunning:
-      "The Radroots runtime is not running."
-    case .superseded:
-      "A newer runtime lifecycle request replaced this request."
-    case let .startup(failure),
-      let .subscription(failure),
-      let .status(failure),
-      let .today(failure),
-      let .add(failure),
-      let .support(failure),
-      let .shutdown(failure):
-      failure.safeMessage
-    }
+    RadrootsUserMessages.text(for: self, fallback: .runtimeOperationFailed)
   }
 }
 

@@ -309,7 +309,7 @@ final class RadrootsAddStoreTests: XCTestCase {
       await invalidStore.start()
       XCTAssertEqual(
         invalidStore.state,
-        .failed("The Add product contract does not match this app.")
+        .failed(RadrootsUserMessages.text(.addOperationFailed))
       )
       XCTAssertFalse(invalidStore.isProductReady)
       XCTAssertFalse(invalidStore.canSave)
@@ -624,7 +624,7 @@ final class RadrootsAddStoreTests: XCTestCase {
 
     await store.submit()
 
-    XCTAssertEqual(store.message, failure.safeMessage)
+    XCTAssertEqual(store.message, RadrootsUserMessages.text(.addOperationFailed))
     XCTAssertEqual(store.lastFailureCode, failure.code)
     XCTAssertNil(store.activeDraft)
     _ = try await client.stop()
@@ -1599,11 +1599,11 @@ private struct BackgroundMediaPicker: RadrootsMediaPicker {
   }
 
   func importMedia(_: RadrootsMediaImportRequest) async throws -> RadrootsMediaImportResult {
-    throw RadrootsCaptureIntakeError.unavailable("not used")
+    throw RadrootsCaptureIntakeError.unavailable
   }
 
   func captureMedia(_: RadrootsMediaCaptureRequest) async throws -> RadrootsMediaCaptureResult {
-    throw RadrootsCaptureIntakeError.unavailable("not used")
+    throw RadrootsCaptureIntakeError.unavailable
   }
 }
 
@@ -1698,17 +1698,17 @@ private actor BackgroundTransferHarness: RadrootsBackgroundTransfer {
     verification: RadrootsBackgroundTransferVerification
   ) async throws {
     guard let value = values[identifier] else {
-      throw RadrootsBackgroundTransferError.transferFailure("missing snapshot")
+      throw RadrootsBackgroundTransferError.transferFailure
     }
     switch verification {
     case .accepted:
       acceptedSettlementCount += 1
       values[identifier] = try snapshot(request: value.request, state: .completed)
-    case let .rejected(code):
+    case let .rejected(failure):
       values[identifier] = try RadrootsBackgroundTransferSnapshot(
         request: value.request,
         state: .failed,
-        errorMessage: code
+        failure: failure
       )
     }
   }

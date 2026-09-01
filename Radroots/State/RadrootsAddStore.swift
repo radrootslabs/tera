@@ -649,7 +649,7 @@ final class RadrootsAddStore: ObservableObject {
     var attempt: UInt32 = 0
     while isStarted, observationGeneration == generation, !Task.isCancelled {
       observationState = .subscribing(attempt: attempt &+ 1)
-      var failureMessage = "Runtime observation ended unexpectedly."
+      var failureMessage = RadrootsUserMessages.text(.runtimeObservationUnavailable)
       do {
         let changes = try await runtimeClient.changes(bufferCapacity: 16)
         observationState = .active
@@ -664,9 +664,10 @@ final class RadrootsAddStore: ObservableObject {
           }
         }
       } catch {
-        failureMessage =
-          (error as? LocalizedError)?.errorDescription
-          ?? "Runtime observation is temporarily unavailable."
+        failureMessage = RadrootsUserMessages.text(
+          for: error,
+          fallback: .runtimeObservationUnavailable
+        )
       }
       guard isStarted, observationGeneration == generation, !Task.isCancelled else { break }
       attempt = attempt == .max ? .max : attempt + 1
@@ -732,7 +733,7 @@ final class RadrootsAddStore: ObservableObject {
       try await operation()
     } catch is CancellationError {
       if requestedGeneration == generation {
-        message = "The operation was cancelled."
+        message = RadrootsUserMessages.text(.operationCancelled)
       }
     } catch {
       if requestedGeneration == generation {
@@ -802,11 +803,7 @@ final class RadrootsAddStore: ObservableObject {
   }()
 
   private static func message(for error: Error) -> String {
-    if let failure = failure(for: error) {
-      return failure.safeMessage
-    }
-    return (error as? LocalizedError)?.errorDescription
-      ?? "The Add operation could not be completed."
+    RadrootsUserMessages.text(for: error, fallback: .addOperationFailed)
   }
 
   private static func failure(for error: Error) -> RadrootsRuntimeFailure? {

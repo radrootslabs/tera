@@ -173,10 +173,10 @@ final class RadrootsTodayStoreTests: XCTestCase {
         await store.reload()
 
         XCTAssertEqual(store.cards.map(\.id), ["cached"])
-        XCTAssertEqual(store.state, .offline(message: failure.safeMessage))
+        XCTAssertEqual(store.state, .offline(message: RadrootsUserMessages.text(.todayUnavailable)))
         await store.loadNextPage()
         XCTAssertEqual(store.cards.map(\.id), ["cached", "cached-next"])
-        XCTAssertEqual(store.state, .offline(message: failure.safeMessage))
+        XCTAssertEqual(store.state, .offline(message: RadrootsUserMessages.text(.todayUnavailable)))
         _ = try await client.stop()
     }
 

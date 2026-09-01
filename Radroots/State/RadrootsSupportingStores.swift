@@ -91,10 +91,7 @@ final class RadrootsSearchStore: ObservableObject {
     }
 
     private static func message(for error: Error) -> String {
-        if case let RadrootsRuntimeClientError.support(failure) = error {
-            return failure.safeMessage
-        }
-        return (error as? LocalizedError)?.errorDescription ?? "Search is unavailable."
+        RadrootsUserMessages.text(for: error, fallback: .searchUnavailable)
     }
 }
 
@@ -186,7 +183,7 @@ final class RadrootsMeStore: ObservableObject {
         var attempt: UInt32 = 0
         while isStarted, observationGeneration == generation, !Task.isCancelled {
             observationState = .subscribing(attempt: attempt &+ 1)
-            var failureMessage = "Runtime observation ended unexpectedly."
+            var failureMessage = RadrootsUserMessages.text(.runtimeObservationUnavailable)
             do {
                 let changes = try await runtimeClient.changes(bufferCapacity: 8)
                 observationState = .active
@@ -201,9 +198,10 @@ final class RadrootsMeStore: ObservableObject {
                     }
                 }
             } catch {
-                failureMessage =
-                    (error as? LocalizedError)?.errorDescription
-                        ?? "Runtime observation is temporarily unavailable."
+                failureMessage = RadrootsUserMessages.text(
+                  for: error,
+                  fallback: .runtimeObservationUnavailable
+                )
             }
             guard isStarted, observationGeneration == generation, !Task.isCancelled else { break }
             attempt = attempt == .max ? .max : attempt + 1
@@ -228,10 +226,7 @@ final class RadrootsMeStore: ObservableObject {
     }
 
     private static func message(for error: Error) -> String {
-        if case let RadrootsRuntimeClientError.support(failure) = error {
-            return failure.safeMessage
-        }
-        return (error as? LocalizedError)?.errorDescription ?? "Your profile is unavailable."
+        RadrootsUserMessages.text(for: error, fallback: .profileUnavailable)
     }
 }
 
@@ -443,12 +438,10 @@ final class RadrootsSettingsStore: ObservableObject {
     private func record(_ error: Error) {
         if case let RadrootsRuntimeClientError.support(failure) = error {
             failureCode = failure.code
-            message = failure.safeMessage
-            return
+        } else {
+            failureCode = "ios.settings.operation_failed"
         }
-        failureCode = "ios.settings.operation_failed"
-        message = (error as? LocalizedError)?.errorDescription
-            ?? "The requested settings operation could not be completed."
+        message = RadrootsUserMessages.text(for: error, fallback: .settingsOperationFailed)
     }
 
     private func optional(_ value: String) -> String? {

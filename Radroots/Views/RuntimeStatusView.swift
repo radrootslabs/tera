@@ -136,20 +136,16 @@ struct RuntimeStatusView: View {
             "Your local Nostr secret remains protected until you explicitly unlock it."
         case .protectedDataUnavailable:
             "Protected local data is unavailable while this device is locked."
-        case let .recoveryRequired(identity):
-            identity.recoveryCode ?? "A previous identity operation needs recovery."
-        case let .corruptIdentity(identity):
-            identity.recoveryCode ?? "Stored identity state is corrupt; it was not treated as absent."
-        case let .configurationReconfigurationRequired(requirement):
-            if let fingerprint = requirement.previousBlossomConfigFingerprint {
-                "Review and apply the new network configuration. Existing uploads remain bound to configuration \(fingerprint.prefix(12))…."
-            } else {
-                "Review and apply the new network configuration. Existing local identity and drafts are preserved."
-            }
+        case .recoveryRequired:
+            RadrootsUserMessages.text(.secureStateUnavailable)
+        case .corruptIdentity:
+            RadrootsUserMessages.text(.secureStateUnavailable)
+        case .configurationReconfigurationRequired:
+            "Review and apply the new network configuration. Existing local identity and drafts are preserved."
         case let .running(snapshot):
             "Runtime \(snapshot.crateVersion) is connected to your local data."
         case let .failed(failure):
-            failure.safeMessage
+            RadrootsUserMessages.text(for: failure, fallback: .runtimeOperationFailed)
         case .stopped:
             "Your durable local work is safe."
         }
