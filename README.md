@@ -166,6 +166,13 @@ The Rust source lock, generated bindings, XCFramework hashes, provenance, Swift
 package locks, privacy manifests, and public API snapshots are checked as part
 of the release lane.
 
+`make package-contract-check` evaluates the Swift package manifest and parses
+the TOML, plist, JSON, xcconfig, project-package, and lock inputs as structured,
+bounded data. It also runs the locked fixture and verifier unit suites.
+Comments, examples, unreachable source, and arbitrary matching text cannot
+satisfy a behavior-bearing package assertion; application behavior is proven
+by the compiled Swift and simulator test lanes.
+
 The unsigned release-evidence lane also regenerates a deterministic CycloneDX
 SBOM from the locked Rust and Swift dependency graphs and binds it to the
 checked-in locks, API snapshots, privacy inputs, Xcode project, XCFramework
