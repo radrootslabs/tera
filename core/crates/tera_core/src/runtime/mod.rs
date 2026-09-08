@@ -1,0 +1,223 @@
+pub mod app_info;
+pub mod builder;
+pub mod info;
+pub mod product_surface;
+pub mod sdk;
+pub mod store;
+
+use chrono::Utc;
+use radroots_identity::PublicKey;
+use radroots_sdk::{Client, ClientBuilder};
+#[cfg(feature = "mobile-social")]
+use std::path::PathBuf;
+use std::sync::{
+    RwLock,
+    atomic::{AtomicBool, Ordering},
+};
+
+use self::{
+    app_info::AppInfoPlatform,
+    info::{RuntimeInfo, gather_runtime_info},
+};
+use crate::RadrootsAppError;
+
+pub struct RadrootsRuntime {
+    pub(crate) client: Client,
+    pub(crate) started_unix_ms: i64,
+    pub(crate) shutting_down: AtomicBool,
+    pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
+    pub(crate) store_public_key: Option<PublicKey>,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) settings_lock: tokio::sync::Mutex<()>,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) identity_session: tokio::sync::RwLock<Option<(u64, product_surface::IdentityState)>>,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) inbound_media_directory: Option<PathBuf>,
+    #[cfg(feature = "mobile-social")]
+    pub(crate) inbound_media_lock: tokio::sync::Mutex<()>,
+}
+
+impl RadrootsRuntime {
+    pub(crate) fn from_client_builder(
+        builder: ClientBuilder,
+        store_public_key: Option<PublicKey>,
+        #[cfg(feature = "mobile-social")] inbound_media_directory: Option<PathBuf>,
+        #[cfg(feature = "mobile-social")] signer: Option<
+            std::sync::Arc<dyn radroots_signing::Signer>,
+        >,
+        #[cfg(feature = "mobile-social")] relay_profile: Option<
+            radroots_sdk::transport::RelayProfile,
+        >,
+        #[cfg(feature = "mobile-social")] blossom_config: Option<
+            radroots_sdk::transport::BlossomConfig,
+        >,
+    ) -> Result<Self, RadrootsAppError> {
+        #[cfg(feature = "mobile-social")]
+        let builder = {
+            let nostr_slot = radroots_sdk::transport::NostrSlot::new();
+            if let Some(profile) = relay_profile {
+                nostr_slot
+                    .configure(profile)
+                    .map_err(RadrootsAppError::from_sdk)?;
+            }
+            let builder = builder
+                .nostr(nostr_slot)
+                .blossom({
+                    let slot = radroots_sdk::transport::BlossomSlot::new();
+                    if let Some(config) = blossom_config {
+                        slot.configure(config)
+                            .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?;
+                    }
+                    slot
+                })
+                .host_sync(radroots_sdk::sync::HostPolicy::standard());
+            match signer {
+                Some(signer) => builder.signing(radroots_sdk::signing::Provider::host(signer)),
+                None => builder,
+            }
+        };
+        let client = builder.build().map_err(RadrootsAppError::from_sdk)?;
+
+        Ok(Self {
+            client,
+            started_unix_ms: Utc::now().timestamp_millis(),
+            shutting_down: AtomicBool::new(false),
+            platform_app: RwLock::new(None),
+            store_public_key,
+            #[cfg(feature = "mobile-social")]
+            settings_lock: tokio::sync::Mutex::new(()),
+            #[cfg(feature = "mobile-social")]
+            identity_session: tokio::sync::RwLock::new(None),
+            #[cfg(feature = "mobile-social")]
+            inbound_media_directory,
+            #[cfg(feature = "mobile-social")]
+            inbound_media_lock: tokio::sync::Mutex::new(()),
+        })
+    }
+
+    #[cfg(test)]
+    pub(crate) fn test_memory() -> Result<Self, RadrootsAppError> {
+        Self::from_client_builder(
+            ClientBuilder::memory_default(),
+            None,
+            #[cfg(feature = "mobile-social")]
+            None,
+            #[cfg(feature = "mobile-social")]
+            None,
+            #[cfg(feature = "mobile-social")]
+            None,
+            #[cfg(feature = "mobile-social")]
+            None,
+        )
+    }
+
+    /// Closes SDK resources asynchronously across every runtime reference.
+    ///
+    /// Dropping the returned future before its first poll has no effect. If a
+    /// host cancels after close begins, it must call `shutdown` again; the SDK
+    /// remains unavailable and resumes the explicit close attempt. Completed
+    /// calls are idempotent and no blocking destructor is installed.
+    pub async fn shutdown(&self) -> Result<sdk::SdkShutdownRecord, RadrootsAppError> {
+        let already_closed = self.client.is_closed();
+        self.shutting_down.store(true, Ordering::Release);
+        self.client
+            .close()
+            .await
+            .map_err(RadrootsAppError::from_sdk)?;
+        Ok(sdk::SdkShutdownRecord {
+            state: "closed".to_owned(),
+            already_closed,
+        })
+    }
+
+    pub fn uptime_millis(&self) -> i64 {
+        Utc::now().timestamp_millis() - self.started_unix_ms
+    }
+
+    /// Returns the canonical public identity that scopes durable storage.
+    /// Explicit unit-test memory runtimes are the only runtimes without one.
+    pub fn authenticated_store_public_key_hex(&self) -> Option<String> {
+        self.store_public_key.map(|key| key.to_hex())
+    }
+
+    pub fn info(&self) -> RuntimeInfo {
+        gather_runtime_info(self)
+    }
+
+    pub fn info_json(&self) -> String {
+        serde_json::to_string_pretty(&self.info())
+            .unwrap_or_else(|error| format!(r#"{{"error":"serialize RuntimeInfo: {error}"}}"#))
+    }
+
+    pub fn set_app_info_platform(
+        &self,
+        platform: Option<String>,
+        bundle_id: Option<String>,
+        version: Option<String>,
+        build_number: Option<String>,
+        build_sha: Option<String>,
+    ) {
+        let platform_info =
+            AppInfoPlatform::new(platform, bundle_id, version, build_number, build_sha);
+        if let Ok(mut guard) = self.platform_app.write() {
+            *guard = Some(platform_info);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::RadrootsRuntime;
+    use radroots_sdk::capability::{Availability, CapabilityId};
+    use std::panic::{AssertUnwindSafe, catch_unwind};
+
+    fn poison_platform_lock(runtime: &RadrootsRuntime) {
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            let _guard = runtime.platform_app.write().expect("lock platform");
+            panic!("poison platform lock");
+        }));
+    }
+
+    #[test]
+    fn runtime_owns_one_sdk_client() {
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let storage = runtime
+            .client
+            .capabilities()
+            .get(CapabilityId::CANONICAL_STORAGE)
+            .expect("storage capability");
+        assert_eq!(storage.availability(), Availability::Available);
+        assert!(!runtime.client.is_closed());
+    }
+
+    #[test]
+    fn set_platform_info_handles_poisoned_lock() {
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        runtime.set_app_info_platform(
+            Some("ios".to_owned()),
+            Some("org.radroots.app".to_owned()),
+            Some("1.0.0".to_owned()),
+            Some("100".to_owned()),
+            Some("abc123".to_owned()),
+        );
+        assert_eq!(
+            runtime
+                .info()
+                .app
+                .platform
+                .as_ref()
+                .and_then(|value| value.platform.clone()),
+            Some("ios".to_owned())
+        );
+        poison_platform_lock(&runtime);
+        runtime.set_app_info_platform(None, None, None, None, None);
+    }
+
+    #[test]
+    fn runtime_metadata_helpers_are_host_safe() {
+        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        assert!(runtime.uptime_millis() >= 0);
+        let json = runtime.info_json();
+        assert!(json.contains("sdk"));
+    }
+}
