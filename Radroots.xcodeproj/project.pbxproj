@@ -14,6 +14,7 @@
 		3BCAFE2B1A96BBE5D741D8FC /* RadrootsSupportingStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 41B94CEAFD958CE92D6B9265 /* RadrootsSupportingStoreTests.swift */; };
 		3FA27C59441DFE8F1B276642 /* RadrootsClockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF79F087C35C4B0CFD5CAA68 /* RadrootsClockTests.swift */; };
 		51FE0A95B71A5D4EDCEB0748 /* RadrootsStateMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C26D512B6CBD1A9BE4780682 /* RadrootsStateMigrationTests.swift */; };
+		5372708DA5127DFB175A3828 /* RadrootsCalendarFFICompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 969358BEB12ED1EDAAF4F28B /* RadrootsCalendarFFICompatibilityTests.swift */; };
 		53C82BC2E86FCB582E8A8B32 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = FD3E502CA8ADE621038AEB47 /* Localizable.strings */; };
 		60B853393C8DF4FDF2C01CAF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 81E991EAE0A0EAB4853747C6 /* PrivacyInfo.xcprivacy */; };
 		75C044403AF08F7230DE9485 /* RadrootsRootShellUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF484F988B3D1D3D81880388 /* RadrootsRootShellUITests.swift */; };
@@ -62,6 +63,7 @@
 		81E991EAE0A0EAB4853747C6 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		8E51B7E9599732A711D60E1B /* RadrootsMediaStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsMediaStoreTests.swift; sourceTree = "<group>"; };
 		93AA285819DD1269C3EAD80A /* Radroots.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Radroots.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		969358BEB12ED1EDAAF4F28B /* RadrootsCalendarFFICompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsCalendarFFICompatibilityTests.swift; sourceTree = "<group>"; };
 		9F54FC4930051FC4611B37D3 /* ios_app */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ios_app; path = .; sourceTree = SOURCE_ROOT; };
 		B8F89E4B3A775E88F661B891 /* RadrootsRootShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsRootShellTests.swift; sourceTree = "<group>"; };
 		C26D512B6CBD1A9BE4780682 /* RadrootsStateMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadrootsStateMigrationTests.swift; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 			isa = PBXGroup;
 			children = (
 				42C296DF1E35100FE59C04D3 /* RadrootsAddStoreTests.swift */,
+				969358BEB12ED1EDAAF4F28B /* RadrootsCalendarFFICompatibilityTests.swift */,
 				CF79F087C35C4B0CFD5CAA68 /* RadrootsClockTests.swift */,
 				D95CB1F4A964D87D2256DA9C /* RadrootsLifecycleTests.swift */,
 				8E51B7E9599732A711D60E1B /* RadrootsMediaStoreTests.swift */,
@@ -362,6 +365,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				27B7FB991398E2BE7034C72E /* RadrootsAddStoreTests.swift in Sources */,
+				5372708DA5127DFB175A3828 /* RadrootsCalendarFFICompatibilityTests.swift in Sources */,
 				3FA27C59441DFE8F1B276642 /* RadrootsClockTests.swift in Sources */,
 				CD88BB6222151E0B8242F84A /* RadrootsLifecycleTests.swift in Sources */,
 				AEEF096F40BCBC6D66A3BF32 /* RadrootsMediaStoreTests.swift in Sources */,
