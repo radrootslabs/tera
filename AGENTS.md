@@ -20,6 +20,11 @@ This file applies to the complete standalone iOS app repository. A closer
   generated project/source inputs, and the package locks are machine evidence.
   Do not hand-edit generated bindings, XCFramework contents, provenance, SBOM,
   project output, or API snapshots.
+- `RadrootsFFI/producer.toml` separately governs the owned Tera producer.
+  Stage its declared source inputs before `make ffi-source-write`; check with
+  `make ffi-source-check`. Source records identify a staged input tree and exact
+  build tuple under extbuild output. They do not establish installed artifacts
+  or remote release qualification; installed provenance remains separate.
 - Human specifications, decisions, migration history, runbooks, and
   qualification evidence are parent-owned under `docs/oss/ios_app/**`. They
   are absent from a standalone clone and must never become a build, test,

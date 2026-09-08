@@ -20,6 +20,9 @@ readonly -a MAINTAINABILITY_RULES=(
   type_body_length
 )
 readonly -a PYTHON_QUALITY_PATHS=(
+  scripts/ffi_source.py
+  scripts/ffi_provenance.py
+  scripts/test_ffi_provenance.py
   scripts/maintainability_ratchet.py
   scripts/package_contract.py
   scripts/test_maintainability_ratchet.py

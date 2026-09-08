@@ -2,12 +2,14 @@ SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
 FFI_ROOT := RadrootsFFI
+FFI_TARGET ?= aarch64-apple-ios
 SIMULATOR_NAME ?= iPhone 17 Pro
 SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
 
 .NOTPARALLEL:
 
 .PHONY: all doctor bootstrap persona-verifier-bootstrap ffi-bootstrap artifact-check package-contract-check \
+	ffi-source-write ffi-source-check \
 	swift-quality maintainability-check \
 	linux-shared-rust \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
@@ -27,6 +29,12 @@ persona-verifier-bootstrap: doctor
 
 artifact-check: doctor
 	cargo extbuild run -- $(FFI_ROOT)/scripts/verify-installed-artifacts.sh
+
+ffi-source-write: doctor
+	cargo extbuild run -- scripts/ffi-provenance.sh write --target '$(FFI_TARGET)'
+
+ffi-source-check: doctor
+	cargo extbuild run -- scripts/ffi-provenance.sh check --target '$(FFI_TARGET)'
 
 package-contract-check: doctor
 	cargo extbuild run -- scripts/verify-package-contract.sh

@@ -20,6 +20,13 @@ preserves the current five creation families, Today/Add tabs, installed identity
 and persisted operation formats. Each moved package replaces its old source
 only with verified history, compatibility and generated-artifact evidence.
 
+`RadrootsFFI/producer.toml` separately governs the owned Tera FFI producer.
+After staging its source inputs, `make ffi-source-write ffi-source-check`
+captures and checks the exact source tree, foundation lock, target, features and
+toolchains under extbuild output. Select a supported target with `FFI_TARGET`.
+This is local source evidence; the installed native artifacts retain their
+existing source lock until the native cutover.
+
 ## Requirements
 
 - macOS with Xcode and an iOS 18-or-newer simulator

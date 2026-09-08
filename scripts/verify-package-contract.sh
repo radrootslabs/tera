@@ -7,11 +7,14 @@ python_project="$repo_root/scripts/persona-verifier"
 uv run --project "$python_project" --offline --frozen \
 	python "$repo_root/scripts/package_contract.py" --repo-root "$repo_root"
 
+sh "$repo_root/scripts/ffi-provenance.sh" contract-check
+
 (
 	cd "$repo_root"
 	uv run --project "$python_project" --offline --frozen \
 		python -m unittest \
 		scripts/test_package_contract.py \
+		scripts/test_ffi_provenance.py \
 		scripts/test_local_social_fixture.py
 )
 
