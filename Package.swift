@@ -3,13 +3,13 @@
 import PackageDescription
 
 let package = Package(
-  name: "radroots_ios_app",
+  name: "tera",
   defaultLocalization: "en",
   platforms: [
     .iOS(.v18),
   ],
   products: [
-    .library(name: "RadrootsApp", targets: ["RadrootsApp"]),
+    .library(name: "TeraApp", targets: ["TeraApp"]),
   ],
   dependencies: [
     .package(
@@ -19,58 +19,58 @@ let package = Package(
   ],
   targets: [
     .binaryTarget(
-      name: "RadrootsFFI",
-      path: "Radroots/Frameworks/RadrootsFFI.xcframework"
+      name: "TeraFFI",
+      path: "Tera/Frameworks/TeraFFI.xcframework"
     ),
     .target(
-      name: "RadrootsKitBindings",
-      dependencies: ["RadrootsFFI"],
-      path: "Radroots/Generated",
+      name: "TeraKitBindings",
+      dependencies: ["TeraFFI"],
+      path: "Tera/Generated",
       swiftSettings: [
         .swiftLanguageMode(.v5),
       ]
     ),
     .target(
-      name: "RadrootsApp",
+      name: "TeraApp",
       dependencies: [
-        "RadrootsKitBindings",
+        "TeraKitBindings",
         .product(name: "RadrootsKit", package: "apple_kit"),
       ],
-      path: "Radroots",
+      path: "Tera",
       exclude: [
         "App/App.swift",
         "Config",
         "Frameworks",
         "Generated",
         "Info.plist",
-        "radroots.xcconfig",
+        "tera.xcconfig",
       ],
       sources: [
         "App/AppEntry.swift",
-        "App/RadrootsAppDelegate.swift",
-        "App/RadrootsAppModel.swift",
-        "App/RadrootsProvider.swift",
-        "App/RadrootsRemoteQualification.swift",
-        "App/RadrootsRemoteQualificationEvidence.swift",
-        "App/RadrootsRootShell.swift",
-        "Runtime/RadrootsAddMediaCoordinator.swift",
-        "Runtime/RadrootsCheckedTime.swift",
-        "Runtime/RadrootsGeneratedRuntimeBackend.swift",
-        "Runtime/RadrootsLifecycleCoordinator.swift",
-        "Runtime/RadrootsRuntimeClient.swift",
-        "Runtime/RadrootsRuntimeModels.swift",
-        "Runtime/RadrootsUserMessageClassifier.swift",
-        "Runtime/RadrootsUserMessages.swift",
-        "State/RadrootsAddStore.swift",
-        "State/RadrootsConfigurationStore.swift",
-        "State/RadrootsIdentityStore.swift",
-        "State/RadrootsMediaStore.swift",
-        "State/RadrootsSessionStore.swift",
-        "State/RadrootsSupportingStores.swift",
-        "State/RadrootsTodayStore.swift",
-        "Views/RadrootsAddView.swift",
-        "Views/RadrootsSupportingViews.swift",
-        "Views/RadrootsTodayView.swift",
+        "App/TeraAppDelegate.swift",
+        "App/TeraAppModel.swift",
+        "App/TeraProvider.swift",
+        "App/TeraRemoteQualification.swift",
+        "App/TeraRemoteQualificationEvidence.swift",
+        "App/TeraRootShell.swift",
+        "Runtime/TeraAddMediaCoordinator.swift",
+        "Runtime/TeraCheckedTime.swift",
+        "Runtime/TeraGeneratedRuntimeBackend.swift",
+        "Runtime/TeraLifecycleCoordinator.swift",
+        "Runtime/TeraRuntimeClient.swift",
+        "Runtime/TeraRuntimeModels.swift",
+        "Runtime/TeraUserMessageClassifier.swift",
+        "Runtime/TeraUserMessages.swift",
+        "State/TeraAddStore.swift",
+        "State/TeraConfigurationStore.swift",
+        "State/TeraIdentityStore.swift",
+        "State/TeraMediaStore.swift",
+        "State/TeraSessionStore.swift",
+        "State/TeraSupportingStores.swift",
+        "State/TeraTodayStore.swift",
+        "Views/TeraAddView.swift",
+        "Views/TeraSupportingViews.swift",
+        "Views/TeraTodayView.swift",
         "Views/RuntimeStatusView.swift",
       ],
       resources: [
@@ -79,14 +79,14 @@ let package = Package(
       ]
     ),
     .testTarget(
-      name: "RadrootsAppTests",
-      dependencies: ["RadrootsApp"],
-      path: "RadrootsTests"
+      name: "TeraAppTests",
+      dependencies: ["TeraApp"],
+      path: "TeraTests"
     ),
     .testTarget(
-      name: "RadrootsAppPublicAPITests",
-      dependencies: ["RadrootsApp"],
-      path: "RadrootsPublicAPITests"
+      name: "TeraAppPublicAPITests",
+      dependencies: ["TeraApp"],
+      path: "TeraPublicAPITests"
     ),
   ],
   swiftLanguageModes: [.v6]

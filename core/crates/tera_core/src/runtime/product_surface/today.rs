@@ -52,7 +52,7 @@ use super::{
 };
 #[cfg(any(feature = "mobile-social", test))]
 use super::{Phase1MediaCachePolicy, Phase1VerifiedMediaReceipt};
-use crate::runtime::RadrootsRuntime;
+use crate::runtime::TeraRuntime;
 
 const TODAY_PROJECTION_ID: &str = "radroots.today.v1";
 const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 1;
@@ -216,7 +216,7 @@ struct FrozenTodaySnapshot {
     items: Vec<TodayCard>,
 }
 
-impl RadrootsRuntime {
+impl TeraRuntime {
     /// Pulls bounded Today-relevant relay pages, canonically admits valid
     /// observations, and materializes the selected LocalNetwork projection.
     #[cfg(feature = "mobile-social")]
@@ -1013,7 +1013,7 @@ impl RadrootsRuntime {
 
 #[cfg(feature = "mobile-social")]
 async fn load_structural_reference(
-    runtime: &RadrootsRuntime,
+    runtime: &TeraRuntime,
     context: &LocalNetwork,
     reference_fingerprint: [u8; 32],
 ) -> Result<Phase1StructuralMediaReference, TodayError> {
@@ -1073,7 +1073,7 @@ fn inbound_now_unix_ms() -> Result<u64, TodayError> {
 
 #[cfg(feature = "mobile-social")]
 async fn record_inbound_failure(
-    runtime: &RadrootsRuntime,
+    runtime: &TeraRuntime,
     context: &LocalNetwork,
     reference_fingerprint: [u8; 32],
     operation_id: [u8; 16],
@@ -2231,7 +2231,7 @@ mod tests {
     }
 
     async fn ingest(
-        runtime: &RadrootsRuntime,
+        runtime: &TeraRuntime,
         context: &LocalNetwork,
         event: SignedEvent,
         at: u64,
@@ -2244,7 +2244,7 @@ mod tests {
 
     #[allow(clippy::too_many_arguments)]
     async fn verify_inbound_media(
-        runtime: &RadrootsRuntime,
+        runtime: &TeraRuntime,
         context: &LocalNetwork,
         source_url: &str,
         bytes: &[u8],
@@ -2401,7 +2401,7 @@ mod tests {
             .host_sync(radroots_sdk::sync::HostPolicy::standard())
             .build()
             .expect("client");
-        let runtime = RadrootsRuntime {
+        let runtime = TeraRuntime {
             client,
             started_unix_ms: 1,
             shutting_down: AtomicBool::new(false),
@@ -2443,7 +2443,7 @@ mod tests {
 
     #[tokio::test]
     async fn equal_timestamp_pages_are_complete_and_remain_frozen_across_ingest() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         let context = context(None, 1);
         for content in ["alpha", "bravo", "charlie"] {
             ingest(
@@ -2496,7 +2496,7 @@ mod tests {
 
     #[tokio::test]
     async fn profile_thread_media_search_me_context_and_rebuild_share_one_projection() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         let context = context(Some("victoria"), 7);
         let author = keys().public_key().to_string();
         let profile_bytes = b"profile picture";
@@ -2907,7 +2907,7 @@ mod tests {
 
     #[tokio::test]
     async fn legacy_enum_only_media_migrates_to_unavailable_and_repersists() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         let context = context(None, 1);
         let bytes = b"legacy profile";
         let hash = BlossomSha256::digest(bytes).to_hex();
@@ -2983,7 +2983,7 @@ mod tests {
 
     #[tokio::test]
     async fn replacement_and_deletion_change_only_current_today_truth() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         let context = context(None, 1);
         let active = signed(
             30_402,
@@ -3354,7 +3354,7 @@ mod tests {
 
     #[tokio::test]
     async fn fail_closed_requests_cursors_overlays_and_projection_guards_are_executable() {
-        let mut runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let mut runtime = TeraRuntime::test_memory().expect("runtime");
         let context = context(None, 1);
         let note = signed(1, Vec::new(), "guarded alpha", 2_000_000_000);
         assert!(matches!(

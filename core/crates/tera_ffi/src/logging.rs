@@ -40,9 +40,9 @@ pub fn init_logging(
     dir: Option<String>,
     file_name: Option<String>,
     is_stdout: Option<bool>,
-) -> Result<(), crate::RadrootsAppError> {
+) -> Result<(), crate::TeraAppError> {
     let opts = logging_options(dir, file_name, is_stdout);
-    initialize(opts).map_err(crate::RadrootsAppError::initialization)
+    initialize(opts).map_err(crate::TeraAppError::initialization)
 }
 
 fn logging_options(
@@ -142,24 +142,24 @@ fn build_file_writer(
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn init_logging_stdout() -> Result<(), crate::RadrootsAppError> {
-    initialize(LoggingOptions::default()).map_err(crate::RadrootsAppError::initialization)
+pub fn init_logging_stdout() -> Result<(), crate::TeraAppError> {
+    initialize(LoggingOptions::default()).map_err(crate::TeraAppError::initialization)
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn log_info(msg: String) -> Result<(), crate::RadrootsAppError> {
+pub fn log_info(msg: String) -> Result<(), crate::TeraAppError> {
     tracing::info!("{msg}");
     Ok(())
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn log_error(msg: String) -> Result<(), crate::RadrootsAppError> {
+pub fn log_error(msg: String) -> Result<(), crate::TeraAppError> {
     tracing::error!("{msg}");
     Ok(())
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
-pub fn log_debug(msg: String) -> Result<(), crate::RadrootsAppError> {
+pub fn log_debug(msg: String) -> Result<(), crate::TeraAppError> {
     tracing::debug!("{msg}");
     Ok(())
 }

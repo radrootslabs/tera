@@ -21,12 +21,12 @@ INPUTS = [
     "Makefile",
     "core",
     "scripts",
-    "RadrootsFFI/Makefile",
-    "RadrootsFFI/scripts",
-    "RadrootsFFI/producer.toml",
+    "TeraFFI/Makefile",
+    "TeraFFI/scripts",
+    "TeraFFI/producer.toml",
     "radroots.lib.source-lock.v1.toml",
 ]
-PRODUCER_PATH = "RadrootsFFI/producer.toml"
+PRODUCER_PATH = "TeraFFI/producer.toml"
 
 
 class ProvenanceError(Exception):

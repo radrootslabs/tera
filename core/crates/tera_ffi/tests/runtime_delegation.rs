@@ -11,7 +11,7 @@ use tera_ffi::{
     FfiRelayAccessPreference, FfiRelayAccessRecord, FfiRelayPreferenceRecord,
     FfiRelayPreferencesRecord, FfiRelaySatisfaction, FfiReplaceSettingsRecord,
     FfiRetractionDraftInput, FfiRevisionInputRecord, FfiRevisionPhase, FfiTodayCardType,
-    FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError,
+    FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, TeraAppError,
 };
 
 mod support;
@@ -837,14 +837,14 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     runtime.shutdown().await.expect("shutdown");
     assert!(matches!(
         runtime.sdk_storage_status().await,
-        Err(RadrootsAppError::Failure { .. })
+        Err(TeraAppError::Failure { .. })
     ));
     assert!(matches!(
         runtime.sdk_relay_status(),
-        Err(RadrootsAppError::Failure { .. })
+        Err(TeraAppError::Failure { .. })
     ));
     assert!(matches!(
         runtime.configure_public_relays(Vec::new()),
-        Err(RadrootsAppError::Failure { .. })
+        Err(TeraAppError::Failure { .. })
     ));
 }

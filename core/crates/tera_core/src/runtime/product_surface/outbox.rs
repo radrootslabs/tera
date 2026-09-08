@@ -43,7 +43,7 @@ use super::{
     AddCommandType, CardId, CardSourceIdentity, LocalAuthorOverlay, LocalNetwork, Phase1AddCommand,
     ProfileMetadataCommand, TodayCardType, TodayError, phase1_retraction_plan,
 };
-use crate::runtime::RadrootsRuntime;
+use crate::runtime::TeraRuntime;
 
 const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
 const PROFILE_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-profile.v1";
@@ -56,8 +56,8 @@ const ADD_DELIVERY_TIMEOUT_MS: u64 = 24 * 60 * 60 * 1_000;
 const BLOSSOM_AUTHORIZATION_BACKDATE_SECONDS: u64 = 5;
 const BLOSSOM_AUTHORIZATION_LIFETIME_SECONDS: u64 = 5 * 60;
 const BLOSSOM_SIGNING_TIMEOUT_MS: u64 = 60 * 1_000;
-const BLOSSOM_AUTHORIZATION_CONTENT: &str = "Upload exact Radroots image";
-const REVISION_RETRACTION_REASON: &str = "Replaced by a corrected Radroots event";
+const BLOSSOM_AUTHORIZATION_CONTENT: &str = "Upload exact Tera image";
+const REVISION_RETRACTION_REASON: &str = "Replaced by a corrected Tera event";
 
 /// Product intent represented by one durable draft/outbox item.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
@@ -1205,7 +1205,7 @@ impl Phase1DraftPayload {
     }
 }
 
-impl RadrootsRuntime {
+impl TeraRuntime {
     /// Persists a strict kind-0 profile intent before any signing or network
     /// side effect. Identity and timestamps remain Rust-owned.
     pub async fn phase1_save_profile_metadata(
@@ -3318,8 +3318,8 @@ mod tests {
     const AUTHOR: &str = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
     const SECRET: &str = "0000000000000000000000000000000000000000000000000000000000000001";
 
-    fn runtime() -> RadrootsRuntime {
-        RadrootsRuntime::from_client_builder(
+    fn runtime() -> TeraRuntime {
+        TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
@@ -3330,8 +3330,8 @@ mod tests {
         .unwrap()
     }
 
-    fn profiled_runtime(profile: radroots_sdk::transport::RelayProfile) -> RadrootsRuntime {
-        RadrootsRuntime::from_client_builder(
+    fn profiled_runtime(profile: radroots_sdk::transport::RelayProfile) -> TeraRuntime {
+        TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
@@ -3342,12 +3342,12 @@ mod tests {
         .unwrap()
     }
 
-    fn signing_runtime() -> RadrootsRuntime {
+    fn signing_runtime() -> TeraRuntime {
         let signer = radroots_nostr::signing::LocalSigner::new(
             radroots_nostr::key::SecretKey::parse(SECRET).unwrap(),
         )
         .unwrap();
-        RadrootsRuntime::from_client_builder(
+        TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
@@ -3753,7 +3753,7 @@ mod tests {
             radroots_nostr::key::SecretKey::parse(SECRET).unwrap(),
         )
         .unwrap();
-        let runtime = RadrootsRuntime::from_client_builder(
+        let runtime = TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
@@ -4196,7 +4196,7 @@ mod tests {
         let hash = BlossomSha256::digest(b"exact upload bytes");
         let server = ServerDomain::parse("media.example").unwrap();
         let claim = AuthoredUploadClaim::new(
-            AuthorizationContent::parse("Upload exact Radroots image").unwrap(),
+            AuthorizationContent::parse("Upload exact Tera image").unwrap(),
             server.clone(),
             hash,
             1_900_000_000,

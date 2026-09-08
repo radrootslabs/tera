@@ -1,5 +1,5 @@
 use tera_core::{
-    RadrootsRuntime,
+    TeraRuntime,
     runtime::{
         builder::RuntimeBuilder,
         store::{MobileUserStoreConfig, ProtectedDataAvailability},
@@ -23,7 +23,7 @@ pub fn store(root: &std::path::Path) -> MobileUserStoreConfig {
 }
 
 #[allow(dead_code)]
-pub async fn runtime() -> (tempfile::TempDir, RadrootsRuntime) {
+pub async fn runtime() -> (tempfile::TempDir, TeraRuntime) {
     let root = tempfile::tempdir().expect("tempdir");
     let runtime = RuntimeBuilder::new(store(root.path()))
         .build()

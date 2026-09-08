@@ -1,5 +1,5 @@
 {
-  "schema": "radroots.ios.local-social.bud11-mutations.v1",
+  "schema": "tera.ios.local-social.bud11-mutations.v1",
   "schema_version": 1,
   "vectors": [
     {"id": "canonical", "mutation": "none", "surface": "http", "expected_accepted": true},

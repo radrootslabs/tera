@@ -25,13 +25,13 @@ case "$operation" in
     resolve)
         exec xcodebuild \
             -resolvePackageDependencies \
-            -project Radroots.xcodeproj \
-            -scheme Radroots \
+            -project Tera.xcodeproj \
+            -scheme Tera \
             "${output_args[@]}"
         ;;
     package-build)
         exec xcodebuild \
-            -scheme RadrootsApp \
+            -scheme TeraApp \
             -destination 'generic/platform=iOS Simulator' \
             "${output_args[@]}" \
             "${offline_args[@]}" \
@@ -41,7 +41,7 @@ case "$operation" in
     package-test)
         destination=${2:?package-test requires a simulator destination}
         exec xcodebuild \
-            -scheme RadrootsAppPublicAPITests \
+            -scheme TeraAppPublicAPITests \
             -destination "$destination" \
             "${output_args[@]}" \
             "${offline_args[@]}" \
@@ -54,8 +54,8 @@ case "$operation" in
             *) echo "error: unsupported configuration: $configuration" >&2; exit 1 ;;
         esac
         exec xcodebuild \
-            -project Radroots.xcodeproj \
-            -scheme Radroots \
+            -project Tera.xcodeproj \
+            -scheme Tera \
             -configuration "$configuration" \
             -destination 'generic/platform=iOS Simulator' \
             "${output_args[@]}" \
@@ -66,12 +66,12 @@ case "$operation" in
         destination=${2:?project-test requires a simulator destination}
         test_target=${3:?project-test requires a test target}
         case "$test_target" in
-            RadrootsTests|RadrootsUITests) ;;
+            TeraTests|TeraUITests) ;;
             *) echo "error: unsupported test target: $test_target" >&2; exit 1 ;;
         esac
         exec xcodebuild \
-            -project Radroots.xcodeproj \
-            -scheme Radroots \
+            -project Tera.xcodeproj \
+            -scheme Tera \
             -destination "$destination" \
             "${output_args[@]}" \
             "${offline_args[@]}" \
@@ -81,10 +81,10 @@ case "$operation" in
     physical-app-build)
         destination=${2:?physical app build requires a device destination}
         xcconfig=${3:?physical app build requires an xcconfig}
-        physical_automation=${RADROOTS_IOS_PHYSICAL_AUTOMATION:-}
-        development_team=${RADROOTS_IOS_DEVELOPMENT_TEAM:?RADROOTS_IOS_DEVELOPMENT_TEAM is required}
+        physical_automation=${TERA_IOS_PHYSICAL_AUTOMATION:-}
+        development_team=${TERA_IOS_DEVELOPMENT_TEAM:?TERA_IOS_DEVELOPMENT_TEAM is required}
         if [[ "$physical_automation" != "1" ]]; then
-            echo "error: physical app build requires RADROOTS_IOS_PHYSICAL_AUTOMATION=1" >&2
+            echo "error: physical app build requires TERA_IOS_PHYSICAL_AUTOMATION=1" >&2
             exit 64
         fi
         if [[ ! "$destination" =~ ^id=[A-Fa-f0-9-]+$ ]]; then
@@ -100,7 +100,7 @@ case "$operation" in
             exit 64
         fi
         device_id=${destination#id=}
-        lock_state_file=$(mktemp "${TMPDIR:-/tmp}/radroots-ios-lock-state.XXXXXX")
+        lock_state_file=$(mktemp "${TMPDIR:-/tmp}/tera-ios-lock-state.XXXXXX")
         trap 'unlink "$lock_state_file"' EXIT
         if ! xcrun devicectl device info lockState \
             --device "$device_id" \
@@ -120,8 +120,8 @@ case "$operation" in
             exit 1
         fi
         exec xcodebuild \
-            -project Radroots.xcodeproj \
-            -scheme Radroots \
+            -project Tera.xcodeproj \
+            -scheme Tera \
             -configuration Debug \
             -destination "$destination" \
             -xcconfig "$xcconfig" \
@@ -136,9 +136,9 @@ case "$operation" in
         destination=${2:?local-social-ui-test requires a simulator destination}
         result_name=${3:?local-social-ui-test requires a result name}
         scenario=${4:-five-flow}
-        qualification_run_id=${RADROOTS_IOS_UI_TEST_RUN_ID:?RADROOTS_IOS_UI_TEST_RUN_ID is required}
-        relay_port=${RADROOTS_IOS_LOCAL_SOCIAL_RELAY_PORT:-21000}
-        blossom_port=${RADROOTS_IOS_LOCAL_SOCIAL_BLOSSOM_PORT:-21100}
+        qualification_run_id=${TERA_IOS_UI_TEST_RUN_ID:?TERA_IOS_UI_TEST_RUN_ID is required}
+        relay_port=${TERA_IOS_LOCAL_SOCIAL_RELAY_PORT:-21000}
+        blossom_port=${TERA_IOS_LOCAL_SOCIAL_BLOSSOM_PORT:-21100}
         if [[ ! "$destination" =~ ^platform=iOS\ Simulator,id=[A-Fa-f0-9-]+$ ]]; then
             echo "error: local-social-ui-test destination must be one exact simulator id" >&2
             exit 64
@@ -163,14 +163,14 @@ case "$operation" in
         fi
         case "$scenario" in
             five-flow)
-                test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialFiveFlowScenario
+                test_selector=TeraUITests/TeraRemoteQualificationUITests/testLocalSocialFiveFlowScenario
                 evidence_command=verify
                 simulator_id=${destination##*id=}
                 previous_content_size=
                 requested_content_size=large
                 ;;
             accessibility)
-                test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialAccessibilitySemantics
+                test_selector=TeraUITests/TeraRemoteQualificationUITests/testLocalSocialAccessibilitySemantics
                 evidence_command=verify-accessibility
                 simulator_id=${destination##*id=}
                 previous_content_size=
@@ -179,7 +179,7 @@ case "$operation" in
                 persona_result=
                 ;;
             persona)
-                test_selector=RadrootsUITests/RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas
+                test_selector=TeraUITests/TeraRemoteQualificationUITests/testLocalSocialDeterministicPersonas
                 evidence_command=verify-persona
                 simulator_id=${destination##*id=}
                 previous_content_size=
@@ -214,11 +214,11 @@ case "$operation" in
             simulator_sdk_build=$(xcrun --sdk iphonesimulator --show-sdk-build-version)
             app_build_sha256=$(
                 printf 'radroots.ios.local-social.app-build.v1\0%s\0%s\0%s\0%s\0%s\0%s\0%s\0' \
-                    "$source_commit" "$source_tree" RadrootsUITests test Debug \
+                    "$source_commit" "$source_tree" TeraUITests test Debug \
                     "$xcode_identity" "$simulator_sdk_build" \
                     | shasum -a 256 | awk '{print $1}'
             )
-            persona_repair_commit=${RADROOTS_IOS_UI_TEST_FORWARD_REPAIR_COMMIT:-}
+            persona_repair_commit=${TERA_IOS_UI_TEST_FORWARD_REPAIR_COMMIT:-}
             if [[ "$source_commit" != "$upstream" ]]; then
                 echo "error: persona qualification source is not equal to its configured upstream" >&2
                 exit 1
@@ -287,24 +287,24 @@ case "$operation" in
         xcrun simctl ui "$simulator_id" content_size "$requested_content_size"
         set +e
         xcodebuild \
-            -project Radroots.xcodeproj \
-            -scheme Radroots \
+            -project Tera.xcodeproj \
+            -scheme Tera \
             -configuration Debug \
             -destination "$destination" \
             "${output_args[@]}" \
             "${offline_args[@]}" \
             -resultBundlePath "$result_bundle" \
             "-only-testing:$test_selector" \
-            "RADROOTS_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
-            "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS=ws://127.0.0.1:$relay_port" \
-            "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=http://127.0.0.1:$blossom_port" \
-            "RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL=$control" \
-            "RADROOTS_IOS_UI_TEST_FIXTURE_EVIDENCE=$evidence" \
-            "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE=simulator" \
-            "RADROOTS_IOS_UI_TEST_SOURCE_COMMIT=${source_commit:-}" \
-            "RADROOTS_IOS_UI_TEST_SOURCE_TREE=${source_tree:-}" \
-            "RADROOTS_IOS_UI_TEST_APP_BUILD_SHA256=${app_build_sha256:-}" \
-            "RADROOTS_IOS_UI_TEST_SIMULATOR_ID=$simulator_id" \
+            "TERA_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
+            "TERA_IOS_UI_TEST_NOSTR_RELAY_URLS=ws://127.0.0.1:$relay_port" \
+            "TERA_IOS_UI_TEST_BLOSSOM_ORIGINS=http://127.0.0.1:$blossom_port" \
+            "TERA_IOS_UI_TEST_FIXTURE_CONTROL=$control" \
+            "TERA_IOS_UI_TEST_FIXTURE_EVIDENCE=$evidence" \
+            "TERA_IOS_UI_TEST_NETWORK_PROFILE=simulator" \
+            "TERA_IOS_UI_TEST_SOURCE_COMMIT=${source_commit:-}" \
+            "TERA_IOS_UI_TEST_SOURCE_TREE=${source_tree:-}" \
+            "TERA_IOS_UI_TEST_APP_BUILD_SHA256=${app_build_sha256:-}" \
+            "TERA_IOS_UI_TEST_SIMULATOR_ID=$simulator_id" \
             test
         test_status=$?
         set -e
@@ -337,16 +337,16 @@ case "$operation" in
         ;;
     remote-ui-test)
         destination=${2:?remote-ui-test requires a simulator destination}
-        test_selector=${3:?remote-ui-test requires a RadrootsUITests selector}
+        test_selector=${3:?remote-ui-test requires a TeraUITests selector}
         result_name=${4:?remote-ui-test requires a result name}
-        qualification_run_id=${RADROOTS_IOS_UI_TEST_RUN_ID:?RADROOTS_IOS_UI_TEST_RUN_ID is required}
-        blossom_origins=${RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS:?RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS is required}
-        relay_urls=${RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS:-}
+        qualification_run_id=${TERA_IOS_UI_TEST_RUN_ID:?TERA_IOS_UI_TEST_RUN_ID is required}
+        blossom_origins=${TERA_IOS_UI_TEST_BLOSSOM_ORIGINS:?TERA_IOS_UI_TEST_BLOSSOM_ORIGINS is required}
+        relay_urls=${TERA_IOS_UI_TEST_NOSTR_RELAY_URLS:-}
         if [[ ! "$destination" =~ ^platform=iOS\ Simulator,id=[A-Fa-f0-9-]+$ ]]; then
             echo "error: remote-ui-test destination must be one exact simulator id" >&2
             exit 64
         fi
-        if [[ ! "$test_selector" =~ ^RadrootsUITests(/[-A-Za-z0-9_]+){0,2}$ ]]; then
+        if [[ ! "$test_selector" =~ ^TeraUITests(/[-A-Za-z0-9_]+){0,2}$ ]]; then
             echo "error: remote-ui-test selector is invalid" >&2
             exit 64
         fi
@@ -365,38 +365,38 @@ case "$operation" in
         fi
         mkdir -p "$XCODE_RESULTS"
         exec xcodebuild \
-            -project Radroots.xcodeproj \
-            -scheme Radroots \
+            -project Tera.xcodeproj \
+            -scheme Tera \
             -configuration Debug \
             -destination "$destination" \
             "${output_args[@]}" \
             "${offline_args[@]}" \
             -resultBundlePath "$result_bundle" \
             "-only-testing:$test_selector" \
-            "RADROOTS_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
-            "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS=$relay_urls" \
-            "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=$blossom_origins" \
-            "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE=public" \
+            "TERA_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
+            "TERA_IOS_UI_TEST_NOSTR_RELAY_URLS=$relay_urls" \
+            "TERA_IOS_UI_TEST_BLOSSOM_ORIGINS=$blossom_origins" \
+            "TERA_IOS_UI_TEST_NETWORK_PROFILE=public" \
             test
         ;;
     physical-ui-build|physical-ui-test)
         destination=${2:?physical UI qualification requires a device destination}
-        test_selector=${3:?physical UI qualification requires a RadrootsUITests selector}
+        test_selector=${3:?physical UI qualification requires a TeraUITests selector}
         result_name=${4:-}
-        physical_automation=${RADROOTS_IOS_UI_TEST_PHYSICAL_AUTOMATION:-}
-        development_team=${RADROOTS_IOS_DEVELOPMENT_TEAM:?RADROOTS_IOS_DEVELOPMENT_TEAM is required}
-        qualification_run_id=${RADROOTS_IOS_UI_TEST_RUN_ID:?RADROOTS_IOS_UI_TEST_RUN_ID is required}
-        blossom_origins=${RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS:?RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS is required}
-        relay_urls=${RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS:-}
+        physical_automation=${TERA_IOS_UI_TEST_PHYSICAL_AUTOMATION:-}
+        development_team=${TERA_IOS_DEVELOPMENT_TEAM:?TERA_IOS_DEVELOPMENT_TEAM is required}
+        qualification_run_id=${TERA_IOS_UI_TEST_RUN_ID:?TERA_IOS_UI_TEST_RUN_ID is required}
+        blossom_origins=${TERA_IOS_UI_TEST_BLOSSOM_ORIGINS:?TERA_IOS_UI_TEST_BLOSSOM_ORIGINS is required}
+        relay_urls=${TERA_IOS_UI_TEST_NOSTR_RELAY_URLS:-}
         if [[ "$physical_automation" != "1" ]]; then
-            echo "error: physical UI qualification requires RADROOTS_IOS_UI_TEST_PHYSICAL_AUTOMATION=1" >&2
+            echo "error: physical UI qualification requires TERA_IOS_UI_TEST_PHYSICAL_AUTOMATION=1" >&2
             exit 64
         fi
         if [[ ! "$destination" =~ ^id=[A-Fa-f0-9-]+$ ]]; then
             echo "error: physical-ui-test destination must be one exact device id" >&2
             exit 64
         fi
-        if [[ ! "$test_selector" =~ ^RadrootsUITests(/[-A-Za-z0-9_]+){0,2}$ ]]; then
+        if [[ ! "$test_selector" =~ ^TeraUITests(/[-A-Za-z0-9_]+){0,2}$ ]]; then
             echo "error: physical-ui-test selector is invalid" >&2
             exit 64
         fi
@@ -409,7 +409,7 @@ case "$operation" in
             exit 64
         fi
         device_id=${destination#id=}
-        lock_state_file=$(mktemp "${TMPDIR:-/tmp}/radroots-ios-lock-state.XXXXXX")
+        lock_state_file=$(mktemp "${TMPDIR:-/tmp}/tera-ios-lock-state.XXXXXX")
         trap 'unlink "$lock_state_file"' EXIT
         if ! xcrun devicectl device info lockState \
             --device "$device_id" \
@@ -429,8 +429,8 @@ case "$operation" in
             exit 1
         fi
         physical_args=(
-            -project Radroots.xcodeproj \
-            -scheme Radroots \
+            -project Tera.xcodeproj \
+            -scheme Tera \
             -configuration Debug \
             -destination "$destination" \
             "${output_args[@]}" \
@@ -439,10 +439,10 @@ case "$operation" in
             "DEVELOPMENT_TEAM=$development_team" \
             CODE_SIGN_STYLE=Automatic \
             "CODE_SIGN_IDENTITY=Apple Development" \
-            "RADROOTS_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
-            "RADROOTS_IOS_UI_TEST_NOSTR_RELAY_URLS=$relay_urls" \
-            "RADROOTS_IOS_UI_TEST_BLOSSOM_ORIGINS=$blossom_origins" \
-            "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE=public"
+            "TERA_IOS_UI_TEST_RUN_ID=$qualification_run_id" \
+            "TERA_IOS_UI_TEST_NOSTR_RELAY_URLS=$relay_urls" \
+            "TERA_IOS_UI_TEST_BLOSSOM_ORIGINS=$blossom_origins" \
+            "TERA_IOS_UI_TEST_NETWORK_PROFILE=public"
         )
         if [[ "$operation" == "physical-ui-build" ]]; then
             exec xcodebuild "${physical_args[@]}" build-for-testing

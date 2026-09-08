@@ -87,7 +87,7 @@ def bud11_event(now_unix_s: int, digest: str) -> dict:
             ["x", digest],
             ["server", fixture.BUD11_SERVER_DOMAIN],
         ],
-        "content": "Upload exact Radroots image",
+        "content": "Upload exact Tera image",
     }
 
 
@@ -102,7 +102,7 @@ def mutate_bud11_event(event: dict, mutation: str, now_unix_s: int) -> tuple[dic
     elif mutation == "oversized_content":
         changed["content"] = "x" * (fixture.BUD11_CONTENT_MAX_BYTES + 1)
     elif mutation == "leading_content_space":
-        changed["content"] = " Upload exact Radroots image"
+        changed["content"] = " Upload exact Tera image"
     elif mutation == "control_content":
         changed["content"] = "Upload\0image"
     elif mutation == "missing_action":
@@ -184,7 +184,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
                 }
             )
         result = {
-            "schema": "radroots.ios.local-social.persona-results.v1",
+            "schema": "tera.ios.local-social.persona-results.v1",
             "schema_version": 1,
             "run_id": "persona-result-test-001",
             "source_commit": "1" * 40,
@@ -734,7 +734,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
         mutations = (
             lambda value: value.update({"unknown": True}),
             lambda value: value["test_invocation"].update(
-                {"identifier": "RadrootsUITests/testOther"}
+                {"identifier": "TeraUITests/testOther"}
             ),
             lambda value: value["source"].update({"tree": "A" * 40}),
             lambda value: value.update({"app_build_sha256": "0" * 63}),
@@ -823,7 +823,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
                             "result": "Passed",
                         }
                     ],
-                    "name": "Radroots",
+                    "name": "Tera",
                     "nodeType": "Test Plan",
                     "result": "Passed",
                 }

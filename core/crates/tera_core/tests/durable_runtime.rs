@@ -1,5 +1,5 @@
 use tera_core::{
-    RadrootsAppError,
+    TeraAppError,
     runtime::{
         builder::RuntimeBuilder,
         store::{MobileUserStoreConfig, ProtectedDataAvailability},
@@ -56,7 +56,7 @@ async fn one_authenticated_user_store_has_one_writable_runtime() {
         .await
         .expect("first runtime");
     let second = RuntimeBuilder::new(store.clone()).build().await;
-    let Err(RadrootsAppError::Sdk { report }) = second else {
+    let Err(TeraAppError::Sdk { report }) = second else {
         panic!("second writable runtime must fail with a typed SDK error");
     };
     assert_eq!(report.code, "database_busy");
@@ -80,7 +80,7 @@ async fn source_generation_mismatch_is_integrity_classified() {
     let result = RuntimeBuilder::new(other_generation_store(root.path()))
         .build()
         .await;
-    let Err(RadrootsAppError::Sdk { report }) = result else {
+    let Err(TeraAppError::Sdk { report }) = result else {
         panic!("generation mismatch must fail with a typed SDK error");
     };
     assert_eq!(report.code, "storage_integrity_failed");
@@ -103,7 +103,7 @@ async fn unrecognized_sqlite_bytes_are_corruption_classified() {
     .expect("replace runtime database with corrupt fixture");
 
     let result = RuntimeBuilder::new(store).build().await;
-    let Err(RadrootsAppError::Sdk { report }) = result else {
+    let Err(TeraAppError::Sdk { report }) = result else {
         panic!("corrupt store must fail with a typed SDK error");
     };
     assert_eq!(report.code, "storage_integrity_failed");

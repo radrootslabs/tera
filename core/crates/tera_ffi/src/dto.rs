@@ -37,7 +37,7 @@ use tera_core::runtime::{
     },
 };
 
-use crate::RadrootsAppError;
+use crate::TeraAppError;
 
 pub const MOBILE_FFI_SCHEMA_VERSION: u16 = 1;
 const MEDIA_FILE_MAX_BYTES: u64 = 10 * 1024 * 1024;
@@ -147,9 +147,9 @@ pub struct FfiRhiEvidenceAttestationRecord {
 #[uniffi::export]
 pub fn parse_trade_evidence_manifest(
     canonical_bytes: Vec<u8>,
-) -> Result<FfiTradeEvidenceManifestRecord, RadrootsAppError> {
+) -> Result<FfiTradeEvidenceManifestRecord, TeraAppError> {
     let manifest = radroots_sdk::trade::parse_evidence_manifest(&canonical_bytes)
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_manifest"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_evidence_manifest"))?;
     Ok(FfiTradeEvidenceManifestRecord {
         schema_version: MOBILE_FFI_SCHEMA_VERSION,
         contract_id: manifest.contract_id().to_owned(),
@@ -167,9 +167,9 @@ pub fn parse_trade_evidence_manifest(
 #[uniffi::export]
 pub fn parse_rhi_evidence_report(
     canonical_content: String,
-) -> Result<FfiRhiEvidenceReportRecord, RadrootsAppError> {
+) -> Result<FfiRhiEvidenceReportRecord, TeraAppError> {
     let report = radroots_sdk::trade::parse_rhi_evidence_report(canonical_content.as_bytes())
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_report"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_evidence_report"))?;
     let supersession = report.supersession();
     Ok(FfiRhiEvidenceReportRecord {
         schema_version: MOBILE_FFI_SCHEMA_VERSION,
@@ -200,11 +200,11 @@ pub fn parse_rhi_evidence_report(
 pub fn prepare_rhi_evidence_attestation(
     canonical_content: String,
     created_at_unix_s: u64,
-) -> Result<FfiTypedEvidenceEventPlanRecord, RadrootsAppError> {
+) -> Result<FfiTypedEvidenceEventPlanRecord, TeraAppError> {
     let report = radroots_sdk::trade::parse_rhi_evidence_report(canonical_content.as_bytes())
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_report"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_evidence_report"))?;
     let plan = radroots_sdk::trade::prepare_rhi_evidence_attestation(&report, created_at_unix_s)
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_evidence_attestation_plan"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_evidence_attestation_plan"))?;
     Ok(FfiTypedEvidenceEventPlanRecord {
         schema_version: MOBILE_FFI_SCHEMA_VERSION,
         contract_id: plan.body().contract().contract_id().as_str().to_owned(),
@@ -220,7 +220,7 @@ pub fn prepare_rhi_evidence_attestation(
 #[uniffi::export]
 pub fn validate_rhi_evidence_attestation(
     event: FfiSignedEvidenceEventRecord,
-) -> Result<FfiRhiEvidenceAttestationRecord, RadrootsAppError> {
+) -> Result<FfiRhiEvidenceAttestationRecord, TeraAppError> {
     let event = radroots_event::envelope::EventEnvelope::new(
         radroots_event::envelope::EventEnvelopeParts {
             id: event.id,
@@ -232,14 +232,14 @@ pub fn validate_rhi_evidence_attestation(
             sig: event.signature,
         },
     )
-    .map_err(|_| RadrootsAppError::invalid_argument("invalid_signed_event"))?;
+    .map_err(|_| TeraAppError::invalid_argument("invalid_signed_event"))?;
     let attestation = radroots_sdk::trade::validate_rhi_evidence_attestation(event).map_err(
         |error| match error {
             radroots_sdk::trade::EvidenceAttestationValidationError::Signature => {
-                RadrootsAppError::invalid_argument("invalid_event_signature")
+                TeraAppError::invalid_argument("invalid_event_signature")
             }
             radroots_sdk::trade::EvidenceAttestationValidationError::Contract => {
-                RadrootsAppError::invalid_argument("invalid_evidence_attestation")
+                TeraAppError::invalid_argument("invalid_evidence_attestation")
             }
         },
     )?;
@@ -466,7 +466,7 @@ pub struct FfiLocalNetworkRecord {
 }
 
 impl TryFrom<FfiLocalNetworkRecord> for LocalNetwork {
-    type Error = RadrootsAppError;
+    type Error = TeraAppError;
 
     fn try_from(value: FfiLocalNetworkRecord) -> Result<Self, Self::Error> {
         value.try_into_with_relay_policy(LocalNetworkRelayPolicy::Public)
@@ -477,7 +477,7 @@ impl FfiLocalNetworkRecord {
     pub(crate) fn try_into_with_relay_policy(
         self,
         relay_policy: LocalNetworkRelayPolicy,
-    ) -> Result<LocalNetwork, RadrootsAppError> {
+    ) -> Result<LocalNetwork, TeraAppError> {
         require_schema(self.schema_version)?;
         LocalNetwork::new_for_relay_policy(
             self.id,
@@ -488,7 +488,7 @@ impl FfiLocalNetworkRecord {
             self.generation,
             relay_policy,
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_local_network"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_local_network"))
     }
 }
 
@@ -1185,7 +1185,7 @@ impl FfiAddDraftInput {
         self,
         authored_at_unix_s: u64,
         blossom: Option<&radroots_sdk::transport::BlossomSlot>,
-    ) -> Result<(Phase1AddCommand, Vec<Phase1MediaPrerequisite>), RadrootsAppError> {
+    ) -> Result<(Phase1AddCommand, Vec<Phase1MediaPrerequisite>), TeraAppError> {
         self.command_media_and_form(authored_at_unix_s, blossom)
             .map(|(command, media, _)| (command, media))
     }
@@ -1200,11 +1200,11 @@ impl FfiAddDraftInput {
             Vec<Phase1MediaPrerequisite>,
             Phase1DraftFormSnapshot,
         ),
-        RadrootsAppError,
+        TeraAppError,
     > {
         require_schema(self.schema_version)?;
         if authored_at_unix_s == 0 || self.media.len() > 20 {
-            return Err(RadrootsAppError::invalid_argument("invalid_add_draft"));
+            return Err(TeraAppError::invalid_argument("invalid_add_draft"));
         }
         let prepared = self
             .media
@@ -1213,9 +1213,8 @@ impl FfiAddDraftInput {
             .map(PreparedMedia::try_from)
             .map(|media| {
                 media.and_then(|media| {
-                    let blossom = blossom.ok_or_else(|| {
-                        RadrootsAppError::invalid_argument("blossom_not_configured")
-                    })?;
+                    let blossom = blossom
+                        .ok_or_else(|| TeraAppError::invalid_argument("blossom_not_configured"))?;
                     media.bind(blossom)
                 })
             })
@@ -1229,7 +1228,7 @@ impl FfiAddDraftInput {
                 )
             })
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_reference"))?;
+            .map_err(|_| TeraAppError::invalid_argument("invalid_media_reference"))?;
         let post_images = prepared
             .iter()
             .map(BoundPreparedMedia::post_image)
@@ -1240,7 +1239,7 @@ impl FfiAddDraftInput {
                 reject_media(&prepared)?;
                 Phase1AddCommand::CreateUpdate(
                     CreateUpdate::new(self.content)
-                        .map_err(|_| RadrootsAppError::invalid_argument("invalid_update"))?,
+                        .map_err(|_| TeraAppError::invalid_argument("invalid_update"))?,
                 )
             }
             FfiAddCommandType::CreatePhotoUpdate => Phase1AddCommand::CreatePhotoUpdate(
@@ -1248,14 +1247,14 @@ impl FfiAddDraftInput {
                     content_with_media_references(self.content, &prepared)?,
                     post_images,
                 )
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_photo_update"))?,
+                .map_err(|_| TeraAppError::invalid_argument("invalid_photo_update"))?,
             ),
             FfiAddCommandType::CreateAsk => Phase1AddCommand::CreateAsk(
                 CreateAsk::new(
                     content_with_media_references(self.content, &prepared)?,
                     post_images,
                 )
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_ask"))?,
+                .map_err(|_| TeraAppError::invalid_argument("invalid_ask"))?,
             ),
             FfiAddCommandType::CreateEvent => {
                 Phase1AddCommand::CreateEvent(event_command(&self, prepared.first())?)
@@ -1332,7 +1331,7 @@ struct BoundPreparedMedia {
 }
 
 impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
-    type Error = RadrootsAppError;
+    type Error = TeraAppError;
 
     fn try_from(value: FfiPreparedMediaInput) -> Result<Self, Self::Error> {
         require_schema(value.schema_version)?;
@@ -1345,36 +1344,32 @@ impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
             || value.alt.trim().is_empty()
             || value.alt.len() > 1_024
         {
-            return Err(RadrootsAppError::invalid_argument(
-                "invalid_media_reference",
-            ));
+            return Err(TeraAppError::invalid_argument("invalid_media_reference"));
         }
         let byte_size = usize::try_from(value.byte_size)
-            .map_err(|_| RadrootsAppError::invalid_argument("media_size_mismatch"))?;
+            .map_err(|_| TeraAppError::invalid_argument("media_size_mismatch"))?;
         let bytes = read_media_file_descriptor(value.file_descriptor, value.byte_size, byte_size)?;
         let media_type = MediaType::parse(&value.media_type)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_type"))?;
+            .map_err(|_| TeraAppError::invalid_argument("invalid_media_type"))?;
         let sha256 = Sha256::from_hex(&value.sha256)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_digest"))?;
+            .map_err(|_| TeraAppError::invalid_argument("invalid_media_digest"))?;
         if Sha256::digest(&bytes) != sha256 {
-            return Err(RadrootsAppError::invalid_argument(
-                "media_verification_failed",
-            ));
+            return Err(TeraAppError::invalid_argument("media_verification_failed"));
         }
         let dimensions =
             radroots_sdk::transport::BlossomImageDimensions::new(value.width, value.height)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?;
+                .map_err(|_| TeraAppError::invalid_argument("invalid_image_dimensions"))?;
         let verified_at_unix_ms = value
             .prepared_at_unix_s
             .checked_mul(1_000)
-            .ok_or_else(|| RadrootsAppError::invalid_argument("invalid_media_reference"))?;
+            .ok_or_else(|| TeraAppError::invalid_argument("invalid_media_reference"))?;
         radroots_sdk::transport::BlossomUploadRequest::new(
             bytes.clone().into(),
             media_type.clone(),
             dimensions,
             verified_at_unix_ms,
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("media_verification_failed"))?;
+        .map_err(|_| TeraAppError::invalid_argument("media_verification_failed"))?;
         Ok(Self {
             opaque_reference: value.opaque_reference,
             sha256,
@@ -1394,17 +1389,15 @@ fn read_media_file_descriptor(
     file_descriptor: u64,
     expected_size: u64,
     byte_size: usize,
-) -> Result<Vec<u8>, RadrootsAppError> {
+) -> Result<Vec<u8>, TeraAppError> {
     let raw_file_descriptor = RawFd::try_from(file_descriptor)
-        .map_err(|_| RadrootsAppError::invalid_argument("media_handle_unavailable"))?;
+        .map_err(|_| TeraAppError::invalid_argument("media_handle_unavailable"))?;
     // SAFETY: `fcntl(F_DUPFD_CLOEXEC)` accepts any in-range integer descriptor
     // and reports EBADF for an unavailable one. No borrowed or owned Rust
     // descriptor is constructed until the kernel has duplicated it.
     let duplicated = unsafe { libc::fcntl(raw_file_descriptor, libc::F_DUPFD_CLOEXEC, 0) };
     if duplicated < 0 {
-        return Err(RadrootsAppError::invalid_argument(
-            "media_handle_unavailable",
-        ));
+        return Err(TeraAppError::invalid_argument("media_handle_unavailable"));
     }
     // SAFETY: a nonnegative F_DUPFD_CLOEXEC result is a new descriptor owned by
     // this call. The host's original descriptor remains independently owned.
@@ -1412,13 +1405,13 @@ fn read_media_file_descriptor(
     let file = std::fs::File::from(owned);
     let metadata = file
         .metadata()
-        .map_err(|_| RadrootsAppError::invalid_argument("media_handle_unavailable"))?;
+        .map_err(|_| TeraAppError::invalid_argument("media_handle_unavailable"))?;
     if !metadata.is_file() || metadata.len() != expected_size {
-        return Err(RadrootsAppError::invalid_argument("media_size_mismatch"));
+        return Err(TeraAppError::invalid_argument("media_size_mismatch"));
     }
     let mut bytes = vec![0; byte_size];
     file.read_exact_at(&mut bytes, 0)
-        .map_err(|_| RadrootsAppError::invalid_argument("media_read_failed"))?;
+        .map_err(|_| TeraAppError::invalid_argument("media_read_failed"))?;
     Ok(bytes)
 }
 
@@ -1427,8 +1420,8 @@ fn read_media_file_descriptor(
     _file_descriptor: u64,
     _expected_size: u64,
     _byte_size: usize,
-) -> Result<Vec<u8>, RadrootsAppError> {
-    Err(RadrootsAppError::failure(
+) -> Result<Vec<u8>, TeraAppError> {
+    Err(TeraAppError::failure(
         "media_handle_unsupported",
         "capability",
         false,
@@ -1441,7 +1434,7 @@ impl PreparedMedia {
     pub(crate) fn into_authored_image(
         self,
         blossom: &radroots_sdk::transport::BlossomSlot,
-    ) -> Result<AuthoredImage, RadrootsAppError> {
+    ) -> Result<AuthoredImage, TeraAppError> {
         self.bind(blossom)?.authored_image()
     }
 
@@ -1449,7 +1442,7 @@ impl PreparedMedia {
         self,
         draft_id: [u8; 16],
         expected_revision: u64,
-    ) -> Result<Phase1UploadIntent, RadrootsAppError> {
+    ) -> Result<Phase1UploadIntent, TeraAppError> {
         Phase1UploadIntent::new(
             draft_id,
             expected_revision,
@@ -1458,36 +1451,36 @@ impl PreparedMedia {
             self.width,
             self.height,
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_blossom_upload"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_blossom_upload"))
     }
 
     pub(crate) fn upload_request(
         &self,
         verified_at_unix_ms: u64,
-    ) -> Result<radroots_sdk::transport::BlossomUploadRequest, RadrootsAppError> {
+    ) -> Result<radroots_sdk::transport::BlossomUploadRequest, TeraAppError> {
         let dimensions =
             radroots_sdk::transport::BlossomImageDimensions::new(self.width, self.height)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?;
+                .map_err(|_| TeraAppError::invalid_argument("invalid_image_dimensions"))?;
         radroots_sdk::transport::BlossomUploadRequest::new(
             std::sync::Arc::clone(&self.bytes),
             self.media_type.clone(),
             dimensions,
             verified_at_unix_ms,
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_blossom_upload"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_blossom_upload"))
     }
 
     fn bind(
         self,
         blossom: &radroots_sdk::transport::BlossomSlot,
-    ) -> Result<BoundPreparedMedia, RadrootsAppError> {
+    ) -> Result<BoundPreparedMedia, TeraAppError> {
         let verified_at_unix_ms = self
             .prepared_at_unix_s
             .checked_mul(1_000)
-            .ok_or_else(|| RadrootsAppError::invalid_argument("invalid_media_reference"))?;
+            .ok_or_else(|| TeraAppError::invalid_argument("invalid_media_reference"))?;
         let transaction = blossom
             .prepare_upload(self.upload_request(verified_at_unix_ms)?)
-            .map_err(|error| RadrootsAppError::invalid_argument(error.code()))?;
+            .map_err(|error| TeraAppError::invalid_argument(error.code()))?;
         let descriptor = BlobDescriptor::new(
             transaction.expected_url().clone(),
             self.sha256,
@@ -1497,7 +1490,7 @@ impl PreparedMedia {
         )
         .and_then(BlobDescriptor::approve_reference)
         .and_then(|descriptor| descriptor.verify_bytes(&self.bytes, &self.media_type))
-        .map_err(|_| RadrootsAppError::invalid_argument("media_verification_failed"))?;
+        .map_err(|_| TeraAppError::invalid_argument("media_verification_failed"))?;
         Ok(BoundPreparedMedia {
             media: self,
             descriptor,
@@ -1506,64 +1499,65 @@ impl PreparedMedia {
 }
 
 impl BoundPreparedMedia {
-    fn authored_image(&self) -> Result<AuthoredImage, RadrootsAppError> {
+    fn authored_image(&self) -> Result<AuthoredImage, TeraAppError> {
         AuthoredImage::try_from_verified_descriptor(self.descriptor.clone())
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_media"))
+            .map_err(|_| TeraAppError::invalid_argument("invalid_image_media"))
     }
 
-    fn post_image(&self) -> Result<AuthoredPostImage, RadrootsAppError> {
+    fn post_image(&self) -> Result<AuthoredPostImage, TeraAppError> {
         AuthoredPostImage::new(
             self.authored_image()?,
             PostImageDimensions::new(self.media.width, self.media.height)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?,
+                .map_err(|_| TeraAppError::invalid_argument("invalid_image_dimensions"))?,
             self.media.alt.clone(),
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_image"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_image"))
     }
 }
 
 fn event_command(
     input: &FfiAddDraftInput,
     image: Option<&BoundPreparedMedia>,
-) -> Result<CreateEvent, RadrootsAppError> {
+) -> Result<CreateEvent, TeraAppError> {
     if input.media.len() > 1 {
-        return Err(RadrootsAppError::invalid_argument("event_image_limit"));
+        return Err(TeraAppError::invalid_argument("event_image_limit"));
     }
     let identifier = required(input.identifier.as_deref(), "event_identifier_required")?;
     let title = required(input.title.as_deref(), "event_title_required")?;
     let timing = input
         .event_timing
-        .ok_or_else(|| RadrootsAppError::invalid_argument("event_timing_required"))?;
+        .ok_or_else(|| TeraAppError::invalid_argument("event_timing_required"))?;
     match timing {
         FfiEventTimingKind::AllDay => {
             let start = CalendarDate::parse(required(
                 input.event_start_date.as_deref(),
                 "event_start_date_required",
             )?)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_start_date"))?;
+            .map_err(|_| TeraAppError::invalid_argument("invalid_event_start_date"))?;
             let mut event = AuthoredCalendarDateEvent::new(identifier, title, start)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_event"))?;
+                .map_err(|_| TeraAppError::invalid_argument("invalid_event"))?;
             if let Some(end) = input.event_end_date.as_deref() {
-                event = event
-                    .with_end(CalendarDate::parse(end).map_err(|_| {
-                        RadrootsAppError::invalid_argument("invalid_event_end_date")
-                    })?)
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_range"))?;
+                event =
+                    event
+                        .with_end(CalendarDate::parse(end).map_err(|_| {
+                            TeraAppError::invalid_argument("invalid_event_end_date")
+                        })?)
+                        .map_err(|_| TeraAppError::invalid_argument("invalid_event_range"))?;
             }
             if !input.content.is_empty() {
                 event = event
                     .with_description(input.content.clone())
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_description"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_description"))?;
             }
             if let Some(location) = input.location.clone() {
                 event = event
                     .with_locations(vec![location])
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_location"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_location"))?;
             }
             if let Some(image) = image {
                 event = event
                     .with_image(image.authored_image()?)
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_image"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_image"))?;
             }
             Ok(CreateEvent::date(event))
         }
@@ -1571,33 +1565,33 @@ fn event_command(
             let start = input
                 .event_start_unix_s
                 .filter(|value| *value != 0)
-                .ok_or_else(|| RadrootsAppError::invalid_argument("event_start_required"))?;
+                .ok_or_else(|| TeraAppError::invalid_argument("event_start_required"))?;
             let mut event = AuthoredCalendarTimeEvent::new(identifier, title, start)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_event"))?;
+                .map_err(|_| TeraAppError::invalid_argument("invalid_event"))?;
             if let Some(end) = input.event_end_unix_s {
                 event = event
                     .with_end(end)
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_range"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_range"))?;
             }
             if let Some(timezone) = input.event_timezone.as_deref() {
                 event = event
                     .with_start_tzid(timezone)
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_timezone"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_timezone"))?;
             }
             if !input.content.is_empty() {
                 event = event
                     .with_description(input.content.clone())
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_description"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_description"))?;
             }
             if let Some(location) = input.location.clone() {
                 event = event
                     .with_locations(vec![location])
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_location"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_location"))?;
             }
             if let Some(image) = image {
                 event = event
                     .with_image(image.authored_image()?)
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_event_image"))?;
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_event_image"))?;
             }
             Ok(CreateEvent::time(event))
         }
@@ -1608,72 +1602,72 @@ fn food_command(
     input: FfiAddDraftInput,
     authored_at_unix_s: u64,
     media: &[BoundPreparedMedia],
-) -> Result<CreateFoodAvailability, RadrootsAppError> {
+) -> Result<CreateFoodAvailability, TeraAppError> {
     let unit = FoodUnit::parse(required(input.unit.as_deref(), "food_unit_required")?)
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_unit"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_food_unit"))?;
     let images = media
         .iter()
         .map(|image| {
             Ok(FoodAvailabilityImage::new(
                 image.authored_image()?,
                 FoodImageDimensions::new(image.media.width, image.media.height)
-                    .map_err(|_| RadrootsAppError::invalid_argument("invalid_image_dimensions"))?,
+                    .map_err(|_| TeraAppError::invalid_argument("invalid_image_dimensions"))?,
             ))
         })
-        .collect::<Result<Vec<_>, RadrootsAppError>>()?;
+        .collect::<Result<Vec<_>, TeraAppError>>()?;
     let status = input.food_status.as_deref().unwrap_or("active");
     let details = FoodAvailabilityDetails::new(FoodAvailabilityDetailsParts {
         content: FoodContent::new(input.content)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_content"))?,
+            .map_err(|_| TeraAppError::invalid_argument("invalid_food_content"))?,
         identifier: FoodIdentifier::parse(required(
             input.identifier.as_deref(),
             "food_identifier_required",
         )?)
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_identifier"))?,
+        .map_err(|_| TeraAppError::invalid_argument("invalid_food_identifier"))?,
         title: FoodText::new(required(input.title, "food_title_required")?)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_title"))?,
+            .map_err(|_| TeraAppError::invalid_argument("invalid_food_title"))?,
         summary: FoodText::new(required(input.summary, "food_summary_required")?)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_summary"))?,
+            .map_err(|_| TeraAppError::invalid_argument("invalid_food_summary"))?,
         published_at: FoodPublishedAt::new(
             input.food_published_at_unix_s.unwrap_or(authored_at_unix_s),
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_published_at"))?,
+        .map_err(|_| TeraAppError::invalid_argument("invalid_food_published_at"))?,
         location: FoodText::new(required(input.location, "food_location_required")?)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_location"))?,
+            .map_err(|_| TeraAppError::invalid_argument("invalid_food_location"))?,
         price: FoodPrice::new(
             required(input.price_amount, "food_price_required")?,
             FoodCurrency::parse(required(input.currency, "food_currency_required")?)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_currency"))?,
+                .map_err(|_| TeraAppError::invalid_argument("invalid_food_currency"))?,
             unit,
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_price"))?,
+        .map_err(|_| TeraAppError::invalid_argument("invalid_food_price"))?,
         quantity: input
             .quantity
             .map(|quantity| FoodQuantity::new(quantity, unit))
             .transpose()
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_quantity"))?,
+            .map_err(|_| TeraAppError::invalid_argument("invalid_food_quantity"))?,
         status: FoodAvailabilityStatus::parse(status)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_status"))?,
+            .map_err(|_| TeraAppError::invalid_argument("invalid_food_status"))?,
         images,
     })
-    .map_err(|_| RadrootsAppError::invalid_argument("invalid_food_availability"))?;
+    .map_err(|_| TeraAppError::invalid_argument("invalid_food_availability"))?;
     Ok(CreateFoodAvailability::new(details))
 }
 
-fn reject_media(media: &[BoundPreparedMedia]) -> Result<(), RadrootsAppError> {
+fn reject_media(media: &[BoundPreparedMedia]) -> Result<(), TeraAppError> {
     if media.is_empty() {
         Ok(())
     } else {
-        Err(RadrootsAppError::invalid_argument("media_not_allowed"))
+        Err(TeraAppError::invalid_argument("media_not_allowed"))
     }
 }
 
 fn content_with_media_references(
     mut content: String,
     media: &[BoundPreparedMedia],
-) -> Result<String, RadrootsAppError> {
+) -> Result<String, TeraAppError> {
     if content.trim().is_empty() {
-        return Err(RadrootsAppError::invalid_argument("content_required"));
+        return Err(TeraAppError::invalid_argument("content_required"));
     }
     for item in media {
         let url = item.descriptor.url().as_str();
@@ -1686,17 +1680,15 @@ fn content_with_media_references(
             }
             1 => {}
             _ => {
-                return Err(RadrootsAppError::invalid_argument(
-                    "duplicate_media_reference",
-                ));
+                return Err(TeraAppError::invalid_argument("duplicate_media_reference"));
             }
         }
     }
     Ok(content)
 }
 
-fn required<T>(value: Option<T>, code: &'static str) -> Result<T, RadrootsAppError> {
-    value.ok_or_else(|| RadrootsAppError::invalid_argument(code))
+fn required<T>(value: Option<T>, code: &'static str) -> Result<T, TeraAppError> {
+    value.ok_or_else(|| TeraAppError::invalid_argument(code))
 }
 
 fn opaque_media_reference_is_valid(value: &str) -> bool {
@@ -2023,7 +2015,7 @@ pub struct FfiQueuePolicyRecord {
 }
 
 impl TryFrom<FfiQueuePolicyRecord> for Phase1QueuePolicy {
-    type Error = RadrootsAppError;
+    type Error = TeraAppError;
 
     fn try_from(value: FfiQueuePolicyRecord) -> Result<Self, Self::Error> {
         require_schema(value.schema_version)?;
@@ -2045,7 +2037,7 @@ impl TryFrom<FfiQueuePolicyRecord> for Phase1QueuePolicy {
                 }
             },
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_queue_policy"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_queue_policy"))
     }
 }
 
@@ -2276,23 +2268,21 @@ impl From<SdkShutdownRecord> for FfiShutdownRecord {
     }
 }
 
-pub(crate) fn decode_id(value: &str, code: &'static str) -> Result<[u8; 16], RadrootsAppError> {
+pub(crate) fn decode_id(value: &str, code: &'static str) -> Result<[u8; 16], TeraAppError> {
     if value.len() != 32 {
-        return Err(RadrootsAppError::invalid_argument(code));
+        return Err(TeraAppError::invalid_argument(code));
     }
-    let bytes = hex::decode(value).map_err(|_| RadrootsAppError::invalid_argument(code))?;
+    let bytes = hex::decode(value).map_err(|_| TeraAppError::invalid_argument(code))?;
     bytes
         .try_into()
-        .map_err(|_| RadrootsAppError::invalid_argument(code))
+        .map_err(|_| TeraAppError::invalid_argument(code))
 }
 
-fn require_schema(schema_version: u16) -> Result<(), RadrootsAppError> {
+fn require_schema(schema_version: u16) -> Result<(), TeraAppError> {
     if schema_version == MOBILE_FFI_SCHEMA_VERSION {
         Ok(())
     } else {
-        Err(RadrootsAppError::invalid_argument(
-            "unsupported_schema_version",
-        ))
+        Err(TeraAppError::invalid_argument("unsupported_schema_version"))
     }
 }
 

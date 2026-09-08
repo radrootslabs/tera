@@ -5,10 +5,10 @@ pub use radroots_sdk::trade::{
     RadrootsTradeEvidenceOutcomeV1,
 };
 
-use super::RadrootsRuntime;
+use super::TeraRuntime;
 #[cfg(feature = "mobile-social")]
 use super::product_surface::{BlossomPreferences, RelayPreferences};
-use crate::RadrootsAppError;
+use crate::TeraAppError;
 
 #[derive(Clone, Debug)]
 pub struct SdkCapabilityRecord {
@@ -87,7 +87,7 @@ pub struct SdkShutdownRecord {
     pub already_closed: bool,
 }
 
-impl RadrootsRuntime {
+impl TeraRuntime {
     pub fn sdk_capabilities(&self) -> Vec<SdkCapabilityRecord> {
         self.client
             .capabilities()
@@ -102,12 +102,12 @@ impl RadrootsRuntime {
             .collect()
     }
 
-    pub async fn sdk_storage_status(&self) -> Result<SdkStorageStatusRecord, RadrootsAppError> {
+    pub async fn sdk_storage_status(&self) -> Result<SdkStorageStatusRecord, TeraAppError> {
         let status = self
             .client
             .storage_status()
             .await
-            .map_err(RadrootsAppError::from_sdk)?;
+            .map_err(TeraAppError::from_sdk)?;
         Ok(SdkStorageStatusRecord {
             backend: status.backend().as_str().to_owned(),
             open_mode: status.open_mode().as_str().to_owned(),
@@ -121,7 +121,7 @@ impl RadrootsRuntime {
     pub fn configure_public_relays(
         &self,
         writable_relays: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.configure_relay_endpoints(
             radroots_sdk::transport::RelayProfileKind::Public,
             radroots_sdk::transport::RelayUrlPolicy::Public,
@@ -134,7 +134,7 @@ impl RadrootsRuntime {
     pub fn configure_simulator_relays(
         &self,
         loopback_relays: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.configure_relay_endpoints(
             radroots_sdk::transport::RelayProfileKind::Simulator,
             radroots_sdk::transport::RelayUrlPolicy::Local,
@@ -147,7 +147,7 @@ impl RadrootsRuntime {
     pub fn configure_device_relays(
         &self,
         writable_relays: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.configure_relay_endpoints(
             radroots_sdk::transport::RelayProfileKind::Device,
             radroots_sdk::transport::RelayUrlPolicy::PrivateNetwork,
@@ -161,7 +161,7 @@ impl RadrootsRuntime {
         kind: radroots_sdk::transport::RelayProfileKind,
         policy: radroots_sdk::transport::RelayUrlPolicy,
         relays: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         let endpoints = relays
             .into_iter()
             .map(|relay| {
@@ -172,9 +172,9 @@ impl RadrootsRuntime {
                 )
             })
             .collect::<Result<Vec<_>, _>>()
-            .map_err(|error| RadrootsAppError::runtime(error.to_string()))?;
+            .map_err(|error| TeraAppError::runtime(error.to_string()))?;
         let profile = radroots_sdk::transport::RelayProfile::explicit(kind, endpoints)
-            .map_err(|error| RadrootsAppError::runtime(error.to_string()))?;
+            .map_err(|error| TeraAppError::runtime(error.to_string()))?;
         self.configure_relay_profile(profile)
     }
 
@@ -182,10 +182,10 @@ impl RadrootsRuntime {
     fn configure_relay_profile(
         &self,
         profile: radroots_sdk::transport::RelayProfile,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.client
             .configure_nostr(profile)
-            .map_err(RadrootsAppError::from_sdk)
+            .map_err(TeraAppError::from_sdk)
     }
 
     /// Installs the exact validated relay preferences persisted by the mobile product.
@@ -193,11 +193,11 @@ impl RadrootsRuntime {
     pub fn configure_relay_preferences(
         &self,
         preferences: &RelayPreferences,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.configure_relay_profile(
             preferences
                 .sdk_profile()
-                .map_err(|error| RadrootsAppError::runtime(error.code()))?,
+                .map_err(|error| TeraAppError::runtime(error.code()))?,
         )
     }
 
@@ -209,7 +209,7 @@ impl RadrootsRuntime {
         endpoint_authority: radroots_sdk::transport::BlossomEndpointAuthority,
         primary_origin: String,
         fallback_origins: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.configure_blossom_profile(
             radroots_sdk::transport::BlossomProfile::new(
                 host_kind,
@@ -217,7 +217,7 @@ impl RadrootsRuntime {
                 primary_origin,
                 fallback_origins,
             )
-            .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?,
+            .map_err(|error| TeraAppError::runtime(error.code().to_owned()))?,
         )
     }
 
@@ -225,12 +225,12 @@ impl RadrootsRuntime {
     fn configure_blossom_profile(
         &self,
         profile: radroots_sdk::transport::BlossomProfile,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.client
             .configure_blossom(radroots_sdk::transport::BlossomConfig::from_profile(
                 profile,
             ))
-            .map_err(RadrootsAppError::from_sdk)
+            .map_err(TeraAppError::from_sdk)
     }
 
     /// Installs the exact validated Blossom preferences persisted by the mobile product.
@@ -238,11 +238,11 @@ impl RadrootsRuntime {
     pub fn configure_blossom_preferences(
         &self,
         preferences: &BlossomPreferences,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.configure_blossom_profile(
             preferences
                 .sdk_profile()
-                .map_err(|error| RadrootsAppError::runtime(error.code()))?,
+                .map_err(|error| TeraAppError::runtime(error.code()))?,
         )
     }
 
@@ -250,22 +250,22 @@ impl RadrootsRuntime {
     #[cfg(feature = "mobile-social")]
     pub fn sdk_blossom_slot(
         &self,
-    ) -> Result<Option<radroots_sdk::transport::BlossomSlot>, RadrootsAppError> {
+    ) -> Result<Option<radroots_sdk::transport::BlossomSlot>, TeraAppError> {
         self.client
             .blossom()
             .map(|slot| slot.cloned())
-            .map_err(RadrootsAppError::from_sdk)
+            .map_err(TeraAppError::from_sdk)
     }
 
     /// Returns the complete inert Blossom configuration, when configured.
     #[cfg(feature = "mobile-social")]
     pub fn sdk_blossom_configuration(
         &self,
-    ) -> Result<Option<SdkBlossomConfigurationRecord>, RadrootsAppError> {
+    ) -> Result<Option<SdkBlossomConfigurationRecord>, TeraAppError> {
         let configuration = self
             .client
             .blossom()
-            .map_err(RadrootsAppError::from_sdk)?
+            .map_err(TeraAppError::from_sdk)?
             .and_then(radroots_sdk::transport::BlossomSlot::configuration);
         Ok(
             configuration.map(|(profile, fingerprint)| SdkBlossomConfigurationRecord {
@@ -284,39 +284,34 @@ impl RadrootsRuntime {
 
     /// Returns the latest passive Blossom evidence without network I/O.
     #[cfg(feature = "mobile-social")]
-    pub fn sdk_blossom_evidence(
-        &self,
-    ) -> Result<Option<SdkBlossomEvidenceRecord>, RadrootsAppError> {
+    pub fn sdk_blossom_evidence(&self) -> Result<Option<SdkBlossomEvidenceRecord>, TeraAppError> {
         let evidence = self
             .client
             .blossom()
-            .map_err(RadrootsAppError::from_sdk)?
+            .map_err(TeraAppError::from_sdk)?
             .and_then(radroots_sdk::transport::BlossomSlot::evidence);
         Ok(evidence.map(sdk_blossom_evidence_record))
     }
 
     /// Explicitly probes the primary Blossom origin without mutation or authorization.
     #[cfg(feature = "mobile-social")]
-    pub async fn probe_blossom(&self) -> Result<SdkBlossomEvidenceRecord, RadrootsAppError> {
+    pub async fn probe_blossom(&self) -> Result<SdkBlossomEvidenceRecord, TeraAppError> {
         let blossom = self
             .client
             .blossom()
-            .map_err(RadrootsAppError::from_sdk)?
-            .ok_or_else(|| RadrootsAppError::runtime("blossom_endpoint_not_configured"))?;
+            .map_err(TeraAppError::from_sdk)?
+            .ok_or_else(|| TeraAppError::runtime("blossom_endpoint_not_configured"))?;
         blossom
             .probe(radroots_sdk::transport::BlossomCancellation::default())
             .await
             .map(sdk_blossom_evidence_record)
-            .map_err(|error| RadrootsAppError::runtime(error.code()))
+            .map_err(|error| TeraAppError::runtime(error.code()))
     }
 
     /// Returns passive relay evidence without DNS, socket, or probe work.
     #[cfg(feature = "mobile-social")]
-    pub fn sdk_relay_status(&self) -> Result<Option<SdkRelayStatusReportRecord>, RadrootsAppError> {
-        let report = self
-            .client
-            .nostr_status()
-            .map_err(RadrootsAppError::from_sdk)?;
+    pub fn sdk_relay_status(&self) -> Result<Option<SdkRelayStatusReportRecord>, TeraAppError> {
+        let report = self.client.nostr_status().map_err(TeraAppError::from_sdk)?;
         Ok(report.map(|report| SdkRelayStatusReportRecord {
             profile: relay_profile_label(report.profile_kind()).to_owned(),
             state: relay_aggregate_label(report.state()).to_owned(),
@@ -511,11 +506,11 @@ const fn maturity_label(value: Maturity) -> &'static str {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use super::RadrootsRuntime;
+    use super::TeraRuntime;
 
     #[tokio::test]
     async fn explicit_test_runtime_is_memory_backed() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         let capabilities = runtime.sdk_capabilities();
         assert!(capabilities.iter().any(|capability| {
             capability.id == "storage.canonical"

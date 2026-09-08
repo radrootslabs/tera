@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://radroots.org/schemas/ios/local-social-personas.v1.schema.json",
-  "title": "Radroots iOS local-social deterministic persona suite",
+  "title": "Tera iOS local-social deterministic persona suite",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "schema_version", "locale", "media_fixture_sha256", "personas"],
   "properties": {
-    "schema": {"const": "radroots.ios.local-social.personas.v1"},
+    "schema": {"const": "tera.ios.local-social.personas.v1"},
     "schema_version": {"const": 1},
     "locale": {"const": "en_US"},
     "media_fixture_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},

@@ -2,10 +2,10 @@
 name = "tera_core"
 version = "0.1.0-alpha"
 edition.workspace = true
-authors = ["Radroots Authors"]
+authors = ["Tera Authors"]
 rust-version.workspace = true
 license = "GPL-3.0-or-later"
-description = "Application core runtime for Radroots apps"
+description = "Application core runtime for Tera apps"
 repository.workspace = true
 homepage.workspace = true
 readme.workspace = true

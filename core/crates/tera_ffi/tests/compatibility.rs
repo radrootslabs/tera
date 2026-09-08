@@ -7,8 +7,8 @@ use std::path::Path;
 use tera_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiCancellationPolicy, FfiDraftStatusRecord,
     FfiQueuePolicyRecord, FfiRelaySatisfaction, HostSigningOutcome, HostSigningRequest,
-    HostSigningResult, MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsHostSigner,
-    RadrootsRuntime, SignerAvailabilityRecord, SignerStatusRecord,
+    HostSigningResult, MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability,
+    SignerAvailabilityRecord, SignerStatusRecord, TeraHostSigner, TeraRuntime,
 };
 
 fn fixture() -> Value {
@@ -47,13 +47,13 @@ fn input(fixture: &Value) -> FfiAddDraftInput {
     }
 }
 
-async fn runtime(root: &Path, public_key: &str, signer: Option<Keypair>) -> RadrootsRuntime {
+async fn runtime(root: &Path, public_key: &str, signer: Option<Keypair>) -> TeraRuntime {
     std::fs::create_dir_all(root.join("radroots/users").join(public_key))
         .expect("isolated application owner directory");
     let fixture = fixture();
     let generation = field(&fixture["queued_update"], "source_generation").to_owned();
     if let Some(keypair) = signer {
-        RadrootsRuntime::with_host_signer(
+        TeraRuntime::with_host_signer(
             root.to_string_lossy().into_owned(),
             public_key.to_owned(),
             generation,
@@ -64,7 +64,7 @@ async fn runtime(root: &Path, public_key: &str, signer: Option<Keypair>) -> Radr
         .await
         .expect("runtime with ephemeral fixture signer")
     } else {
-        RadrootsRuntime::new(
+        TeraRuntime::new(
             root.to_string_lossy().into_owned(),
             public_key.to_owned(),
             generation,
@@ -76,7 +76,7 @@ async fn runtime(root: &Path, public_key: &str, signer: Option<Keypair>) -> Radr
     }
 }
 
-async fn queue(runtime: &RadrootsRuntime, fixture: &Value) -> FfiDraftStatusRecord {
+async fn queue(runtime: &TeraRuntime, fixture: &Value) -> FfiDraftStatusRecord {
     let id = field(fixture, "draft_id");
     let persisted = fixture["persisted_at_unix_ms"].as_u64().unwrap();
     let saved = runtime
@@ -166,7 +166,7 @@ async fn signed_operation_reopens_without_replacing_its_author_or_identity() {
 struct EphemeralSigner(Keypair);
 
 #[async_trait::async_trait]
-impl RadrootsHostSigner for EphemeralSigner {
+impl TeraHostSigner for EphemeralSigner {
     async fn signer_status(&self) -> SignerStatusRecord {
         SignerStatusRecord {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,

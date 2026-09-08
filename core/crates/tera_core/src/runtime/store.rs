@@ -8,7 +8,7 @@ use std::{
 use radroots_identity::PublicKey;
 use radroots_storage::event::SourceGeneration;
 
-use crate::RadrootsAppError;
+use crate::TeraAppError;
 
 const PRODUCT_DIRECTORY: &str = "radroots";
 const USER_DIRECTORY: &str = "users";
@@ -44,9 +44,9 @@ impl MobileUserStoreConfig {
         source_generation_hex: &str,
         source_generation_created_at_unix_ms: u64,
         protected_data: ProtectedDataAvailability,
-    ) -> Result<Self, RadrootsAppError> {
+    ) -> Result<Self, TeraAppError> {
         let public_key = PublicKey::from_hex(public_key_hex)
-            .map_err(|_| RadrootsAppError::store_invalid_configuration())?;
+            .map_err(|_| TeraAppError::store_invalid_configuration())?;
         let source_generation = parse_source_generation(source_generation_hex)?;
         Self::new(
             application_support_directory,
@@ -64,13 +64,13 @@ impl MobileUserStoreConfig {
         source_generation: SourceGeneration,
         source_generation_created_at_unix_ms: u64,
         protected_data: ProtectedDataAvailability,
-    ) -> Result<Self, RadrootsAppError> {
+    ) -> Result<Self, TeraAppError> {
         let application_support_directory = application_support_directory.into();
         validate_absolute_normal_directory(&application_support_directory)?;
         if source_generation_created_at_unix_ms == 0
             || i64::try_from(source_generation_created_at_unix_ms).is_err()
         {
-            return Err(RadrootsAppError::store_invalid_configuration());
+            return Err(TeraAppError::store_invalid_configuration());
         }
         let owner_directory = application_support_directory
             .join(PRODUCT_DIRECTORY)
@@ -105,7 +105,7 @@ impl MobileUserStoreConfig {
         self.protected_data
     }
 
-    pub(crate) fn validate_host_filesystem(&self) -> Result<(), RadrootsAppError> {
+    pub(crate) fn validate_host_filesystem(&self) -> Result<(), TeraAppError> {
         let directories = [
             self.application_support_directory.clone(),
             self.application_support_directory
@@ -119,9 +119,9 @@ impl MobileUserStoreConfig {
         ];
         for directory in directories {
             let metadata = std::fs::symlink_metadata(&directory)
-                .map_err(|_| RadrootsAppError::store_path_unavailable())?;
+                .map_err(|_| TeraAppError::store_path_unavailable())?;
             if metadata.file_type().is_symlink() || !metadata.is_dir() {
-                return Err(RadrootsAppError::store_invalid_configuration());
+                return Err(TeraAppError::store_invalid_configuration());
             }
         }
         Ok(())
@@ -129,9 +129,9 @@ impl MobileUserStoreConfig {
 
     pub(crate) fn sqlite_options(
         &self,
-    ) -> Result<radroots_sdk::storage::SqliteOptions, RadrootsAppError> {
+    ) -> Result<radroots_sdk::storage::SqliteOptions, TeraAppError> {
         let paths = radroots_sdk::storage::SqlitePaths::from_directory(&self.owner_directory)
-            .map_err(|_| RadrootsAppError::store_invalid_configuration())?;
+            .map_err(|_| TeraAppError::store_invalid_configuration())?;
         radroots_sdk::storage::SqliteOptions::new(
             paths,
             radroots_sdk::storage::SqliteOpenMode::Create,
@@ -143,28 +143,28 @@ impl MobileUserStoreConfig {
                 self.source_generation_created_at_unix_ms,
             )
         })
-        .map_err(|_| RadrootsAppError::store_invalid_configuration())
+        .map_err(|_| TeraAppError::store_invalid_configuration())
     }
 }
 
-fn parse_source_generation(value: &str) -> Result<SourceGeneration, RadrootsAppError> {
+fn parse_source_generation(value: &str) -> Result<SourceGeneration, TeraAppError> {
     if value.len() != GENERATION_HEX_LENGTH {
-        return Err(RadrootsAppError::store_invalid_configuration());
+        return Err(TeraAppError::store_invalid_configuration());
     }
-    let bytes = hex::decode(value).map_err(|_| RadrootsAppError::store_invalid_configuration())?;
+    let bytes = hex::decode(value).map_err(|_| TeraAppError::store_invalid_configuration())?;
     let bytes: [u8; 32] = bytes
         .try_into()
-        .map_err(|_| RadrootsAppError::store_invalid_configuration())?;
-    SourceGeneration::new(bytes).map_err(|_| RadrootsAppError::store_invalid_configuration())
+        .map_err(|_| TeraAppError::store_invalid_configuration())?;
+    SourceGeneration::new(bytes).map_err(|_| TeraAppError::store_invalid_configuration())
 }
 
-fn validate_absolute_normal_directory(path: &Path) -> Result<(), RadrootsAppError> {
+fn validate_absolute_normal_directory(path: &Path) -> Result<(), TeraAppError> {
     if !path.is_absolute()
         || path
             .components()
             .any(|component| matches!(component, Component::CurDir | Component::ParentDir))
     {
-        return Err(RadrootsAppError::store_invalid_configuration());
+        return Err(TeraAppError::store_invalid_configuration());
     }
     Ok(())
 }
@@ -227,7 +227,7 @@ mod tests {
                 ProtectedDataAvailability::Available,
             ),
         ] {
-            assert!(matches!(result, Err(RadrootsAppError::Store { .. })));
+            assert!(matches!(result, Err(TeraAppError::Store { .. })));
         }
     }
 
@@ -251,7 +251,7 @@ mod tests {
         symlink(target.path(), config.owner_directory()).expect("symlink");
         assert!(matches!(
             config.validate_host_filesystem(),
-            Err(RadrootsAppError::Store { .. })
+            Err(TeraAppError::Store { .. })
         ));
     }
 }

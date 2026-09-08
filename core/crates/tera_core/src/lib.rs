@@ -12,6 +12,6 @@ mod provenance;
 pub mod runtime;
 
 #[cfg(not(target_family = "wasm"))]
-pub use error::{RadrootsAppError, SdkErrorRecord, StoreErrorRecord};
+pub use error::{SdkErrorRecord, StoreErrorRecord, TeraAppError};
 #[cfg(not(target_family = "wasm"))]
-pub use runtime::RadrootsRuntime;
+pub use runtime::TeraRuntime;

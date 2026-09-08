@@ -13,15 +13,15 @@ mod signer;
 mod subscription;
 
 pub use dto::*;
-pub use error::{RadrootsAppError, RadrootsErrorRecord};
+pub use error::{TeraAppError, TeraErrorRecord};
 pub use operations::*;
-pub use runtime::{ProtectedDataAvailability, RadrootsRuntime};
+pub use runtime::{ProtectedDataAvailability, TeraRuntime};
 pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,
-    RadrootsHostSigner, SignerAvailabilityRecord, SignerStatusRecord,
+    SignerAvailabilityRecord, SignerStatusRecord, TeraHostSigner,
 };
 pub use subscription::{
-    FfiRuntimeChangeKind, FfiRuntimeChangeRecord, FfiSubscriptionHandle, RadrootsRuntimeObserver,
+    FfiRuntimeChangeKind, FfiRuntimeChangeRecord, FfiSubscriptionHandle, TeraRuntimeObserver,
 };
 
 mod error;

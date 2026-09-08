@@ -41,7 +41,7 @@ BUD11_AUTHORIZATION_ENCODED_MAX_BYTES = 21_846
 BUD11_MAX_LIFETIME_SECONDS = 300
 BUD11_MAX_CREATED_AGE_SECONDS = 300
 BUD11_SERVER_DOMAIN = "127.0.0.1"
-BUD11_MUTATION_SCHEMA = "radroots.ios.local-social.bud11-mutations.v1"
+BUD11_MUTATION_SCHEMA = "tera.ios.local-social.bud11-mutations.v1"
 BUD11_MUTATIONS = (
     ("canonical", "none", "http", True),
     ("wrong-scheme", "authorization_scheme", "http", False),
@@ -79,19 +79,19 @@ FLOW_KINDS = {
     "FoodAvailability": 30402,
 }
 PHOTO_PERSONAS = frozenset(("P01", "P03", "P04"))
-PERSONA_CONTROL_SCHEMA = "radroots.ios.local-social.persona-control.v1"
-PERSONA_ATTEMPT_SCHEMA = "radroots.ios.local-social.persona-attempt-evidence.v1"
-PERSONA_RESULT_V2_SCHEMA = "radroots.ios.local-social.persona-results.v2"
-PERSONA_TEST_TARGET = "RadrootsUITests"
-PERSONA_TEST_IDENTIFIER = "RadrootsUITests/testLocalSocialDeterministicPersonas"
+PERSONA_CONTROL_SCHEMA = "tera.ios.local-social.persona-control.v1"
+PERSONA_ATTEMPT_SCHEMA = "tera.ios.local-social.persona-attempt-evidence.v1"
+PERSONA_RESULT_V2_SCHEMA = "tera.ios.local-social.persona-results.v2"
+PERSONA_TEST_TARGET = "TeraUITests"
+PERSONA_TEST_IDENTIFIER = "TeraUITests/testLocalSocialDeterministicPersonas"
 PERSONA_TEST_ACTION = "test"
 PERSONA_TEST_CONFIGURATION = "Debug"
 PERSONA_XCRESULT_NODE_IDENTIFIER = (
-    "RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas()"
+    "TeraRemoteQualificationUITests/testLocalSocialDeterministicPersonas()"
 )
 PERSONA_XCRESULT_NODE_URL = (
-    "test://com.apple.xcode/Radroots/RadrootsUITests/"
-    "RadrootsRemoteQualificationUITests/testLocalSocialDeterministicPersonas"
+    "test://com.apple.xcode/Tera/TeraUITests/"
+    "TeraRemoteQualificationUITests/testLocalSocialDeterministicPersonas"
 )
 MAX_XCRESULT_JSON_BYTES = 1024 * 1024
 MAX_PERSONA_ATTACHMENT_BYTES = 64 * 1024
@@ -152,7 +152,7 @@ def validate_persona_suite(value: Any) -> dict[str, Any]:
         "persona suite",
     )
     if (
-        root["schema"] != "radroots.ios.local-social.personas.v1"
+        root["schema"] != "tera.ios.local-social.personas.v1"
         or root["schema_version"] != 1
         or root["locale"] != "en_US"
         or not lowercase_hex(root["media_fixture_sha256"], 64)
@@ -628,7 +628,7 @@ class FixtureState:
     def _write_evidence_locked(self) -> None:
         if self._suite is None:
             payload = {
-                "schema": "radroots-ios-local-social-fixture-evidence-v1",
+                "schema": "tera-ios-local-social-fixture-evidence-v1",
                 "schema_version": 1,
                 "accepted_events": len(self._events),
                 "event_kinds": sorted(
@@ -681,7 +681,7 @@ class FixtureState:
             for flow in FLOW_KINDS
         }
         return {
-            "schema": "radroots.ios.local-social.persona-evidence.v1",
+            "schema": "tera.ios.local-social.persona-evidence.v1",
             "schema_version": 1,
             "personas": personas,
             "flow_counts": flow_counts,
@@ -1307,7 +1307,7 @@ def serve(arguments: argparse.Namespace) -> int:
     ready.write_text(
         json.dumps(
             {
-                "schema": "radroots-ios-local-social-fixture-ready-v1",
+                "schema": "tera-ios-local-social-fixture-ready-v1",
                 "relay": f"ws://127.0.0.1:{arguments.relay_port}",
                 "blossom": f"http://127.0.0.1:{arguments.blossom_port}",
             },
@@ -1336,7 +1336,7 @@ def serve(arguments: argparse.Namespace) -> int:
 def verify(arguments: argparse.Namespace) -> int:
     _, payload = read_json(Path(arguments.evidence).resolve())
     if (
-        payload.get("schema") != "radroots-ios-local-social-fixture-evidence-v1"
+        payload.get("schema") != "tera-ios-local-social-fixture-evidence-v1"
         or payload.get("accepted_events", 0) < 5
         or payload.get("subscriptions", 0) < 1
         or payload.get("upload_attempts", 0) < 1
@@ -1353,7 +1353,7 @@ def verify(arguments: argparse.Namespace) -> int:
 def verify_accessibility(arguments: argparse.Namespace) -> int:
     _, payload = read_json(Path(arguments.evidence).resolve())
     if (
-        payload.get("schema") != "radroots-ios-local-social-fixture-evidence-v1"
+        payload.get("schema") != "tera-ios-local-social-fixture-evidence-v1"
         or payload.get("accepted_events") != 0
         or payload.get("upload_attempts") != 0
         or payload.get("accepted_uploads") != 0
@@ -1575,7 +1575,7 @@ def validate_persona_evidence(value: Any, suite: dict[str, Any]) -> dict[str, An
     }
     evidence = exact_keys(value, keys, "persona evidence")
     if (
-        evidence["schema"] != "radroots.ios.local-social.persona-evidence.v1"
+        evidence["schema"] != "tera.ios.local-social.persona-evidence.v1"
         or evidence["schema_version"] != 1
     ):
         raise ValueError("persona evidence header is invalid")
@@ -2321,7 +2321,7 @@ def validate_persona_result(
     }
     result = exact_keys(value, keys, "persona result")
     if (
-        result["schema"] != "radroots.ios.local-social.persona-results.v1"
+        result["schema"] != "tera.ios.local-social.persona-results.v1"
         or result["schema_version"] != 1
         or not re.fullmatch(r"[a-z0-9][a-z0-9-]{6,62}[a-z0-9]", result["run_id"])
         or not lowercase_hex(result["source_commit"], 40)

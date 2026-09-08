@@ -1,0 +1,32 @@
+schema = "tera.native-producer.v1"
+repository = "https://github.com/radrootslabs/tera"
+foundation_lock = "radroots.lib.source-lock.v1.toml"
+source_inputs = [
+  "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "Makefile",
+  "core", "scripts", "TeraFFI/Makefile", "TeraFFI/scripts",
+  "TeraFFI/producer.toml", "radroots.lib.source-lock.v1.toml",
+]
+
+[ffi]
+package = "tera_ffi"
+default_features = true
+features = []
+config = "core/crates/tera_ffi/uniffi.toml"
+
+[generator]
+package = "tera_bindgen"
+default_features = true
+features = []
+
+[build]
+rust_version = "1.97.1"
+profile = "release"
+ios_deployment_target = "18.0"
+rust_flags = [
+  "--remap-path-prefix={producer_root}=/tera",
+  "--remap-path-prefix={cargo_home}=/cargo",
+  "--remap-path-prefix={extbuild_root}=/build",
+]
+source_date_epoch = 1787871027
+host = "aarch64-apple-darwin"
+targets = ["aarch64-apple-ios", "aarch64-apple-ios-sim", "aarch64-apple-darwin"]

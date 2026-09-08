@@ -17,18 +17,18 @@ done
 repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
 work_dir="$XCODE_DERIVED_DATA/radroots-app-api"
 symbol_dir="$work_dir/symbols"
-rendered="$work_dir/RadrootsApp.symbols.json"
-snapshot="$repo_root/api/RadrootsApp.symbols.json"
+rendered="$work_dir/TeraApp.symbols.json"
+snapshot="$repo_root/api/TeraApp.symbols.json"
 products="$XCODE_DERIVED_DATA/Build/Products/Debug-iphonesimulator"
 generated_module_maps="$XCODE_DERIVED_DATA/Build/Intermediates.noindex/GeneratedModuleMaps-iphonesimulator"
 secp_headers="$XCODE_SOURCE_PACKAGES/checkouts/swift-secp256k1/Sources/libsecp256k1/include"
-ffi_headers="$repo_root/Radroots/Frameworks/RadrootsFFI.xcframework/ios-arm64-simulator/Headers"
+ffi_headers="$repo_root/Tera/Frameworks/TeraFFI.xcframework/ios-arm64-simulator/Headers"
 sdk=$(xcrun --sdk iphonesimulator --show-sdk-path)
 
 rm -rf "$work_dir"
 mkdir -p "$symbol_dir"
 xcrun swift-symbolgraph-extract \
-    -module-name RadrootsApp \
+    -module-name TeraApp \
     -target arm64-apple-ios18.0-simulator \
     -sdk "$sdk" \
     -I "$products" \
@@ -43,7 +43,7 @@ xcrun swift-symbolgraph-extract \
 
 jq -cS \
     '{schema:"radroots.swift-api-snapshot.v1",module:.module,symbols:(.symbols | map({kind:.kind.identifier,precise:.identifier.precise,path:.pathComponents,access:.accessLevel,declaration:.declarationFragments}) | sort_by(.precise)),relationships:(.relationships | map({kind,source,target}) | sort_by(.kind,.source,.target))}' \
-    "$symbol_dir/RadrootsApp.symbols.json" > "$rendered"
+    "$symbol_dir/TeraApp.symbols.json" > "$rendered"
 
 if [[ "$operation" == write ]]; then
     mkdir -p "$(dirname -- "$snapshot")"
@@ -56,4 +56,4 @@ else
     cmp "$rendered" "$snapshot"
 fi
 
-echo "RadrootsApp public API snapshot $operation succeeded"
+echo "TeraApp public API snapshot $operation succeeded"

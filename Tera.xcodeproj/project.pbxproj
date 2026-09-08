@@ -1,0 +1,721 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1D45B3D566A0A60063190854 /* TeraApp in Frameworks */ = {isa = PBXBuildFile; productRef = E666175A800272732A27CBEB /* TeraApp */; };
+		2479571FA99A7962794999C4 /* TeraSupportingStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0636AEDEB50DDDD328374A9 /* TeraSupportingStoreTests.swift */; };
+		2C6DDB502DFA11C2CBCA49C4 /* TeraApp in Frameworks */ = {isa = PBXBuildFile; productRef = A1979630FE6BC343F0E59F24 /* TeraApp */; };
+		38EF7FA8874E82B28110A232 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6967B3EAC4CF1A410B26DD1A /* PrivacyInfo.xcprivacy */; };
+		4734A842C366608EC1BD31C5 /* TeraUserMessagesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46DDEE781FDD92A292FD847B /* TeraUserMessagesTests.swift */; };
+		64D49ADFD3FDD54CBA509DC5 /* TeraTodayStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 794D475C70BA8ED994D1CA66 /* TeraTodayStoreTests.swift */; };
+		671EF50DB4EFBC25AABF26DC /* TeraLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C890BDE885536BC2AB215393 /* TeraLifecycleTests.swift */; };
+		70417FB635F06CC9829FB38C /* TeraClockTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A506546B0EC1792240C36F7 /* TeraClockTests.swift */; };
+		772A9B1AD8DE1D2E0969F285 /* TeraCalendarFFICompatibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B808E67E85CD36E49C38B6F /* TeraCalendarFFICompatibilityTests.swift */; };
+		81AF9DDA0E64DC4EEFCEF25D /* TeraRemoteQualificationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E351F52E77C74A4E99095E45 /* TeraRemoteQualificationTests.swift */; };
+		852FF7514FF7F682A246FB47 /* TeraStateMigrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98E969BCFF7CED33A1D4A040 /* TeraStateMigrationTests.swift */; };
+		912C8743116D929BB6A02778 /* TeraRuntimeClientTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB77C087F15C2F42CD959607 /* TeraRuntimeClientTests.swift */; };
+		9AD968F0B37C64B5AF8D9A68 /* TeraRootShellTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8677670E203FF68EC88983 /* TeraRootShellTests.swift */; };
+		A1AD2A380F09994786889AF1 /* TeraAddStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F22CFABCF27A28408F68D25 /* TeraAddStoreTests.swift */; };
+		B2DAAE01D16E1FAC35816DED /* RadrootsKit in Frameworks */ = {isa = PBXBuildFile; productRef = 1A9F6E32DE0C3728D4DB8E60 /* RadrootsKit */; };
+		B4AE86BE0A9F7FBE0DEBD9AC /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = ADFD21D28C5F9E58B70E76CA /* Localizable.strings */; };
+		B64A836C5E84924D28CB5D47 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AB8A30A75EFD65EFD938D248 /* Assets.xcassets */; };
+		C3177E827FE62639579C3EF5 /* TeraRemoteQualificationUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32CBDAE974FB8D7408108E69 /* TeraRemoteQualificationUITests.swift */; };
+		CDBE38E6B521611436F28858 /* TeraMediaStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61B6F0B16BFD8F046E9C163F /* TeraMediaStoreTests.swift */; };
+		DF97F408D7D32F72C5AF5939 /* TeraRootShellUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5238B5F236C392C82CEF9838 /* TeraRootShellUITests.swift */; };
+		E508A7061082B091B733D62B /* App.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67ACCE25979BA86C1EC5BFD6 /* App.swift */; };
+		EF7293C553BF1DB45EEEBD49 /* local-social-personas.v1.json in Resources */ = {isa = PBXBuildFile; fileRef = 27D9D40699A01FFB02F30B11 /* local-social-personas.v1.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		76EDCE28535C20D9DE531133 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4CF37E857DB6B4472D9B7BA9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8DD2B0E1333DDE440F980FAB;
+			remoteInfo = Tera;
+		};
+		9170B71C2E5705AFBD0404C3 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 4CF37E857DB6B4472D9B7BA9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8DD2B0E1333DDE440F980FAB;
+			remoteInfo = Tera;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0CDE3D76E1EDF909C19D0506 /* TeraUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TeraUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		27D9D40699A01FFB02F30B11 /* local-social-personas.v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "local-social-personas.v1.json"; sourceTree = "<group>"; };
+		2A506546B0EC1792240C36F7 /* TeraClockTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraClockTests.swift; sourceTree = "<group>"; };
+		32CBDAE974FB8D7408108E69 /* TeraRemoteQualificationUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRemoteQualificationUITests.swift; sourceTree = "<group>"; };
+		3B808E67E85CD36E49C38B6F /* TeraCalendarFFICompatibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraCalendarFFICompatibilityTests.swift; sourceTree = "<group>"; };
+		46DDEE781FDD92A292FD847B /* TeraUserMessagesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraUserMessagesTests.swift; sourceTree = "<group>"; };
+		5238B5F236C392C82CEF9838 /* TeraRootShellUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRootShellUITests.swift; sourceTree = "<group>"; };
+		57CA176D0A7566A4ADD2CEA4 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
+		61B6F0B16BFD8F046E9C163F /* TeraMediaStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraMediaStoreTests.swift; sourceTree = "<group>"; };
+		67ACCE25979BA86C1EC5BFD6 /* App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = App.swift; sourceTree = "<group>"; };
+		6967B3EAC4CF1A410B26DD1A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		6B8677670E203FF68EC88983 /* TeraRootShellTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRootShellTests.swift; sourceTree = "<group>"; };
+		794D475C70BA8ED994D1CA66 /* TeraTodayStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraTodayStoreTests.swift; sourceTree = "<group>"; };
+		98E969BCFF7CED33A1D4A040 /* TeraStateMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraStateMigrationTests.swift; sourceTree = "<group>"; };
+		999BDCEF144A19F35D048D15 /* TeraTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TeraTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		9F22CFABCF27A28408F68D25 /* TeraAddStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraAddStoreTests.swift; sourceTree = "<group>"; };
+		9F54FC4930051FC4611B37D3 /* tera */ = {isa = PBXFileReference; lastKnownFileType = folder; name = tera; path = .; sourceTree = SOURCE_ROOT; };
+		AB8A30A75EFD65EFD938D248 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		ADFD21D28C5F9E58B70E76CA /* Localizable.strings */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; path = Localizable.strings; sourceTree = "<group>"; };
+		C0636AEDEB50DDDD328374A9 /* TeraSupportingStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraSupportingStoreTests.swift; sourceTree = "<group>"; };
+		C1DBB5D9AC2FE8EA3AE68458 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
+		C890BDE885536BC2AB215393 /* TeraLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraLifecycleTests.swift; sourceTree = "<group>"; };
+		DE9E724A23014C6EA9042123 /* Tera.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Tera.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E351F52E77C74A4E99095E45 /* TeraRemoteQualificationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRemoteQualificationTests.swift; sourceTree = "<group>"; };
+		FB77C087F15C2F42CD959607 /* TeraRuntimeClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRuntimeClientTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		0C55D66910BB8087B48BB40F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2C6DDB502DFA11C2CBCA49C4 /* TeraApp in Frameworks */,
+				B2DAAE01D16E1FAC35816DED /* RadrootsKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		49FE0CFDDC63DC7BB8606AE3 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1D45B3D566A0A60063190854 /* TeraApp in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1EFC18A250A6110CAF07AFF5 /* en.lproj */ = {
+			isa = PBXGroup;
+			children = (
+				ADFD21D28C5F9E58B70E76CA /* Localizable.strings */,
+			);
+			name = en.lproj;
+			path = Tera/Resources/en.lproj;
+			sourceTree = "<group>";
+		};
+		346963F5BDF916F6BC10D6F6 /* TeraUITests */ = {
+			isa = PBXGroup;
+			children = (
+				32CBDAE974FB8D7408108E69 /* TeraRemoteQualificationUITests.swift */,
+				5238B5F236C392C82CEF9838 /* TeraRootShellUITests.swift */,
+			);
+			path = TeraUITests;
+			sourceTree = "<group>";
+		};
+		4526D24C286CB3F9DAE25A14 /* test-fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				27D9D40699A01FFB02F30B11 /* local-social-personas.v1.json */,
+			);
+			path = "test-fixtures";
+			sourceTree = "<group>";
+		};
+		4A650A5BE0DF95C5939FF266 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DE9E724A23014C6EA9042123 /* Tera.app */,
+				999BDCEF144A19F35D048D15 /* TeraTests.xctest */,
+				0CDE3D76E1EDF909C19D0506 /* TeraUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		50B89388753A1FCD1B2A4F38 /* TeraTests */ = {
+			isa = PBXGroup;
+			children = (
+				9F22CFABCF27A28408F68D25 /* TeraAddStoreTests.swift */,
+				3B808E67E85CD36E49C38B6F /* TeraCalendarFFICompatibilityTests.swift */,
+				2A506546B0EC1792240C36F7 /* TeraClockTests.swift */,
+				C890BDE885536BC2AB215393 /* TeraLifecycleTests.swift */,
+				61B6F0B16BFD8F046E9C163F /* TeraMediaStoreTests.swift */,
+				E351F52E77C74A4E99095E45 /* TeraRemoteQualificationTests.swift */,
+				6B8677670E203FF68EC88983 /* TeraRootShellTests.swift */,
+				FB77C087F15C2F42CD959607 /* TeraRuntimeClientTests.swift */,
+				98E969BCFF7CED33A1D4A040 /* TeraStateMigrationTests.swift */,
+				C0636AEDEB50DDDD328374A9 /* TeraSupportingStoreTests.swift */,
+				794D475C70BA8ED994D1CA66 /* TeraTodayStoreTests.swift */,
+				46DDEE781FDD92A292FD847B /* TeraUserMessagesTests.swift */,
+			);
+			path = TeraTests;
+			sourceTree = "<group>";
+		};
+		51FADBCAD9366960895F88D1 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				9F54FC4930051FC4611B37D3 /* tera */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		587FA07B97C720E19966A5B8 = {
+			isa = PBXGroup;
+			children = (
+				C4B662981D34A18E44B6ADF7 /* App */,
+				C59B9E3818DFB13F7D0E534F /* Config */,
+				1EFC18A250A6110CAF07AFF5 /* en.lproj */,
+				51FADBCAD9366960895F88D1 /* Packages */,
+				DDE7CA04C2F66BF334384562 /* Resources */,
+				50B89388753A1FCD1B2A4F38 /* TeraTests */,
+				346963F5BDF916F6BC10D6F6 /* TeraUITests */,
+				4526D24C286CB3F9DAE25A14 /* test-fixtures */,
+				4A650A5BE0DF95C5939FF266 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C4B662981D34A18E44B6ADF7 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				67ACCE25979BA86C1EC5BFD6 /* App.swift */,
+			);
+			name = App;
+			path = Tera/App;
+			sourceTree = "<group>";
+		};
+		C59B9E3818DFB13F7D0E534F /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				57CA176D0A7566A4ADD2CEA4 /* Debug.xcconfig */,
+				C1DBB5D9AC2FE8EA3AE68458 /* Release.xcconfig */,
+			);
+			name = Config;
+			path = Tera/Config;
+			sourceTree = "<group>";
+		};
+		DDE7CA04C2F66BF334384562 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AB8A30A75EFD65EFD938D248 /* Assets.xcassets */,
+				6967B3EAC4CF1A410B26DD1A /* PrivacyInfo.xcprivacy */,
+			);
+			name = Resources;
+			path = Tera/Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		8DD2B0E1333DDE440F980FAB /* Tera */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 57824BAFC2B08EABBEF50F35 /* Build configuration list for PBXNativeTarget "Tera" */;
+			buildPhases = (
+				5664E1E0F506008D5D0940E6 /* Verify installed FFI artifacts */,
+				D27352181A82C30C61797197 /* Sources */,
+				E0CCFBA5157D6E0195FACD8E /* Resources */,
+				49FE0CFDDC63DC7BB8606AE3 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Tera;
+			packageProductDependencies = (
+				E666175A800272732A27CBEB /* TeraApp */,
+			);
+			productName = Tera;
+			productReference = DE9E724A23014C6EA9042123 /* Tera.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9E63A6809F85DEB11A608EF1 /* TeraUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7EE61EA8517650A8896F6083 /* Build configuration list for PBXNativeTarget "TeraUITests" */;
+			buildPhases = (
+				B8B9D04F6DF837285CFA6701 /* Sources */,
+				CC4167297DD51F263ECEED0F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				013235874496AB97EF2F18D2 /* PBXTargetDependency */,
+			);
+			name = TeraUITests;
+			packageProductDependencies = (
+			);
+			productName = TeraUITests;
+			productReference = 0CDE3D76E1EDF909C19D0506 /* TeraUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		F1CB1088590AC25CD3B20681 /* TeraTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00AFD792FF99098A81A2E4F0 /* Build configuration list for PBXNativeTarget "TeraTests" */;
+			buildPhases = (
+				043CF80508A308E3D1CF80D3 /* Sources */,
+				0C55D66910BB8087B48BB40F /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				508C8659B17FE31B87B8D0A1 /* PBXTargetDependency */,
+			);
+			name = TeraTests;
+			packageProductDependencies = (
+				A1979630FE6BC343F0E59F24 /* TeraApp */,
+				1A9F6E32DE0C3728D4DB8E60 /* RadrootsKit */,
+			);
+			productName = TeraTests;
+			productReference = 999BDCEF144A19F35D048D15 /* TeraTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4CF37E857DB6B4472D9B7BA9 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					9E63A6809F85DEB11A608EF1 = {
+						TestTargetID = 8DD2B0E1333DDE440F980FAB;
+					};
+				};
+			};
+			buildConfigurationList = D694E59ADB78BA81C4992F12 /* Build configuration list for PBXProject "Tera" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 587FA07B97C720E19966A5B8;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				8FB1F0AD8677C11E47CBBB1F /* XCRemoteSwiftPackageReference "apple_kit" */,
+				289018DE79A44C2915868D2B /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 4A650A5BE0DF95C5939FF266 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				8DD2B0E1333DDE440F980FAB /* Tera */,
+				F1CB1088590AC25CD3B20681 /* TeraTests */,
+				9E63A6809F85DEB11A608EF1 /* TeraUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CC4167297DD51F263ECEED0F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				EF7293C553BF1DB45EEEBD49 /* local-social-personas.v1.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E0CCFBA5157D6E0195FACD8E /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B64A836C5E84924D28CB5D47 /* Assets.xcassets in Resources */,
+				B4AE86BE0A9F7FBE0DEBD9AC /* Localizable.strings in Resources */,
+				38EF7FA8874E82B28110A232 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		5664E1E0F506008D5D0940E6 /* Verify installed FFI artifacts */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Verify installed FFI artifacts";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"$SRCROOT/TeraFFI/scripts/verify-installed-artifacts.sh\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		043CF80508A308E3D1CF80D3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A1AD2A380F09994786889AF1 /* TeraAddStoreTests.swift in Sources */,
+				772A9B1AD8DE1D2E0969F285 /* TeraCalendarFFICompatibilityTests.swift in Sources */,
+				70417FB635F06CC9829FB38C /* TeraClockTests.swift in Sources */,
+				671EF50DB4EFBC25AABF26DC /* TeraLifecycleTests.swift in Sources */,
+				CDBE38E6B521611436F28858 /* TeraMediaStoreTests.swift in Sources */,
+				81AF9DDA0E64DC4EEFCEF25D /* TeraRemoteQualificationTests.swift in Sources */,
+				9AD968F0B37C64B5AF8D9A68 /* TeraRootShellTests.swift in Sources */,
+				912C8743116D929BB6A02778 /* TeraRuntimeClientTests.swift in Sources */,
+				852FF7514FF7F682A246FB47 /* TeraStateMigrationTests.swift in Sources */,
+				2479571FA99A7962794999C4 /* TeraSupportingStoreTests.swift in Sources */,
+				64D49ADFD3FDD54CBA509DC5 /* TeraTodayStoreTests.swift in Sources */,
+				4734A842C366608EC1BD31C5 /* TeraUserMessagesTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B8B9D04F6DF837285CFA6701 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C3177E827FE62639579C3EF5 /* TeraRemoteQualificationUITests.swift in Sources */,
+				DF97F408D7D32F72C5AF5939 /* TeraRootShellUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D27352181A82C30C61797197 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E508A7061082B091B733D62B /* App.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		013235874496AB97EF2F18D2 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8DD2B0E1333DDE440F980FAB /* Tera */;
+			targetProxy = 76EDCE28535C20D9DE531133 /* PBXContainerItemProxy */;
+		};
+		508C8659B17FE31B87B8D0A1 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8DD2B0E1333DDE440F980FAB /* Tera */;
+			targetProxy = 9170B71C2E5705AFBD0404C3 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		1C1DE68D23BF06A11CD4C24F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.radroots.field-ios.tests";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Tera.app/Tera";
+			};
+			name = Release;
+		};
+		4C5A27E0384FA6064216A6A0 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TeraUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.radroots.field-ios.uitests";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tera;
+			};
+			name = Release;
+		};
+		4F11544AD11FE6F740F0C424 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 57CA176D0A7566A4ADD2CEA4 /* Debug.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				INFOPLIST_FILE = Tera/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		6AC6D170EA025AEB8DE064FF /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = C1DBB5D9AC2FE8EA3AE68458 /* Release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				INFOPLIST_FILE = Tera/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9BB0761F7CC14243D3D1A0E3 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = TeraUITests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.radroots.field-ios.uitests";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Tera;
+			};
+			name = Debug;
+		};
+		9DBD265E807B1BB210394E25 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		A5E4AEC4D4C40E93A8E5AF32 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "org.radroots.field-ios.tests";
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Tera.app/Tera";
+			};
+			name = Debug;
+		};
+		C04D6D3DDC2DDB92EF0B3C1D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		00AFD792FF99098A81A2E4F0 /* Build configuration list for PBXNativeTarget "TeraTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A5E4AEC4D4C40E93A8E5AF32 /* Debug */,
+				1C1DE68D23BF06A11CD4C24F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		57824BAFC2B08EABBEF50F35 /* Build configuration list for PBXNativeTarget "Tera" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4F11544AD11FE6F740F0C424 /* Debug */,
+				6AC6D170EA025AEB8DE064FF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7EE61EA8517650A8896F6083 /* Build configuration list for PBXNativeTarget "TeraUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9BB0761F7CC14243D3D1A0E3 /* Debug */,
+				4C5A27E0384FA6064216A6A0 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D694E59ADB78BA81C4992F12 /* Build configuration list for PBXProject "Tera" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9DBD265E807B1BB210394E25 /* Debug */,
+				C04D6D3DDC2DDB92EF0B3C1D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		289018DE79A44C2915868D2B /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		8FB1F0AD8677C11E47CBBB1F /* XCRemoteSwiftPackageReference "apple_kit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/radrootslabs/apple_kit.git";
+			requirement = {
+				kind = revision;
+				revision = 35aedb6b54ff645b663fecff26082b3e91fcb232;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		1A9F6E32DE0C3728D4DB8E60 /* RadrootsKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8FB1F0AD8677C11E47CBBB1F /* XCRemoteSwiftPackageReference "apple_kit" */;
+			productName = RadrootsKit;
+		};
+		A1979630FE6BC343F0E59F24 /* TeraApp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeraApp;
+		};
+		E666175A800272732A27CBEB /* TeraApp */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = TeraApp;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 4CF37E857DB6B4472D9B7BA9 /* Project object */;
+}

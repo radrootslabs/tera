@@ -1,4 +1,4 @@
-name: Radroots
+name: Tera
 
 options:
   deploymentTarget:
@@ -9,54 +9,54 @@ configs:
   Release: release
 
 packages:
-  RadrootsApp:
+  TeraApp:
     path: .
   RadrootsKit:
     url: https://github.com/radrootslabs/apple_kit.git
     revision: 35aedb6b54ff645b663fecff26082b3e91fcb232
 
 targets:
-  Radroots:
+  Tera:
     type: application
     platform: iOS
     deploymentTarget: "18.0"
     sources:
-      - path: Radroots/App/App.swift
-      - path: Radroots/Resources/Assets.xcassets
-      - path: Radroots/Resources/PrivacyInfo.xcprivacy
-      - path: Radroots/Resources/en.lproj/Localizable.strings
+      - path: Tera/App/App.swift
+      - path: Tera/Resources/Assets.xcassets
+      - path: Tera/Resources/PrivacyInfo.xcprivacy
+      - path: Tera/Resources/en.lproj/Localizable.strings
     settings:
       base:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
         SWIFT_VERSION: 6.0
-        INFOPLIST_FILE: Radroots/Info.plist
+        INFOPLIST_FILE: Tera/Info.plist
     configFiles:
-      Debug: Radroots/Config/Debug.xcconfig
-      Release: Radroots/Config/Release.xcconfig
+      Debug: Tera/Config/Debug.xcconfig
+      Release: Tera/Config/Release.xcconfig
     dependencies:
-      - package: RadrootsApp
+      - package: TeraApp
     preBuildScripts:
       - name: Verify installed FFI artifacts
         basedOnDependencyAnalysis: false
         script: |
-          "$SRCROOT/RadrootsFFI/scripts/verify-installed-artifacts.sh"
-  RadrootsTests:
+          "$SRCROOT/TeraFFI/scripts/verify-installed-artifacts.sh"
+  TeraTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "18.0"
     sources:
-      - path: RadrootsTests/RadrootsRuntimeClientTests.swift
-      - path: RadrootsTests/RadrootsRootShellTests.swift
-      - path: RadrootsTests/RadrootsStateMigrationTests.swift
-      - path: RadrootsTests/RadrootsTodayStoreTests.swift
-      - path: RadrootsTests/RadrootsMediaStoreTests.swift
-      - path: RadrootsTests/RadrootsAddStoreTests.swift
-      - path: RadrootsTests/RadrootsSupportingStoreTests.swift
-      - path: RadrootsTests/RadrootsLifecycleTests.swift
-      - path: RadrootsTests/RadrootsClockTests.swift
-      - path: RadrootsTests/RadrootsCalendarFFICompatibilityTests.swift
-      - path: RadrootsTests/RadrootsRemoteQualificationTests.swift
-      - path: RadrootsTests/RadrootsUserMessagesTests.swift
+      - path: TeraTests/TeraRuntimeClientTests.swift
+      - path: TeraTests/TeraRootShellTests.swift
+      - path: TeraTests/TeraStateMigrationTests.swift
+      - path: TeraTests/TeraTodayStoreTests.swift
+      - path: TeraTests/TeraMediaStoreTests.swift
+      - path: TeraTests/TeraAddStoreTests.swift
+      - path: TeraTests/TeraSupportingStoreTests.swift
+      - path: TeraTests/TeraLifecycleTests.swift
+      - path: TeraTests/TeraClockTests.swift
+      - path: TeraTests/TeraCalendarFFICompatibilityTests.swift
+      - path: TeraTests/TeraRemoteQualificationTests.swift
+      - path: TeraTests/TeraUserMessagesTests.swift
     settings:
       base:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
@@ -64,16 +64,16 @@ targets:
         GENERATE_INFOPLIST_FILE: true
         PRODUCT_BUNDLE_IDENTIFIER: org.radroots.field-ios.tests
     dependencies:
-      - target: Radroots
-      - package: RadrootsApp
+      - target: Tera
+      - package: TeraApp
       - package: RadrootsKit
-  RadrootsUITests:
+  TeraUITests:
     type: bundle.ui-testing
     platform: iOS
     deploymentTarget: "18.0"
     sources:
-      - path: RadrootsUITests/RadrootsRootShellUITests.swift
-      - path: RadrootsUITests/RadrootsRemoteQualificationUITests.swift
+      - path: TeraUITests/TeraRootShellUITests.swift
+      - path: TeraUITests/TeraRemoteQualificationUITests.swift
       - path: test-fixtures/local-social-personas.v1.json
         buildPhase: resources
     settings:
@@ -81,16 +81,16 @@ targets:
         "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
         SWIFT_VERSION: 6.0
         GENERATE_INFOPLIST_FILE: false
-        INFOPLIST_FILE: RadrootsUITests/Info.plist
+        INFOPLIST_FILE: TeraUITests/Info.plist
         PRODUCT_BUNDLE_IDENTIFIER: org.radroots.field-ios.uitests
     dependencies:
-      - target: Radroots
+      - target: Tera
 schemes:
-  Radroots:
+  Tera:
     build:
       targets:
-        Radroots: all
+        Tera: all
     test:
       targets:
-        - RadrootsTests
-        - RadrootsUITests
+        - TeraTests
+        - TeraUITests

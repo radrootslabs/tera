@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import plistlib
 import re
 import shutil
 import subprocess
@@ -14,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import ffi_artifacts as artifacts
+import ffi_installed as installed
 import ffi_provenance as provenance
 import ffi_source as source
 import package_contract as contract
@@ -39,7 +41,7 @@ def build_environment(
         "cargo_home": os.environ.get("CARGO_HOME", str(Path.home() / ".cargo")),
     }
     environment = dict(os.environ)
-    environment.pop("RADROOTS_CONSUMER_REVISION", None)
+    environment.pop("TERA_CONSUMER_REVISION", None)
     environment.update(
         {
             "CARGO_ENCODED_RUSTFLAGS": "\x1f".join(
@@ -163,6 +165,13 @@ def package_framework(
         ]
     argv += ["-output", str(bundle / artifacts.FRAMEWORK)]
     run(root, logs, "package-xcframework", argv, env)
+    canonicalize_framework_info(bundle / artifacts.FRAMEWORK / "Info.plist")
+
+
+def canonicalize_framework_info(path: Path) -> None:
+    info = plistlib.loads(contract._read_regular(path))
+    info["AvailableLibraries"].sort(key=lambda item: item["LibraryIdentifier"])
+    path.write_bytes(plistlib.dumps(info, sort_keys=True))
 
 
 def generate_api(
@@ -354,17 +363,27 @@ def build(
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("mode", choices=("build", "check"))
+    parser.add_argument("mode", choices=("build", "check", "install", "clean"))
     args = parser.parse_args()
     root = Path(__file__).resolve().parent.parent
     try:
         project, target_root = build_roots(root)
+        if args.mode == "clean":
+            candidates = project / "target/tera_ffi/candidates"
+            if candidates.is_symlink() or candidates.resolve() != candidates:
+                raise source.ProvenanceError("candidate cache contains a symlink")
+            if candidates.exists():
+                shutil.rmtree(candidates)
+            print("native candidate cache removed; Cargo incremental cache retained")
+            return 0
         records = capture_sources(root)
         tree = records[artifacts.TARGETS[0]]["source"]["tree"]
         destination = project / "target/tera_ffi/candidates" / tree
-        if args.mode == "build" and not destination.exists():
+        if args.mode in ("build", "install") and not destination.exists():
             build(root, project, target_root, records, destination)
         artifacts.check(destination, records)
+        if args.mode == "install":
+            installed.install(root, destination, records)
     except (
         source.ProvenanceError,
         contract.PackageContractError,
@@ -374,7 +393,7 @@ def main() -> int:
     ) as error:
         print(f"native candidate: {error}", file=sys.stderr)
         return 1
-    print(f"native candidate {args.mode}: tree={tree}; {destination}; not installed")
+    print(f"native candidate {args.mode}: tree={tree}; {destination}")
     return 0
 
 

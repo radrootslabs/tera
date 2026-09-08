@@ -14,8 +14,8 @@ use tera_ffi::{
     FfiMediaOperation, FfiMediaStage, FfiOutboxState, FfiPreparedMediaInput, FfiQueuePolicyRecord,
     FfiRelaySatisfaction, FfiRetractionDraftInput, FfiTodayCardType, FfiTodayProjectionUpdate,
     FfiTodayRelaySyncState, HostSigningOutcome, HostSigningRequest, HostSigningResult,
-    MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsHostSigner, RadrootsRuntime,
-    SignerAvailabilityRecord, SignerStatusRecord,
+    MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, SignerAvailabilityRecord,
+    SignerStatusRecord, TeraHostSigner, TeraRuntime,
 };
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
@@ -31,7 +31,7 @@ const REPLY_SECRET: &str = "0000000000000000000000000000000000000000000000000000
 struct FixtureHostSigner;
 
 #[async_trait::async_trait]
-impl RadrootsHostSigner for FixtureHostSigner {
+impl TeraHostSigner for FixtureHostSigner {
     async fn signer_status(&self) -> SignerStatusRecord {
         SignerStatusRecord {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
@@ -269,7 +269,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     }
     let reader_root = tempfile::tempdir().expect("fresh reader root");
     support::prepare(reader_root.path());
-    let reader = RadrootsRuntime::new(
+    let reader = TeraRuntime::new(
         reader_root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.to_owned(),
         support::GENERATION.to_owned(),
@@ -556,8 +556,8 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     relay.shutdown();
 }
 
-async fn runtime_with_signer(root: &std::path::Path) -> RadrootsRuntime {
-    RadrootsRuntime::with_host_signer(
+async fn runtime_with_signer(root: &std::path::Path) -> TeraRuntime {
+    TeraRuntime::with_host_signer(
         root.to_string_lossy().into_owned(),
         support::PUBLIC_KEY.to_owned(),
         support::GENERATION.to_owned(),
@@ -569,7 +569,7 @@ async fn runtime_with_signer(root: &std::path::Path) -> RadrootsRuntime {
     .expect("runtime with fixture host signer")
 }
 
-fn configure_simulator(runtime: &RadrootsRuntime, relay_url: &str, blossom_origin: &str) {
+fn configure_simulator(runtime: &TeraRuntime, relay_url: &str, blossom_origin: &str) {
     runtime
         .configure_simulator_relays(vec![relay_url.to_owned()])
         .expect("simulator relay profile");
@@ -672,7 +672,7 @@ fn prepared_media(
 }
 
 async fn queue(
-    runtime: &RadrootsRuntime,
+    runtime: &TeraRuntime,
     draft_id: &str,
     revision: u64,
     relay_url: &str,
@@ -700,7 +700,7 @@ async fn queue(
         .expect("queue draft")
 }
 
-async fn advance_complete(runtime: &RadrootsRuntime, draft_id: &str, revision: u64) {
+async fn advance_complete(runtime: &TeraRuntime, draft_id: &str, revision: u64) {
     let status = match runtime
         .phase1_advance_draft(draft_id.to_owned(), revision)
         .await
@@ -722,7 +722,7 @@ async fn advance_complete(runtime: &RadrootsRuntime, draft_id: &str, revision: u
 }
 
 async fn collect_pages(
-    runtime: &RadrootsRuntime,
+    runtime: &TeraRuntime,
     context: &FfiLocalNetworkRecord,
     limit: u16,
     as_of: u64,
@@ -819,7 +819,7 @@ async fn publish_supporting_events(relay_url: &str, update_id: &str, food_id: &s
 }
 
 async fn prove_corrupted_media_fails(
-    runtime: &RadrootsRuntime,
+    runtime: &TeraRuntime,
     bytes: &[u8],
     image_file: &std::fs::File,
 ) {

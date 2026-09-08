@@ -1,4 +1,4 @@
-use super::RadrootsRuntime;
+use super::TeraRuntime;
 use chrono::Utc;
 use serde::Serialize;
 
@@ -20,7 +20,7 @@ pub struct RuntimeInfo {
     pub sdk_closed: bool,
 }
 
-pub fn gather_runtime_info(runtime: &RadrootsRuntime) -> RuntimeInfo {
+pub fn gather_runtime_info(runtime: &TeraRuntime) -> RuntimeInfo {
     let now_ms = Utc::now().timestamp_millis();
     RuntimeInfo {
         app: AppInfo {
@@ -49,7 +49,7 @@ pub fn gather_runtime_info(runtime: &RadrootsRuntime) -> RuntimeInfo {
 mod tests {
     #[test]
     fn build_info_uses_sdk_identity_without_lower_runtime_metadata() {
-        let runtime = super::RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = super::TeraRuntime::test_memory().expect("runtime");
         let info = runtime.info();
         assert_eq!(info.sdk.crate_name, "radroots_sdk");
         assert_eq!(info.sdk.crate_version, "0.1.0-alpha");

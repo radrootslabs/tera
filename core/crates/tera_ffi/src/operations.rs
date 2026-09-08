@@ -12,7 +12,7 @@ use tera_core::runtime::product_surface::{
 use crate::dto::PreparedMedia;
 use crate::{
     FfiAddDraftInput, FfiDraftStatusRecord, FfiOperationSettlementRecord, FfiOutboxState,
-    FfiPreparedMediaInput, MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError,
+    FfiPreparedMediaInput, MOBILE_FFI_SCHEMA_VERSION, TeraAppError,
 };
 
 impl From<crate::FfiAddCommandType> for AddCommandType {
@@ -99,7 +99,7 @@ pub struct FfiIdentityCommandRecord {
 }
 
 impl TryFrom<FfiIdentityCommandRecord> for IdentityCommand {
-    type Error = RadrootsAppError;
+    type Error = TeraAppError;
 
     fn try_from(value: FfiIdentityCommandRecord) -> Result<Self, Self::Error> {
         require_schema(value.schema_version)?;
@@ -116,7 +116,7 @@ impl TryFrom<FfiIdentityCommandRecord> for IdentityCommand {
                 Ok(Self::CompleteImport {
                     operation_id,
                     identity: IdentityRecord::new(identity_id, &public_key)
-                        .map_err(|error| RadrootsAppError::invalid_argument(error.code()))?,
+                        .map_err(|error| TeraAppError::invalid_argument(error.code()))?,
                 })
             }
             FfiIdentityCommandKind::CancelImport if no_identity => Ok(Self::CancelImport {
@@ -130,9 +130,7 @@ impl TryFrom<FfiIdentityCommandRecord> for IdentityCommand {
             FfiIdentityCommandKind::Lock if no_operation && no_identity => Ok(Self::Lock),
             FfiIdentityCommandKind::Unlock if no_operation && no_identity => Ok(Self::Unlock),
             FfiIdentityCommandKind::Recover if no_operation && no_identity => Ok(Self::Recover),
-            _ => Err(RadrootsAppError::invalid_argument(
-                "invalid_identity_command",
-            )),
+            _ => Err(TeraAppError::invalid_argument("invalid_identity_command")),
         }
     }
 }
@@ -321,12 +319,10 @@ pub struct FfiReplaceSettingsRecord {
 }
 
 impl FfiReplaceSettingsRecord {
-    pub(crate) fn apply(self, current: MobileSettings) -> Result<MobileSettings, RadrootsAppError> {
+    pub(crate) fn apply(self, current: MobileSettings) -> Result<MobileSettings, TeraAppError> {
         require_schema(self.schema_version)?;
         if current.revision() != self.expected_revision {
-            return Err(RadrootsAppError::invalid_argument(
-                "settings_revision_conflict",
-            ));
+            return Err(TeraAppError::invalid_argument("settings_revision_conflict"));
         }
         require_schema(self.relays.schema_version)?;
         let relay_environment: MobileNetworkEnvironment = self.relays.environment.into();
@@ -343,7 +339,7 @@ impl FfiReplaceSettingsRecord {
                 )
                 .map_err(Into::into)
             })
-            .collect::<Result<Vec<_>, RadrootsAppError>>()?;
+            .collect::<Result<Vec<_>, TeraAppError>>()?;
         let relays = RelayPreferences::new(relay_environment, relay_endpoints)?;
 
         require_schema(self.blossom.schema_version)?;
@@ -409,7 +405,7 @@ impl FfiProfileMetadataInputRecord {
     pub(crate) fn command(
         self,
         blossom: Option<&radroots_sdk::transport::BlossomSlot>,
-    ) -> Result<ProfileMetadataCommand, RadrootsAppError> {
+    ) -> Result<ProfileMetadataCommand, TeraAppError> {
         require_schema(self.schema_version)?;
         let picture = self
             .picture
@@ -417,7 +413,7 @@ impl FfiProfileMetadataInputRecord {
             .transpose()?
             .map(|media| {
                 let blossom = blossom.ok_or_else(|| {
-                    RadrootsAppError::failure(
+                    TeraAppError::failure(
                         "blossom_unconfigured",
                         "profile",
                         true,
@@ -434,7 +430,7 @@ impl FfiProfileMetadataInputRecord {
             .transpose()?
             .map(|media| {
                 let blossom = blossom.ok_or_else(|| {
-                    RadrootsAppError::failure(
+                    TeraAppError::failure(
                         "blossom_unconfigured",
                         "profile",
                         true,
@@ -499,12 +495,12 @@ pub struct FfiRevisionInputRecord {
 }
 
 impl FfiRevisionInputRecord {
-    pub(crate) fn target(&self) -> Result<Phase1RevisionTarget, RadrootsAppError> {
+    pub(crate) fn target(&self) -> Result<Phase1RevisionTarget, TeraAppError> {
         require_schema(self.schema_version)?;
         Phase1RevisionTarget::from_source(
             self.replacement.command_type.into(),
             tera_core::runtime::product_surface::CardId::parse(&self.card_id)
-                .map_err(|_| RadrootsAppError::invalid_argument("invalid_card_id"))?,
+                .map_err(|_| TeraAppError::invalid_argument("invalid_card_id"))?,
             self.source_event_id.clone(),
             self.source_address.clone(),
             self.author_public_key.clone(),
@@ -577,9 +573,9 @@ pub struct FfiMediaOperation {
 #[uniffi::export]
 impl FfiMediaOperation {
     #[uniffi::constructor]
-    pub fn new() -> Result<Self, RadrootsAppError> {
+    pub fn new() -> Result<Self, TeraAppError> {
         Ok(Self {
-            operation_id: phase1_new_operation_id().map_err(RadrootsAppError::from)?,
+            operation_id: phase1_new_operation_id().map_err(TeraAppError::from)?,
             cancellation: radroots_sdk::transport::BlossomCancellation::default(),
             claimed: std::sync::atomic::AtomicBool::new(false),
         })
@@ -599,7 +595,7 @@ impl FfiMediaOperation {
 }
 
 impl FfiMediaOperation {
-    pub(crate) fn claim(&self) -> Result<(), RadrootsAppError> {
+    pub(crate) fn claim(&self) -> Result<(), TeraAppError> {
         self.claimed
             .compare_exchange(
                 false,
@@ -608,7 +604,7 @@ impl FfiMediaOperation {
                 std::sync::atomic::Ordering::Acquire,
             )
             .map(|_| ())
-            .map_err(|_| RadrootsAppError::invalid_argument("media_operation_already_used"))
+            .map_err(|_| TeraAppError::invalid_argument("media_operation_already_used"))
     }
 
     pub(crate) const fn id(&self) -> [u8; 16] {
@@ -685,43 +681,39 @@ impl From<Phase1MediaCacheStatus> for FfiMediaCacheStatusRecord {
     }
 }
 
-pub(crate) fn require_schema(schema_version: u16) -> Result<(), RadrootsAppError> {
+pub(crate) fn require_schema(schema_version: u16) -> Result<(), TeraAppError> {
     if schema_version == MOBILE_FFI_SCHEMA_VERSION {
         Ok(())
     } else {
-        Err(RadrootsAppError::invalid_argument(
-            "unsupported_schema_version",
-        ))
+        Err(TeraAppError::invalid_argument("unsupported_schema_version"))
     }
 }
 
-fn required(value: Option<String>, code: &'static str) -> Result<String, RadrootsAppError> {
-    value.ok_or_else(|| RadrootsAppError::invalid_argument(code))
+fn required(value: Option<String>, code: &'static str) -> Result<String, TeraAppError> {
+    value.ok_or_else(|| TeraAppError::invalid_argument(code))
 }
 
 pub(crate) fn decode_artifact_id(
     value: &str,
-) -> Result<tera_core::runtime::product_surface::Phase1MediaArtifactId, RadrootsAppError> {
+) -> Result<tera_core::runtime::product_surface::Phase1MediaArtifactId, TeraAppError> {
     tera_core::runtime::product_surface::Phase1MediaArtifactId::parse(value)
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_artifact_id"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_media_artifact_id"))
 }
 
 pub(crate) fn decode_configuration(
     value: &str,
-) -> Result<
-    tera_core::runtime::product_surface::Phase1MediaConfigurationFingerprint,
-    RadrootsAppError,
-> {
+) -> Result<tera_core::runtime::product_surface::Phase1MediaConfigurationFingerprint, TeraAppError>
+{
     tera_core::runtime::product_surface::Phase1MediaConfigurationFingerprint::parse(value)
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_configuration"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_media_configuration"))
 }
 
-pub(crate) fn decode_reference_fingerprint(value: &str) -> Result<[u8; 32], RadrootsAppError> {
+pub(crate) fn decode_reference_fingerprint(value: &str) -> Result<[u8; 32], TeraAppError> {
     let bytes = hex::decode(value)
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_reference_fingerprint"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_media_reference_fingerprint"))?;
     bytes
         .try_into()
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_reference_fingerprint"))
+        .map_err(|_| TeraAppError::invalid_argument("invalid_media_reference_fingerprint"))
 }
 
 #[cfg(test)]

@@ -20,11 +20,11 @@
 # Generated artifacts
 RadrootsKit/Artifacts/
 RadrootsKit/Sources/RadrootsKit/Generated/
-Radroots/Frameworks/RadrootsFFI.xcframework/
-Radroots/Generated/
+Tera/Frameworks/TeraFFI.xcframework/
+Tera/Generated/
 
 # Local overrides
-Radroots/radroots.local.xcconfig
+Tera/tera.local.xcconfig
 
 # Logs
 logs/

@@ -80,17 +80,17 @@ pub struct HostSigningResult {
 
 #[uniffi::export(callback_interface)]
 #[async_trait::async_trait]
-pub trait RadrootsHostSigner: Send + Sync {
+pub trait TeraHostSigner: Send + Sync {
     async fn signer_status(&self) -> SignerStatusRecord;
     async fn sign(&self, request: HostSigningRequest) -> HostSigningResult;
 }
 
 pub(crate) struct HostSignerAdapter {
-    host: Arc<dyn RadrootsHostSigner>,
+    host: Arc<dyn TeraHostSigner>,
 }
 
 impl HostSignerAdapter {
-    pub(crate) fn new(host: Box<dyn RadrootsHostSigner>) -> Self {
+    pub(crate) fn new(host: Box<dyn TeraHostSigner>) -> Self {
         Self {
             host: Arc::from(host),
         }
@@ -251,7 +251,7 @@ mod tests {
     }
 
     #[async_trait::async_trait]
-    impl RadrootsHostSigner for StatusHost {
+    impl TeraHostSigner for StatusHost {
         async fn signer_status(&self) -> SignerStatusRecord {
             SignerStatusRecord {
                 schema_version: self.schema_version,

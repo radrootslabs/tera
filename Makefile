@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 .SHELLFLAGS := -eu -o pipefail -c
 
-FFI_ROOT := RadrootsFFI
+FFI_ROOT := TeraFFI
 FFI_TARGET ?= aarch64-apple-ios
 SIMULATOR_NAME ?= iPhone 17 Pro
 SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
@@ -80,10 +80,10 @@ xcode-build-release: artifact-check package-contract-check project
 	cargo extbuild run -- scripts/xcode.sh project-build Release
 
 unit-test: artifact-check package-contract-check project
-	cargo extbuild run -- scripts/xcode.sh project-test '$(SIMULATOR_DESTINATION)' RadrootsTests
+	cargo extbuild run -- scripts/xcode.sh project-test '$(SIMULATOR_DESTINATION)' TeraTests
 
 ui-test: artifact-check package-contract-check project
-	cargo extbuild run -- scripts/xcode.sh project-test '$(SIMULATOR_DESTINATION)' RadrootsUITests
+	cargo extbuild run -- scripts/xcode.sh project-test '$(SIMULATOR_DESTINATION)' TeraUITests
 
 api-snapshot-write: package-build
 	cargo extbuild run -- scripts/app-api-snapshot.sh write

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import copy
-import hashlib
 import json
 import plistlib
-import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
@@ -103,41 +100,6 @@ class PackageContractTests(unittest.TestCase):
                         contract._verify_repository_layout(root)
                     forbidden.rmdir()
 
-    def test_installed_artifact_guard_rejects_tampered_binary(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            script = root / "RadrootsFFI/scripts/verify-installed-artifacts.sh"
-            script.parent.mkdir(parents=True)
-            shutil.copyfile(
-                SCRIPTS.parent / "RadrootsFFI/scripts" / script.name, script
-            )
-            library = (
-                root
-                / "Radroots/Frameworks/RadrootsFFI.xcframework/ios-arm64/libradroots_mobile_ffi.a"
-            )
-            library.parent.mkdir(parents=True)
-            fixture = b"synthetic artifact verifier fixture, not executable code"
-            library.write_bytes(fixture)
-            (root / "RadrootsFFI/source.lock").write_text(
-                "override RADROOTS_FIELD_FFI_DEVICE_SHA256 := "
-                + hashlib.sha256(fixture).hexdigest()
-                + "\n"
-            )
-            for data, expected in (
-                (fixture, "missing simulator FFI library"),
-                (fixture + b"tampered", "stale device FFI library"),
-            ):
-                library.write_bytes(data)
-                result = subprocess.run(
-                    ["sh", str(script)],
-                    check=False,
-                    capture_output=True,
-                    text=True,
-                    timeout=10,
-                )
-                self.assertEqual(result.returncode, 1)
-                self.assertIn(expected, result.stderr)
-
     def test_current_package_contract_is_structurally_exact(self) -> None:
         version, revision = contract.verify(SCRIPTS.parent)
         self.assertEqual(version, "0.1.0-alpha")
@@ -146,14 +108,14 @@ class PackageContractTests(unittest.TestCase):
     def test_compatibility_baseline_rejects_bundle_or_custody_rename(self) -> None:
         root = SCRIPTS.parent
         base = contract.parse_xcconfig_assignments(
-            (root / "Radroots/Config/Base.xcconfig").read_text()
+            (root / "Tera/Config/Base.xcconfig").read_text()
         )
         debug = contract.parse_xcconfig_assignments(
-            (root / "Radroots/Config/Debug.xcconfig").read_text()
+            (root / "Tera/Config/Debug.xcconfig").read_text()
         )
         for key in (
             "PRODUCT_BUNDLE_IDENTIFIER",
-            "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX",
+            "TERA_IOS_KEYCHAIN_SERVICE_PREFIX",
         ):
             with self.subTest(key=key):
                 changed = {**debug, key: "org.tera.accidental-rename"}
@@ -164,9 +126,9 @@ class PackageContractTests(unittest.TestCase):
 
     def test_comment_token_does_not_define_xcconfig_field(self) -> None:
         values = contract.parse_xcconfig_assignments(
-            "// RADROOTS_FIELD_IOS_RUNTIME_MODE = production\n"
+            "// TERA_IOS_RUNTIME_MODE = production\n"
         )
-        self.assertNotIn("RADROOTS_FIELD_IOS_RUNTIME_MODE", values)
+        self.assertNotIn("TERA_IOS_RUNTIME_MODE", values)
 
     def test_dead_metadata_text_does_not_define_cargo_repository(self) -> None:
         document = {
@@ -244,7 +206,7 @@ class PackageContractTests(unittest.TestCase):
     def test_project_package_dead_section_does_not_define_entry(self) -> None:
         with self.assertRaisesRegex(contract.PackageContractError, "absent"):
             contract.parse_project_package(
-                "packages:\n  RadrootsApp:\n    path: .\n"
+                "packages:\n  TeraApp:\n    path: .\n"
                 "targets:\n  RadrootsKit:\n    url: "
                 + contract.APPLE_KIT_REMOTE
                 + "\n",

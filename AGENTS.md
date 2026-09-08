@@ -1,4 +1,4 @@
-# Radroots iOS app agent specification
+# Tera iOS app agent specification
 
 This file applies to the complete standalone iOS app repository. A closer
 `AGENTS.md` overrides it for its subtree.
@@ -10,24 +10,27 @@ This file applies to the complete standalone iOS app repository. A closer
   boundary, privacy manifest, public API snapshot, and standalone validation.
   It also owns application Rust policy, runtime transitions, durable authored
   operation orchestration and application FFI. Keep one root Rust workspace;
-  application packages belong under `core/crates`. The current exact Lib pin
-  temporarily supplies those packages until their ordered history transfer.
+  application packages belong under `core/crates`. Native artifacts use the
+  owned tera_ffi and tera_bindgen packages with exact shared foundation pins.
 - `radroots.lib.source-lock.v1.toml`, `Cargo.toml`, and
-  `RadrootsFFI/source.lock` must select the same exact remotely reachable public
-  lib revision and release version. `Package.swift`, both
+  the foundation section of generated `TeraFFI/source.lock` must select the same
+  exact remotely reachable public Lib revision and release version. The lock
+  separately identifies the owned Tera source tree and installed manifest.
+  `Package.swift`, both
   `Package.resolved` files, and `project.yml` own exact Apple package inputs.
-- `RadrootsFFI/provenance.json`, `RadrootsFFI/api/**`, `api/**`, `release/**`,
+- `TeraFFI/provenance.json`, `TeraFFI/api/**`, `api/**`, `release/**`,
   generated project/source inputs, and the package locks are machine evidence.
   Do not hand-edit generated bindings, XCFramework contents, provenance, SBOM,
   project output, or API snapshots.
-- `RadrootsFFI/producer.toml` separately governs the owned Tera producer.
+- `TeraFFI/producer.toml` separately governs the owned Tera producer.
   Stage its declared source inputs before `make ffi-source-write`; check with
   `make ffi-source-check`. Source records identify a staged input tree and exact
   build tuple under extbuild output. They do not establish installed artifacts
   or remote release qualification; installed provenance remains separate.
   `make ffi-candidate-build ffi-candidate-check` builds and validates the exact
-  owned native artifact bundle in external staging. Its nonempty v2 artifact
-  manifest is separate from the installed legacy v1 manifest until cutover.
+  owned native artifact bundle in external staging. `make ffi-bootstrap`
+  installs its matching framework, bindings, API and source records with a
+  separate nonempty installed manifest. Local evidence is not release qualification.
 - Human specifications, decisions, migration history, runbooks, and
   qualification evidence are parent-owned under `docs/oss/ios_app/**`. They
   are absent from a standalone clone and must never become a build, test,
@@ -73,15 +76,15 @@ This file applies to the complete standalone iOS app repository. A closer
 
 - Change canonical producer contracts and generators before regenerating FFI
   or SDK output. Inspect every generated diff and run freshness/API checks.
-- `scripts/generate-project.sh` owns `Radroots.xcodeproj`; edit `project.yml`
+- `scripts/generate-project.sh` owns `Tera.xcodeproj`; edit `project.yml`
   and canonical source inputs rather than hand-editing generated project data.
-- `RadrootsFFI/scripts/verify-installed-artifacts.sh` must reject missing,
+- `TeraFFI/scripts/verify-installed-artifacts.sh` must reject missing,
   stale, mismatched, or unproven FFI installations before Swift/Xcode work.
 - Keep SwiftPM and Xcode workspace resolved revisions synchronized. Never allow
   automatic dependency updates to select release inputs.
 - Repository scripts must keep Xcode derived data and source/package caches,
   SwiftPM scratch/cache output, and Cargo target output under extbuild-owned
-  paths. `RadrootsFFI/.build/out/**` and `RadrootsFFI/.radroots/source/**` are
+  paths. `TeraFFI/.build/out/**` and `TeraFFI/.radroots/source/**` are
   ignored, rebuildable repo-local staging/source cache; they are never
   canonical source, tracked output, or independent release authority.
 
@@ -110,7 +113,7 @@ This file applies to the complete standalone iOS app repository. A closer
   Python-AST complexity gate. Its source revision records the pre-ratchet
   inventory, exception ceilings may only decrease or disappear, and newly
   bounded modules must remain below the fixed thresholds.
-- `make linux-shared-rust` runs the locked source-lock workspace in the pinned
+- `make linux-shared-rust` runs explicit locked native packages in the pinned
   Linux x86_64 Rust runner while keeping Cargo caches and output under the
   extbuild project root.
 - `make bootstrap` performs networked source/artifact bootstrap. `make verify`

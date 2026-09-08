@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{SyncSender, TrySendError, sync_channel};
 use std::sync::{Arc, Mutex, Weak};
 
-use crate::{MOBILE_FFI_SCHEMA_VERSION, RadrootsAppError};
+use crate::{MOBILE_FFI_SCHEMA_VERSION, TeraAppError};
 
 const MAX_SUBSCRIPTIONS: usize = 32;
 const CHANGE_BUFFER_CAPACITY: usize = 16;
@@ -33,7 +33,7 @@ pub struct FfiRuntimeChangeRecord {
 }
 
 #[uniffi::export(callback_interface)]
-pub trait RadrootsRuntimeObserver: Send + Sync {
+pub trait TeraRuntimeObserver: Send + Sync {
     fn on_change(&self, change: FfiRuntimeChangeRecord);
 }
 
@@ -56,14 +56,14 @@ impl SubscriptionHub {
 
     pub(crate) fn subscribe(
         self: &Arc<Self>,
-        observer: Box<dyn RadrootsRuntimeObserver>,
-    ) -> Result<Arc<FfiSubscriptionHandle>, RadrootsAppError> {
+        observer: Box<dyn TeraRuntimeObserver>,
+    ) -> Result<Arc<FfiSubscriptionHandle>, TeraAppError> {
         if self.closed.load(Ordering::Acquire) {
             return Err(subscription_error("runtime_closed", false));
         }
         let id = self.next_id.fetch_add(1, Ordering::AcqRel);
         let (sender, receiver) = sync_channel(CHANGE_BUFFER_CAPACITY);
-        let observer: Arc<dyn RadrootsRuntimeObserver> = Arc::from(observer);
+        let observer: Arc<dyn TeraRuntimeObserver> = Arc::from(observer);
         let hub = Arc::downgrade(self);
         std::thread::Builder::new()
             .name(format!("radroots-ffi-observer-{id}"))
@@ -205,8 +205,8 @@ impl Drop for FfiSubscriptionHandle {
     }
 }
 
-fn subscription_error(code: &str, retryable: bool) -> RadrootsAppError {
-    RadrootsAppError::failure(
+fn subscription_error(code: &str, retryable: bool) -> TeraAppError {
+    TeraAppError::failure(
         code,
         "subscription",
         retryable,
@@ -224,13 +224,13 @@ mod tests {
 
     struct NoopObserver;
 
-    impl RadrootsRuntimeObserver for NoopObserver {
+    impl TeraRuntimeObserver for NoopObserver {
         fn on_change(&self, _change: FfiRuntimeChangeRecord) {}
     }
 
     struct PanicObserver;
 
-    impl RadrootsRuntimeObserver for PanicObserver {
+    impl TeraRuntimeObserver for PanicObserver {
         fn on_change(&self, _change: FfiRuntimeChangeRecord) {
             panic!("observer panic is isolated");
         }
@@ -238,7 +238,7 @@ mod tests {
 
     struct BlockingObserver(Arc<(Mutex<bool>, Condvar)>);
 
-    impl RadrootsRuntimeObserver for BlockingObserver {
+    impl TeraRuntimeObserver for BlockingObserver {
         fn on_change(&self, change: FfiRuntimeChangeRecord) {
             if change.kind == FfiRuntimeChangeKind::Initial {
                 let (released, wake) = &*self.0;

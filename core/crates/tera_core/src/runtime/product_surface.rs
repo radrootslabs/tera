@@ -1,4 +1,4 @@
-//! Focused Phase 1 social-product domain for native Radroots clients.
+//! Focused Phase 1 social-product domain for native Tera clients.
 //!
 //! This module owns presentation-neutral product semantics. Protocol parsing
 //! and admission remain in lower event crates; persistence and live query
@@ -71,9 +71,9 @@ pub use today::{
 #[cfg(feature = "mobile-social")]
 pub use today::{TodayRelaySyncState, TodaySyncReceipt};
 
-use super::RadrootsRuntime;
+use super::TeraRuntime;
 
-impl RadrootsRuntime {
+impl TeraRuntime {
     /// Returns the exact five Phase 1 Today card types in contract order.
     pub fn phase1_card_types(&self) -> Vec<TodayCardType> {
         CANONICAL_TODAY_CARD_TYPES.to_vec()
@@ -98,7 +98,7 @@ impl RadrootsRuntime {
         locality: Option<String>,
         followed_authors: Vec<String>,
         generation: u64,
-    ) -> Result<LocalNetwork, crate::RadrootsAppError> {
+    ) -> Result<LocalNetwork, crate::TeraAppError> {
         LocalNetwork::new(
             id,
             label,
@@ -107,7 +107,7 @@ impl RadrootsRuntime {
             followed_authors,
             generation,
         )
-        .map_err(|error| crate::RadrootsAppError::runtime(error.to_string()))
+        .map_err(|error| crate::TeraAppError::runtime(error.to_string()))
     }
 }
 
@@ -117,7 +117,7 @@ mod tests {
 
     #[test]
     fn runtime_exposes_only_the_locked_card_and_add_catalogs() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         assert_eq!(runtime.phase1_card_types(), CANONICAL_TODAY_CARD_TYPES);
         assert_eq!(
             runtime.phase1_add_command_types(),

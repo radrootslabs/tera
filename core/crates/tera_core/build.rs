@@ -8,7 +8,7 @@ fn main() {
     println!("cargo:rerun-if-env-changed=RUSTC");
     println!("cargo:rerun-if-env-changed=PROFILE");
     println!("cargo:rerun-if-env-changed=RADROOTS_LIB_REVISION");
-    println!("cargo:rerun-if-env-changed=RADROOTS_CONSUMER_REVISION");
+    println!("cargo:rerun-if-env-changed=TERA_CONSUMER_REVISION");
     println!("cargo:rerun-if-env-changed=SOURCE_DATE_EPOCH");
 
     let rustc = env::var("RUSTC").expect("missing required env var RUSTC");
@@ -20,16 +20,16 @@ fn main() {
     }
 
     let lib_revision = optional_full_revision("RADROOTS_LIB_REVISION");
-    let consumer_revision = optional_full_revision("RADROOTS_CONSUMER_REVISION");
+    let consumer_revision = optional_full_revision("TERA_CONSUMER_REVISION");
     assert!(
         consumer_revision.is_none() || lib_revision.is_some(),
-        "RADROOTS_CONSUMER_REVISION requires RADROOTS_LIB_REVISION"
+        "TERA_CONSUMER_REVISION requires RADROOTS_LIB_REVISION"
     );
     if let Some(revision) = lib_revision {
         println!("cargo:rustc-env=RADROOTS_LIB_REVISION={revision}");
     }
     if let Some(revision) = consumer_revision {
-        println!("cargo:rustc-env=RADROOTS_CONSUMER_REVISION={revision}");
+        println!("cargo:rustc-env=TERA_CONSUMER_REVISION={revision}");
     }
 
     let profile = env::var("PROFILE").expect("missing required env var PROFILE");

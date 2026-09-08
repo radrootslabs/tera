@@ -25,7 +25,7 @@ pub struct StoreErrorRecord {
 }
 
 #[derive(Debug, Error)]
-pub enum RadrootsAppError {
+pub enum TeraAppError {
     #[error("initialization: {0}")]
     Initialization(String),
     #[error("sdk: {report:?}")]
@@ -40,7 +40,7 @@ pub enum RadrootsAppError {
     Internal(String),
 }
 
-impl RadrootsAppError {
+impl TeraAppError {
     /// Returns the stable store report when this is a mobile storage failure.
     pub const fn store_report(&self) -> Option<&StoreErrorRecord> {
         match self {
@@ -128,14 +128,14 @@ impl RadrootsAppError {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
-    use super::{RadrootsAppError, SdkErrorRecord, StoreErrorRecord};
+    use super::{SdkErrorRecord, StoreErrorRecord, TeraAppError};
 
     #[test]
     fn sdk_error_records_are_versioned_stable_and_secret_safe() {
         let error = radroots_sdk::ClientBuilder::new()
             .build()
             .expect_err("storage is required");
-        let RadrootsAppError::Sdk { report } = RadrootsAppError::from_sdk(error) else {
+        let TeraAppError::Sdk { report } = TeraAppError::from_sdk(error) else {
             panic!("expected SDK report");
         };
         assert_eq!(
@@ -157,23 +157,23 @@ mod tests {
     #[test]
     fn public_error_constructors_preserve_typed_variants() {
         assert!(matches!(
-            RadrootsAppError::initialization("init"),
-            RadrootsAppError::Initialization(message) if message == "init"
+            TeraAppError::initialization("init"),
+            TeraAppError::Initialization(message) if message == "init"
         ));
         assert!(matches!(
-            RadrootsAppError::runtime("runtime"),
-            RadrootsAppError::Runtime(message) if message == "runtime"
+            TeraAppError::runtime("runtime"),
+            TeraAppError::Runtime(message) if message == "runtime"
         ));
         assert!(matches!(
-            RadrootsAppError::unsupported("unsupported"),
-            RadrootsAppError::Unsupported(message) if message == "unsupported"
+            TeraAppError::unsupported("unsupported"),
+            TeraAppError::Unsupported(message) if message == "unsupported"
         ));
         assert!(matches!(
-            RadrootsAppError::internal("internal"),
-            RadrootsAppError::Internal(message) if message == "internal"
+            TeraAppError::internal("internal"),
+            TeraAppError::Internal(message) if message == "internal"
         ));
         assert_eq!(
-            RadrootsAppError::protected_data_unavailable().store_report(),
+            TeraAppError::protected_data_unavailable().store_report(),
             Some(&StoreErrorRecord {
                 schema_version: 1,
                 code: "protected_data_unavailable".to_owned(),

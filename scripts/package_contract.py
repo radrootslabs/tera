@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import plistlib
@@ -316,13 +317,13 @@ def _validate_app_plist(document: dict[str, Any]) -> None:
 
 def _validate_ui_test_plist(document: dict[str, Any]) -> None:
     required = {
-        "RADROOTS_IOS_UI_TEST_FIXTURE_CONTROL",
-        "RADROOTS_IOS_UI_TEST_FIXTURE_EVIDENCE",
-        "RADROOTS_IOS_UI_TEST_NETWORK_PROFILE",
-        "RADROOTS_IOS_UI_TEST_SOURCE_COMMIT",
-        "RADROOTS_IOS_UI_TEST_SOURCE_TREE",
-        "RADROOTS_IOS_UI_TEST_APP_BUILD_SHA256",
-        "RADROOTS_IOS_UI_TEST_SIMULATOR_ID",
+        "TERA_IOS_UI_TEST_FIXTURE_CONTROL",
+        "TERA_IOS_UI_TEST_FIXTURE_EVIDENCE",
+        "TERA_IOS_UI_TEST_NETWORK_PROFILE",
+        "TERA_IOS_UI_TEST_SOURCE_COMMIT",
+        "TERA_IOS_UI_TEST_SOURCE_TREE",
+        "TERA_IOS_UI_TEST_APP_BUILD_SHA256",
+        "TERA_IOS_UI_TEST_SIMULATOR_ID",
     }
     if required.difference(document):
         raise PackageContractError("UI test plist inventory is incomplete")
@@ -445,50 +446,64 @@ def _verify_cargo_and_source(root: Path) -> tuple[str, str]:
         "Cargo FFI dependency",
     )
 
-    source = parse_make_assignments(_read_text(root / "RadrootsFFI/source.lock"))
-    required_source = {
-        "RADROOTS_FIELD_LIB_GIT_URL",
-        "RADROOTS_FIELD_LIB_GIT_REV",
-        "RADROOTS_FIELD_FFI_CRATE_VERSION",
-        "RADROOTS_FIELD_SOURCE_DATE_EPOCH",
-        "RADROOTS_FIELD_FFI_DEVICE_SHA256",
-        "RADROOTS_FIELD_FFI_SIMULATOR_SHA256",
-        "RADROOTS_FIELD_FFI_SWIFT_SHA256",
-        "RADROOTS_FIELD_FFI_HEADER_SHA256",
-        "RADROOTS_FIELD_FFI_MODULEMAP_SHA256",
-        "RADROOTS_FIELD_FFI_API_SHA256",
-        "RADROOTS_FIELD_FFI_XCFRAMEWORK_SHA256",
-    }
-    if set(source) != required_source:
-        raise PackageContractError("FFI source-lock field inventory differs")
-    _exact(source["RADROOTS_FIELD_LIB_GIT_URL"], LIB_REMOTE, "FFI Lib remote")
-    lib_revision = source["RADROOTS_FIELD_LIB_GIT_REV"]
-    if GIT_REVISION.fullmatch(lib_revision) is None:
-        raise PackageContractError("FFI Lib revision is invalid")
-    for key in required_source:
-        if key.endswith("SHA256") and SHA256.fullmatch(source[key]) is None:
-            raise PackageContractError("FFI source-lock digest is invalid")
-    release_version = source["RADROOTS_FIELD_FFI_CRATE_VERSION"]
-    _exact(release_version, "0.1.0-alpha", "FFI release version")
-    if set(ffi_dependency) != {"git", "rev", "version"}:
-        raise PackageContractError("Cargo FFI dependency field inventory differs")
-    _exact(ffi_dependency.get("git"), LIB_REMOTE, "Cargo FFI remote")
-    _exact(ffi_dependency.get("rev"), lib_revision, "Cargo FFI revision")
-    _exact(ffi_dependency.get("version"), "=0.1.0-alpha", "Cargo FFI version")
-    epoch = source["RADROOTS_FIELD_SOURCE_DATE_EPOCH"]
-    if not epoch.isascii() or not epoch.isdecimal() or int(epoch) <= 0:
-        raise PackageContractError("FFI source date epoch is invalid")
-
     consumer = _read_toml(root / "radroots.lib.source-lock.v1.toml")
     _exact(consumer.get("repository"), LIB_REMOTE, "consumer Lib remote")
-    _exact(consumer.get("revision"), lib_revision, "consumer Lib revision")
-    _exact(consumer.get("version"), release_version, "consumer Lib version")
+    lib_revision = consumer.get("revision")
+    if (
+        not isinstance(lib_revision, str)
+        or GIT_REVISION.fullmatch(lib_revision) is None
+    ):
+        raise PackageContractError("consumer Lib revision is invalid")
+    release_version = consumer.get("version")
+    _exact(release_version, "0.1.0-alpha", "consumer Lib version")
+    _exact(
+        ffi_dependency,
+        {"git": LIB_REMOTE, "rev": lib_revision, "version": "=0.1.0-alpha"},
+        "transition shim FFI dependency",
+    )
+    _verify_owned_source_lock(root, consumer)
     return release_version, lib_revision
+
+
+def _verify_owned_source_lock(root: Path, foundation: dict[str, Any]) -> None:
+    lock = _read_toml(root / "TeraFFI/source.lock")
+    _exact(
+        set(lock),
+        {
+            "schema",
+            "repository",
+            "source_tree",
+            "manifest_sha256",
+            "source_date_epoch",
+            "foundation",
+        },
+        "installed source fields",
+    )
+    _exact(lock["schema"], "tera.installed-source.v1", "installed source schema")
+    _exact(
+        lock["repository"], "https://github.com/radrootslabs/tera", "installed producer"
+    )
+    _exact(
+        lock["foundation"],
+        {key: foundation[key] for key in ("repository", "revision", "version")},
+        "installed foundation",
+    )
+    if (
+        not isinstance(lock["source_tree"], str)
+        or GIT_REVISION.fullmatch(lock["source_tree"]) is None
+    ):
+        raise PackageContractError("installed source tree is invalid")
+    _exact(lock["source_date_epoch"], 1787871027, "installed source epoch")
+    _exact(
+        lock["manifest_sha256"],
+        hashlib.sha256(_read_regular(root / "TeraFFI/provenance.json")).hexdigest(),
+        "installed manifest digest",
+    )
 
 
 def _verify_apple_dependencies(root: Path) -> str:
     package = _swift_package(root)
-    _exact(package.get("name"), "radroots_ios_app", "Swift package name")
+    _exact(package.get("name"), "tera", "Swift package name")
     _exact(package.get("defaultLocalization"), "en", "Swift localization")
     apple_revision = _apple_revision(package)
     project = parse_project_package(_read_text(root / "project.yml"), "RadrootsKit")
@@ -500,48 +515,44 @@ def _verify_apple_dependencies(root: Path) -> str:
 
 
 def _verify_apple_configuration(root: Path) -> None:
-    _validate_privacy(_read_plist(root / "Radroots/Resources/PrivacyInfo.xcprivacy"))
-    _validate_app_plist(_read_plist(root / "Radroots/Info.plist"))
-    _validate_ui_test_plist(_read_plist(root / "RadrootsUITests/Info.plist"))
+    _validate_privacy(_read_plist(root / "Tera/Resources/PrivacyInfo.xcprivacy"))
+    _validate_app_plist(_read_plist(root / "Tera/Info.plist"))
+    _validate_ui_test_plist(_read_plist(root / "TeraUITests/Info.plist"))
 
-    base = parse_xcconfig_assignments(
-        _read_text(root / "Radroots/Config/Base.xcconfig")
-    )
-    debug = parse_xcconfig_assignments(
-        _read_text(root / "Radroots/Config/Debug.xcconfig")
-    )
+    base = parse_xcconfig_assignments(_read_text(root / "Tera/Config/Base.xcconfig"))
+    debug = parse_xcconfig_assignments(_read_text(root / "Tera/Config/Debug.xcconfig"))
     if set(base) != {
-        "RADROOTS_FIELD_IOS_RUNTIME_MODE",
-        "RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS",
-        "RADROOTS_FIELD_IOS_BLOSSOM_ORIGINS",
-        "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX",
+        "TERA_IOS_RUNTIME_MODE",
+        "TERA_IOS_NOSTR_RELAY_URLS",
+        "TERA_IOS_BLOSSOM_ORIGINS",
+        "TERA_IOS_KEYCHAIN_SERVICE_PREFIX",
     }:
         raise PackageContractError("base xcconfig field inventory differs")
     if set(debug) != {
-        "RADROOTS_FIELD_IOS_RUNTIME_MODE",
+        "TERA_IOS_RUNTIME_MODE",
         "PRODUCT_BUNDLE_IDENTIFIER",
-        "RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS",
-        "RADROOTS_FIELD_IOS_BLOSSOM_ORIGINS",
-        "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX",
+        "TERA_IOS_NOSTR_RELAY_URLS",
+        "TERA_IOS_BLOSSOM_ORIGINS",
+        "TERA_IOS_KEYCHAIN_SERVICE_PREFIX",
     }:
         raise PackageContractError("debug xcconfig field inventory differs")
     _exact(
-        base.get("RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS"),
+        base.get("TERA_IOS_NOSTR_RELAY_URLS"),
         "wss:$(SLASH)$(SLASH)radroots.org$(SLASH)",
         "base relay",
     )
     _exact(
-        base.get("RADROOTS_FIELD_IOS_BLOSSOM_ORIGINS"),
+        base.get("TERA_IOS_BLOSSOM_ORIGINS"),
         "https:$(SLASH)$(SLASH)blossom.radroots.org",
         "base Blossom origin",
     )
     _exact(
-        debug.get("RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS"),
+        debug.get("TERA_IOS_NOSTR_RELAY_URLS"),
         "ws:$(SLASH)$(SLASH)127.0.0.1:21000",
         "debug relay",
     )
     _exact(
-        debug.get("RADROOTS_FIELD_IOS_BLOSSOM_ORIGINS"),
+        debug.get("TERA_IOS_BLOSSOM_ORIGINS"),
         "http:$(SLASH)$(SLASH)127.0.0.1:21100",
         "debug Blossom origin",
     )
@@ -555,18 +566,14 @@ def _verify_installation_compatibility(
     _exact(
         baseline.get("schema"), "tera.compatibility-baseline.v1", "compatibility schema"
     )
-    production = parse_xcconfig_assignments(
-        _read_text(root / "Radroots/radroots.xcconfig")
-    )
+    production = parse_xcconfig_assignments(_read_text(root / "Tera/tera.xcconfig"))
     actual = {
         "production_bundle_identifier": production.get("PRODUCT_BUNDLE_IDENTIFIER"),
         "debug_bundle_identifier": debug.get("PRODUCT_BUNDLE_IDENTIFIER"),
         "production_keychain_service_prefix": base.get(
-            "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX"
+            "TERA_IOS_KEYCHAIN_SERVICE_PREFIX"
         ),
-        "debug_keychain_service_prefix": debug.get(
-            "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX"
-        ),
+        "debug_keychain_service_prefix": debug.get("TERA_IOS_KEYCHAIN_SERVICE_PREFIX"),
     }
     _exact(actual, baseline.get("installation"), "installed identity compatibility")
 
@@ -575,7 +582,7 @@ def _verify_package_locks(root: Path, apple_revision: str) -> None:
     resolved_paths = (
         root / "Package.resolved",
         root
-        / "Radroots.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
+        / "Tera.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     )
     resolved = [_read_json(path) for path in resolved_paths]
     for document in resolved:

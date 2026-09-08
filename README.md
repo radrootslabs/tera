@@ -1,6 +1,6 @@
-# Radroots iOS App
+# Tera iOS App
 
-Radroots is a public iOS 18 app for discovering and publishing local farm
+Tera is a public iOS 18 app for discovering and publishing local farm
 updates, asks, in-person events, and food listings over Nostr. The product has
 exactly two bottom tabs: Today for discovery and Add for authored operations.
 
@@ -14,18 +14,17 @@ Add usable independently of network readiness; the native host presents the Rust
 Apple platform capabilities.
 
 Application Rust packages belong under `core/crates` in the single root Cargo
-workspace. During the ordered ownership transfer, the existing source-lock shim
-and installed FFI still consume the exact pinned Lib revision. This transition
-preserves the current five creation families, Today/Add tabs, installed identity
-and persisted operation formats. Each moved package replaces its old source
-only with verified history, compatibility and generated-artifact evidence.
+workspace. Installed native artifacts use the owned `tera_ffi` and matching
+`tera_bindgen` packages, with shared packages at their exact foundation pins.
+The five creation families, Today/Add tabs, installed identity and persisted
+operation formats remain compatible with the original app.
 
-`RadrootsFFI/producer.toml` separately governs the owned Tera FFI producer.
+`TeraFFI/producer.toml` separately governs the owned Tera FFI producer.
 After staging its source inputs, `make ffi-source-write ffi-source-check`
 captures and checks the exact source tree, foundation lock, target, features and
 toolchains under extbuild output. Select a supported target with `FFI_TARGET`.
-This is local source evidence; the installed native artifacts retain their
-existing source lock until the native cutover.
+This is local source evidence. `make ffi-bootstrap` installs the matching
+native artifacts and records their exact source tree, foundation and hashes.
 
 `make ffi-candidate-build ffi-candidate-check` builds the owned device,
 simulator and host libraries, generates matching Swift and API outputs, and
@@ -36,7 +35,8 @@ extbuild output; this command does not install them into the native app.
 
 - macOS with Xcode and an iOS 18-or-newer simulator
 - XcodeGen
-- Rust `1.97.1-aarch64-apple-darwin` with the iOS device and simulator targets
+- Rust `1.97.1-aarch64-apple-darwin` with `llvm-tools` and the iOS device and simulator targets
+- SwiftFormat and the locked Python verifier installed by bootstrap
 - `cargo-extbuild` configured for the checkout
 
 Physical-device development additionally requires one exact paired, connected,
@@ -47,8 +47,8 @@ name-only destinations, unsigned builds, non-Debug physical builds, and
 xcconfig files outside the managed output root:
 
 ```sh
-RADROOTS_IOS_PHYSICAL_AUTOMATION=1 \
-RADROOTS_IOS_DEVELOPMENT_TEAM=ABCDEFGHIJ \
+TERA_IOS_PHYSICAL_AUTOMATION=1 \
+TERA_IOS_DEVELOPMENT_TEAM=ABCDEFGHIJ \
 cargo extbuild run -- scripts/xcode.sh physical-app-build \
   id=00000000-0000000000000000 \
   "$XCODE_DERIVED_DATA/radroots-ios-device/config/device.xcconfig"
@@ -59,8 +59,8 @@ certificate material are never checked into this public repository.
 
 ## Bootstrap and verify
 
-The first bootstrap requires network access. It checks out the exact Rust
-source revision, builds the deterministic UniFFI XCFramework and Swift
+The first bootstrap requires network access. It resolves exact foundation
+dependencies, builds the owned UniFFI XCFramework and Swift
 bindings, resolves exact Swift package revisions, and generates the Xcode
 project:
 
@@ -90,9 +90,8 @@ and package verification modules must remain below the new-file limits. Run
 `make maintainability-check` for the narrow size and Python-complexity gate.
 
 Use `SIMULATOR_NAME="Device Name" make verify` when the default simulator is
-not installed. `make clean` removes only rebuildable external build output and
-the ignored XCFramework; it preserves tracked generated bindings, locks,
-snapshots, project sources, and user files.
+not installed. `make clean` removes the external native candidate cache while
+preserving Cargo incremental output, the current installation, source and locks.
 
 The focused local-social scenario starts bounded loopback Nostr and Blossom
 fixtures, then exercises the real app stores and installed Rust FFI on one
@@ -101,7 +100,7 @@ from the durable draft against the enabled fixture, publishes all five product
 types, and proves Today and the outbox survive another relaunch:
 
 ```sh
-RADROOTS_IOS_UI_TEST_RUN_ID=local-social-example \
+TERA_IOS_UI_TEST_RUN_ID=local-social-example \
 cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
   'platform=iOS Simulator,id=SIMULATOR-UDID' \
   local-social-example
@@ -134,7 +133,7 @@ largest accessibility text size with Reduce Motion enabled. The corresponding
 fixture verifier requires zero publication and upload effects:
 
 ```sh
-RADROOTS_IOS_UI_TEST_RUN_ID=local-social-accessibility \
+TERA_IOS_UI_TEST_RUN_ID=local-social-accessibility \
 cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
   'platform=iOS Simulator,id=SIMULATOR-UDID' \
   local-social-accessibility \
@@ -152,7 +151,7 @@ identity and isolated durable store while one bounded loopback Nostr relay and
 Blossom service record exact event, media, retry, and subscription evidence:
 
 ```sh
-RADROOTS_IOS_UI_TEST_RUN_ID=local-social-persona-run-001 \
+TERA_IOS_UI_TEST_RUN_ID=local-social-persona-run-001 \
 cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
   'platform=iOS Simulator,id=SIMULATOR-UDID' \
   local-social-persona-run-001 \
@@ -190,9 +189,9 @@ or production qualification.
 
 ## Package surface
 
-`Package.swift` publishes the `RadrootsApp` library used by the generated Xcode
+`Package.swift` publishes the `TeraApp` library used by the generated Xcode
 application wrapper. It pins AppleKit by exact HTTPS Git revision and consumes
-the locally bootstrapped `RadrootsFFI.xcframework`. Ordinary Xcode compilation
+the locally bootstrapped `TeraFFI.xcframework`. Ordinary Xcode compilation
 never writes repository source: a read-only preflight rejects missing or stale
 FFI artifacts and directs the developer to run `make bootstrap`.
 

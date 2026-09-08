@@ -4,8 +4,8 @@ use tera_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiCancellationPolicy, FfiMediaOperation,
     FfiQueuePolicyRecord, FfiRelaySatisfaction, FfiTradeEvidenceCoverage, FfiTradeEvidenceOutcome,
     HostSigningOutcome, HostSigningRequest, HostSigningResult, MOBILE_FFI_SCHEMA_VERSION,
-    ProtectedDataAvailability, RadrootsAppError, RadrootsHostSigner, RadrootsRuntime,
-    SignerAvailabilityRecord, SignerStatusRecord,
+    ProtectedDataAvailability, SignerAvailabilityRecord, SignerStatusRecord, TeraAppError,
+    TeraHostSigner, TeraRuntime,
 };
 
 mod support;
@@ -13,7 +13,7 @@ mod support;
 struct TestHostSigner(Arc<Mutex<HostSigningOutcome>>);
 
 #[async_trait::async_trait]
-impl RadrootsHostSigner for TestHostSigner {
+impl TeraHostSigner for TestHostSigner {
     async fn signer_status(&self) -> SignerStatusRecord {
         SignerStatusRecord {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
@@ -115,7 +115,7 @@ fn media_cancellation_handle_owns_one_stable_opaque_operation_identity() {
 async fn protected_data_failure_is_typed_and_opens_no_store() {
     let root = tempfile::tempdir().expect("tempdir");
     support::prepare(root.path());
-    let result = RadrootsRuntime::new(
+    let result = TeraRuntime::new(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.to_owned(),
         support::GENERATION.to_owned(),
@@ -123,7 +123,7 @@ async fn protected_data_failure_is_typed_and_opens_no_store() {
         ProtectedDataAvailability::Unavailable,
     )
     .await;
-    let Err(RadrootsAppError::Failure { report }) = result else {
+    let Err(TeraAppError::Failure { report }) = result else {
         panic!("protected data failure must remain typed across UniFFI");
     };
     assert_eq!(report.code, "protected_data_unavailable");
@@ -149,7 +149,7 @@ async fn final_mobile_abi_uses_async_sdk_dtos_and_versioned_errors() {
         .sdk_storage_status()
         .await
         .expect_err("closed client must reject operations");
-    let RadrootsAppError::Failure { report } = error;
+    let TeraAppError::Failure { report } = error;
     assert_eq!(report.schema_version, 1);
     assert_eq!(report.code, "client_closed");
     assert_eq!(report.category, "runtime");
@@ -162,7 +162,7 @@ async fn host_signer_constructor_exposes_only_an_opaque_configured_boundary() {
     let root = tempfile::tempdir().expect("tempdir");
     support::prepare(root.path());
     let outcome = Arc::new(Mutex::new(HostSigningOutcome::Rejected));
-    let runtime = RadrootsRuntime::with_host_signer(
+    let runtime = TeraRuntime::with_host_signer(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.to_owned(),
         support::GENERATION.to_owned(),

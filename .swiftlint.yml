@@ -1,9 +1,9 @@
 excluded:
   - .build
   - .swiftpm
-  - Radroots.xcodeproj
-  - Radroots/Generated
-  - RadrootsFFI/.build
+  - Tera.xcodeproj
+  - Tera/Generated
+  - TeraFFI/.build
 
 disabled_rules:
   # SwiftFormat is authoritative for overlapping structural style rules.

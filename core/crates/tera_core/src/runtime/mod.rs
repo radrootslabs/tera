@@ -19,9 +19,9 @@ use self::{
     app_info::AppInfoPlatform,
     info::{RuntimeInfo, gather_runtime_info},
 };
-use crate::RadrootsAppError;
+use crate::TeraAppError;
 
-pub struct RadrootsRuntime {
+pub struct TeraRuntime {
     pub(crate) client: Client,
     pub(crate) started_unix_ms: i64,
     pub(crate) shutting_down: AtomicBool,
@@ -37,7 +37,7 @@ pub struct RadrootsRuntime {
     pub(crate) inbound_media_lock: tokio::sync::Mutex<()>,
 }
 
-impl RadrootsRuntime {
+impl TeraRuntime {
     pub(crate) fn from_client_builder(
         builder: ClientBuilder,
         store_public_key: Option<PublicKey>,
@@ -51,14 +51,14 @@ impl RadrootsRuntime {
         #[cfg(feature = "mobile-social")] blossom_config: Option<
             radroots_sdk::transport::BlossomConfig,
         >,
-    ) -> Result<Self, RadrootsAppError> {
+    ) -> Result<Self, TeraAppError> {
         #[cfg(feature = "mobile-social")]
         let builder = {
             let nostr_slot = radroots_sdk::transport::NostrSlot::new();
             if let Some(profile) = relay_profile {
                 nostr_slot
                     .configure(profile)
-                    .map_err(RadrootsAppError::from_sdk)?;
+                    .map_err(TeraAppError::from_sdk)?;
             }
             let builder = builder
                 .nostr(nostr_slot)
@@ -66,7 +66,7 @@ impl RadrootsRuntime {
                     let slot = radroots_sdk::transport::BlossomSlot::new();
                     if let Some(config) = blossom_config {
                         slot.configure(config)
-                            .map_err(|error| RadrootsAppError::runtime(error.code().to_owned()))?;
+                            .map_err(|error| TeraAppError::runtime(error.code().to_owned()))?;
                     }
                     slot
                 })
@@ -76,7 +76,7 @@ impl RadrootsRuntime {
                 None => builder,
             }
         };
-        let client = builder.build().map_err(RadrootsAppError::from_sdk)?;
+        let client = builder.build().map_err(TeraAppError::from_sdk)?;
 
         Ok(Self {
             client,
@@ -96,7 +96,7 @@ impl RadrootsRuntime {
     }
 
     #[cfg(test)]
-    pub(crate) fn test_memory() -> Result<Self, RadrootsAppError> {
+    pub(crate) fn test_memory() -> Result<Self, TeraAppError> {
         Self::from_client_builder(
             ClientBuilder::memory_default(),
             None,
@@ -117,13 +117,10 @@ impl RadrootsRuntime {
     /// host cancels after close begins, it must call `shutdown` again; the SDK
     /// remains unavailable and resumes the explicit close attempt. Completed
     /// calls are idempotent and no blocking destructor is installed.
-    pub async fn shutdown(&self) -> Result<sdk::SdkShutdownRecord, RadrootsAppError> {
+    pub async fn shutdown(&self) -> Result<sdk::SdkShutdownRecord, TeraAppError> {
         let already_closed = self.client.is_closed();
         self.shutting_down.store(true, Ordering::Release);
-        self.client
-            .close()
-            .await
-            .map_err(RadrootsAppError::from_sdk)?;
+        self.client.close().await.map_err(TeraAppError::from_sdk)?;
         Ok(sdk::SdkShutdownRecord {
             state: "closed".to_owned(),
             already_closed,
@@ -167,11 +164,11 @@ impl RadrootsRuntime {
 
 #[cfg(test)]
 mod tests {
-    use super::RadrootsRuntime;
+    use super::TeraRuntime;
     use radroots_sdk::capability::{Availability, CapabilityId};
     use std::panic::{AssertUnwindSafe, catch_unwind};
 
-    fn poison_platform_lock(runtime: &RadrootsRuntime) {
+    fn poison_platform_lock(runtime: &TeraRuntime) {
         let _ = catch_unwind(AssertUnwindSafe(|| {
             let _guard = runtime.platform_app.write().expect("lock platform");
             panic!("poison platform lock");
@@ -180,7 +177,7 @@ mod tests {
 
     #[test]
     fn runtime_owns_one_sdk_client() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         let storage = runtime
             .client
             .capabilities()
@@ -192,7 +189,7 @@ mod tests {
 
     #[test]
     fn set_platform_info_handles_poisoned_lock() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         runtime.set_app_info_platform(
             Some("ios".to_owned()),
             Some("org.radroots.app".to_owned()),
@@ -215,7 +212,7 @@ mod tests {
 
     #[test]
     fn runtime_metadata_helpers_are_host_safe() {
-        let runtime = RadrootsRuntime::test_memory().expect("runtime");
+        let runtime = TeraRuntime::test_memory().expect("runtime");
         assert!(runtime.uptime_millis() >= 0);
         let json = runtime.info_json();
         assert!(json.contains("sdk"));

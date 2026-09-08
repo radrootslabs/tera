@@ -6,10 +6,10 @@ cd "$ROOT"
 
 readonly -a SOURCE_PATHS=(
   Package.swift
-  Radroots
-  RadrootsPublicAPITests
-  RadrootsTests
-  RadrootsUITests
+  Tera
+  TeraPublicAPITests
+  TeraTests
+  TeraUITests
 )
 readonly -a MAINTAINABILITY_RULES=(
   cyclomatic_complexity
@@ -23,6 +23,8 @@ readonly -a PYTHON_QUALITY_PATHS=(
   scripts/ffi_source.py
   scripts/ffi_artifacts.py
   scripts/ffi_build.py
+  scripts/ffi_installed.py
+  scripts/test_ffi_installed.py
   scripts/test_ffi_artifacts.py
   scripts/ffi_provenance.py
   scripts/test_ffi_provenance.py

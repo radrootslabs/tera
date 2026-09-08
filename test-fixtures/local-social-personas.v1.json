@@ -1,5 +1,5 @@
 {
-  "schema": "radroots.ios.local-social.personas.v1",
+  "schema": "tera.ios.local-social.personas.v1",
   "schema_version": 1,
   "locale": "en_US",
   "media_fixture_sha256": "431ced6916a2a21a156e38701afe55bbd7f88969fbbfc56d7fe099d47f265460",

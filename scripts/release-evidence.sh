@@ -16,7 +16,7 @@ do
     }
 done
 
-tmp_root=$(mktemp -d "${TMPDIR:-/tmp}/radroots-ios-release.XXXXXX")
+tmp_root=$(mktemp -d "${TMPDIR:-/tmp}/tera-ios-release.XXXXXX")
 trap 'rm -rf "$tmp_root"' EXIT HUP INT TERM
 metadata="$tmp_root/cargo-metadata.json"
 rendered_sbom="$tmp_root/sbom.cdx.json"
@@ -25,8 +25,8 @@ rendered_provenance="$tmp_root/provenance.json"
 cargo metadata --locked --format-version 1 > "$metadata"
 
 version=$(jq -er '
-    [.packages[] | select(.name == "radroots_ios_source_lock") | .version]
-    | if length == 1 then .[0] else error("missing iOS source-lock package") end
+    [.packages[] | select(.name == "tera_ffi") | .version]
+    | if length == 1 then .[0] else error("missing owned FFI package") end
 ' "$metadata")
 
 jq -S --slurpfile swift "$repo_root/Package.resolved" \
@@ -71,7 +71,7 @@ jq -S --slurpfile swift "$repo_root/Package.resolved" \
         from_entries
     ) as $cargo_refs |
     (cargo_components + swift_components | sort_by(."bom-ref")) as $components |
-    ("pkg:generic/radroots_ios_app@" + $version) as $application_ref |
+    ("pkg:generic/tera@" + $version) as $application_ref |
     (
         [$cargo.resolve.nodes[] |
             {
@@ -98,9 +98,9 @@ jq -S --slurpfile swift "$repo_root/Package.resolved" \
             component: {
                 "bom-ref": $application_ref,
                 type: "application",
-                name: "radroots_ios_app",
+                name: "tera",
                 version: $version,
-                purl: ("pkg:generic/radroots_ios_app@" + $version),
+                purl: ("pkg:generic/tera@" + $version),
                 externalReferences: [{
                     type: "vcs",
                     url: "https://github.com/radrootslabs/tera"
@@ -116,30 +116,26 @@ hash_file() {
     shasum -a 256 "$1" | awk '{print $1}'
 }
 
-lock_value() {
-    key=$1
-    awk -v key="$key" '$2 == key && $3 == ":=" { print $4 }' \
-        "$repo_root/RadrootsFFI/source.lock"
-}
-
-lib_revision=$(lock_value RADROOTS_FIELD_LIB_GIT_REV)
-source_date_epoch=$(lock_value RADROOTS_FIELD_SOURCE_DATE_EPOCH)
+lib_revision=$(jq -er '.foundation.revision' "$repo_root/TeraFFI/source/aarch64-apple-ios.json")
+source_date_epoch=$(jq -er '.build.source_date_epoch' "$repo_root/TeraFFI/source/aarch64-apple-ios.json")
+tera_ffi_source_tree=$(jq -er '.candidate.source.tree' "$repo_root/TeraFFI/provenance.json")
 consumer_lock_sha256=$(hash_file "$repo_root/radroots.lib.source-lock.v1.toml")
 cargo_lock_sha256=$(hash_file "$repo_root/Cargo.lock")
 swift_lock_sha256=$(hash_file "$repo_root/Package.resolved")
 xcode_swift_lock_sha256=$(hash_file \
-    "$repo_root/Radroots.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved")
-ffi_provenance_sha256=$(hash_file "$repo_root/RadrootsFFI/provenance.json")
-ffi_api_sha256=$(hash_file "$repo_root/RadrootsFFI/api/RadrootsKitBindings.symbols.json")
-app_api_sha256=$(hash_file "$repo_root/api/RadrootsApp.symbols.json")
-info_plist_sha256=$(hash_file "$repo_root/Radroots/Info.plist")
-privacy_manifest_sha256=$(hash_file "$repo_root/Radroots/Resources/PrivacyInfo.xcprivacy")
-xcode_project_sha256=$(hash_file "$repo_root/Radroots.xcodeproj/project.pbxproj")
+    "$repo_root/Tera.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved")
+ffi_provenance_sha256=$(hash_file "$repo_root/TeraFFI/provenance.json")
+ffi_api_sha256=$(hash_file "$repo_root/TeraFFI/api/TeraKitBindings.symbols.json")
+app_api_sha256=$(hash_file "$repo_root/api/TeraApp.symbols.json")
+info_plist_sha256=$(hash_file "$repo_root/Tera/Info.plist")
+privacy_manifest_sha256=$(hash_file "$repo_root/Tera/Resources/PrivacyInfo.xcprivacy")
+xcode_project_sha256=$(hash_file "$repo_root/Tera.xcodeproj/project.pbxproj")
 sbom_sha256=$(hash_file "$rendered_sbom")
 
 jq -nS \
     --arg version "$version" \
     --arg lib_revision "$lib_revision" \
+    --arg tera_ffi_source_tree "$tera_ffi_source_tree" \
     --argjson source_date_epoch "$source_date_epoch" \
     --arg consumer_lock_sha256 "$consumer_lock_sha256" \
     --arg cargo_lock_sha256 "$cargo_lock_sha256" \
@@ -153,12 +149,13 @@ jq -nS \
     --arg xcode_project_sha256 "$xcode_project_sha256" \
     --arg sbom_sha256 "$sbom_sha256" '
     {
-        schema: "radroots.ios.release-provenance.v1",
-        product: "radroots_ios_app",
+        schema: "tera.release-provenance.v1",
+        product: "tera",
         version: $version,
         repository: "https://github.com/radrootslabs/tera",
         source: {
             lib_revision: $lib_revision,
+            tera_ffi_source_tree: $tera_ffi_source_tree,
             source_date_epoch: $source_date_epoch,
             consumer_source_lock_sha256: $consumer_lock_sha256,
             cargo_lock_sha256: $cargo_lock_sha256,
@@ -183,7 +180,7 @@ jq -e '
     .bomFormat == "CycloneDX" and
     .specVersion == "1.5" and
     .version == 1 and
-    .metadata.component.name == "radroots_ios_app" and
+    .metadata.component.name == "tera" and
     (.components | length > 0) and
     (([.components[]."bom-ref"] | unique | length) == (.components | length)) and
     ([.components[]."bom-ref"] == ([.components[]."bom-ref"] | sort)) and
@@ -196,10 +193,12 @@ jq -e '
 ' "$rendered_sbom" >/dev/null
 jq -e \
     --arg lib_revision "$lib_revision" \
+    --arg tera_ffi_source_tree "$tera_ffi_source_tree" \
     --arg sbom_sha256 "$sbom_sha256" '
-    .schema == "radroots.ios.release-provenance.v1" and
+    .schema == "tera.release-provenance.v1" and
     .repository == "https://github.com/radrootslabs/tera" and
     .source.lib_revision == $lib_revision and
+    .source.tera_ffi_source_tree == $tera_ffi_source_tree and
     .artifacts.sbom_sha256 == $sbom_sha256 and
     .platforms == ["ios-arm64", "ios-arm64-simulator"] and
     .disposition == "unsigned"
@@ -225,4 +224,4 @@ case "$mode" in
         ;;
 esac
 
-echo "release evidence $mode succeeded for radroots_ios_app@$version"
+echo "release evidence $mode succeeded for tera@$version"

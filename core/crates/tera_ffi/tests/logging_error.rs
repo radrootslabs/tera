@@ -1,4 +1,4 @@
-use tera_ffi::RadrootsAppError;
+use tera_ffi::TeraAppError;
 use tera_ffi::logging;
 
 #[test]
@@ -7,7 +7,7 @@ fn init_logging_stdout_maps_global_subscriber_error() {
     let err = logging::init_logging_stdout();
     assert!(matches!(
         err,
-        Err(RadrootsAppError::Failure { report })
+        Err(TeraAppError::Failure { report })
             if report.code == "initialization_failed"
     ));
 }

@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-project_file=Radroots.xcodeproj/project.pbxproj
+project_file=Tera.xcodeproj/project.pbxproj
 localizations_id=A11CE10CA11A710A00000001
 root_package_id=9F54FC4930051FC4611B37D3
-root_package_name=ios_app
+root_package_name=tera
 
 xcodegen generate --spec project.yml
 

@@ -17,12 +17,12 @@ class MaintainabilityRatchetTests(unittest.TestCase):
     def _repository(self) -> tuple[tempfile.TemporaryDirectory[str], Path]:
         temporary = tempfile.TemporaryDirectory()
         root = Path(temporary.name)
-        (root / "Radroots").mkdir()
-        (root / "RadrootsTests").mkdir()
-        (root / "RadrootsUITests").mkdir()
+        (root / "Tera").mkdir()
+        (root / "TeraTests").mkdir()
+        (root / "TeraUITests").mkdir()
         (root / "scripts").mkdir()
         (root / "test-fixtures").mkdir()
-        (root / "Radroots/App.swift").write_text("struct App {}\n", encoding="utf-8")
+        (root / "Tera/App.swift").write_text("struct App {}\n", encoding="utf-8")
         (root / "scripts/check.py").write_text(
             "def check():\n    return True\n", encoding="utf-8"
         )
@@ -42,7 +42,7 @@ class MaintainabilityRatchetTests(unittest.TestCase):
             "swift_file_exception": [],
             "python_file_exception": [],
             "python_complexity_exception": [],
-            "bounded_module": ["Radroots/App.swift", "scripts/check.py"],
+            "bounded_module": ["Tera/App.swift", "scripts/check.py"],
         }
         baseline.update(overrides)
         (root / ratchet.BASELINE_PATH).write_text(
@@ -55,16 +55,16 @@ class MaintainabilityRatchetTests(unittest.TestCase):
     def test_new_oversized_swift_file_is_rejected(self) -> None:
         temporary, root = self._repository()
         with temporary:
-            (root / "Radroots/Large.swift").write_text("x\n" * 601, encoding="utf-8")
+            (root / "Tera/Large.swift").write_text("x\n" * 601, encoding="utf-8")
             with self.assertRaisesRegex(ratchet.MaintainabilityError, "inventory"):
                 ratchet.verify(root)
 
     def test_exception_cannot_grow_or_become_stale(self) -> None:
         temporary, root = self._repository()
         with temporary:
-            path = root / "Radroots/App.swift"
+            path = root / "Tera/App.swift"
             path.write_text("x\n" * 602, encoding="utf-8")
-            exception = [{"path": "Radroots/App.swift", "maximum_lines": 601}]
+            exception = [{"path": "Tera/App.swift", "maximum_lines": 601}]
             self._write_baseline(root, swift_file_exception=exception)
             with self.assertRaisesRegex(ratchet.MaintainabilityError, "regressed"):
                 ratchet.verify(root)
@@ -111,7 +111,7 @@ class MaintainabilityRatchetTests(unittest.TestCase):
                 ratchet.verify(root)
             self._write_baseline(
                 root,
-                bounded_module=["scripts/check.py", "Radroots/App.swift"],
+                bounded_module=["scripts/check.py", "Tera/App.swift"],
             )
             with self.assertRaisesRegex(ratchet.MaintainabilityError, "inventory"):
                 ratchet.verify(root)
@@ -119,15 +119,13 @@ class MaintainabilityRatchetTests(unittest.TestCase):
     def test_bounded_module_must_exist_and_remain_small(self) -> None:
         temporary, root = self._repository()
         with temporary:
-            self._write_baseline(root, bounded_module=["Radroots/Missing.swift"])
+            self._write_baseline(root, bounded_module=["Tera/Missing.swift"])
             with self.assertRaisesRegex(ratchet.MaintainabilityError, "absent"):
                 ratchet.verify(root)
-            (root / "Radroots/App.swift").write_text("x\n" * 601, encoding="utf-8")
+            (root / "Tera/App.swift").write_text("x\n" * 601, encoding="utf-8")
             self._write_baseline(
                 root,
-                swift_file_exception=[
-                    {"path": "Radroots/App.swift", "maximum_lines": 601}
-                ],
+                swift_file_exception=[{"path": "Tera/App.swift", "maximum_lines": 601}],
             )
             with self.assertRaisesRegex(ratchet.MaintainabilityError, "bounded"):
                 ratchet.verify(root)

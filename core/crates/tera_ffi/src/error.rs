@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::MOBILE_FFI_SCHEMA_VERSION;
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
-pub struct RadrootsErrorRecord {
+pub struct TeraErrorRecord {
     pub schema_version: u16,
     pub code: String,
     pub category: String,
@@ -19,25 +19,25 @@ pub struct RadrootsErrorRecord {
 
 /// The only error envelope exported across the native language boundary.
 #[derive(Debug, Error, uniffi::Error)]
-pub enum RadrootsAppError {
+pub enum TeraAppError {
     #[error("radroots operation failed: {report:?}")]
-    Failure { report: RadrootsErrorRecord },
+    Failure { report: TeraErrorRecord },
 }
 
-impl RadrootsAppError {
+impl TeraAppError {
     pub(crate) fn initialization(_message: impl Into<String>) -> Self {
         Self::failure(
             "initialization_failed",
             "initialization",
             true,
             &["retry"],
-            "The Radroots runtime could not be initialized.",
+            "The Tera runtime could not be initialized.",
         )
     }
 
     pub(crate) fn invalid_argument(code: impl Into<String>) -> Self {
         Self::Failure {
-            report: RadrootsErrorRecord {
+            report: TeraErrorRecord {
                 schema_version: MOBILE_FFI_SCHEMA_VERSION,
                 code: code.into(),
                 category: "validation".to_owned(),
@@ -58,7 +58,7 @@ impl RadrootsAppError {
         safe_message: &str,
     ) -> Self {
         Self::Failure {
-            report: RadrootsErrorRecord {
+            report: TeraErrorRecord {
                 schema_version: MOBILE_FFI_SCHEMA_VERSION,
                 code: code.to_owned(),
                 category: category.to_owned(),
@@ -74,7 +74,7 @@ impl RadrootsAppError {
         }
     }
 
-    pub fn report(&self) -> &RadrootsErrorRecord {
+    pub fn report(&self) -> &TeraErrorRecord {
         match self {
             Self::Failure { report } => report,
         }
@@ -88,11 +88,11 @@ impl RadrootsAppError {
     }
 }
 
-impl From<tera_core::RadrootsAppError> for RadrootsAppError {
-    fn from(error: tera_core::RadrootsAppError) -> Self {
+impl From<tera_core::TeraAppError> for TeraAppError {
+    fn from(error: tera_core::TeraAppError) -> Self {
         match error {
-            tera_core::RadrootsAppError::Sdk { report } => Self::Failure {
-                report: RadrootsErrorRecord {
+            tera_core::TeraAppError::Sdk { report } => Self::Failure {
+                report: TeraErrorRecord {
                     schema_version: MOBILE_FFI_SCHEMA_VERSION,
                     code: report.code,
                     category: report.class,
@@ -103,8 +103,8 @@ impl From<tera_core::RadrootsAppError> for RadrootsAppError {
                     safe_message: report.message,
                 },
             },
-            tera_core::RadrootsAppError::Store { report } => Self::Failure {
-                report: RadrootsErrorRecord {
+            tera_core::TeraAppError::Store { report } => Self::Failure {
+                report: TeraErrorRecord {
                     schema_version: MOBILE_FFI_SCHEMA_VERSION,
                     code: report.code,
                     category: report.class,
@@ -115,33 +115,33 @@ impl From<tera_core::RadrootsAppError> for RadrootsAppError {
                     safe_message: report.message,
                 },
             },
-            tera_core::RadrootsAppError::Initialization(_) => Self::initialization("redacted"),
-            tera_core::RadrootsAppError::Runtime(_) => Self::failure(
+            tera_core::TeraAppError::Initialization(_) => Self::initialization("redacted"),
+            tera_core::TeraAppError::Runtime(_) => Self::failure(
                 "runtime_failed",
                 "runtime",
                 true,
                 &["retry"],
                 "The runtime operation failed.",
             ),
-            tera_core::RadrootsAppError::Unsupported(_) => Self::failure(
+            tera_core::TeraAppError::Unsupported(_) => Self::failure(
                 "unsupported",
                 "capability",
                 false,
                 &[],
                 "The requested capability is unsupported.",
             ),
-            tera_core::RadrootsAppError::Internal(_) => Self::failure(
+            tera_core::TeraAppError::Internal(_) => Self::failure(
                 "internal_failure",
                 "internal",
                 false,
                 &["restart"],
-                "An internal Radroots error occurred.",
+                "An internal Tera error occurred.",
             ),
         }
     }
 }
 
-impl From<TodayError> for RadrootsAppError {
+impl From<TodayError> for TeraAppError {
     fn from(error: TodayError) -> Self {
         let (code, retryable, actions) = match error {
             TodayError::InvalidRequest | TodayError::EventNotVisible => {
@@ -176,7 +176,7 @@ impl From<TodayError> for RadrootsAppError {
     }
 }
 
-impl From<Phase1DraftError> for RadrootsAppError {
+impl From<Phase1DraftError> for TeraAppError {
     fn from(error: Phase1DraftError) -> Self {
         let (code, retryable, actions) = match error {
             Phase1DraftError::IdentityUnavailable => (
@@ -229,7 +229,7 @@ impl From<Phase1DraftError> for RadrootsAppError {
     }
 }
 
-impl From<SettingsError> for RadrootsAppError {
+impl From<SettingsError> for TeraAppError {
     fn from(error: SettingsError) -> Self {
         let retryable = matches!(
             error,
@@ -254,7 +254,7 @@ impl From<SettingsError> for RadrootsAppError {
     }
 }
 
-impl From<ProfileMetadataError> for RadrootsAppError {
+impl From<ProfileMetadataError> for TeraAppError {
     fn from(error: ProfileMetadataError) -> Self {
         Self::failure(
             error.code(),
@@ -272,7 +272,7 @@ mod tests {
 
     #[test]
     fn internal_core_messages_are_not_copied_to_the_ffi_record() {
-        let error = RadrootsAppError::from(tera_core::RadrootsAppError::internal(
+        let error = TeraAppError::from(tera_core::TeraAppError::internal(
             "private/path/secret-value",
         ));
         assert_eq!(error.report().code, "internal_failure");
@@ -282,7 +282,7 @@ mod tests {
 
     #[test]
     fn every_core_error_class_maps_to_a_versioned_redacted_record() {
-        let sdk = tera_core::RadrootsAppError::Sdk {
+        let sdk = tera_core::TeraAppError::Sdk {
             report: tera_core::SdkErrorRecord {
                 schema_version: 1,
                 code: "relay_unavailable".to_owned(),
@@ -294,11 +294,11 @@ mod tests {
                 message: "Safe relay failure".to_owned(),
             },
         };
-        let sdk = RadrootsAppError::from(sdk);
+        let sdk = TeraAppError::from(sdk);
         assert_eq!(sdk.report().code, "relay_unavailable");
         assert_eq!(sdk.report().operation_id.as_deref(), Some("operation"));
 
-        let store = tera_core::RadrootsAppError::Store {
+        let store = tera_core::TeraAppError::Store {
             report: tera_core::StoreErrorRecord {
                 schema_version: 1,
                 code: "store_locked".to_owned(),
@@ -308,33 +308,33 @@ mod tests {
                 message: "Safe store failure".to_owned(),
             },
         };
-        let store = RadrootsAppError::from(store);
+        let store = TeraAppError::from(store);
         assert_eq!(store.report().code, "store_locked");
         assert!(store.report().operation_id.is_none());
 
         for (core, code, category) in [
             (
-                tera_core::RadrootsAppError::initialization("secret"),
+                tera_core::TeraAppError::initialization("secret"),
                 "initialization_failed",
                 "initialization",
             ),
             (
-                tera_core::RadrootsAppError::runtime("secret"),
+                tera_core::TeraAppError::runtime("secret"),
                 "runtime_failed",
                 "runtime",
             ),
             (
-                tera_core::RadrootsAppError::unsupported("secret"),
+                tera_core::TeraAppError::unsupported("secret"),
                 "unsupported",
                 "capability",
             ),
             (
-                tera_core::RadrootsAppError::internal("secret"),
+                tera_core::TeraAppError::internal("secret"),
                 "internal_failure",
                 "internal",
             ),
         ] {
-            let ffi = RadrootsAppError::from(core);
+            let ffi = TeraAppError::from(core);
             assert_eq!(ffi.report().code, code);
             assert_eq!(ffi.report().category, category);
             assert!(!ffi.report().safe_message.contains("secret"));
@@ -353,7 +353,7 @@ mod tests {
             TodayError::CorruptProjection,
             TodayError::Serialization,
         ] {
-            let ffi = RadrootsAppError::from(error);
+            let ffi = TeraAppError::from(error);
             assert_eq!(ffi.report().category, "today");
             assert!(!ffi.report().safe_message.is_empty());
         }
@@ -377,7 +377,7 @@ mod tests {
             Phase1DraftError::NoWritableRelay,
             Phase1DraftError::InvalidRevision,
         ] {
-            let ffi = RadrootsAppError::from(error);
+            let ffi = TeraAppError::from(error);
             assert_eq!(ffi.report().category, "authoring");
             assert!(!ffi.report().safe_message.is_empty());
         }
@@ -399,7 +399,7 @@ mod tests {
             CursorError::Stale,
             CursorError::InvalidPosition,
         ] {
-            let error = RadrootsAppError::from(TodayError::Cursor(cursor));
+            let error = TeraAppError::from(TodayError::Cursor(cursor));
             assert_eq!(error.report().code, "today_cursor_invalid");
         }
         for media in [
@@ -428,7 +428,7 @@ mod tests {
             Phase1InboundMediaError::CacheIo,
             Phase1InboundMediaError::CorruptArtifact,
         ] {
-            let error = RadrootsAppError::from(TodayError::InboundMedia(media));
+            let error = TeraAppError::from(TodayError::InboundMedia(media));
             assert_eq!(error.report().code, "today_media_invalid");
         }
         for settings in [
@@ -454,7 +454,7 @@ mod tests {
                     | SettingsError::RevisionExhausted
                     | SettingsError::Storage
             );
-            let error = RadrootsAppError::from(settings);
+            let error = TeraAppError::from(settings);
             assert_eq!(error.report().retryable, expected_retryable);
         }
         for profile in [
@@ -463,14 +463,14 @@ mod tests {
             ProfileMetadataError::InvalidAbout,
             ProfileMetadataError::InvalidNip05,
         ] {
-            assert_eq!(RadrootsAppError::from(profile).report().category, "profile");
+            assert_eq!(TeraAppError::from(profile).report().category, "profile");
         }
         assert_eq!(
-            RadrootsAppError::initialization("private").report().code,
+            TeraAppError::initialization("private").report().code,
             "initialization_failed"
         );
         assert_eq!(
-            RadrootsAppError::invalid_argument("bad")
+            TeraAppError::invalid_argument("bad")
                 .with_operation_id("operation".to_owned())
                 .report()
                 .operation_id

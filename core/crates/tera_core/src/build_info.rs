@@ -20,7 +20,7 @@ pub fn app_build_info() -> RuntimeBuildInfo {
         rustc: option_env!("RUSTC_VERSION").map(str::to_owned),
         profile: option_env!("PROFILE").map(str::to_owned),
         lib_revision: option_env!("RADROOTS_LIB_REVISION").map(str::to_owned),
-        consumer_revision: option_env!("RADROOTS_CONSUMER_REVISION").map(str::to_owned),
+        consumer_revision: option_env!("TERA_CONSUMER_REVISION").map(str::to_owned),
         build_time_unix: option_env!("BUILD_TIME_UNIX").and_then(|value| value.parse().ok()),
     }
 }

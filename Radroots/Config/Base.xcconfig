@@ -1,7 +1,0 @@
-#include "Common.xcconfig"
-#include "../radroots.xcconfig"
-
-RADROOTS_FIELD_IOS_RUNTIME_MODE = production
-RADROOTS_FIELD_IOS_NOSTR_RELAY_URLS = wss:$(SLASH)$(SLASH)radroots.org$(SLASH)
-RADROOTS_FIELD_IOS_BLOSSOM_ORIGINS = https:$(SLASH)$(SLASH)blossom.radroots.org
-RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX = org.radroots.field_ios

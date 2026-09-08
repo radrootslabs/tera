@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use tera_core::{RadrootsAppError, RadrootsRuntime};
+use tera_core::{TeraAppError, TeraRuntime};
 
 mod support;
 
 #[tokio::test]
 async fn runtime_is_send_sync_and_shares_one_sdk_lifecycle() {
     fn require_send_sync<T: Send + Sync>() {}
-    require_send_sync::<RadrootsRuntime>();
+    require_send_sync::<TeraRuntime>();
 
     let (_root, runtime) = support::runtime().await;
     let runtime = Arc::new(runtime);
@@ -38,7 +38,7 @@ async fn operations_fail_safely_after_explicit_close() {
     runtime.shutdown().await.expect("shutdown");
     assert!(matches!(
         runtime.sdk_storage_status().await,
-        Err(RadrootsAppError::Sdk { .. })
+        Err(TeraAppError::Sdk { .. })
     ));
 }
 

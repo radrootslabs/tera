@@ -2,7 +2,7 @@
 name = "tera_wasm"
 version = "0.1.0-alpha"
 edition.workspace = true
-authors = ["Radroots Authors"]
+authors = ["Tera Authors"]
 rust-version.workspace = true
 license = "GPL-3.0-or-later"
 description = "Non-default build-information wrapper for Tera"

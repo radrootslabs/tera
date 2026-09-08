@@ -58,6 +58,16 @@ class NativeArtifactTests(unittest.TestCase):
             provenance.encoded(artifacts.manifest(self.root, self.records))
         )
 
+    def test_framework_metadata_is_independent_of_xcode_library_order(self) -> None:
+        path = self.root / artifacts.FRAMEWORK / "Info.plist"
+        original = plistlib.loads(path.read_bytes())
+        builder.canonicalize_framework_info(path)
+        expected = path.read_bytes()
+        original["AvailableLibraries"].reverse()
+        path.write_bytes(plistlib.dumps(original, sort_keys=False))
+        builder.canonicalize_framework_info(path)
+        self.assertEqual(path.read_bytes(), expected)
+
     def install_headers(self) -> None:
         header = b"void ffi_tera_ffi_fixture(void);\n"
         modulemap = b'module TeraFFI { header "TeraFFI.h" export * }\n'
@@ -142,9 +152,9 @@ class NativeArtifactTests(unittest.TestCase):
         self,
     ) -> None:
         config = source.producer_contract(SCRIPTS.parent)
-        with patch.dict(os.environ, {"RADROOTS_CONSUMER_REVISION": "f" * 40}):
+        with patch.dict(os.environ, {"TERA_CONSUMER_REVISION": "f" * 40}):
             environment = builder.build_environment(SCRIPTS.parent, self.root, config)
-        self.assertNotIn("RADROOTS_CONSUMER_REVISION", environment)
+        self.assertNotIn("TERA_CONSUMER_REVISION", environment)
         self.assertIn("=/tera", environment["CARGO_ENCODED_RUSTFLAGS"])
         self.assertEqual(
             environment["RADROOTS_LIB_REVISION"],

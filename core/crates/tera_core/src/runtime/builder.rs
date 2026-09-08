@@ -1,5 +1,5 @@
 use crate::runtime::store::{MobileUserStoreConfig, ProtectedDataAvailability};
-use crate::{RadrootsAppError, RadrootsRuntime};
+use crate::{TeraAppError, TeraRuntime};
 
 /// Host-owned construction boundary for the shared SDK-backed runtime.
 pub struct RuntimeBuilder {
@@ -64,9 +64,9 @@ impl RuntimeBuilder {
     }
 
     /// Opens the exact authenticated user's durable SQLite store.
-    pub async fn build(self) -> Result<RadrootsRuntime, RadrootsAppError> {
+    pub async fn build(self) -> Result<TeraRuntime, TeraAppError> {
         if self.store.protected_data() == ProtectedDataAvailability::Unavailable {
-            return Err(RadrootsAppError::protected_data_unavailable());
+            return Err(TeraAppError::protected_data_unavailable());
         }
         self.store.validate_host_filesystem()?;
         let options = self.store.sqlite_options()?;
@@ -74,8 +74,8 @@ impl RuntimeBuilder {
         let inbound_media_directory = self.store.owner_directory().join("inbound_media.v1");
         let builder = radroots_sdk::ClientBuilder::sqlite(options)
             .await
-            .map_err(RadrootsAppError::from_sdk)?;
-        RadrootsRuntime::from_client_builder(
+            .map_err(TeraAppError::from_sdk)?;
+        TeraRuntime::from_client_builder(
             builder,
             Some(self.store.public_key()),
             #[cfg(feature = "mobile-social")]

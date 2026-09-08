@@ -1,0 +1,9 @@
+#include "Base.xcconfig"
+
+TERA_IOS_RUNTIME_MODE = localhost-dev
+PRODUCT_BUNDLE_IDENTIFIER = dev.local.radroots
+TERA_IOS_NOSTR_RELAY_URLS = ws:$(SLASH)$(SLASH)127.0.0.1:21000
+TERA_IOS_BLOSSOM_ORIGINS = http:$(SLASH)$(SLASH)127.0.0.1:21100
+TERA_IOS_KEYCHAIN_SERVICE_PREFIX = org.radroots.field_ios.local
+
+#include? "../tera.local.xcconfig"

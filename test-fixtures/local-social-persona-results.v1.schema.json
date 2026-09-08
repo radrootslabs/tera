@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://radroots.org/schemas/ios/local-social-persona-results.v1.schema.json",
-  "title": "Radroots iOS local-social deterministic persona result",
+  "title": "Tera iOS local-social deterministic persona result",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -15,7 +15,7 @@
     "accessibility", "forward_repairs", "complete_matrix_rerun"
   ],
   "properties": {
-    "schema": {"const": "radroots.ios.local-social.persona-results.v1"},
+    "schema": {"const": "tera.ios.local-social.persona-results.v1"},
     "schema_version": {"const": 1},
     "run_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{6,62}[a-z0-9]$"},
     "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},

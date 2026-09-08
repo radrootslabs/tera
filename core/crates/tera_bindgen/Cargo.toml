@@ -1,9 +1,9 @@
 [package]
 name = "tera_bindgen"
-description = "Private UniFFI binding generator for Radroots mobile artifacts"
+description = "Private UniFFI binding generator for Tera mobile artifacts"
 version = "0.1.0-alpha"
 edition.workspace = true
-authors = ["Radroots Authors"]
+authors = ["Tera Authors"]
 rust-version.workspace = true
 license = "GPL-3.0-or-later"
 repository.workspace = true

@@ -12,9 +12,9 @@ from typing import Any
 
 MAX_BASELINE_BYTES = 256 * 1024
 BASELINE_PATH = Path("test-fixtures/maintainability-baseline.v1.json")
-SWIFT_ROOTS = (Path("Radroots"), Path("RadrootsTests"), Path("RadrootsUITests"))
+SWIFT_ROOTS = (Path("Tera"), Path("TeraTests"), Path("TeraUITests"))
 PYTHON_ROOT = Path("scripts")
-EXCLUDED_SWIFT_ROOT = Path("Radroots/Generated")
+EXCLUDED_SWIFT_ROOT = Path("Tera/Generated")
 
 
 class MaintainabilityError(Exception):

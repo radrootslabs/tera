@@ -1,12 +1,12 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://radroots.org/schemas/ios/bud11-upload-authorization-mutations.v1.schema.json",
-  "title": "Radroots iOS local-social BUD-11 mutation corpus v1",
+  "title": "Tera iOS local-social BUD-11 mutation corpus v1",
   "type": "object",
   "additionalProperties": false,
   "required": ["schema", "schema_version", "vectors"],
   "properties": {
-    "schema": {"const": "radroots.ios.local-social.bud11-mutations.v1"},
+    "schema": {"const": "tera.ios.local-social.bud11-mutations.v1"},
     "schema_version": {"const": 1},
     "vectors": {
       "type": "array",

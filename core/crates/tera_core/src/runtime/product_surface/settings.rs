@@ -13,7 +13,7 @@ use radroots_storage::projection::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use super::super::RadrootsRuntime;
+use super::super::TeraRuntime;
 
 pub const DEFAULT_PUBLIC_RELAY: &str = "wss://radroots.org";
 
@@ -905,7 +905,7 @@ impl SettingsError {
     }
 }
 
-impl RadrootsRuntime {
+impl TeraRuntime {
     pub async fn phase1_settings(&self) -> Result<MobileSettings, SettingsError> {
         let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
         let mut settings = load_settings(storage).await?;
@@ -1501,7 +1501,7 @@ mod tests {
 
     #[tokio::test]
     async fn settings_are_revision_checked_persisted_and_report_exact_effects() {
-        let runtime = RadrootsRuntime::test_memory().unwrap();
+        let runtime = TeraRuntime::test_memory().unwrap();
         let settings = runtime.phase1_settings().await.unwrap();
         let next = settings
             .clone()
@@ -1540,7 +1540,7 @@ mod tests {
 
     #[tokio::test]
     async fn atomic_identity_commands_persist_public_state_but_keep_unlock_process_local() {
-        let runtime = RadrootsRuntime::test_memory().unwrap();
+        let runtime = TeraRuntime::test_memory().unwrap();
         let begun = runtime
             .phase1_apply_identity_command(
                 1,
@@ -1608,7 +1608,7 @@ mod tests {
 
     #[tokio::test]
     async fn concurrent_replacements_cannot_both_commit_the_same_revision() {
-        let runtime = RadrootsRuntime::test_memory().unwrap();
+        let runtime = TeraRuntime::test_memory().unwrap();
         let settings = runtime.phase1_settings().await.unwrap();
         let first = ReplaceMobileSettings::new(
             settings.revision(),

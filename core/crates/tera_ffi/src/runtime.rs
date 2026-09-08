@@ -24,8 +24,8 @@ use crate::{
     FfiQueuePolicyRecord, FfiRelayStatusReportRecord, FfiRetractionDraftInput,
     FfiRuntimeChangeKind, FfiRuntimeInfoRecord, FfiSearchResultRecord, FfiShutdownRecord,
     FfiStorageStatusRecord, FfiSubscriptionHandle, FfiTodayPageRecord, FfiTodayProjectionUpdate,
-    FfiTodayRefreshRecord, FfiTodaySyncRecord, RadrootsAppError, RadrootsHostSigner,
-    RadrootsRuntimeObserver, add_schemas, decode_id,
+    FfiTodayRefreshRecord, FfiTodaySyncRecord, TeraAppError, TeraHostSigner, TeraRuntimeObserver,
+    add_schemas, decode_id,
 };
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
@@ -45,14 +45,14 @@ impl From<ProtectedDataAvailability> for tera_core::runtime::store::ProtectedDat
 
 /// Native boundary object delegating all product behavior to the ordinary Rust core.
 #[derive(uniffi::Object)]
-pub struct RadrootsRuntime {
-    inner: tera_core::RadrootsRuntime,
+pub struct TeraRuntime {
+    inner: tera_core::TeraRuntime,
     has_host_signer: bool,
     subscriptions: Arc<SubscriptionHub>,
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export(async_runtime = "tokio"))]
-impl RadrootsRuntime {
+impl TeraRuntime {
     #[cfg_attr(not(coverage_nightly), uniffi::constructor)]
     pub async fn new(
         application_support_directory: String,
@@ -60,7 +60,7 @@ impl RadrootsRuntime {
         source_generation_hex: String,
         source_generation_created_at_unix_ms: u64,
         protected_data: ProtectedDataAvailability,
-    ) -> Result<Self, RadrootsAppError> {
+    ) -> Result<Self, TeraAppError> {
         build_runtime(
             application_support_directory,
             public_key_hex,
@@ -79,8 +79,8 @@ impl RadrootsRuntime {
         source_generation_hex: String,
         source_generation_created_at_unix_ms: u64,
         protected_data: ProtectedDataAvailability,
-        host_signer: Box<dyn RadrootsHostSigner>,
-    ) -> Result<Self, RadrootsAppError> {
+        host_signer: Box<dyn TeraHostSigner>,
+    ) -> Result<Self, TeraAppError> {
         build_runtime(
             application_support_directory,
             public_key_hex,
@@ -92,7 +92,7 @@ impl RadrootsRuntime {
         .await
     }
 
-    pub async fn shutdown(&self) -> Result<FfiShutdownRecord, RadrootsAppError> {
+    pub async fn shutdown(&self) -> Result<FfiShutdownRecord, TeraAppError> {
         let result = self
             .inner
             .shutdown()
@@ -131,12 +131,12 @@ impl RadrootsRuntime {
             .set_app_info_platform(platform, bundle_id, version, build_number, build_sha);
     }
 
-    pub fn identity_status(&self) -> Result<FfiIdentityStatusRecord, RadrootsAppError> {
+    pub fn identity_status(&self) -> Result<FfiIdentityStatusRecord, TeraAppError> {
         let public_key = self
             .inner
             .authenticated_store_public_key_hex()
             .ok_or_else(|| {
-                RadrootsAppError::failure(
+                TeraAppError::failure(
                     "identity_unavailable",
                     "identity",
                     true,
@@ -159,7 +159,7 @@ impl RadrootsRuntime {
             .collect()
     }
 
-    pub async fn sdk_storage_status(&self) -> Result<FfiStorageStatusRecord, RadrootsAppError> {
+    pub async fn sdk_storage_status(&self) -> Result<FfiStorageStatusRecord, TeraAppError> {
         self.inner
             .sdk_storage_status()
             .await
@@ -167,7 +167,7 @@ impl RadrootsRuntime {
             .map_err(Into::into)
     }
 
-    pub fn sdk_relay_status(&self) -> Result<Option<FfiRelayStatusReportRecord>, RadrootsAppError> {
+    pub fn sdk_relay_status(&self) -> Result<Option<FfiRelayStatusReportRecord>, TeraAppError> {
         self.inner
             .sdk_relay_status()
             .map(|value| value.map(Into::into))
@@ -176,47 +176,45 @@ impl RadrootsRuntime {
 
     pub fn sdk_blossom_configuration(
         &self,
-    ) -> Result<Option<FfiBlossomConfigurationRecord>, RadrootsAppError> {
+    ) -> Result<Option<FfiBlossomConfigurationRecord>, TeraAppError> {
         self.inner
             .sdk_blossom_configuration()
             .map(|value| value.map(Into::into))
             .map_err(Into::into)
     }
 
-    pub fn sdk_blossom_evidence(
-        &self,
-    ) -> Result<Option<FfiBlossomEvidenceRecord>, RadrootsAppError> {
+    pub fn sdk_blossom_evidence(&self) -> Result<Option<FfiBlossomEvidenceRecord>, TeraAppError> {
         self.inner
             .sdk_blossom_evidence()
             .map(|value| value.map(Into::into))
             .map_err(Into::into)
     }
 
-    pub async fn probe_blossom(&self) -> Result<FfiBlossomEvidenceRecord, RadrootsAppError> {
+    pub async fn probe_blossom(&self) -> Result<FfiBlossomEvidenceRecord, TeraAppError> {
         let evidence = self
             .inner
             .probe_blossom()
             .await
             .map(Into::into)
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
         Ok(evidence)
     }
 
     pub fn subscribe_changes(
         &self,
-        observer: Box<dyn RadrootsRuntimeObserver>,
-    ) -> Result<Arc<FfiSubscriptionHandle>, RadrootsAppError> {
+        observer: Box<dyn TeraRuntimeObserver>,
+    ) -> Result<Arc<FfiSubscriptionHandle>, TeraAppError> {
         self.subscriptions.subscribe(observer)
     }
 
     pub fn configure_public_relays(
         &self,
         writable_relays: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.inner
             .configure_public_relays(writable_relays)
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Relay, None);
         Ok(())
     }
@@ -224,10 +222,10 @@ impl RadrootsRuntime {
     pub fn configure_simulator_relays(
         &self,
         loopback_relays: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.inner
             .configure_simulator_relays(loopback_relays)
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Relay, None);
         Ok(())
     }
@@ -235,10 +233,10 @@ impl RadrootsRuntime {
     pub fn configure_device_relays(
         &self,
         writable_relays: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.inner
             .configure_device_relays(writable_relays)
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Relay, None);
         Ok(())
     }
@@ -249,7 +247,7 @@ impl RadrootsRuntime {
         endpoint_authority: FfiBlossomEndpointAuthority,
         primary_origin: String,
         fallback_origins: Vec<String>,
-    ) -> Result<(), RadrootsAppError> {
+    ) -> Result<(), TeraAppError> {
         self.inner
             .configure_blossom(
                 host_kind.into(),
@@ -257,7 +255,7 @@ impl RadrootsRuntime {
                 primary_origin,
                 fallback_origins,
             )
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
         Ok(())
     }
@@ -281,7 +279,7 @@ impl RadrootsRuntime {
     pub fn phase1_local_network(
         &self,
         context: FfiLocalNetworkRecord,
-    ) -> Result<FfiLocalNetworkRecord, RadrootsAppError> {
+    ) -> Result<FfiLocalNetworkRecord, TeraAppError> {
         self.local_network(context).map(Into::into)
     }
 
@@ -291,11 +289,9 @@ impl RadrootsRuntime {
         limit: u16,
         as_of_unix_s: Option<u64>,
         cursor: Option<String>,
-    ) -> Result<FfiTodayPageRecord, RadrootsAppError> {
+    ) -> Result<FfiTodayPageRecord, TeraAppError> {
         if as_of_unix_s.is_some() == cursor.is_some() {
-            return Err(RadrootsAppError::invalid_argument(
-                "invalid_today_page_request",
-            ));
+            return Err(TeraAppError::invalid_argument("invalid_today_page_request"));
         }
         let context = self.local_network(context)?;
         let request = match cursor {
@@ -303,7 +299,7 @@ impl RadrootsRuntime {
             None => TodayPageRequest::first(
                 limit,
                 as_of_unix_s
-                    .ok_or_else(|| RadrootsAppError::invalid_argument("today_as_of_required"))?,
+                    .ok_or_else(|| TeraAppError::invalid_argument("today_as_of_required"))?,
             ),
         };
         self.inner
@@ -318,13 +314,13 @@ impl RadrootsRuntime {
         context: FfiLocalNetworkRecord,
         now_unix_s: u64,
         update: FfiTodayProjectionUpdate,
-    ) -> Result<FfiTodayRefreshRecord, RadrootsAppError> {
+    ) -> Result<FfiTodayRefreshRecord, TeraAppError> {
         let context = self.local_network(context)?;
         let receipt = self
             .inner
             .phase1_refresh_today(&context, now_unix_s, update.into())
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Today, None);
         Ok(receipt.into())
     }
@@ -334,13 +330,13 @@ impl RadrootsRuntime {
         context: FfiLocalNetworkRecord,
         now_unix_s: u64,
         update: FfiTodayProjectionUpdate,
-    ) -> Result<FfiTodaySyncRecord, RadrootsAppError> {
+    ) -> Result<FfiTodaySyncRecord, TeraAppError> {
         let context = self.local_network(context)?;
         let receipt = self
             .inner
             .phase1_sync_today(&context, now_unix_s, update.into())
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Today, None);
         Ok(receipt.into())
     }
@@ -351,7 +347,7 @@ impl RadrootsRuntime {
         query: String,
         limit: u16,
         as_of_unix_s: u64,
-    ) -> Result<Vec<FfiSearchResultRecord>, RadrootsAppError> {
+    ) -> Result<Vec<FfiSearchResultRecord>, TeraAppError> {
         let context = self.local_network(context)?;
         self.inner
             .phase1_search(&context, &query, limit, as_of_unix_s)
@@ -364,13 +360,13 @@ impl RadrootsRuntime {
         &self,
         context: FfiLocalNetworkRecord,
         as_of_unix_s: u64,
-    ) -> Result<FfiMeRecord, RadrootsAppError> {
+    ) -> Result<FfiMeRecord, TeraAppError> {
         let context = self.local_network(context)?;
         let public_key = self
             .inner
             .authenticated_store_public_key_hex()
             .ok_or_else(|| {
-                RadrootsAppError::failure(
+                TeraAppError::failure(
                     "identity_unavailable",
                     "identity",
                     true,
@@ -389,11 +385,8 @@ impl RadrootsRuntime {
         &self,
         input: FfiAddDraftInput,
         authored_at_unix_s: u64,
-    ) -> Result<(), RadrootsAppError> {
-        let blossom = self
-            .inner
-            .sdk_blossom_slot()
-            .map_err(RadrootsAppError::from)?;
+    ) -> Result<(), TeraAppError> {
+        let blossom = self.inner.sdk_blossom_slot().map_err(TeraAppError::from)?;
         input
             .command_and_media(authored_at_unix_s, blossom.as_ref())
             .map(|_| ())
@@ -406,7 +399,7 @@ impl RadrootsRuntime {
         mut input: FfiAddDraftInput,
         existing_draft_id: Option<String>,
         expected_revision: Option<u64>,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         if input.identifier.is_none()
             && matches!(
                 input.command_type,
@@ -417,31 +410,27 @@ impl RadrootsRuntime {
             input.identifier = Some(phase1_new_addressable_identifier());
         }
         let authored_at_unix_s =
-            phase1_operation_now_unix_ms().map_err(RadrootsAppError::from)? / 1_000;
-        let blossom = self
-            .inner
-            .sdk_blossom_slot()
-            .map_err(RadrootsAppError::from)?;
+            phase1_operation_now_unix_ms().map_err(TeraAppError::from)? / 1_000;
+        let blossom = self.inner.sdk_blossom_slot().map_err(TeraAppError::from)?;
         let (command, media, form) =
             input.command_media_and_form(authored_at_unix_s, blossom.as_ref())?;
         let existing = match (existing_draft_id, expected_revision) {
             (Some(draft_id), Some(revision)) => Some(
                 Phase1ExistingDraft::new(decode_id(&draft_id, "invalid_draft_id")?, revision)
-                    .map_err(RadrootsAppError::from)?,
+                    .map_err(TeraAppError::from)?,
             ),
             (None, None) => None,
             _ => {
-                return Err(RadrootsAppError::invalid_argument("invalid_existing_draft"));
+                return Err(TeraAppError::invalid_argument("invalid_existing_draft"));
             }
         };
         let status = self
             .inner
             .phase1_save_add_intent(
-                Phase1AddIntent::new(command, media, form, existing)
-                    .map_err(RadrootsAppError::from)?,
+                Phase1AddIntent::new(command, media, form, existing).map_err(TeraAppError::from)?,
             )
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         let draft_id = hex::encode(status.draft().draft_id().as_bytes());
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
@@ -456,11 +445,8 @@ impl RadrootsRuntime {
         authored_at_unix_s: u64,
         expected_revision: Option<u64>,
         persisted_at_unix_ms: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
-        let blossom = self
-            .inner
-            .sdk_blossom_slot()
-            .map_err(RadrootsAppError::from)?;
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
+        let blossom = self.inner.sdk_blossom_slot().map_err(TeraAppError::from)?;
         let (command, media, form) =
             input.command_media_and_form(authored_at_unix_s, blossom.as_ref())?;
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
@@ -476,7 +462,7 @@ impl RadrootsRuntime {
                 persisted_at_unix_ms,
             )
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -488,11 +474,9 @@ impl RadrootsRuntime {
         input: FfiRetractionDraftInput,
         authored_at_unix_s: u64,
         persisted_at_unix_ms: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION {
-            return Err(RadrootsAppError::invalid_argument(
-                "unsupported_schema_version",
-            ));
+            return Err(TeraAppError::invalid_argument("unsupported_schema_version"));
         }
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let command_type = match input.command_type {
@@ -513,7 +497,7 @@ impl RadrootsRuntime {
             }
         };
         let card_id = tera_core::runtime::product_surface::CardId::parse(&input.target_card_id)
-            .map_err(|_| RadrootsAppError::invalid_argument("invalid_card_id"))?;
+            .map_err(|_| TeraAppError::invalid_argument("invalid_card_id"))?;
         let status = self
             .inner
             .phase1_save_retraction_draft(
@@ -528,7 +512,7 @@ impl RadrootsRuntime {
                 persisted_at_unix_ms,
             )
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -537,7 +521,7 @@ impl RadrootsRuntime {
     pub async fn phase1_draft_status(
         &self,
         draft_id: String,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         self.inner
             .phase1_draft_status(decode_id(&draft_id, "invalid_draft_id")?)
             .await
@@ -548,7 +532,7 @@ impl RadrootsRuntime {
     pub async fn phase1_draft_heads(
         &self,
         limit: u16,
-    ) -> Result<Vec<FfiDraftStatusRecord>, RadrootsAppError> {
+    ) -> Result<Vec<FfiDraftStatusRecord>, TeraAppError> {
         self.inner
             .phase1_draft_heads(limit)
             .await
@@ -562,7 +546,7 @@ impl RadrootsRuntime {
         expected_revision: u64,
         policy: FfiQueuePolicyRecord,
         queued_at_unix_ms: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
@@ -573,7 +557,7 @@ impl RadrootsRuntime {
                 queued_at_unix_ms,
             )
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -584,15 +568,15 @@ impl RadrootsRuntime {
         &self,
         draft_id: String,
         expected_revision: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
-        let intent = Phase1QueueIntent::new(decoded_id, expected_revision)
-            .map_err(RadrootsAppError::from)?;
+        let intent =
+            Phase1QueueIntent::new(decoded_id, expected_revision).map_err(TeraAppError::from)?;
         let status = self
             .inner
             .phase1_queue_add_intent(intent)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -602,13 +586,13 @@ impl RadrootsRuntime {
         &self,
         draft_id: String,
         recovered_at_unix_ms: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
             .phase1_recover_draft_queue(decoded_id, recovered_at_unix_ms)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -617,13 +601,13 @@ impl RadrootsRuntime {
     pub async fn phase1_recover_add_intent(
         &self,
         draft_id: String,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
             .phase1_recover_add_intent(decoded_id)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -633,13 +617,13 @@ impl RadrootsRuntime {
         &self,
         draft_id: String,
         expected_revision: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
             .phase1_sign_queued_draft(decoded_id, expected_revision)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -649,13 +633,13 @@ impl RadrootsRuntime {
         &self,
         draft_id: String,
         expected_revision: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
             .phase1_advance_draft(decoded_id, expected_revision)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -664,11 +648,9 @@ impl RadrootsRuntime {
     pub async fn phase1_upload_draft_media(
         &self,
         input: FfiBlossomUploadInput,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION {
-            return Err(RadrootsAppError::invalid_argument(
-                "unsupported_schema_version",
-            ));
+            return Err(TeraAppError::invalid_argument("unsupported_schema_version"));
         }
         let draft_id = decode_id(&input.draft_id, "invalid_draft_id")?;
         let operation_id = decode_id(&input.operation_id, "invalid_operation_id")?;
@@ -678,7 +660,7 @@ impl RadrootsRuntime {
         let content = radroots_blossom::authorization::AuthorizationContent::parse(
             &input.authorization_content,
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_blossom_authorization"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_blossom_authorization"))?;
         let status = self
             .inner
             .phase1_upload_draft_media(
@@ -696,7 +678,7 @@ impl RadrootsRuntime {
                 input.updated_at_unix_ms,
             )
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Media, Some(input.draft_id.clone()));
         self.subscriptions
@@ -709,11 +691,9 @@ impl RadrootsRuntime {
     pub async fn phase1_upload_add_media_intent(
         &self,
         input: FfiBlossomUploadIntent,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION {
-            return Err(RadrootsAppError::invalid_argument(
-                "unsupported_schema_version",
-            ));
+            return Err(TeraAppError::invalid_argument("unsupported_schema_version"));
         }
         let draft_id = decode_id(&input.draft_id, "invalid_draft_id")?;
         let intent = PreparedMedia::try_from(input.media)?
@@ -722,7 +702,7 @@ impl RadrootsRuntime {
             .inner
             .phase1_upload_add_media_intent(intent)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Media, Some(input.draft_id.clone()));
         self.subscriptions
@@ -735,11 +715,9 @@ impl RadrootsRuntime {
     pub async fn phase1_prepare_add_media_background(
         &self,
         input: crate::FfiBlossomUploadIntent,
-    ) -> Result<crate::FfiNativeUploadJobRecord, RadrootsAppError> {
+    ) -> Result<crate::FfiNativeUploadJobRecord, TeraAppError> {
         if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION {
-            return Err(RadrootsAppError::invalid_argument(
-                "unsupported_schema_version",
-            ));
+            return Err(TeraAppError::invalid_argument("unsupported_schema_version"));
         }
         let draft_id = decode_id(&input.draft_id, "invalid_draft_id")?;
         let intent = PreparedMedia::try_from(input.media)?
@@ -748,7 +726,7 @@ impl RadrootsRuntime {
             .inner
             .phase1_prepare_native_upload(intent)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Media, Some(input.draft_id.clone()));
         self.subscriptions
@@ -770,11 +748,11 @@ impl RadrootsRuntime {
     pub async fn phase1_complete_add_media_background(
         &self,
         input: crate::FfiNativeUploadCompletionInput,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         if input.schema_version != crate::MOBILE_FFI_SCHEMA_VERSION
             || input.response_body.len() > 16_384
         {
-            return Err(RadrootsAppError::invalid_argument(
+            return Err(TeraAppError::invalid_argument(
                 "invalid_native_upload_completion",
             ));
         }
@@ -791,7 +769,7 @@ impl RadrootsRuntime {
                 input.response_body.as_slice(),
             )
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Media, Some(input.draft_id.clone()));
         self.subscriptions
@@ -804,13 +782,13 @@ impl RadrootsRuntime {
         draft_id: String,
         expected_revision: u64,
         cancelled_at_unix_ms: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
             .phase1_cancel_draft(decoded_id, expected_revision, cancelled_at_unix_ms)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
@@ -820,19 +798,19 @@ impl RadrootsRuntime {
         &self,
         draft_id: String,
         expected_revision: u64,
-    ) -> Result<FfiDraftStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiDraftStatusRecord, TeraAppError> {
         let decoded_id = decode_id(&draft_id, "invalid_draft_id")?;
         let status = self
             .inner
             .phase1_cancel_add_intent(decoded_id, expected_revision)
             .await
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(draft_id));
         Ok(status.into())
     }
 
-    pub async fn phase1_settings(&self) -> Result<FfiMobileSettingsRecord, RadrootsAppError> {
+    pub async fn phase1_settings(&self) -> Result<FfiMobileSettingsRecord, TeraAppError> {
         self.inner
             .phase1_settings()
             .await
@@ -842,14 +820,14 @@ impl RadrootsRuntime {
 
     pub async fn phase1_apply_settings_to_runtime(
         &self,
-    ) -> Result<FfiMobileSettingsRecord, RadrootsAppError> {
+    ) -> Result<FfiMobileSettingsRecord, TeraAppError> {
         let settings = self.inner.phase1_settings().await?;
         self.inner
             .configure_relay_preferences(settings.relays())
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.inner
             .configure_blossom_preferences(settings.blossom())
-            .map_err(RadrootsAppError::from)?;
+            .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Settings, None);
         Ok((&settings).into())
@@ -858,7 +836,7 @@ impl RadrootsRuntime {
     pub async fn phase1_replace_settings(
         &self,
         input: FfiReplaceSettingsRecord,
-    ) -> Result<FfiSettingsTransitionRecord, RadrootsAppError> {
+    ) -> Result<FfiSettingsTransitionRecord, TeraAppError> {
         let current = self.inner.phase1_settings().await?;
         let expected_revision = input.expected_revision;
         let next = input.apply(current)?;
@@ -875,7 +853,7 @@ impl RadrootsRuntime {
         &self,
         expected_revision: u64,
         command: FfiIdentityCommandRecord,
-    ) -> Result<FfiSettingsTransitionRecord, RadrootsAppError> {
+    ) -> Result<FfiSettingsTransitionRecord, TeraAppError> {
         let transition = self
             .inner
             .phase1_apply_identity_command(expected_revision, command.try_into()?)
@@ -893,11 +871,8 @@ impl RadrootsRuntime {
     pub async fn phase1_save_profile_metadata(
         &self,
         input: FfiProfileMetadataInputRecord,
-    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
-        let blossom = self
-            .inner
-            .sdk_blossom_slot()
-            .map_err(RadrootsAppError::from)?;
+    ) -> Result<FfiProfileStatusRecord, TeraAppError> {
+        let blossom = self.inner.sdk_blossom_slot().map_err(TeraAppError::from)?;
         let status = self
             .inner
             .phase1_save_profile_metadata(input.command(blossom.as_ref())?)
@@ -911,7 +886,7 @@ impl RadrootsRuntime {
     pub async fn phase1_profile_status(
         &self,
         operation_id: String,
-    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiProfileStatusRecord, TeraAppError> {
         self.inner
             .phase1_profile_status(decode_id(&operation_id, "invalid_operation_id")?)
             .await
@@ -922,7 +897,7 @@ impl RadrootsRuntime {
     pub async fn phase1_advance_profile(
         &self,
         operation_id: String,
-    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiProfileStatusRecord, TeraAppError> {
         let status = self
             .inner
             .phase1_advance_profile(decode_id(&operation_id, "invalid_operation_id")?)
@@ -936,7 +911,7 @@ impl RadrootsRuntime {
         &self,
         operation_id: String,
         expected_revision: u64,
-    ) -> Result<FfiProfileStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiProfileStatusRecord, TeraAppError> {
         let status = self
             .inner
             .phase1_cancel_profile(
@@ -952,7 +927,7 @@ impl RadrootsRuntime {
     pub async fn phase1_save_revision_intent(
         &self,
         mut input: FfiRevisionInputRecord,
-    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiRevisionStatusRecord, TeraAppError> {
         let target = input.target()?;
         if input.replacement.identifier.is_none()
             && matches!(
@@ -964,10 +939,7 @@ impl RadrootsRuntime {
             input.replacement.identifier = Some(phase1_new_addressable_identifier());
         }
         let authored_at_unix_s = phase1_operation_now_unix_ms()? / 1_000;
-        let blossom = self
-            .inner
-            .sdk_blossom_slot()
-            .map_err(RadrootsAppError::from)?;
+        let blossom = self.inner.sdk_blossom_slot().map_err(TeraAppError::from)?;
         let (command, media, form) = input
             .replacement
             .command_media_and_form(authored_at_unix_s, blossom.as_ref())?;
@@ -984,7 +956,7 @@ impl RadrootsRuntime {
     pub async fn phase1_revision_status(
         &self,
         operation_id: String,
-    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiRevisionStatusRecord, TeraAppError> {
         self.inner
             .phase1_revision_status(decode_id(&operation_id, "invalid_operation_id")?)
             .await
@@ -995,7 +967,7 @@ impl RadrootsRuntime {
     pub async fn phase1_advance_revision(
         &self,
         operation_id: String,
-    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiRevisionStatusRecord, TeraAppError> {
         let status = self
             .inner
             .phase1_advance_revision(decode_id(&operation_id, "invalid_operation_id")?)
@@ -1008,7 +980,7 @@ impl RadrootsRuntime {
     pub async fn phase1_cancel_revision(
         &self,
         operation_id: String,
-    ) -> Result<FfiRevisionStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiRevisionStatusRecord, TeraAppError> {
         let status = self
             .inner
             .phase1_cancel_revision(decode_id(&operation_id, "invalid_operation_id")?)
@@ -1023,7 +995,7 @@ impl RadrootsRuntime {
         context: FfiLocalNetworkRecord,
         reference_fingerprint: String,
         operation: Arc<FfiMediaOperation>,
-    ) -> Result<FfiVerifiedMediaArtifactRecord, RadrootsAppError> {
+    ) -> Result<FfiVerifiedMediaArtifactRecord, TeraAppError> {
         let context = self.local_network(context)?;
         operation.claim()?;
         let operation_id = operation.operation_id();
@@ -1032,7 +1004,7 @@ impl RadrootsRuntime {
             settings.local_storage().media_cache_bytes(),
             settings.local_storage().media_cache_artifacts(),
         )
-        .map_err(|_| RadrootsAppError::invalid_argument("invalid_media_cache_policy"))?;
+        .map_err(|_| TeraAppError::invalid_argument("invalid_media_cache_policy"))?;
         let artifact = self
             .inner
             .phase1_retrieve_media(
@@ -1043,9 +1015,7 @@ impl RadrootsRuntime {
                 operation.cancellation(),
             )
             .await
-            .map_err(|error| {
-                RadrootsAppError::from(error).with_operation_id(operation_id.clone())
-            })?;
+            .map_err(|error| TeraAppError::from(error).with_operation_id(operation_id.clone()))?;
         self.subscriptions.notify(
             FfiRuntimeChangeKind::Media,
             Some(artifact.artifact_id().to_hex()),
@@ -1060,7 +1030,7 @@ impl RadrootsRuntime {
         &self,
         context: FfiLocalNetworkRecord,
         artifact_id: String,
-    ) -> Result<Option<FfiVerifiedMediaArtifactRecord>, RadrootsAppError> {
+    ) -> Result<Option<FfiVerifiedMediaArtifactRecord>, TeraAppError> {
         let context = self.local_network(context)?;
         self.inner
             .phase1_verified_media_artifact(
@@ -1078,7 +1048,7 @@ impl RadrootsRuntime {
     pub async fn phase1_media_cache_status(
         &self,
         context: FfiLocalNetworkRecord,
-    ) -> Result<FfiMediaCacheStatusRecord, RadrootsAppError> {
+    ) -> Result<FfiMediaCacheStatusRecord, TeraAppError> {
         let context = self.local_network(context)?;
         self.inner
             .phase1_media_cache_status(&context)
@@ -1091,7 +1061,7 @@ impl RadrootsRuntime {
         &self,
         context: FfiLocalNetworkRecord,
         artifact_id: String,
-    ) -> Result<bool, RadrootsAppError> {
+    ) -> Result<bool, TeraAppError> {
         let context = self.local_network(context)?;
         let changed = self
             .inner
@@ -1108,7 +1078,7 @@ impl RadrootsRuntime {
         &self,
         context: FfiLocalNetworkRecord,
         configuration_fingerprint: String,
-    ) -> Result<Vec<String>, RadrootsAppError> {
+    ) -> Result<Vec<String>, TeraAppError> {
         let context = self.local_network(context)?;
         let removed = self
             .inner
@@ -1122,13 +1092,13 @@ impl RadrootsRuntime {
     }
 }
 
-impl RadrootsRuntime {
+impl TeraRuntime {
     fn local_network(
         &self,
         context: FfiLocalNetworkRecord,
-    ) -> Result<tera_core::runtime::product_surface::LocalNetwork, RadrootsAppError> {
+    ) -> Result<tera_core::runtime::product_surface::LocalNetwork, TeraAppError> {
         let profile = self.inner.sdk_relay_status()?.ok_or_else(|| {
-            RadrootsAppError::failure(
+            TeraAppError::failure(
                 "relay_profile_unavailable",
                 "relay",
                 true,
@@ -1141,7 +1111,7 @@ impl RadrootsRuntime {
             "simulator_local" => LocalNetworkRelayPolicy::Simulator,
             "device_development" => LocalNetworkRelayPolicy::Device,
             _ => {
-                return Err(RadrootsAppError::failure(
+                return Err(TeraAppError::failure(
                     "relay_profile_unsupported",
                     "relay",
                     false,
@@ -1160,8 +1130,8 @@ async fn build_runtime(
     source_generation_hex: String,
     source_generation_created_at_unix_ms: u64,
     protected_data: ProtectedDataAvailability,
-    host_signer: Option<Box<dyn RadrootsHostSigner>>,
-) -> Result<RadrootsRuntime, RadrootsAppError> {
+    host_signer: Option<Box<dyn TeraHostSigner>>,
+) -> Result<TeraRuntime, TeraAppError> {
     let store = tera_core::runtime::store::MobileUserStoreConfig::from_encoded(
         application_support_directory,
         public_key_hex.as_str(),
@@ -1177,7 +1147,7 @@ async fn build_runtime(
     builder
         .build()
         .await
-        .map(|inner| RadrootsRuntime {
+        .map(|inner| TeraRuntime {
             inner,
             has_host_signer,
             subscriptions: SubscriptionHub::new(),

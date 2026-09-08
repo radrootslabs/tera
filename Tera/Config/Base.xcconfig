@@ -1,0 +1,7 @@
+#include "Common.xcconfig"
+#include "../tera.xcconfig"
+
+TERA_IOS_RUNTIME_MODE = production
+TERA_IOS_NOSTR_RELAY_URLS = wss:$(SLASH)$(SLASH)radroots.org$(SLASH)
+TERA_IOS_BLOSSOM_ORIGINS = https:$(SLASH)$(SLASH)blossom.radroots.org
+TERA_IOS_KEYCHAIN_SERVICE_PREFIX = org.radroots.field_ios

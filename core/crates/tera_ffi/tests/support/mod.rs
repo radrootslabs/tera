@@ -1,4 +1,4 @@
-use tera_ffi::{ProtectedDataAvailability, RadrootsRuntime};
+use tera_ffi::{ProtectedDataAvailability, TeraRuntime};
 
 pub const PUBLIC_KEY: &str = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
 pub const GENERATION: &str = "0404040404040404040404040404040404040404040404040404040404040404";
@@ -8,10 +8,10 @@ pub fn prepare(root: &std::path::Path) {
         .expect("owner directory");
 }
 
-pub async fn runtime() -> (tempfile::TempDir, RadrootsRuntime) {
+pub async fn runtime() -> (tempfile::TempDir, TeraRuntime) {
     let root = tempfile::tempdir().expect("tempdir");
     prepare(root.path());
-    let runtime = RadrootsRuntime::new(
+    let runtime = TeraRuntime::new(
         root.path().to_string_lossy().into_owned(),
         PUBLIC_KEY.to_owned(),
         GENERATION.to_owned(),

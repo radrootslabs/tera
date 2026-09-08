@@ -1,20 +1,20 @@
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::Duration;
 
-use tera_ffi::{FfiRuntimeChangeKind, FfiRuntimeChangeRecord, RadrootsRuntimeObserver};
+use tera_ffi::{FfiRuntimeChangeKind, FfiRuntimeChangeRecord, TeraRuntimeObserver};
 
 mod support;
 
 struct Observer(Sender<FfiRuntimeChangeRecord>);
 
-impl RadrootsRuntimeObserver for Observer {
+impl TeraRuntimeObserver for Observer {
     fn on_change(&self, change: FfiRuntimeChangeRecord) {
         let _ = self.0.send(change);
     }
 }
 
 fn observer() -> (
-    Box<dyn RadrootsRuntimeObserver>,
+    Box<dyn TeraRuntimeObserver>,
     Receiver<FfiRuntimeChangeRecord>,
 ) {
     let (sender, receiver) = channel();
