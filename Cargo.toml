@@ -1,6 +1,6 @@
 [workspace]
-members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen", "core/crates/tera_wasm"]
-default-members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen"]
+members = ["core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen", "core/crates/tera_wasm"]
+default-members = ["core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen"]
 resolver = "3"
 
 [workspace.package]
@@ -25,7 +25,6 @@ todo = "deny"
 unimplemented = "deny"
 
 [workspace.dependencies]
-radroots_mobile_ffi = { git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb", version = "=0.1.0-alpha" }
 chrono = { version = "0.4" }
 hex = { version = "0.4" }
 nostr = { version = "0.44.7", default-features = false }

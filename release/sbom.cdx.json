@@ -3950,69 +3950,6 @@
       "version": "0.1.0-alpha"
     },
     {
-      "bom-ref": "cargo:radroots_ios_source_lock@0.1.0-alpha?source=workspace",
-      "licenses": [
-        {
-          "expression": "GPL-3.0-or-later"
-        }
-      ],
-      "name": "radroots_ios_source_lock",
-      "properties": [
-        {
-          "name": "radroots.package.manager",
-          "value": "cargo"
-        },
-        {
-          "name": "radroots.package.source",
-          "value": "workspace"
-        }
-      ],
-      "type": "library",
-      "version": "0.1.0-alpha"
-    },
-    {
-      "bom-ref": "cargo:radroots_mobile_core@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-      "licenses": [
-        {
-          "expression": "GPL-3.0-or-later"
-        }
-      ],
-      "name": "radroots_mobile_core",
-      "properties": [
-        {
-          "name": "radroots.package.manager",
-          "value": "cargo"
-        },
-        {
-          "name": "radroots.package.source",
-          "value": "git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"
-        }
-      ],
-      "type": "library",
-      "version": "0.1.0-alpha"
-    },
-    {
-      "bom-ref": "cargo:radroots_mobile_ffi@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-      "licenses": [
-        {
-          "expression": "GPL-3.0-or-later"
-        }
-      ],
-      "name": "radroots_mobile_ffi",
-      "properties": [
-        {
-          "name": "radroots.package.manager",
-          "value": "cargo"
-        },
-        {
-          "name": "radroots.package.source",
-          "value": "git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"
-        }
-      ],
-      "type": "library",
-      "version": "0.1.0-alpha"
-    },
-    {
       "bom-ref": "cargo:radroots_nostr@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
       "licenses": [
         {
@@ -9134,58 +9071,6 @@
     },
     {
       "dependsOn": [
-        "cargo:radroots_mobile_ffi@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"
-      ],
-      "ref": "cargo:radroots_ios_source_lock@0.1.0-alpha?source=workspace"
-    },
-    {
-      "dependsOn": [
-        "cargo:chrono@0.4.45?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:hex@0.4.3?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:radroots_blossom@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_event@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_event_codec@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_identity@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_protocol@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_sdk@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_signing@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_storage@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_sync@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_transport@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_transport_nostr@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:serde@1.0.229?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:serde_json@1.0.151?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:sha2@0.10.9?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:thiserror@1.0.69?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:tokio@1.53.1?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:url@2.5.8?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:uuid@1.24.0?source=registry+https://github.com/rust-lang/crates.io-index"
-      ],
-      "ref": "cargo:radroots_mobile_core@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"
-    },
-    {
-      "dependsOn": [
-        "cargo:async-trait@0.1.91?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:hex@0.4.3?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:libc@0.2.189?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:radroots_blossom@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_event@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_mobile_core@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_sdk@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_signing@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:radroots_storage@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
-        "cargo:rustix@1.1.4?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:serde_json@1.0.151?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:thiserror@1.0.69?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:tracing-appender@0.2.5?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:tracing-subscriber@0.3.23?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:tracing@0.1.44?source=registry+https://github.com/rust-lang/crates.io-index",
-        "cargo:uniffi@0.29.5?source=registry+https://github.com/rust-lang/crates.io-index"
-      ],
-      "ref": "cargo:radroots_mobile_ffi@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"
-    },
-    {
-      "dependsOn": [
         "cargo:base64@0.22.1?source=registry+https://github.com/rust-lang/crates.io-index",
         "cargo:nostr@0.44.8?source=registry+https://github.com/rust-lang/crates.io-index",
         "cargo:radroots_blossom@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
@@ -10622,7 +10507,6 @@
     },
     {
       "dependsOn": [
-        "cargo:radroots_ios_source_lock@0.1.0-alpha?source=workspace",
         "cargo:tera_bindgen@0.1.0-alpha?source=workspace",
         "cargo:tera_core@0.1.0-alpha?source=workspace",
         "cargo:tera_ffi@0.1.0-alpha?source=workspace",

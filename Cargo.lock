@@ -1852,63 +1852,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "radroots_ios_source_lock"
-version = "0.1.0-alpha"
-dependencies = [
- "radroots_mobile_ffi",
-]
-
-[[package]]
-name = "radroots_mobile_core"
-version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"
-dependencies = [
- "chrono",
- "hex",
- "radroots_blossom",
- "radroots_event",
- "radroots_event_codec",
- "radroots_identity",
- "radroots_protocol",
- "radroots_sdk",
- "radroots_signing",
- "radroots_storage",
- "radroots_sync",
- "radroots_transport",
- "radroots_transport_nostr",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 1.0.69",
- "tokio",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "radroots_mobile_ffi"
-version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"
-dependencies = [
- "async-trait",
- "hex",
- "libc",
- "radroots_blossom",
- "radroots_event",
- "radroots_mobile_core",
- "radroots_sdk",
- "radroots_signing",
- "radroots_storage",
- "rustix",
- "serde_json",
- "thiserror 1.0.69",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uniffi",
-]
-
-[[package]]
 name = "radroots_nostr"
 version = "0.1.0-alpha"
 source = "git+https://github.com/radrootslabs/lib?rev=ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb#ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb"

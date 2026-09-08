@@ -378,7 +378,7 @@
     "symbol_reader": "llvm-nm, compatible with GNU nm\nLLVM (http://llvm.org/):\n  LLVM version 22.1.6-rust-1.97.1-stable\n  Optimized build.",
     "target": "aarch64-apple-ios"
   },
-  "cargo_lock_sha256": "079959dfa1a878ada18599878f25a0d53505253ab6996141be6ff31495baf166",
+  "cargo_lock_sha256": "12cf54a9530f957d9b1721ff66d83ded16d0f38b0170b0e4ba8648c6c168524c",
   "disposition": "local_staged_source_only",
   "foundation": {
     "architecture": "radroots.crates.release.v2",
@@ -494,16 +494,16 @@
   "source": {
     "files": {
       "Cargo.lock": {
-        "bytes": 93741,
-        "git_blob": "a011509b28e98939378e4ddad028c71b0880e40e",
+        "bytes": 92572,
+        "git_blob": "229ab16873cb6a2218fc364833b55dd311e17aef",
         "mode": "100644",
-        "sha256": "079959dfa1a878ada18599878f25a0d53505253ab6996141be6ff31495baf166"
+        "sha256": "12cf54a9530f957d9b1721ff66d83ded16d0f38b0170b0e4ba8648c6c168524c"
       },
       "Cargo.toml": {
-        "bytes": 4287,
-        "git_blob": "384a352a5c82726e5f7e387edde30ff460453485",
+        "bytes": 4097,
+        "git_blob": "f9ede664bf374ab8c117c4f5ac508a5085447b37",
         "mode": "100644",
-        "sha256": "84715e8fd768b59b2ac9da43fb8abc1d7fdee61e64da679b12bc9beebec7f151"
+        "sha256": "d21288656485d0812e1328a65bfccbdd29fe70b44258cc236a036f844cb6b532"
       },
       "Makefile": {
         "bytes": 3697,
@@ -961,6 +961,12 @@
         "mode": "100755",
         "sha256": "6e657582fa823c6ae702f7241c9770c7ef152f3c403b8bbc800964061b35e829"
       },
+      "scripts/app_dependency_graph.py": {
+        "bytes": 4524,
+        "git_blob": "dfae24f744b85ad68bf84c6ba982e7786c93bb62",
+        "mode": "100644",
+        "sha256": "307d03f30d75c9a88b323328926c92624ae02b699cd1df10674aa183bac0ee81"
+      },
       "scripts/ffi-artifacts.sh": {
         "bytes": 210,
         "git_blob": "be7f39d8f358ae34087232abe318d13ab867471c",
@@ -1010,10 +1016,10 @@
         "sha256": "36f5b334f88928c2bb96d5b0f9e560b148c0b4d449696c13ef0d201f1355db3e"
       },
       "scripts/linux-shared-rust.sh": {
-        "bytes": 1341,
-        "git_blob": "e406f7f4175af3d19b5a6757445c570c770806a8",
+        "bytes": 1313,
+        "git_blob": "cba195bbea7afecf58375b8b2d72906057219e47",
         "mode": "100755",
-        "sha256": "39b116f2ba7cb9e5a1c49d37823005076d061a21c8d83e2b4eedbde995025edd"
+        "sha256": "ec59d7d3a71d055d5cc9f42ba78f3a9854410ac91da1ef16ee34e0898649bd4c"
       },
       "scripts/local-social-fixture.py": {
         "bytes": 100995,
@@ -1028,10 +1034,10 @@
         "sha256": "fff99e755f35fa9f00708427b1b29290c0ecc2733c0ea070f5807ec7c37f6f11"
       },
       "scripts/package_contract.py": {
-        "bytes": 26232,
-        "git_blob": "88aafd04761a4cc5fb38532f9a7e61b58754fe58",
+        "bytes": 26134,
+        "git_blob": "5dae06288f14200c699d8f043feb7050bd903dd8",
         "mode": "100755",
-        "sha256": "c3898cd7aef5a9dcf506adf95dcb7191ba8988de48fe5eb981249d479711bed5"
+        "sha256": "d89ea3b8cd0fbc0ef179b8a07c0ef75ed11218fe7565c058fd94b4e4a6707874"
       },
       "scripts/persona-verifier.sh": {
         "bytes": 240,
@@ -1070,10 +1076,16 @@
         "sha256": "1803572abdb2e22bedd275724edae5f09c523b132bc59086aacca0f5183905d0"
       },
       "scripts/swift-quality.sh": {
-        "bytes": 1847,
-        "git_blob": "533a74081ab542b183e4fd3797945dbb7b758a7f",
+        "bytes": 1920,
+        "git_blob": "ba64f9f2d37b66e4d7ec3dd3488b9947bd3a2c68",
         "mode": "100755",
-        "sha256": "b7af93ad40124f4ddd46b0e6627a1bb9c0553a38c907d87d258306f9962ed9de"
+        "sha256": "b57d6a6499f65ee7ce2c94b2b103c5de84be7a4ff79af2c8e5fde9ac827ed4f9"
+      },
+      "scripts/test_app_dependency_graph.py": {
+        "bytes": 4007,
+        "git_blob": "615b4054a6b968bdde3c2107e349b352dfb0fa34",
+        "mode": "100644",
+        "sha256": "d336abd6368ad3b0d0171b32aaa4a44d9c1a8551899d39a1445eca05b67d8b30"
       },
       "scripts/test_ffi_artifacts.py": {
         "bytes": 7460,
@@ -1106,16 +1118,16 @@
         "sha256": "1a5384a6109d495477dd7848a367c2452f87c36e46dbab2c20b98940a4d4fed6"
       },
       "scripts/test_package_contract.py": {
-        "bytes": 9134,
-        "git_blob": "09075fc17980006b33c6a65a62aa7190a09d13a1",
+        "bytes": 9119,
+        "git_blob": "2136f76eb701b68ec9dca85d4c8d25c9bcf6e4fa",
         "mode": "100644",
-        "sha256": "eb32b03d89cdf0e7519594272ed6217b795cfcd820c977f7c139dc71f3b5b3a2"
+        "sha256": "c4d602dc30b0865d6eab40b4703712d237911e64ec95f450f316faea7e123b49"
       },
       "scripts/verify-package-contract.sh": {
-        "bytes": 1347,
-        "git_blob": "3851d42e53d12ea4f0d79d8bb50000c58bcca1da",
+        "bytes": 1388,
+        "git_blob": "4a20535a8810a4d03d7ebf0cec5a2f55c1f3d2ac",
         "mode": "100755",
-        "sha256": "a8ec486ce0b2163faccfe43ae27a2c4f59610ce1c3a7572f23020902d1654237"
+        "sha256": "0bceebe7678eb44ab8518bda8cfcfd76190ee341982d66ba1c940c3461f0944d"
       },
       "scripts/xcode.sh": {
         "bytes": 21183,
@@ -1125,6 +1137,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "53766008d73e0e507621e6e4a9177b08edb0bd10"
+    "tree": "b9b252434caf06c74f2d6bd9fbfd569784f22745"
   }
 }

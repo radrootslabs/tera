@@ -31,7 +31,7 @@ docker run --rm --init --platform linux/amd64 \
     set -euo pipefail
     [[ "$(uname -s)" == "Linux" ]]
     [[ "$(uname -m)" == "x86_64" ]]
-    packages=(-p radroots_ios_source_lock -p tera_core -p tera_ffi -p tera_bindgen)
+    packages=(-p tera_core -p tera_ffi -p tera_bindgen)
     cargo check "${packages[@]}" --all-targets --locked
     cargo test "${packages[@]}" --all-targets --locked
   '

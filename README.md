@@ -204,8 +204,12 @@ the TOML, plist, JSON, xcconfig, project-package, and lock inputs as structured,
 bounded data. It also runs the locked fixture and verifier unit suites.
 The check evaluates Cargo's workspace graph and rejects members or local
 dependencies outside this standalone repository, including implicit sibling
-checkouts. Human specifications and execution evidence remain outside the
-capsule and are never required by these checks.
+checkouts. The default Rust lane selects `tera_core`, `tera_ffi`, and
+`tera_bindgen`; `tera_wasm` remains non-default. The resolved graph must use
+the exact shared foundation lock, activate the FFI mobile-social profile, and
+contain no retired source-lock shim or old mobile producer. Human specifications
+and execution evidence remain outside the capsule and are never required by
+these checks.
 Comments, examples, unreachable source, and arbitrary matching text cannot
 satisfy a behavior-bearing package assertion; application behavior is proven
 by the compiled Swift and simulator test lanes.

@@ -29,9 +29,9 @@ class PackageContractTests(unittest.TestCase):
             ],
         }
 
-    def test_application_workspace_accepts_owned_rust_and_transition_shim(self) -> None:
+    def test_application_workspace_accepts_owned_rust(self) -> None:
         root = SCRIPTS.parent.resolve()
-        for member in ("core/crates/tera_core", "crates/source_lock"):
+        for member in ("core/crates/tera_core", "core/crates/tera_ffi"):
             contract._validate_app_workspace(self.workspace(root, member), root)
 
     def test_application_workspace_rejects_hidden_sibling_dependency(self) -> None:
@@ -70,7 +70,7 @@ class PackageContractTests(unittest.TestCase):
         root = SCRIPTS.parent.resolve()
         with self.assertRaisesRegex(contract.PackageContractError, "owned root"):
             contract._validate_app_workspace(
-                self.workspace(root, "private/runtime"), root
+                self.workspace(root, "crates/source_lock"), root
             )
 
     def test_application_workspace_rejects_implicit_parent_workspace(self) -> None:

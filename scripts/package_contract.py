@@ -17,6 +17,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
+import app_dependency_graph
+
 MAX_CONTRACT_BYTES = 2 * 1024 * 1024
 GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
@@ -336,7 +338,7 @@ def _verify_repository_layout(root: Path) -> None:
             raise PackageContractError("forbidden public repository root exists")
 
 
-def _cargo_workspace(root: Path) -> dict[str, Any]:
+def _cargo_workspace(root: Path, *, resolved: bool = False) -> dict[str, Any]:
     with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
         try:
             result = subprocess.run(
@@ -346,7 +348,8 @@ def _cargo_workspace(root: Path) -> dict[str, Any]:
                     "--manifest-path",
                     str(root / "Cargo.toml"),
                     "--locked",
-                    "--no-deps",
+                    *([] if resolved else ["--no-deps"]),
+                    "--offline",
                     "--format-version",
                     "1",
                 ],
@@ -417,9 +420,7 @@ def _validate_mobile_defaults(
 def _validate_app_package(package: Mapping[str, Any], root: Path) -> None:
     manifest = _local_cargo_path(package.get("manifest_path"), root)
     directory = manifest.parent
-    if directory != Path("crates/source_lock") and not directory.is_relative_to(
-        "core/crates"
-    ):
+    if not directory.is_relative_to("core/crates"):
         raise PackageContractError("application Rust package is outside its owned root")
     dependencies = package.get("dependencies")
     if not isinstance(dependencies, list):
@@ -439,13 +440,6 @@ def _verify_cargo_and_source(root: Path) -> tuple[str, str]:
         "https://github.com/radrootslabs/tera",
         "Cargo repository",
     )
-    ffi_dependency = _mapping(
-        _mapping(workspace.get("dependencies"), "Cargo workspace dependencies").get(
-            "radroots_mobile_ffi"
-        ),
-        "Cargo FFI dependency",
-    )
-
     consumer = _read_toml(root / "radroots.lib.source-lock.v1.toml")
     _exact(consumer.get("repository"), LIB_REMOTE, "consumer Lib remote")
     lib_revision = consumer.get("revision")
@@ -456,11 +450,10 @@ def _verify_cargo_and_source(root: Path) -> tuple[str, str]:
         raise PackageContractError("consumer Lib revision is invalid")
     release_version = consumer.get("version")
     _exact(release_version, "0.1.0-alpha", "consumer Lib version")
-    _exact(
-        ffi_dependency,
-        {"git": LIB_REMOTE, "rev": lib_revision, "version": "=0.1.0-alpha"},
-        "transition shim FFI dependency",
-    )
+    try:
+        app_dependency_graph.validate(_cargo_workspace(root, resolved=True), consumer)
+    except app_dependency_graph.GraphError as error:
+        raise PackageContractError(str(error)) from error
     _verify_owned_source_lock(root, consumer)
     return release_version, lib_revision
 
