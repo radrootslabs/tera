@@ -27,6 +27,11 @@ toolchains under extbuild output. Select a supported target with `FFI_TARGET`.
 This is local source evidence; the installed native artifacts retain their
 existing source lock until the native cutover.
 
+`make ffi-candidate-build ffi-candidate-check` builds the owned device,
+simulator and host libraries, generates matching Swift and API outputs, and
+verifies the staged XCFramework and provenance. Candidates remain under
+extbuild output; this command does not install them into the native app.
+
 ## Requirements
 
 - macOS with Xcode and an iOS 18-or-newer simulator

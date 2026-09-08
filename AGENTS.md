@@ -25,6 +25,9 @@ This file applies to the complete standalone iOS app repository. A closer
   `make ffi-source-check`. Source records identify a staged input tree and exact
   build tuple under extbuild output. They do not establish installed artifacts
   or remote release qualification; installed provenance remains separate.
+  `make ffi-candidate-build ffi-candidate-check` builds and validates the exact
+  owned native artifact bundle in external staging. Its nonempty v2 artifact
+  manifest is separate from the installed legacy v1 manifest until cutover.
 - Human specifications, decisions, migration history, runbooks, and
   qualification evidence are parent-owned under `docs/oss/ios_app/**`. They
   are absent from a standalone clone and must never become a build, test,

@@ -1,4 +1,5 @@
 SHELL := /bin/bash
+.DEFAULT_GOAL := all
 .SHELLFLAGS := -eu -o pipefail -c
 
 include source.lock
@@ -67,6 +68,13 @@ SWIFT_SYMBOLGRAPH := $(shell xcrun --sdk iphonesimulator --find swift-symbolgrap
 SWIFT_API_TARGET := arm64-apple-ios$(IPHONEOS_DEPLOYMENT_TARGET)-simulator
 
 .PHONY: all clean distclean print-config sync-source ensure-toolchain build generate package install api-snapshot-render api-snapshot-write api-snapshot-check provenance verify
+.PHONY: candidate-build candidate-check
+
+candidate-build:
+	../scripts/ffi-artifacts.sh build
+
+candidate-check:
+	../scripts/ffi-artifacts.sh check
 
 all: verify
 	@echo "done"

@@ -10,6 +10,7 @@ SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
 
 .PHONY: all doctor bootstrap persona-verifier-bootstrap ffi-bootstrap artifact-check package-contract-check \
 	ffi-source-write ffi-source-check \
+	ffi-candidate-build ffi-candidate-check \
 	swift-quality maintainability-check \
 	linux-shared-rust \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
@@ -35,6 +36,12 @@ ffi-source-write: doctor
 
 ffi-source-check: doctor
 	cargo extbuild run -- scripts/ffi-provenance.sh check --target '$(FFI_TARGET)'
+
+ffi-candidate-build: doctor
+	cargo extbuild run -- $(MAKE) -C $(FFI_ROOT) candidate-build
+
+ffi-candidate-check: doctor
+	cargo extbuild run -- $(MAKE) -C $(FFI_ROOT) candidate-check
 
 package-contract-check: doctor
 	cargo extbuild run -- scripts/verify-package-contract.sh

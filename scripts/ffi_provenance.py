@@ -43,8 +43,14 @@ def capture(root: Path, target: str) -> dict[str, Any]:
             "target": target,
             "profile": build["profile"],
             "ios_deployment_target": build["ios_deployment_target"],
+            "rust_flags": build["rust_flags"],
             "source_date_epoch": build["source_date_epoch"],
             "rustc": rustc,
+            "symbol_reader": source.command(
+                root, [str(symbol_reader(root, build["host"])), "--version"]
+            )
+            .decode()
+            .strip(),
             "apple_toolchain": apple_toolchain(root),
             "feature_graph": source.feature_graph(
                 root, config["ffi"]["package"], target
@@ -54,6 +60,7 @@ def capture(root: Path, target: str) -> dict[str, Any]:
             **config["generator"],
             "target": build["host"],
             "profile": "dev",
+            "profile_overrides": source.allowed_profile_overrides(),
             "feature_graph": source.feature_graph(
                 root, config["generator"]["package"], build["host"]
             ),
@@ -63,6 +70,16 @@ def capture(root: Path, target: str) -> dict[str, Any]:
     if source.source_snapshot(root, config["source_inputs"]) != snapshot:
         raise source.ProvenanceError("producer source changed during capture")
     return result
+
+
+def symbol_reader(root: Path, host: str) -> Path:
+    sysroot = Path(
+        source.command(root, ["rustc", "--print", "sysroot"]).decode().strip()
+    )
+    reader = sysroot / "lib/rustlib" / host / "bin/llvm-nm"
+    if not reader.is_file() or not os.access(reader, os.X_OK):
+        raise source.ProvenanceError("Rust toolchain llvm-tools component is required")
+    return reader
 
 
 def apple_toolchain(root: Path) -> dict[str, str]:

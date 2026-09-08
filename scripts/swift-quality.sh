@@ -21,6 +21,9 @@ readonly -a MAINTAINABILITY_RULES=(
 )
 readonly -a PYTHON_QUALITY_PATHS=(
   scripts/ffi_source.py
+  scripts/ffi_artifacts.py
+  scripts/ffi_build.py
+  scripts/test_ffi_artifacts.py
   scripts/ffi_provenance.py
   scripts/test_ffi_provenance.py
   scripts/maintainability_ratchet.py

@@ -22,6 +22,11 @@ features = []
 rust_version = "1.97.1"
 profile = "release"
 ios_deployment_target = "18.0"
+rust_flags = [
+  "--remap-path-prefix={producer_root}=/tera",
+  "--remap-path-prefix={cargo_home}=/cargo",
+  "--remap-path-prefix={extbuild_root}=/build",
+]
 source_date_epoch = 1787871027
 host = "aarch64-apple-darwin"
 targets = ["aarch64-apple-ios", "aarch64-apple-ios-sim", "aarch64-apple-darwin"]

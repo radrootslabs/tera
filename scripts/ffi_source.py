@@ -113,6 +113,7 @@ def producer_contract(root: Path) -> dict[str, Any]:
             "toolchain": {
                 "channel": value["build"]["rust_version"],
                 "profile": "minimal",
+                "components": ["llvm-tools"],
             }
         },
         "producer toolchain",
@@ -128,6 +129,7 @@ def validate_build(value: Any) -> None:
             "rust_version",
             "profile",
             "ios_deployment_target",
+            "rust_flags",
             "source_date_epoch",
             "host",
             "targets",
@@ -140,6 +142,15 @@ def validate_build(value: Any) -> None:
         value["ios_deployment_target"], "18.0", "producer deployment target"
     )
     contract._exact(value["host"], "aarch64-apple-darwin", "producer host")
+    contract._exact(
+        value["rust_flags"],
+        [
+            "--remap-path-prefix={producer_root}=/tera",
+            "--remap-path-prefix={cargo_home}=/cargo",
+            "--remap-path-prefix={extbuild_root}=/build",
+        ],
+        "producer Rust flags",
+    )
     contract._exact(
         value["targets"],
         [
@@ -320,10 +331,24 @@ def reject_build_overrides() -> None:
     if any(os.environ.get(name) for name in forbidden):
         raise ProvenanceError("ungoverned Rust build override is active")
     if any(
-        re.fullmatch(r"CARGO_(BUILD_.*|TARGET_.*_(RUSTFLAGS|LINKER|RUNNER))", name)
+        re.fullmatch(
+            r"CARGO_(BUILD_.*|PROFILE_.*|TARGET_.*_(RUSTFLAGS|LINKER|RUNNER))", name
+        )
+        and name not in allowed_profile_overrides()
         for name in os.environ
     ):
         raise ProvenanceError("ungoverned Cargo build override is active")
+
+
+def allowed_profile_overrides() -> dict[str, str]:
+    # Extbuild's development debug policy affects the generator, not release libraries.
+    name = "CARGO_PROFILE_DEV_DEBUG"
+    if (
+        os.environ.get("EXT_BUILD_RUN_ACTIVE")
+        and os.environ.get(name) == "line-tables-only"
+    ):
+        return {name: "line-tables-only"}
+    return {}
 
 
 def feature_graph(root: Path, package: str, target: str) -> list[str]:
