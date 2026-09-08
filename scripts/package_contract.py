@@ -527,6 +527,30 @@ def _verify_apple_configuration(root: Path) -> None:
         "http:$(SLASH)$(SLASH)127.0.0.1:21100",
         "debug Blossom origin",
     )
+    _verify_installation_compatibility(root, base, debug)
+
+
+def _verify_installation_compatibility(
+    root: Path, base: dict[str, str], debug: dict[str, str]
+) -> None:
+    baseline = _read_json(root / "test-fixtures/tera-compatibility.v1.json")
+    _exact(
+        baseline.get("schema"), "tera.compatibility-baseline.v1", "compatibility schema"
+    )
+    production = parse_xcconfig_assignments(
+        _read_text(root / "Radroots/radroots.xcconfig")
+    )
+    actual = {
+        "production_bundle_identifier": production.get("PRODUCT_BUNDLE_IDENTIFIER"),
+        "debug_bundle_identifier": debug.get("PRODUCT_BUNDLE_IDENTIFIER"),
+        "production_keychain_service_prefix": base.get(
+            "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX"
+        ),
+        "debug_keychain_service_prefix": debug.get(
+            "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX"
+        ),
+    }
+    _exact(actual, baseline.get("installation"), "installed identity compatibility")
 
 
 def _verify_package_locks(root: Path, apple_revision: str) -> None:

@@ -1721,7 +1721,12 @@ dependencies = [
 name = "radroots_ios_source_lock"
 version = "0.1.0-alpha"
 dependencies = [
+ "async-trait",
  "radroots_mobile_ffi",
+ "secp256k1",
+ "serde_json",
+ "tempfile",
+ "tokio",
 ]
 
 [[package]]

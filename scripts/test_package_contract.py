@@ -120,6 +120,25 @@ class PackageContractTests(unittest.TestCase):
         self.assertEqual(version, "0.1.0-alpha")
         self.assertRegex(revision, r"^[0-9a-f]{40}$")
 
+    def test_compatibility_baseline_rejects_bundle_or_custody_rename(self) -> None:
+        root = SCRIPTS.parent
+        base = contract.parse_xcconfig_assignments(
+            (root / "Radroots/Config/Base.xcconfig").read_text()
+        )
+        debug = contract.parse_xcconfig_assignments(
+            (root / "Radroots/Config/Debug.xcconfig").read_text()
+        )
+        for key in (
+            "PRODUCT_BUNDLE_IDENTIFIER",
+            "RADROOTS_FIELD_IOS_KEYCHAIN_SERVICE_PREFIX",
+        ):
+            with self.subTest(key=key):
+                changed = {**debug, key: "org.tera.accidental-rename"}
+                with self.assertRaisesRegex(
+                    contract.PackageContractError, "identity compatibility"
+                ):
+                    contract._verify_installation_compatibility(root, base, changed)
+
     def test_comment_token_does_not_define_xcconfig_field(self) -> None:
         values = contract.parse_xcconfig_assignments(
             "// RADROOTS_FIELD_IOS_RUNTIME_MODE = production\n"

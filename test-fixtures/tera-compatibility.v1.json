@@ -1,0 +1,27 @@
+{
+  "schema": "tera.compatibility-baseline.v1",
+  "provenance": {
+    "tera_commit": "e25819267b51f659e5dfdf7b318239a8969bf45c",
+    "consumed_lib_commit": "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb",
+    "apple_kit_commit": "35aedb6b54ff645b663fecff26082b3e91fcb232",
+    "purpose": "Synthetic compatibility inputs and exact pre-transfer source observations; no credentials or captured user state. Source revisions are provenance, not a prohibition on later approved producer adoption."
+  },
+  "installation": {
+    "production_bundle_identifier": "org.radroots.field-ios",
+    "debug_bundle_identifier": "dev.local.radroots",
+    "production_keychain_service_prefix": "org.radroots.field_ios",
+    "debug_keychain_service_prefix": "org.radroots.field_ios.local"
+  },
+  "queued_update": {
+    "public_key": "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+    "source_generation": "0404040404040404040404040404040404040404040404040404040404040404",
+    "draft_id": "07070707070707070707070707070707",
+    "content": "Synthetic Tera compatibility update",
+    "authored_at_unix_s": 1900000000,
+    "persisted_at_unix_ms": 1900000000000,
+    "delivery_deadline_unix_ms": 2000000000000,
+    "relay_urls": ["wss://relay-one.example", "wss://relay-two.example"],
+    "expected_operation_id": "9a1de0df9497259052ae7c68a7aee1b7",
+    "expected_card_id": "371d75785c77f9f8c313aa1e293c24f7d87abf1e6ca9b35d84b605be1f3dfdb6"
+  }
+}
