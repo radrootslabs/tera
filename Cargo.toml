@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi"]
+members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen"]
 resolver = "3"
 
 [workspace.package]
