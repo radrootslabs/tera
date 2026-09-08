@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import app_dependency_graph
+import legacy_identifiers
 
 MAX_CONTRACT_BYTES = 2 * 1024 * 1024
 GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
@@ -93,24 +94,6 @@ def _mapping(value: object, key: str) -> Mapping[str, Any]:
 def _exact(value: object, expected: object, key: str) -> None:
     if value != expected:
         raise PackageContractError(f"structured contract field differs: {key}")
-
-
-def parse_make_assignments(text: str) -> dict[str, str]:
-    assignments: dict[str, str] = {}
-    expression = re.compile(r"^override ([A-Z0-9_]+) := ([^\r\n]+)$")
-    for line in text.splitlines():
-        match = expression.fullmatch(line)
-        if match is None:
-            if line.strip() and not line.lstrip().startswith("#"):
-                raise PackageContractError(
-                    "source-lock contains an unsupported statement"
-                )
-            continue
-        key, value = match.groups()
-        if key in assignments:
-            raise PackageContractError("source-lock assignment is duplicated")
-        assignments[key] = value
-    return assignments
 
 
 def parse_xcconfig_assignments(text: str) -> dict[str, str]:
@@ -315,6 +298,9 @@ def _validate_app_plist(document: dict[str, Any]) -> None:
     for forbidden in ("NSBonjourServices", "NSPhotoLibraryUsageDescription"):
         if forbidden in document:
             raise PackageContractError(f"forbidden plist field is present: {forbidden}")
+
+    _exact(document.get("CFBundleDisplayName"), "Tera", "app display name")
+    _exact(document.get("CFBundleName"), "$(PRODUCT_NAME)", "app bundle name")
 
 
 def _validate_ui_test_plist(document: dict[str, Any]) -> None:
@@ -643,6 +629,10 @@ def _verify_required_files(root: Path) -> None:
 def verify(repo_root: Path) -> tuple[str, str]:
     root = repo_root.resolve()
     _verify_repository_layout(root)
+    try:
+        legacy_identifiers.verify(root)
+    except legacy_identifiers.LegacyIdentifierError as error:
+        raise PackageContractError(str(error)) from error
     _validate_app_workspace(_cargo_workspace(root), root)
     release_version, _ = _verify_cargo_and_source(root)
     apple_revision = _verify_apple_dependencies(root)

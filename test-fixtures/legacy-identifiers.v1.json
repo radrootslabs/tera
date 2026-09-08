@@ -1,0 +1,4436 @@
+{
+  "schema": "tera.legacy-identifiers.v1",
+  "baseline_commit": "d2cea073047adefac2f0d3cd0ace0a65a89bbc2d",
+  "categories": {
+    "shared_apple_api": {
+      "owner": "AppleKit public producer",
+      "reason": "Exact shared Apple API spellings are producer-owned; they are not Tera declarations.",
+      "reader": "Tera Swift adapters, custody/media/lifecycle integrations and their tests",
+      "removal_condition": "Only with an explicit shared Apple API migration and verified consumers; never a cosmetic application rename."
+    },
+    "shared_foundation_api": {
+      "owner": "Radroots public foundation producers",
+      "reason": "Published crate, protocol, DTO, manifest and source-lock identifiers remain shared contracts.",
+      "reader": "Tera Rust/FFI adapters, source/graph verifiers and generated artifact readers",
+      "removal_condition": "Only with an explicit shared producer contract revision and compatibility verification at its consuming boundary."
+    },
+    "public_namespace": {
+      "owner": "Public Radroots repositories and protocol namespace",
+      "reason": "The public organization/domain, registered URL scheme and shared SDK namespace retain their identity.",
+      "reader": "Exact source-lock consumers, endpoint configuration, native deep-link readers and namespace guards",
+      "removal_condition": "Only through a reviewed public identity or protocol migration that preserves installed readers and exact source ownership."
+    },
+    "installed_identity": {
+      "owner": "Existing Apple installation and credential boundary",
+      "reason": "Bundle and Keychain namespaces identify existing installations and credentials.",
+      "reader": "Tera configuration, Apple credential lookup and frozen compatibility tests",
+      "removal_condition": "Retain unless an explicitly approved migration proves old installations and credentials remain readable."
+    },
+    "persisted_data": {
+      "owner": "Existing application persistence and signed-operation formats",
+      "reason": "Stored keys, filenames, schema/cursor/hash domains and diagnostic document schemas retain their old bytes.",
+      "reader": "Tera persistence/migration readers, projection and operation-ID derivation, existing diagnostic document readers",
+      "removal_condition": "Only with explicit versioned readers and upgrade/restart tests preserving pending operation identity; never a branding replacement."
+    },
+    "native_ui_contract": {
+      "owner": "Existing native navigation and accessibility contract",
+      "reason": "Current URL/action/accessibility identifiers remain stable across the application rename.",
+      "reader": "Tera navigation, UI automation and accessibility consumers",
+      "removal_condition": "Only through a coordinated control/reader migration with all affected navigation and accessibility tests."
+    },
+    "verification_compatibility": {
+      "owner": "Existing fixture, result and development command contracts",
+      "reason": "Synthetic namespaces, result filenames/hash domains, ratchet schemas and device output paths retain their existing readers.",
+      "reader": "Native/Rust fixture tests, fixture/result verifiers and device launcher output consumers",
+      "removal_condition": "Only with a versioned fixture/result/command migration; retain any still-supported historical reader."
+    },
+    "retired_producer_rejection": {
+      "owner": "Tera package and legacy-name verifiers",
+      "reason": "These exact retired names appear only as forbidden producer identities or negative naming cases, not supported routes.",
+      "reader": "Resolved dependency and legacy-identifier regression tests",
+      "removal_condition": "Retain while enforcing rejection; remove only when an equally strong replacement guard covers the retired producer/name."
+    },
+    "asset_provenance": {
+      "owner": "Native asset producer",
+      "reason": "The existing generated asset author field records its source producer.",
+      "reader": "Native asset catalogs and source provenance review",
+      "removal_condition": "Only when the canonical asset producer changes and the native cohort is regenerated coherently."
+    }
+  },
+  "entries": [
+    {
+      "identifier": "RADROOTS",
+      "category": "public_namespace",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraRootShellTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RADROOTS-ASK",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RADROOTS_LIB_REVISION",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/build.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/build_info.rs",
+          "count": 1
+        },
+        {
+          "path": "scripts/ffi_build.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_artifacts.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadRoots",
+      "category": "public_namespace",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraRootShellTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "Radroots",
+      "category": "retired_producer_rejection",
+      "occurrences": [
+        {
+          "path": "scripts/test_legacy_identifiers.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAdmittedEvent",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 14
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 11
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppLocalStateResetError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppLocalStateResetError.keychainFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleBackgroundTransfer",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleFileAccess",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 4
+        },
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleFileError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleFileError.notFound",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleFileError.permissionDenied",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleFileRoots",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 4
+        },
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 4
+        },
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraSessionStore.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraRemoteQualificationTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleFileRoots.appContainer",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleIdentityMetadataStore",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleImagePreparationRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleKeychainSecureStore",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleLoggerTelemetry",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMediaPicker",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMediaPreparationError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMediaPreparationError.preparationFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMediaPreparer",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMobileStore.prepare",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraSessionStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMobileStoreError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMobileStoreError.fileSystemFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleMobileStoreError.invalidPublicKey",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsApplePreparedImage",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleSecurityError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleSecurityError.keychainFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleSecurityError.userCancelled",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleUserPresence",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTaskError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTaskError.schedulerFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransfer",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraAppModel.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 3
+        },
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferError.invalidRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferError.persistenceFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferError.transferFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferError.unavailable",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferHandle",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferIdentifier",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 7
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 8
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferRequest.defaultMaximumTransferBytes",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferResponse",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferResponsePolicy.boundedJSON",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferSnapshot",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferState",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferValidation.normalizedIdentifier",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferVerification",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCaptureIntakeError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCaptureIntakeError.invalidRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCaptureIntakeError.permanentFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCaptureIntakeError.permissionDenied",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCaptureIntakeError.transientFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCaptureIntakeError.unavailable",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCaptureIntakeError.userCancelled",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsDocumentInterchangeError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsDocumentInterchangeError.notFound",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsDocumentInterchangeError.permissionDenied",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsDocumentInterchangeError.userCancelled",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsExportDocumentRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsExportDocumentResult",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsExternalActionError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsExternalActionError.blockedByPolicy",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsExternalActionError.transientFailure",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsFileReference",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 2
+        },
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 5
+        },
+        {
+          "path": "TeraTests/TeraRemoteQualificationTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentityCustody",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 5
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentityCustodyConfiguration",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 4
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentityCustodyError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentityCustodyError.cryptographyFailed",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentityMetadataSlot",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentityMetadataStore",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentitySecretMaterial",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraAppModel.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraSessionStore.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentitySnapshot",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsIdentityState",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsInboundFoodAvailabilityProjection",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsInboundPostProjection",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsKit",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Package.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/App/TeraAppModel.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraUserMessages.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraSessionStore.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRemoteQualificationTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        },
+        {
+          "path": "project.yml",
+          "count": 2
+        },
+        {
+          "path": "scripts/package_contract.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_legacy_identifiers.py",
+          "count": 8
+        },
+        {
+          "path": "scripts/test_package_contract.py",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsLocationServicesError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsLocationServicesError.permissionDenied",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsLocationServicesError.timeout",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaAsset",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaCaptureRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaCaptureResult",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaImportRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaImportResult",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaPicker",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 4
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaPickerSupport",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMultiplexTelemetry",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsOpaqueSignPurpose",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsOpaqueSignRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsPostClassification",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsPreparedExportDocument",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsProtectedDataProvider",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsRedactingTelemetry",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsRhiEvidenceAttestationOutcomeV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsRhiEvidenceReportV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/sdk.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/tests/package_boundary.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsSecretAccessPolicy",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsSecureStore",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsSecureStoreKey",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsStagedBlobReference",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetry",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetryError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetryError.invalidRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetryEvent",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetryField.string",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetryLevel",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetryRedactionPolicy.default",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceCoverageV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/sdk.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/tests/package_boundary.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 10
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceManifestSourceResultV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceManifestV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/sdk.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/tests/package_boundary.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceOutcomeV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/sdk.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/tests/package_boundary.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 8
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidencePolicyDigestV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceScopePrerequisitesV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceSourceCompletionV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceSourceIdV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceSourceRequirementV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceSourceResultDigestV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTradeEvidenceSourceResultV1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsUserPresence",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsUserPresenceError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsUserPresenceError.unavailable",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsUserPresenceError.userCancelled",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsUserPresenceRequest",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRemoteQualificationTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsUserPresenceResult",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsUserPresenceStatus",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsVerifiedArtifactAccessError",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsVerifiedArtifactAccessError.artifactCorrupt",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsVerifiedArtifactAccessError.invalidDescriptor",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots",
+      "category": "public_namespace",
+      "occurrences": [
+        {
+          "path": "AGENTS.md",
+          "count": 1
+        },
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Config/Debug.xcconfig",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraCalendarFFICompatibilityTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRootShellTests.swift",
+          "count": 24
+        },
+        {
+          "path": "TeraUITests/TeraRootShellUITests.swift",
+          "count": 3
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 7
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 3
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/store.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_ffi/src/error.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/compatibility.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/support/mod.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/uniffi_contract.rs",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_identifiers.py",
+          "count": 3
+        },
+        {
+          "path": "scripts/test_local_social_fixture.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-add-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-background-tests-",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-background-upload",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-ios-device",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "README.md",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-ios-lifecycle-tests-",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-local-social-",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/local-social-fixture.py",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-local-social-P",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/local-social-fixture.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-local-social-P01-A01.json",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/test_local_social_fixture.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-local-social-P01-A01_0_",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/test_local_social_fixture.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-media-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraMediaStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-qualification-evidence",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualificationEvidence.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-remote-qualification-bootstrap.json",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-remote-qualification-bud11.json",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualificationEvidence.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-runtime-tests-",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraRuntimeClientTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-state-tests-",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-supporting-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraSupportingStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-today-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraTodayStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.cancel",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.content",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 16
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.currency",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.draft",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.draft.media_status",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.drafts",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.drafts.sheet",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.error",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.event.end",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.event.start",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.event_timing",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.keyboard.done",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.loading",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.location",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 6
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.media.alt",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.media.camera",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.media.library",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.media.prepared",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.new",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.price",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.progress",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.quantity",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.root",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 5
+        },
+        {
+          "path": "TeraUITests/TeraRootShellUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.save",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.status",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.submit",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.summary",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.title",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 9
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.type",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.add.unit",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraAddView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.app",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/mod.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/runtime_delegation.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.app_entry",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/AppEntry.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.artifact-manifest.v2",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "scripts/ffi_artifacts.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.avatar.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.background-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.calendar.date_event.v1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.calendar.time_event.v1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.configuration.reconfigure",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.context",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.context.picker",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.crates.release.v2",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "radroots.lib.source-lock.v1.toml",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.field-ios",
+      "category": "installed_identity",
+      "occurrences": [
+        {
+          "path": "Tera/tera.xcconfig",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRemoteQualificationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.field-ios.tests",
+      "category": "installed_identity",
+      "occurrences": [
+        {
+          "path": "project.yml",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.field-ios.uitests",
+      "category": "installed_identity",
+      "occurrences": [
+        {
+          "path": "project.yml",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.field_ios",
+      "category": "installed_identity",
+      "occurrences": [
+        {
+          "path": "Tera/Config/Base.xcconfig",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.field_ios.local",
+      "category": "installed_identity",
+      "occurrences": [
+        {
+          "path": "Tera/Config/Debug.xcconfig",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.food_availability.v1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraAddStoreTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraSupportingStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.identity.create",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.identity.import",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.identity.import.error",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.identity.import.secret",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.identity.import.submit",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.identity.recover",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.identity.unlock",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.inbound-media-reference.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/media.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.diagnostics.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.identity",
+      "category": "installed_identity",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.local-social.app-build.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/xcode.sh",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.local-social.endpoint-policy.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.local-social.persona-identity.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/local-social-fixture.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.local-social.persona-run.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.maintainability-baseline.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/maintainability_ratchet.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_maintainability_ratchet.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.persona_result_bundle.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/local-social-fixture.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.remote-qualification",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualification.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.remote-qualification.authorization-digest.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualificationEvidence.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.remote-qualification.authorization-evidence.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRemoteQualificationEvidence.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.remote-qualification.gbrqv1-12345678",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraRemoteQualificationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.ios.remote-qualification.gbrqv1-12345678.identity",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraRemoteQualificationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.lib.source-lock.v1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "radroots.lib.source-lock.v1.toml",
+          "count": 1
+        },
+        {
+          "path": "scripts/ffi_source.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.lib.source-lock.v1.toml",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "AGENTS.md",
+          "count": 1
+        },
+        {
+          "path": "TeraFFI/producer.toml",
+          "count": 2
+        },
+        {
+          "path": "scripts/ffi_source.py",
+          "count": 2
+        },
+        {
+          "path": "scripts/legacy_identifiers.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/package_contract.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/release-evidence.sh",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_app_dependency_graph.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_artifacts.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.log",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_ffi/src/logging.rs",
+          "count": 6
+        },
+        {
+          "path": "core/crates/tera_ffi/src/logging/writer.rs",
+          "count": 7
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.media-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraMediaStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.mobile.phase1-draft-operation.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.mobile.phase1-draft.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.mobile.phase1-profile.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.mobile.settings.generation.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.mobile.settings.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_legacy_identifiers.py",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.mobile.today.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.org",
+      "category": "public_namespace",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "Tera/Config/Base.xcconfig",
+          "count": 2
+        },
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraSupportingStoreTests.swift",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/builder.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
+          "count": 2
+        },
+        {
+          "path": "scripts/local-social-fixture.py",
+          "count": 10
+        },
+        {
+          "path": "scripts/package_contract.py",
+          "count": 2
+        },
+        {
+          "path": "scripts/test_local_social_fixture.py",
+          "count": 8
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.package.manager",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "scripts/release-evidence.sh",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.package.revision",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "scripts/release-evidence.sh",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.package.source",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "scripts/release-evidence.sh",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.profile",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.root.tabs",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.runtime.failure_code",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.runtime.retry",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.runtime.status",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.search.card",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.search.profile",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.search.results",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.selected_root_tab",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.blossom.error_code",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.blossom.fingerprint",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.blossom.http_status",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.blossom.origin",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.blossom.primary",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.blossom.server_error_code",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.blossom.state",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.diagnostics",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.failure_code",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.identity.lock",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.identity.public_key",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.network.environment",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.profile.about",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.profile.display_name",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.profile.name",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.profile.nip05",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.profile.save",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.relays.add",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.retry.blossom",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.retry.network",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.settings.save",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.account",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.account.sheet",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.context",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.me.sheet",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.outbox",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.search",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.search.sheet",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.settings",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.support.settings.view",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.supporting-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraSupportingStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.swift-api-snapshot.v1",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "scripts/app-api-snapshot.sh",
+          "count": 1
+        },
+        {
+          "path": "scripts/ffi_artifacts.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/ffi_build.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_artifacts.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tab.add",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tab.today",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRuntimeClientTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tests.background.other",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tests.background.transfer",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tests.corrupt",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tests.identity",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.tests.signer",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-card.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/identity.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-content-generation.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-cursor.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/cursor.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-document-key.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-projection.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-rank.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/ranking.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-snapshot-id.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-tests",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraTodayStoreTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.card",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.detail",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.error",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.feed",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.loading",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.loading_more",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.offline",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.refresh",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.refresh.empty",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.retract",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.revise",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.root",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/App/TeraRootShell.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraRootShellUITests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.status",
+      "category": "native_ui_contract",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraTodayView.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.unapproved.v1",
+      "category": "retired_producer_rejection",
+      "occurrences": [
+        {
+          "path": "scripts/test_legacy_identifiers.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radrootsDocumentExporter",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Views/TeraSupportingViews.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "scripts/app_dependency_graph.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/ffi_source.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_assetgen",
+      "category": "asset_provenance",
+      "occurrences": [
+        {
+          "path": "Tera/Resources/Assets.xcassets/AppIcon.appiconset/Contents.json",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_blossom",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/authoring.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/media.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 6
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_ffi/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_ffi/src/runtime.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/local_mvp_real_io.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_configuration_v2.json",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_configuration_v3.json",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_event",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/authoring.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/identity.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 5
+        },
+        {
+          "path": "core/crates/tera_ffi/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_ffi/src/signer.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/runtime_delegation.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_event_codec",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/authoring.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_field_ios_relay_settings_v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_identity",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/mod.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/store.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_identity_v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_ios_configuration_v2",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_ios_configuration_v3",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "Tera/State/TeraConfigurationStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_ios_source_lock",
+      "category": "retired_producer_rejection",
+      "occurrences": [
+        {
+          "path": "scripts/app_dependency_graph.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_mobile_bindgen",
+      "category": "retired_producer_rejection",
+      "occurrences": [
+        {
+          "path": "scripts/app_dependency_graph.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_mobile_core",
+      "category": "retired_producer_rejection",
+      "occurrences": [
+        {
+          "path": "scripts/app_dependency_graph.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_mobile_ffi",
+      "category": "retired_producer_rejection",
+      "occurrences": [
+        {
+          "path": "scripts/app_dependency_graph.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_mobile_wasm",
+      "category": "retired_producer_rejection",
+      "occurrences": [
+        {
+          "path": "scripts/app_dependency_graph.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_nostr",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 5
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_protocol",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_sdk",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/error.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/builder.rs",
+          "count": 14
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/info.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/mod.rs",
+          "count": 8
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 41
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
+          "count": 23
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/sdk.rs",
+          "count": 70
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/store.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/tests/package_boundary.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_ffi/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 52
+        },
+        {
+          "path": "core/crates/tera_ffi/src/operations.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_ffi/src/runtime.rs",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_app_dependency_graph.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_provenance.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_signing",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/builder.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/mod.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/signer.rs",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_storage",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
+          "count": 3
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 11
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/store.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/dto.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_sync",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_transport",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/sdk.rs",
+          "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_transport_nostr",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/context.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radrootslabs",
+      "category": "public_namespace",
+      "occurrences": [
+        {
+          "path": "Cargo.toml",
+          "count": 13
+        },
+        {
+          "path": "Package.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraFFI/producer.toml",
+          "count": 1
+        },
+        {
+          "path": "project.yml",
+          "count": 1
+        },
+        {
+          "path": "radroots.lib.source-lock.v1.toml",
+          "count": 1
+        },
+        {
+          "path": "scripts/ffi_source.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/package_contract.py",
+          "count": 4
+        },
+        {
+          "path": "scripts/release-evidence.sh",
+          "count": 3
+        },
+        {
+          "path": "scripts/test_ffi_artifacts.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_provenance.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_package_contract.py",
+          "count": 2
+        }
+      ]
+    }
+  ]
+}

@@ -370,7 +370,7 @@ actor TeraLifecycleCoordinator {
     return try fileAccess.prepareExport(
       RadrootsExportDocumentRequest(
         source: .inlineData(data),
-        suggestedFilename: "radroots-diagnostics.json",
+        suggestedFilename: "tera-diagnostics.json",
         mediaType: "application/json",
         sizeBytes: UInt64(data.count)
       )

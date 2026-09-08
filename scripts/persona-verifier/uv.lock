@@ -39,7 +39,7 @@ wheels = [
 ]
 
 [[package]]
-name = "radroots-persona-verifier"
+name = "tera-persona-verifier"
 version = "0.0.0"
 source = { virtual = "." }
 dependencies = [

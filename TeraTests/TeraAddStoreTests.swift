@@ -909,7 +909,7 @@ private actor AddBackend: TeraRuntimeBackend {
         configFingerprint: String(repeating: "f", count: 64)
       ),
       blossomEvidence: nil,
-      crateName: "radroots_mobile_ffi",
+      crateName: "tera_ffi",
       crateVersion: "0.1.0-alpha",
       isClosed: closed
     )

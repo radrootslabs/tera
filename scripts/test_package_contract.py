@@ -162,20 +162,6 @@ class PackageContractTests(unittest.TestCase):
         with self.assertRaisesRegex(contract.PackageContractError, "purpose"):
             contract._validate_app_plist(document)
 
-    def test_duplicate_source_lock_assignment_is_rejected(self) -> None:
-        with self.assertRaisesRegex(contract.PackageContractError, "duplicated"):
-            contract.parse_make_assignments(
-                "override RADROOTS_FIELD_LIB_GIT_REV := " + "a" * 40 + "\n"
-                "override RADROOTS_FIELD_LIB_GIT_REV := " + "b" * 40 + "\n"
-            )
-
-    def test_source_lock_dead_assignment_is_rejected(self) -> None:
-        with self.assertRaisesRegex(contract.PackageContractError, "unsupported"):
-            contract.parse_make_assignments(
-                "ifneq ($(UNREACHABLE),)\n"
-                "override RADROOTS_FIELD_LIB_GIT_REV := " + "a" * 40 + "\nendif\n"
-            )
-
     def test_duplicate_xcconfig_assignment_is_rejected(self) -> None:
         with self.assertRaisesRegex(contract.PackageContractError, "duplicated"):
             contract.parse_xcconfig_assignments("FIELD = one\nFIELD = two\n")

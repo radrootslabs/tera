@@ -15,6 +15,7 @@ import package_contract as contract
 MAX_BYTES = 2 * 1024 * 1024
 MAX_INPUTS = 2048
 INPUTS = [
+    "test-fixtures/legacy-identifiers.v1.json",
     "Cargo.toml",
     "Cargo.lock",
     "rust-toolchain.toml",

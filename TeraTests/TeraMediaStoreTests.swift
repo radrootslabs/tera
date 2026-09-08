@@ -217,7 +217,7 @@ private actor MediaBackend: TeraRuntimeBackend {
           relay: nil,
           blossomConfiguration: nil,
           blossomEvidence: nil,
-          crateName: "radroots_mobile_ffi",
+          crateName: "tera_ffi",
           crateVersion: "0.1.0-alpha",
           isClosed: closed
         )

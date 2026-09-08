@@ -2,6 +2,7 @@ schema = "tera.native-producer.v1"
 repository = "https://github.com/radrootslabs/tera"
 foundation_lock = "radroots.lib.source-lock.v1.toml"
 source_inputs = [
+  "test-fixtures/legacy-identifiers.v1.json",
   "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "Makefile",
   "core", "scripts", "TeraFFI/Makefile", "TeraFFI/scripts",
   "TeraFFI/producer.toml", "radroots.lib.source-lock.v1.toml",

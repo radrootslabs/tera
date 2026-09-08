@@ -213,6 +213,15 @@ these checks.
 Comments, examples, unreachable source, and arbitrary matching text cannot
 satisfy a behavior-bearing package assertion; application behavior is proven
 by the compiled Swift and simulator test lanes.
+Legacy identifiers are governed by `test-fixtures/legacy-identifiers.v1.json`.
+Each exact name/path/count refers to an owner, reason, reader, and removal
+condition. Unknown names, expanded or stale exceptions, old app declarations,
+and changed display names fail the package check. Shared Apple/foundation APIs,
+installed identities, persisted namespaces, and existing compatibility readers
+retain their names. Generated FFI names are checked through owned generation
+and API freshness; dependency caches and generated binaries are not source
+exceptions. The policy is part of the native producer's declared input tree.
+
 The contract also binds the exact Ruff development tool, both maintainability
 baselines, and their executable verifier, so local lint behavior cannot drift
 with an ambient Python installation.

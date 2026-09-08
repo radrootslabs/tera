@@ -136,7 +136,7 @@ fn build_file_writer(
     let (writer, guard) = tracing_appender::non_blocking::NonBlockingBuilder::default()
         .buffered_lines_limit(8192)
         .lossy(false)
-        .thread_name("radroots-app-log-writer")
+        .thread_name("tera-app-log-writer")
         .finish(writer);
     Ok((Some(writer), Some(guard)))
 }

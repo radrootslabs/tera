@@ -66,7 +66,7 @@ impl SubscriptionHub {
         let observer: Arc<dyn TeraRuntimeObserver> = Arc::from(observer);
         let hub = Arc::downgrade(self);
         std::thread::Builder::new()
-            .name(format!("radroots-ffi-observer-{id}"))
+            .name(format!("tera-ffi-observer-{id}"))
             .spawn(move || {
                 while let Ok(change) = receiver.recv() {
                     if catch_unwind(AssertUnwindSafe(|| observer.on_change(change))).is_err() {

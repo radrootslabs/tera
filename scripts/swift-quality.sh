@@ -30,6 +30,8 @@ readonly -a PYTHON_QUALITY_PATHS=(
   scripts/test_ffi_provenance.py
   scripts/maintainability_ratchet.py
   scripts/package_contract.py
+  scripts/legacy_identifiers.py
+  scripts/test_legacy_identifiers.py
   scripts/app_dependency_graph.py
   scripts/test_app_dependency_graph.py
   scripts/test_maintainability_ratchet.py

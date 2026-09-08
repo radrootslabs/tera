@@ -15,7 +15,7 @@ for variable in XCODE_DERIVED_DATA XCODE_SOURCE_PACKAGES; do
 done
 
 repo_root=$(CDPATH='' cd -- "$(dirname -- "$0")/.." && pwd)
-work_dir="$XCODE_DERIVED_DATA/radroots-app-api"
+work_dir="$XCODE_DERIVED_DATA/tera-app-api"
 symbol_dir="$work_dir/symbols"
 rendered="$work_dir/TeraApp.symbols.json"
 snapshot="$repo_root/api/TeraApp.symbols.json"

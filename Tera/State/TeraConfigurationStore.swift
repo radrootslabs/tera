@@ -363,7 +363,7 @@ actor TeraConfigurationStore {
           createdAtUnixMilliseconds: createdAtUnixMilliseconds
         )
         do {
-            let data = try JSONEncoder.radroots.encode(value)
+            let data = try JSONEncoder.tera.encode(value)
             try fileAccess.write(.inline(data), to: Self.sourceGenerationFile)
             return value
         } catch let error as TeraConfigurationError {
@@ -417,7 +417,7 @@ actor TeraConfigurationStore {
 
     private func persist(_ configuration: StoredConfigurationV3) throws {
         do {
-            let data = try JSONEncoder.radroots.encode(configuration)
+            let data = try JSONEncoder.tera.encode(configuration)
             try fileAccess.write(.inline(data), to: Self.configurationFile)
         } catch {
             throw TeraConfigurationError.persistenceFailed
@@ -515,7 +515,7 @@ actor TeraConfigurationStore {
       profile: TeraAppNetworkProfile
     ) throws -> String {
         do {
-            let data = try JSONEncoder.radroots.encode(
+            let data = try JSONEncoder.tera.encode(
                 BootstrapNetworkIdentity(
                   profile: profile,
                   relayURLs: bootstrap.relayURLs,
@@ -751,7 +751,7 @@ private struct IPv6Address {
 }
 
 private extension JSONEncoder {
-    static var radroots: JSONEncoder {
+    static var tera: JSONEncoder {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
