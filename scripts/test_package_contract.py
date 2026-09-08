@@ -46,6 +46,29 @@ class PackageContractTests(unittest.TestCase):
         with self.assertRaisesRegex(contract.PackageContractError, "escapes"):
             contract._validate_app_workspace(document, root)
 
+    def test_mobile_defaults_exclude_wasm_and_execute_owned_runtime(self) -> None:
+        root = SCRIPTS.parent.resolve()
+        document = self.workspace(root)
+        names = ("tera_core", "tera_ffi", "tera_wasm")
+        document["packages"] = [
+            {
+                "id": name,
+                "manifest_path": str(root / "core/crates" / name / "Cargo.toml"),
+                "dependencies": [],
+            }
+            for name in names
+        ]
+        document["workspace_members"] = list(names)
+        document["workspace_default_members"] = ["tera_core", "tera_ffi"]
+        contract._validate_app_workspace(document, root)
+        for defaults in (None, list(names), [], ["tera_core"], ["tera_ffi"]):
+            with self.subTest(defaults=defaults):
+                document["workspace_default_members"] = defaults
+                with self.assertRaisesRegex(
+                    contract.PackageContractError, "mobile defaults"
+                ):
+                    contract._validate_app_workspace(document, root)
+
     def test_application_workspace_rejects_foreign_member_root(self) -> None:
         root = SCRIPTS.parent.resolve()
         with self.assertRaisesRegex(contract.PackageContractError, "owned root"):

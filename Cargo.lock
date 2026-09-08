@@ -2781,6 +2781,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tera_wasm"
+version = "0.1.0-alpha"
+dependencies = [
+ "serde_json",
+ "tera_core",
+ "wasm-bindgen",
+]
+
+[[package]]
 name = "textwrap"
 version = "0.16.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

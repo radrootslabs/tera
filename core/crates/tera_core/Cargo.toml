@@ -28,6 +28,10 @@ mobile-social = [
 ]
 
 [dependencies]
+serde = { workspace = true, features = ["derive"] }
+
+# The non-default WASM wrapper exposes build metadata only.
+[target.'cfg(not(target_family = "wasm"))'.dependencies]
 radroots_blossom = { workspace = true, default-features = false, features = [
   "serde",
   "std",
@@ -57,7 +61,6 @@ radroots_transport = { workspace = true, default-features = false, features = [
 radroots_transport_nostr = { workspace = true }
 chrono = { workspace = true }
 hex = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }

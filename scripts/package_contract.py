@@ -393,6 +393,24 @@ def _validate_app_workspace(document: dict[str, Any], root: Path) -> None:
     _exact(sorted(identifiers), sorted(members), "Cargo workspace member inventory")
     for package in packages:
         _validate_app_package(_mapping(package, "Cargo package"), root)
+    _validate_mobile_defaults(document, packages, root)
+
+
+def _validate_mobile_defaults(
+    document: Mapping[str, Any], packages: list[Any], root: Path
+) -> None:
+    owned = {
+        _local_cargo_path(package.get("manifest_path"), root).parent.name: package["id"]
+        for package in packages
+    }
+    if "tera_wasm" not in owned:
+        return
+    defaults = document.get("workspace_default_members")
+    if not isinstance(defaults, list) or owned["tera_wasm"] in defaults:
+        raise PackageContractError("non-default WASM package entered mobile defaults")
+    for name in ("tera_core", "tera_ffi"):
+        if name in owned and owned[name] not in defaults:
+            raise PackageContractError("owned runtime is missing from mobile defaults")
 
 
 def _validate_app_package(package: Mapping[str, Any], root: Path) -> None:

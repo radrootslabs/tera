@@ -1,5 +1,6 @@
 [workspace]
-members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen"]
+members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen", "core/crates/tera_wasm"]
+default-members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi", "core/crates/tera_bindgen"]
 resolver = "3"
 
 [workspace.package]
@@ -57,3 +58,4 @@ tracing = { version = "0.1", default-features = false }
 tracing-appender = { version = "0.2" }
 tracing-subscriber = { version = "0.3" }
 uniffi = { version = "0.29.4" }
+wasm-bindgen = { version = "0.2" }
