@@ -6,6 +6,20 @@ exactly two bottom tabs: Today for discovery and Add for authored operations.
 
 The current public release is `0.1.0-alpha`.
 
+Tera owns the application's Rust validation, runtime transitions, durable
+authored operations and application FFI as well as the native iOS host. Shared
+domain types, signing protocols, transport and storage mechanics remain in the
+public foundation packages. The target behavior keeps cached Today and local
+Add usable independently of network readiness; the native host presents the Rust contracts and supplies
+Apple platform capabilities.
+
+Application Rust packages belong under `core/crates` in the single root Cargo
+workspace. During the ordered ownership transfer, the existing source-lock shim
+and installed FFI still consume the exact pinned Lib revision. This transition
+preserves the current five creation families, Today/Add tabs, installed identity
+and persisted operation formats. Each moved package replaces its old source
+only with verified history, compatibility and generated-artifact evidence.
+
 ## Requirements
 
 - macOS with Xcode and an iOS 18-or-newer simulator
@@ -177,6 +191,10 @@ of the release lane.
 `make package-contract-check` evaluates the Swift package manifest and parses
 the TOML, plist, JSON, xcconfig, project-package, and lock inputs as structured,
 bounded data. It also runs the locked fixture and verifier unit suites.
+The check evaluates Cargo's workspace graph and rejects members or local
+dependencies outside this standalone repository, including implicit sibling
+checkouts. Human specifications and execution evidence remain outside the
+capsule and are never required by these checks.
 Comments, examples, unreachable source, and arbitrary matching text cannot
 satisfy a behavior-bearing package assertion; application behavior is proven
 by the compiled Swift and simulator test lanes.

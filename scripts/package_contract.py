@@ -335,6 +335,82 @@ def _verify_repository_layout(root: Path) -> None:
             raise PackageContractError("forbidden public repository root exists")
 
 
+def _cargo_workspace(root: Path) -> dict[str, Any]:
+    with tempfile.TemporaryFile() as stdout, tempfile.TemporaryFile() as stderr:
+        try:
+            result = subprocess.run(
+                [
+                    "cargo",
+                    "metadata",
+                    "--manifest-path",
+                    str(root / "Cargo.toml"),
+                    "--locked",
+                    "--no-deps",
+                    "--format-version",
+                    "1",
+                ],
+                check=False,
+                stdin=subprocess.DEVNULL,
+                stdout=stdout,
+                stderr=stderr,
+                timeout=60,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise PackageContractError("Cargo workspace cannot be evaluated") from error
+        stdout.seek(0)
+        output = stdout.read(MAX_CONTRACT_BYTES + 1)
+    if result.returncode != 0 or len(output) > MAX_CONTRACT_BYTES:
+        raise PackageContractError("Cargo workspace evaluation failed")
+    try:
+        value = json.loads(output)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise PackageContractError("Cargo workspace output is malformed") from error
+    if not isinstance(value, dict):
+        raise PackageContractError("Cargo workspace output is not an object")
+    return value
+
+
+def _local_cargo_path(value: object, root: Path) -> Path:
+    if not isinstance(value, str) or not value:
+        raise PackageContractError("local Cargo path is invalid")
+    path = Path(value).resolve()
+    if not path.is_relative_to(root.resolve()):
+        raise PackageContractError("local Cargo path escapes the standalone repository")
+    return path.relative_to(root.resolve())
+
+
+def _validate_app_workspace(document: dict[str, Any], root: Path) -> None:
+    _exact(document.get("workspace_root"), str(root), "Cargo workspace root")
+    packages = document.get("packages")
+    members = document.get("workspace_members")
+    if not isinstance(packages, list) or not packages or not isinstance(members, list):
+        raise PackageContractError("Cargo workspace members are absent")
+    identifiers = [
+        package.get("id") for package in packages if isinstance(package, dict)
+    ]
+    if not all(isinstance(item, str) for item in identifiers + members):
+        raise PackageContractError("Cargo workspace member identity is invalid")
+    _exact(sorted(identifiers), sorted(members), "Cargo workspace member inventory")
+    for package in packages:
+        _validate_app_package(_mapping(package, "Cargo package"), root)
+
+
+def _validate_app_package(package: Mapping[str, Any], root: Path) -> None:
+    manifest = _local_cargo_path(package.get("manifest_path"), root)
+    directory = manifest.parent
+    if directory != Path("crates/source_lock") and not directory.is_relative_to(
+        "core/crates"
+    ):
+        raise PackageContractError("application Rust package is outside its owned root")
+    dependencies = package.get("dependencies")
+    if not isinstance(dependencies, list):
+        raise PackageContractError("Cargo dependency inventory is absent")
+    for dependency in dependencies:
+        item = _mapping(dependency, "Cargo dependency")
+        if "path" in item:
+            _local_cargo_path(item["path"], root)
+
+
 def _verify_cargo_and_source(root: Path) -> tuple[str, str]:
     cargo = _read_toml(root / "Cargo.toml")
     workspace = _mapping(cargo.get("workspace"), "Cargo workspace")
@@ -525,6 +601,7 @@ def _verify_required_files(root: Path) -> None:
 def verify(repo_root: Path) -> tuple[str, str]:
     root = repo_root.resolve()
     _verify_repository_layout(root)
+    _validate_app_workspace(_cargo_workspace(root), root)
     release_version, _ = _verify_cargo_and_source(root)
     apple_revision = _verify_apple_dependencies(root)
     _verify_apple_configuration(root)

@@ -8,6 +8,10 @@ This file applies to the complete standalone iOS app repository. A closer
 - This capsule owns the public iOS application, its Swift package, generated
   Xcode project, Apple host lifecycle, app state and views, FFI installation
   boundary, privacy manifest, public API snapshot, and standalone validation.
+  It also owns application Rust policy, runtime transitions, durable authored
+  operation orchestration and application FFI. Keep one root Rust workspace;
+  application packages belong under `core/crates`. The current exact Lib pin
+  temporarily supplies those packages until their ordered history transfer.
 - `radroots.lib.source-lock.v1.toml`, `Cargo.toml`, and
   `RadrootsFFI/source.lock` must select the same exact remotely reachable public
   lib revision and release version. `Package.swift`, both
@@ -28,12 +32,20 @@ This file applies to the complete standalone iOS app repository. A closer
 
 ## Product and security boundaries
 
-- The app is an iOS client. It owns Apple presentation, lifecycle callbacks,
+- The product has exactly two bottom tabs, Today and Add, and retains its five
+  current creation families. Cached Today and local Add must remain usable
+  independently of network readiness. Do not activate farm, CRDT, commerce,
+  additional transports or unrelated product surfaces through this refactor.
+- The Swift host owns Apple presentation, lifecycle callbacks,
   user-presence prompts, Keychain integration, foreground/background
   scheduling, and translation between generated SDK DTOs and view state.
-- Canonical domain policy, signing protocol, relay semantics, durable engine
-  state, wire contracts, and generated FFI models remain owned by their public
-  producer packages. Do not fork them into Swift application models.
+- Application validation, transitions, durable receipts and app-facing FFI
+  models belong to this application's Rust packages. Shared domain types,
+  signing protocols, transport and storage mechanics stay in their existing
+  public producer packages at exact pins. Swift translates and presents those
+  contracts; it must not fork canonical policy or own a second database.
+- Branding changes must preserve installed bundle/Keychain identities,
+  persisted schema and hash namespaces, and frozen signed operation identities.
 - Keep identity secrets in the Apple credential boundary. Never log, snapshot,
   serialize, fixture, or expose secret material, raw private event content,
   credentials, tokens, private paths, or unsafe internal errors.
