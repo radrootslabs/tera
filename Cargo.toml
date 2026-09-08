@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/source_lock", "core/crates/tera_core"]
+members = ["crates/source_lock", "core/crates/tera_core", "core/crates/tera_ffi"]
 resolver = "3"
 
 [workspace.package]
@@ -48,3 +48,12 @@ thiserror = { version = "1" }
 tokio = { version = "1" }
 url = { version = "2" }
 uuid = { version = "1.22.0", features = ["v4", "v7"] }
+async-trait = { version = "0.1.89" }
+libc = { version = "0.2" }
+rustix = { version = "1", features = ["fs", "process", "std"] }
+secp256k1 = { version = "0.29.1", default-features = false, features = ["alloc"] }
+tera_core = { path = "core/crates/tera_core", version = "=0.1.0-alpha", default-features = false }
+tracing = { version = "0.1", default-features = false }
+tracing-appender = { version = "0.2" }
+tracing-subscriber = { version = "0.3" }
+uniffi = { version = "0.29.4" }

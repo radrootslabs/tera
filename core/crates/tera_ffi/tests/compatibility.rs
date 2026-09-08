@@ -1,19 +1,19 @@
-//! Pre-transfer compatibility at the consumed FFI boundary. All stores are
+//! Frozen compatibility across application FFI history transfer. All stores are
 //! isolated fixtures; signer keys are generated in memory and never serialized.
 
-use radroots_mobile_ffi::{
+use secp256k1::{Keypair, Message, Secp256k1};
+use serde_json::Value;
+use std::path::Path;
+use tera_ffi::{
     FfiAddCommandType, FfiAddDraftInput, FfiCancellationPolicy, FfiDraftStatusRecord,
     FfiQueuePolicyRecord, FfiRelaySatisfaction, HostSigningOutcome, HostSigningRequest,
     HostSigningResult, MOBILE_FFI_SCHEMA_VERSION, ProtectedDataAvailability, RadrootsHostSigner,
     RadrootsRuntime, SignerAvailabilityRecord, SignerStatusRecord,
 };
-use secp256k1::{Keypair, Message, Secp256k1};
-use serde_json::Value;
-use std::path::Path;
 
 fn fixture() -> Value {
     serde_json::from_str(include_str!(
-        "../../../test-fixtures/tera-compatibility.v1.json"
+        "../../../../test-fixtures/tera-compatibility.v1.json"
     ))
     .expect("checked synthetic fixture")
 }

@@ -1,0 +1,54 @@
+[package]
+name = "tera_ffi"
+description = "Native FFI bindings for Radroots mobile apps"
+version = "0.1.0-alpha"
+edition.workspace = true
+authors = ["Radroots Authors"]
+rust-version.workspace = true
+license = "GPL-3.0-or-later"
+repository.workspace = true
+homepage.workspace = true
+readme.workspace = true
+publish = false
+include = ["src/**", "uniffi.toml", "Cargo.toml"]
+
+[lib]
+crate-type = ["rlib", "staticlib", "cdylib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
+
+[dependencies]
+async-trait = { workspace = true }
+hex = { workspace = true }
+radroots_blossom = { workspace = true, features = ["std"] }
+radroots_event = { workspace = true, features = ["serde", "std"] }
+tera_core = { workspace = true, features = ["mobile-social"] }
+radroots_sdk = { workspace = true, features = ["blossom"] }
+radroots_signing = { workspace = true, features = ["serde", "std"] }
+radroots_storage = { workspace = true }
+serde_json = { workspace = true, features = ["std"] }
+tracing = { workspace = true }
+tracing-appender = { workspace = true }
+tracing-subscriber = { workspace = true }
+thiserror = { workspace = true }
+uniffi = { workspace = true, features = ["tokio"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+rustix = { workspace = true }
+
+[dev-dependencies]
+nostr = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr" }
+nostr-relay-builder = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr-relay-builder" }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr-sdk" }
+secp256k1 = { workspace = true, features = ["rand-std"] }
+tempfile = { workspace = true }
+tokio = { workspace = true, features = [
+  "io-util",
+  "macros",
+  "net",
+  "rt-multi-thread",
+  "sync",
+  "time",
+] }

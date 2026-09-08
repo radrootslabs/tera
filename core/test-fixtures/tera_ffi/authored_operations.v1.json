@@ -1,0 +1,765 @@
+{
+  "suite": "authored_operations_wire",
+  "contract_version": "1.0.0",
+  "vectors": [
+    {
+      "id": "typed_profile_optional_escaping_001",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.profile.metadata.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 0,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [],
+        "content": "{\"name\":\"Alice \\\"Sprout\\\"\",\"display_name\":\"Alice's Orchard\",\"about\":\"Tree fruit\\nDirect from the farm\",\"bot\":false}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,0,[],\"{\\\"name\\\":\\\"Alice \\\\\\\"Sprout\\\\\\\"\\\",\\\"display_name\\\":\\\"Alice's Orchard\\\",\\\"about\\\":\\\"Tree fruit\\\\nDirect from the farm\\\",\\\"bot\\\":false}\"]",
+        "event_id": "cd7c7d681ca7c11536da8008ca404cca394d68c9217d943939b385784d7327e8",
+        "signature": "c07b2e5fade95ad0cb9c0ffe58812afb359d0fed77af57d532eb68c15f40d0e07a0231daf681de5309da4baafa679f3c07fc93123fe772c9a76f4268c3ee9cb9",
+        "raw_json": "{\"id\":\"cd7c7d681ca7c11536da8008ca404cca394d68c9217d943939b385784d7327e8\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":0,\"tags\":[],\"content\":\"{\\\"name\\\":\\\"Alice \\\\\\\"Sprout\\\\\\\"\\\",\\\"display_name\\\":\\\"Alice's Orchard\\\",\\\"about\\\":\\\"Tree fruit\\\\nDirect from the farm\\\",\\\"bot\\\":false}\",\"sig\":\"c07b2e5fade95ad0cb9c0ffe58812afb359d0fed77af57d532eb68c15f40d0e07a0231daf681de5309da4baafa679f3c07fc93123fe772c9a76f4268c3ee9cb9\"}"
+      }
+    },
+    {
+      "id": "typed_update_escaping_002",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.social.update.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 1,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [],
+        "content": "Farm update: \"ready\"\\\n🍓",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,1,[],\"Farm update: \\\"ready\\\"\\\\\\n🍓\"]",
+        "event_id": "11bcbaeab205194e26ae4d950190c03d18edb1b65f428048e589e4bbdcfa9d50",
+        "signature": "a6a323774f1ce4aafa6c479e758eb350a7e5c4bdc55c7690beba2ccb1631839a1246a83e62f4b29e74f9afda62802794981570e10c7d4ad41c392dab4066b88c",
+        "raw_json": "{\"id\":\"11bcbaeab205194e26ae4d950190c03d18edb1b65f428048e589e4bbdcfa9d50\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":1,\"tags\":[],\"content\":\"Farm update: \\\"ready\\\"\\\\\\n🍓\",\"sig\":\"a6a323774f1ce4aafa6c479e758eb350a7e5c4bdc55c7690beba2ccb1631839a1246a83e62f4b29e74f9afda62802794981570e10c7d4ad41c392dab4066b88c\"}"
+      }
+    },
+    {
+      "id": "typed_photo_update_imeta_003",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.social.photo_update.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 1,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "imeta",
+            "url https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp",
+            "x 1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276",
+            "m image/webp",
+            "dim 1200x900",
+            "size 12",
+            "alt Harvest"
+          ]
+        ],
+        "content": "Harvest https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,1,[[\"imeta\",\"url https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\",\"x 1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276\",\"m image/webp\",\"dim 1200x900\",\"size 12\",\"alt Harvest\"]],\"Harvest https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\"]",
+        "event_id": "de986339a659b8586390a7e64a59f67dc7f2702c3882fa8677e17ea0cbf99847",
+        "signature": "d38dfb534c2df4e9b62165cf7e557e060bf024f9b1e44794438924511620750533dd76c307f06ceeae5c852fcc9293e9d61e83bded9c432f50a2886ba59b7817",
+        "raw_json": "{\"id\":\"de986339a659b8586390a7e64a59f67dc7f2702c3882fa8677e17ea0cbf99847\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":1,\"tags\":[[\"imeta\",\"url https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\",\"x 1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276\",\"m image/webp\",\"dim 1200x900\",\"size 12\",\"alt Harvest\"]],\"content\":\"Harvest https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\",\"sig\":\"d38dfb534c2df4e9b62165cf7e557e060bf024f9b1e44794438924511620750533dd76c307f06ceeae5c852fcc9293e9d61e83bded9c432f50a2886ba59b7817\"}"
+      }
+    },
+    {
+      "id": "typed_ask_marker_order_004",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.social.ask.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 1,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "t",
+            "radroots-ask"
+          ],
+          [
+            "imeta",
+            "url https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp",
+            "x 1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276",
+            "m image/webp",
+            "dim 1200x900",
+            "size 12",
+            "alt Harvest"
+          ]
+        ],
+        "content": "Is this ready? https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,1,[[\"t\",\"radroots-ask\"],[\"imeta\",\"url https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\",\"x 1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276\",\"m image/webp\",\"dim 1200x900\",\"size 12\",\"alt Harvest\"]],\"Is this ready? https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\"]",
+        "event_id": "21b3d75acd9c78b6caeacd2c14dc8371ca1348ec688b1bf2b606199c73e7155b",
+        "signature": "e90f3919f0045527bc131fb9f5c59708ce62074f78c6a3e7912e1da8647b1765ab513881c0894c9814c7a2ec574d1fd0d09565d06aa559d3efe6a3785c76bf38",
+        "raw_json": "{\"id\":\"21b3d75acd9c78b6caeacd2c14dc8371ca1348ec688b1bf2b606199c73e7155b\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":1,\"tags\":[[\"t\",\"radroots-ask\"],[\"imeta\",\"url https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\",\"x 1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276\",\"m image/webp\",\"dim 1200x900\",\"size 12\",\"alt Harvest\"]],\"content\":\"Is this ready? https://media.example/1ff0938846474bffb82fe6f107422337fd051c1191c9cc3584854fbb1501b276.webp\",\"sig\":\"e90f3919f0045527bc131fb9f5c59708ce62074f78c6a3e7912e1da8647b1765ab513881c0894c9814c7a2ec574d1fd0d09565d06aa559d3efe6a3785c76bf38\"}"
+      }
+    },
+    {
+      "id": "typed_nip10_direct_reply_005",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.social.reply.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 1,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "e",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "wss://relay.example.com",
+            "root"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "Direct reply",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,1,[[\"e\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"wss://relay.example.com\",\"root\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"Direct reply\"]",
+        "event_id": "89ce87ff86cd157d115d23ea63ba9f9323525af4a1035edc58407a2733efb413",
+        "signature": "3d012eae90eed5b0b00a0ce91c3779ad72bc91233b33fe520c588479619060ab6271f06933ac50d92a0e7dfffa91c41c7ad1291b4310166fb4a58a469bc4dfec",
+        "raw_json": "{\"id\":\"89ce87ff86cd157d115d23ea63ba9f9323525af4a1035edc58407a2733efb413\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":1,\"tags\":[[\"e\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"wss://relay.example.com\",\"root\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"Direct reply\",\"sig\":\"3d012eae90eed5b0b00a0ce91c3779ad72bc91233b33fe520c588479619060ab6271f06933ac50d92a0e7dfffa91c41c7ad1291b4310166fb4a58a469bc4dfec\"}"
+      }
+    },
+    {
+      "id": "typed_nip09_sorted_targets_006",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.social.deletion_request.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 5,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "e",
+            "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          ],
+          [
+            "a",
+            "0:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:"
+          ],
+          [
+            "a",
+            "30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:carrots"
+          ],
+          [
+            "k",
+            "0"
+          ],
+          [
+            "k",
+            "1"
+          ],
+          [
+            "k",
+            "30402"
+          ]
+        ],
+        "content": "superseded",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,5,[[\"e\",\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"],[\"a\",\"0:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:\"],[\"a\",\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:carrots\"],[\"k\",\"0\"],[\"k\",\"1\"],[\"k\",\"30402\"]],\"superseded\"]",
+        "event_id": "f8f3e07f23928f32be533b6a3b013eb15dd0ed2ecca851774461a4e4081acfa3",
+        "signature": "cf54061a7224e13cc54880ad0e64d95e971eb48b9f08f96de7fac68b5c2056e9f737253cdb15e61a566bb503142c1992abdb025ccadf08634efc7e623514aa0e",
+        "raw_json": "{\"id\":\"f8f3e07f23928f32be533b6a3b013eb15dd0ed2ecca851774461a4e4081acfa3\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":5,\"tags\":[[\"e\",\"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\"],[\"a\",\"0:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:\"],[\"a\",\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:carrots\"],[\"k\",\"0\"],[\"k\",\"1\"],[\"k\",\"30402\"]],\"content\":\"superseded\",\"sig\":\"cf54061a7224e13cc54880ad0e64d95e971eb48b9f08f96de7fac68b5c2056e9f737253cdb15e61a566bb503142c1992abdb025ccadf08634efc7e623514aa0e\"}"
+      }
+    },
+    {
+      "id": "typed_nip22_top_level_event_007",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.social.comment.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 1111,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "E",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "wss://relay.example.com",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ],
+          [
+            "K",
+            "30402"
+          ],
+          [
+            "P",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af",
+            "wss://relay.example.com"
+          ],
+          [
+            "e",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "wss://relay.example.com",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ],
+          [
+            "k",
+            "30402"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af",
+            "wss://relay.example.com"
+          ]
+        ],
+        "content": "Are these carrots available Saturday?",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,1111,[[\"E\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"wss://relay.example.com\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"],[\"K\",\"30402\"],[\"P\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"wss://relay.example.com\"],[\"e\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"wss://relay.example.com\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"],[\"k\",\"30402\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"wss://relay.example.com\"]],\"Are these carrots available Saturday?\"]",
+        "event_id": "a3d324a8eef83c53168ed0635d416a6152575f6882a1e67984a3d62144aa1789",
+        "signature": "c6e72dbbb54c7d1230257f5cb40a859461a6ad538ae689cc9794c5dfa28f5d8a031bfcd04a156769fbffd35832f5ee05fd1e01bea20776f8d5a227ff7fbffcba",
+        "raw_json": "{\"id\":\"a3d324a8eef83c53168ed0635d416a6152575f6882a1e67984a3d62144aa1789\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":1111,\"tags\":[[\"E\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"wss://relay.example.com\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"],[\"K\",\"30402\"],[\"P\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"wss://relay.example.com\"],[\"e\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"wss://relay.example.com\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"],[\"k\",\"30402\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"wss://relay.example.com\"]],\"content\":\"Are these carrots available Saturday?\",\"sig\":\"c6e72dbbb54c7d1230257f5cb40a859461a6ad538ae689cc9794c5dfa28f5d8a031bfcd04a156769fbffd35832f5ee05fd1e01bea20776f8d5a227ff7fbffcba\"}"
+      }
+    },
+    {
+      "id": "typed_food_availability_optional_quantity_008",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.food.availability.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 30402,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "d",
+            "nantes-carrots"
+          ],
+          [
+            "title",
+            "Nantes Carrots"
+          ],
+          [
+            "summary",
+            "Fresh bunches"
+          ],
+          [
+            "published_at",
+            "1784347100"
+          ],
+          [
+            "location",
+            "Central Saanich, BC"
+          ],
+          [
+            "price",
+            "3",
+            "CAD"
+          ],
+          [
+            "radroots:price_unit",
+            "lb"
+          ],
+          [
+            "radroots:quantity",
+            "24",
+            "lb"
+          ],
+          [
+            "status",
+            "active"
+          ]
+        ],
+        "content": "Carrots available this week.",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,30402,[[\"d\",\"nantes-carrots\"],[\"title\",\"Nantes Carrots\"],[\"summary\",\"Fresh bunches\"],[\"published_at\",\"1784347100\"],[\"location\",\"Central Saanich, BC\"],[\"price\",\"3\",\"CAD\"],[\"radroots:price_unit\",\"lb\"],[\"radroots:quantity\",\"24\",\"lb\"],[\"status\",\"active\"]],\"Carrots available this week.\"]",
+        "event_id": "46e6584b2a23a96bad5d899d4df2c7803dfa363a9ecf95e389ecb935b512f454",
+        "signature": "e159b747ba94215066bb0a6e3845d828204b528551722a76e7d4a867f47f2fd4ff87abf6bbc9c90eab1f4e265d43fcadf2a5afb494bb90f73183f14ff637e98b",
+        "raw_json": "{\"id\":\"46e6584b2a23a96bad5d899d4df2c7803dfa363a9ecf95e389ecb935b512f454\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":30402,\"tags\":[[\"d\",\"nantes-carrots\"],[\"title\",\"Nantes Carrots\"],[\"summary\",\"Fresh bunches\"],[\"published_at\",\"1784347100\"],[\"location\",\"Central Saanich, BC\"],[\"price\",\"3\",\"CAD\"],[\"radroots:price_unit\",\"lb\"],[\"radroots:quantity\",\"24\",\"lb\"],[\"status\",\"active\"]],\"content\":\"Carrots available this week.\",\"sig\":\"e159b747ba94215066bb0a6e3845d828204b528551722a76e7d4a867f47f2fd4ff87abf6bbc9c90eab1f4e265d43fcadf2a5afb494bb90f73183f14ff637e98b\"}"
+      }
+    },
+    {
+      "id": "typed_calendar_date_event_011",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.calendar.date_event.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 31922,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "d",
+            "market-day"
+          ],
+          [
+            "title",
+            "Saturday Market"
+          ],
+          [
+            "start",
+            "2026-08-08"
+          ],
+          [
+            "end",
+            "2026-08-09"
+          ],
+          [
+            "location",
+            "Central Saanich, BC"
+          ],
+          [
+            "summary",
+            "Local food and seeds"
+          ]
+        ],
+        "content": "Farmers market and seed swap.",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,31922,[[\"d\",\"market-day\"],[\"title\",\"Saturday Market\"],[\"start\",\"2026-08-08\"],[\"end\",\"2026-08-09\"],[\"location\",\"Central Saanich, BC\"],[\"summary\",\"Local food and seeds\"]],\"Farmers market and seed swap.\"]",
+        "event_id": "b63f56e5a5a8ec22d084fbcafbaa03f3ffd2580dc9df50bb18d5df8c64ddcbe6",
+        "signature": "0de7de628fb564be7b5d34e49cfe0d217476d8cca4a6e2cdf06b351401cd6e2476a30d7ad87a815bf74cd7ae47987379341487d71dc70913674dd7fc792a4469",
+        "raw_json": "{\"id\":\"b63f56e5a5a8ec22d084fbcafbaa03f3ffd2580dc9df50bb18d5df8c64ddcbe6\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":31922,\"tags\":[[\"d\",\"market-day\"],[\"title\",\"Saturday Market\"],[\"start\",\"2026-08-08\"],[\"end\",\"2026-08-09\"],[\"location\",\"Central Saanich, BC\"],[\"summary\",\"Local food and seeds\"]],\"content\":\"Farmers market and seed swap.\",\"sig\":\"0de7de628fb564be7b5d34e49cfe0d217476d8cca4a6e2cdf06b351401cd6e2476a30d7ad87a815bf74cd7ae47987379341487d71dc70913674dd7fc792a4469\"}"
+      }
+    },
+    {
+      "id": "typed_calendar_time_event_012",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.calendar.time_event.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 31923,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "d",
+            "farm-tour"
+          ],
+          [
+            "title",
+            "Farm Tour"
+          ],
+          [
+            "start",
+            "1784380800"
+          ],
+          [
+            "end",
+            "1784387900"
+          ],
+          [
+            "D",
+            "20652"
+          ],
+          [
+            "start_tzid",
+            "America/Vancouver"
+          ],
+          [
+            "location",
+            "Saanich Peninsula"
+          ]
+        ],
+        "content": "Walk the fields and meet the growers.",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,31923,[[\"d\",\"farm-tour\"],[\"title\",\"Farm Tour\"],[\"start\",\"1784380800\"],[\"end\",\"1784387900\"],[\"D\",\"20652\"],[\"start_tzid\",\"America/Vancouver\"],[\"location\",\"Saanich Peninsula\"]],\"Walk the fields and meet the growers.\"]",
+        "event_id": "22d1538c18614f9c089cbccd9de91dab5dcd55d7a41bce07a7282f49ce757433",
+        "signature": "ddac1ac03aed8b888bde2fae0915e07cab85a1f1bcd2f1ce2812befb0456f320a03bea94e1469f62aa1ecaceb241bada4449c3707f34d42cb378299c6a4793f5",
+        "raw_json": "{\"id\":\"22d1538c18614f9c089cbccd9de91dab5dcd55d7a41bce07a7282f49ce757433\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":31923,\"tags\":[[\"d\",\"farm-tour\"],[\"title\",\"Farm Tour\"],[\"start\",\"1784380800\"],[\"end\",\"1784387900\"],[\"D\",\"20652\"],[\"start_tzid\",\"America/Vancouver\"],[\"location\",\"Saanich Peninsula\"]],\"content\":\"Walk the fields and meet the growers.\",\"sig\":\"ddac1ac03aed8b888bde2fae0915e07cab85a1f1bcd2f1ce2812befb0456f320a03bea94e1469f62aa1ecaceb241bada4449c3707f34d42cb378299c6a4793f5\"}"
+      }
+    },
+    {
+      "id": "generic_operational_listing_009",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.operational_listing.published.v1",
+        "authoring": "generic"
+      },
+      "expected": {
+        "kind": 30402,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "d",
+            "AAAAAAAAAAAAAAAAAAAAAg"
+          ],
+          [
+            "p",
+            "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+          ],
+          [
+            "a",
+            "30340:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:AAAAAAAAAAAAAAAAAAAAAA"
+          ],
+          [
+            "key",
+            "carrot-nantes"
+          ],
+          [
+            "title",
+            "Nantes Carrots"
+          ],
+          [
+            "category",
+            "produce"
+          ],
+          [
+            "summary",
+            "Fresh bunches harvested in Saanich"
+          ],
+          [
+            "published_at",
+            "1700000000"
+          ],
+          [
+            "radroots:primary_bin",
+            "bunch"
+          ],
+          [
+            "radroots:bin",
+            "bunch",
+            "1",
+            "each"
+          ],
+          [
+            "radroots:price",
+            "bunch",
+            "4",
+            "CAD",
+            "1",
+            "each"
+          ],
+          [
+            "price",
+            "4",
+            "CAD"
+          ],
+          [
+            "inventory",
+            "24"
+          ],
+          [
+            "status",
+            "active"
+          ],
+          [
+            "delivery",
+            "pickup"
+          ],
+          [
+            "location",
+            "Saanich Peninsula",
+            "Victoria",
+            "BC",
+            "CA"
+          ],
+          [
+            "g",
+            "c28hr"
+          ]
+        ],
+        "content": "# Nantes Carrots\n\nFresh bunches harvested in Saanich",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,30402,[[\"d\",\"AAAAAAAAAAAAAAAAAAAAAg\"],[\"p\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"],[\"a\",\"30340:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:AAAAAAAAAAAAAAAAAAAAAA\"],[\"key\",\"carrot-nantes\"],[\"title\",\"Nantes Carrots\"],[\"category\",\"produce\"],[\"summary\",\"Fresh bunches harvested in Saanich\"],[\"published_at\",\"1700000000\"],[\"radroots:primary_bin\",\"bunch\"],[\"radroots:bin\",\"bunch\",\"1\",\"each\"],[\"radroots:price\",\"bunch\",\"4\",\"CAD\",\"1\",\"each\"],[\"price\",\"4\",\"CAD\"],[\"inventory\",\"24\"],[\"status\",\"active\"],[\"delivery\",\"pickup\"],[\"location\",\"Saanich Peninsula\",\"Victoria\",\"BC\",\"CA\"],[\"g\",\"c28hr\"]],\"# Nantes Carrots\\n\\nFresh bunches harvested in Saanich\"]",
+        "event_id": "da14c35c4afe472a2ddef6d7298cc736782eaf09b55511c3b5774ad79468ada8",
+        "signature": "07edaeab0b05807d4987346c95fd2441b46949be03f455bfbb3678c07b50fa95fb563b509b33f5d547e7cb74f09475c04e281c66362a8db206e57ee757d60dbe",
+        "raw_json": "{\"id\":\"da14c35c4afe472a2ddef6d7298cc736782eaf09b55511c3b5774ad79468ada8\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":30402,\"tags\":[[\"d\",\"AAAAAAAAAAAAAAAAAAAAAg\"],[\"p\",\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"],[\"a\",\"30340:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:AAAAAAAAAAAAAAAAAAAAAA\"],[\"key\",\"carrot-nantes\"],[\"title\",\"Nantes Carrots\"],[\"category\",\"produce\"],[\"summary\",\"Fresh bunches harvested in Saanich\"],[\"published_at\",\"1700000000\"],[\"radroots:primary_bin\",\"bunch\"],[\"radroots:bin\",\"bunch\",\"1\",\"each\"],[\"radroots:price\",\"bunch\",\"4\",\"CAD\",\"1\",\"each\"],[\"price\",\"4\",\"CAD\"],[\"inventory\",\"24\"],[\"status\",\"active\"],[\"delivery\",\"pickup\"],[\"location\",\"Saanich Peninsula\",\"Victoria\",\"BC\",\"CA\"],[\"g\",\"c28hr\"]],\"content\":\"# Nantes Carrots\\n\\nFresh bunches harvested in Saanich\",\"sig\":\"07edaeab0b05807d4987346c95fd2441b46949be03f455bfbb3678c07b50fa95fb563b509b33f5d547e7cb74f09475c04e281c66362a8db206e57ee757d60dbe\"}"
+      }
+    },
+    {
+      "id": "typed_trade_proposal_010",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.proposal.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3470,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.proposal.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "mutation"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate\":{\"base_candidate_id\":null,\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"cancellation\":{\"buyer_pre_agreement\":true,\"post_agreement_cutoff_unix_s\":null,\"profile_id\":\"buyer-pre-agreement\"},\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"economics\":{\"adjustment_total_mantissa\":\"0\",\"adjustments\":[],\"currency_code\":\"USD\",\"currency_exponent\":2,\"discount_total_mantissa\":\"0\",\"profile_id\":\"mvp-fixed\",\"rounding_profile\":\"half-even\",\"subtotal_mantissa\":\"1000\",\"total_mantissa\":\"1000\"},\"farm_id\":\"farm-1\",\"fulfillment\":{\"ends_at_unix_s\":1800003600,\"fold\":0,\"location_class\":\"farmstand\",\"method\":\"pickup\",\"profile_id\":\"market-pickup\",\"requires_private_terms\":false,\"starts_at_unix_s\":1800000000,\"timezone\":\"America/New_York\",\"utc_offset_seconds\":-18000},\"line_tombstones\":[],\"lines\":[{\"bin_id\":\"bin-1\",\"currency_code\":\"USD\",\"line_id\":\"line-1\",\"line_subtotal_mantissa\":\"1000\",\"listing_addr\":\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\",\"listing_event_id\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"listing_snapshot_sha256\":\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"option_id\":null,\"product_id\":\"carrots\",\"quantity_mantissa\":\"2\",\"quantity_scale\":0,\"replaces_line_id\":null,\"unit_code\":\"count\",\"unit_price_mantissa\":\"500\",\"unit_profile\":\"mvp-count\"}],\"private_terms\":null,\"proposal_expires_at_unix_s\":1799999000,\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"supersession_intent\":null},\"mutation_type\":\"proposal\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.proposal.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent_mutation_ids\":[],\"root_mutation_id\":null,\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3470,[[\"contract\",\"radroots.trade.proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"mutation\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"parent_mutation_ids\\\":[],\\\"root_mutation_id\\\":null,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "58eacb99d9b4e4da7f614fb37ed84b482d2cb85e30785d49ea6a29b555bfcd3a",
+        "signature": "b39fc5d285826bda6462dc9fb8c20c6519b54d4c8ac9673f3c53c6424e2e1703762b4126282e579dcb11c6738477738a61396595fb6c13331e038c3b06b18517",
+        "raw_json": "{\"id\":\"58eacb99d9b4e4da7f614fb37ed84b482d2cb85e30785d49ea6a29b555bfcd3a\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3470,\"tags\":[[\"contract\",\"radroots.trade.proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"mutation\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"parent_mutation_ids\\\":[],\\\"root_mutation_id\\\":null,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"b39fc5d285826bda6462dc9fb8c20c6519b54d4c8ac9673f3c53c6424e2e1703762b4126282e579dcb11c6738477738a61396595fb6c13331e038c3b06b18517\"}"
+      }
+    },
+    {
+      "id": "typed_trade_decision_013",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.decision.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3471,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.decision.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"decision\":{\"decision\":\"declined\",\"reason\":\"inventory unavailable\"},\"mutation_type\":\"decision\",\"proposal_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.decision.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3471,[[\"contract\",\"radroots.trade.decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "7dbe947cbeb1cde706bb240657fee585aa4214baa61d728b7bec7ac5ee18350e",
+        "signature": "222a04c15f66c6028c5b6619116ae92958a5e853293697f2fdbe0450300a50f9bfd2f1f56f1ce3eb2bd037d938bf22f6d99ecdb924de8c2fd5f0da846c1d2817",
+        "raw_json": "{\"id\":\"7dbe947cbeb1cde706bb240657fee585aa4214baa61d728b7bec7ac5ee18350e\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3471,\"tags\":[[\"contract\",\"radroots.trade.decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"07741093fa274aa94d045fb7e5ade2938f0c9192f34ecdf19b27f512c940b027\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"222a04c15f66c6028c5b6619116ae92958a5e853293697f2fdbe0450300a50f9bfd2f1f56f1ce3eb2bd037d938bf22f6d99ecdb924de8c2fd5f0da846c1d2817\"}"
+      }
+    },
+    {
+      "id": "typed_trade_revision_proposal_014",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.revision_proposal.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3472,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.revision_proposal.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate\":{\"base_candidate_id\":null,\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"cancellation\":{\"buyer_pre_agreement\":true,\"post_agreement_cutoff_unix_s\":null,\"profile_id\":\"buyer-pre-agreement\"},\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"economics\":{\"adjustment_total_mantissa\":\"0\",\"adjustments\":[],\"currency_code\":\"USD\",\"currency_exponent\":2,\"discount_total_mantissa\":\"0\",\"profile_id\":\"mvp-fixed\",\"rounding_profile\":\"half-even\",\"subtotal_mantissa\":\"1000\",\"total_mantissa\":\"1000\"},\"farm_id\":\"farm-1\",\"fulfillment\":{\"ends_at_unix_s\":1800003600,\"fold\":0,\"location_class\":\"farmstand\",\"method\":\"pickup\",\"profile_id\":\"market-pickup\",\"requires_private_terms\":false,\"starts_at_unix_s\":1800000000,\"timezone\":\"America/New_York\",\"utc_offset_seconds\":-18000},\"line_tombstones\":[],\"lines\":[{\"bin_id\":\"bin-1\",\"currency_code\":\"USD\",\"line_id\":\"line-1\",\"line_subtotal_mantissa\":\"1000\",\"listing_addr\":\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\",\"listing_event_id\":\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\",\"listing_snapshot_sha256\":\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\",\"option_id\":null,\"product_id\":\"carrots\",\"quantity_mantissa\":\"2\",\"quantity_scale\":0,\"replaces_line_id\":null,\"unit_code\":\"count\",\"unit_price_mantissa\":\"500\",\"unit_profile\":\"mvp-count\"}],\"private_terms\":null,\"proposal_expires_at_unix_s\":1799999000,\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"supersession_intent\":null},\"mutation_type\":\"revision_proposal\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.revision_proposal.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3472,[[\"contract\",\"radroots.trade.revision_proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"revision_proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "3be0e2a2f3f9eef21127eed0dab79ce31932e05927d6558999c5a50022d2eefe",
+        "signature": "777eb26ba6b01ee154a006907cb99ad43dace95208138a30dc48d36419c93f8e1e256d3707eb28a0dd42ed50ed3954b803656f83b0259afae02bb86cc7ae3742",
+        "raw_json": "{\"id\":\"3be0e2a2f3f9eef21127eed0dab79ce31932e05927d6558999c5a50022d2eefe\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3472,\"tags\":[[\"contract\",\"radroots.trade.revision_proposal.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate\\\":{\\\"base_candidate_id\\\":null,\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"cancellation\\\":{\\\"buyer_pre_agreement\\\":true,\\\"post_agreement_cutoff_unix_s\\\":null,\\\"profile_id\\\":\\\"buyer-pre-agreement\\\"},\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"economics\\\":{\\\"adjustment_total_mantissa\\\":\\\"0\\\",\\\"adjustments\\\":[],\\\"currency_code\\\":\\\"USD\\\",\\\"currency_exponent\\\":2,\\\"discount_total_mantissa\\\":\\\"0\\\",\\\"profile_id\\\":\\\"mvp-fixed\\\",\\\"rounding_profile\\\":\\\"half-even\\\",\\\"subtotal_mantissa\\\":\\\"1000\\\",\\\"total_mantissa\\\":\\\"1000\\\"},\\\"farm_id\\\":\\\"farm-1\\\",\\\"fulfillment\\\":{\\\"ends_at_unix_s\\\":1800003600,\\\"fold\\\":0,\\\"location_class\\\":\\\"farmstand\\\",\\\"method\\\":\\\"pickup\\\",\\\"profile_id\\\":\\\"market-pickup\\\",\\\"requires_private_terms\\\":false,\\\"starts_at_unix_s\\\":1800000000,\\\"timezone\\\":\\\"America/New_York\\\",\\\"utc_offset_seconds\\\":-18000},\\\"line_tombstones\\\":[],\\\"lines\\\":[{\\\"bin_id\\\":\\\"bin-1\\\",\\\"currency_code\\\":\\\"USD\\\",\\\"line_id\\\":\\\"line-1\\\",\\\"line_subtotal_mantissa\\\":\\\"1000\\\",\\\"listing_addr\\\":\\\"30402:e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af:listing-1\\\",\\\"listing_event_id\\\":\\\"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\\\",\\\"listing_snapshot_sha256\\\":\\\"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\\\",\\\"option_id\\\":null,\\\"product_id\\\":\\\"carrots\\\",\\\"quantity_mantissa\\\":\\\"2\\\",\\\"quantity_scale\\\":0,\\\"replaces_line_id\\\":null,\\\"unit_code\\\":\\\"count\\\",\\\"unit_price_mantissa\\\":\\\"500\\\",\\\"unit_profile\\\":\\\"mvp-count\\\"}],\\\"private_terms\\\":null,\\\"proposal_expires_at_unix_s\\\":1799999000,\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"supersession_intent\\\":null},\\\"mutation_type\\\":\\\"revision_proposal\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_proposal.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"cbb2837497fd46b47b599c916b246cd569e0697b2cd8d50a51363790ae587847\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"777eb26ba6b01ee154a006907cb99ad43dace95208138a30dc48d36419c93f8e1e256d3707eb28a0dd42ed50ed3954b803656f83b0259afae02bb86cc7ae3742\"}"
+      }
+    },
+    {
+      "id": "typed_trade_revision_decision_015",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.revision_decision.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3473,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.revision_decision.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"decision\":{\"decision\":\"declined\",\"reason\":\"inventory unavailable\"},\"mutation_type\":\"revision_decision\",\"proposal_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.revision_decision.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3473,[[\"contract\",\"radroots.trade.revision_decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"revision_decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "064a6208b3a064e472fd8f1c4d56c9ca49513693d1343feb0ceeb7a8814f93b6",
+        "signature": "60a9241287ba780bcccc8b3b5c85c102bfab40fa6898990f420d634f3eba01c4b9a76a6ad9efed64d111f1e39d5b5d923810c6cd2793f71d2bd19cd7fb21cdf3",
+        "raw_json": "{\"id\":\"064a6208b3a064e472fd8f1c4d56c9ca49513693d1343feb0ceeb7a8814f93b6\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3473,\"tags\":[[\"contract\",\"radroots.trade.revision_decision.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"decision\\\":{\\\"decision\\\":\\\"declined\\\",\\\"reason\\\":\\\"inventory unavailable\\\"},\\\"mutation_type\\\":\\\"revision_decision\\\",\\\"proposal_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.revision_decision.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"bd7ab3a8f4bbff02000fa95446232f0959a3bd5fa2753f495742ad25a7809732\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"60a9241287ba780bcccc8b3b5c85c102bfab40fa6898990f420d634f3eba01c4b9a76a6ad9efed64d111f1e39d5b5d923810c6cd2793f71d2bd19cd7fb21cdf3\"}"
+      }
+    },
+    {
+      "id": "typed_trade_cancellation_016",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.trade.cancellation.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3474,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.trade.cancellation.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d",
+            "mutation"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "root"
+          ],
+          [
+            "x",
+            "05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799",
+            "parent"
+          ],
+          [
+            "p",
+            "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df"
+          ],
+          [
+            "p",
+            "e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af"
+          ]
+        ],
+        "content": "{\"author_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"authored_at_unix_s\":1784347200,\"body\":{\"mutation_type\":\"cancellation\",\"reason\":\"cancelled\",\"target_candidate_id\":\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\",\"target_claim_mutation_id\":null},\"buyer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contract_id\":\"radroots.trade.cancellation.v1\",\"counterparty_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"farm_id\":\"farm-1\",\"mutation_id\":\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\",\"parent_mutation_ids\":[\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\"],\"root_mutation_id\":\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"schema_version\":1,\"seller_pubkey\":\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\",\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3474,[[\"contract\",\"radroots.trade.cancellation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"mutation_type\\\":\\\"cancellation\\\",\\\"reason\\\":\\\"cancelled\\\",\\\"target_candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"target_claim_mutation_id\\\":null},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.cancellation.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "2cb6574e48eb71825016b5fb94aed7df459948cab74b8f45f34cc1b42ca8767a",
+        "signature": "141c3eace0da665038626a73d336e48bc2ebc2bdee1f460bedd35034d85f199c1059f5b37c3c9b8a51730c4db0b8240223c00a0fc3fc2807cb46a7b6a0504a36",
+        "raw_json": "{\"id\":\"2cb6574e48eb71825016b5fb94aed7df459948cab74b8f45f34cc1b42ca8767a\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3474,\"tags\":[[\"contract\",\"radroots.trade.cancellation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\",\"mutation\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"root\"],[\"x\",\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\",\"parent\"],[\"p\",\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\"],[\"p\",\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\"]],\"content\":\"{\\\"author_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"authored_at_unix_s\\\":1784347200,\\\"body\\\":{\\\"mutation_type\\\":\\\"cancellation\\\",\\\"reason\\\":\\\"cancelled\\\",\\\"target_candidate_id\\\":\\\"cd6471a9bc91766a455e4adb59a63c8b26881c80e2f0d96a2e882bbf75b7d533\\\",\\\"target_claim_mutation_id\\\":null},\\\"buyer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"contract_id\\\":\\\"radroots.trade.cancellation.v1\\\",\\\"counterparty_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"farm_id\\\":\\\"farm-1\\\",\\\"mutation_id\\\":\\\"fe65c35d4a280a66a309e2834a58712ad8cf837386edb8fd25b73c946b1a273d\\\",\\\"parent_mutation_ids\\\":[\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\"],\\\"root_mutation_id\\\":\\\"05623ca85936e3faeaeff1c7165926382d1534cfe7fe9650e8c029405d44a799\\\",\\\"schema_version\\\":1,\\\"seller_pubkey\\\":\\\"e0266e3cfb0d2886f91c73f5f868f3b98273713e5fcd97c081663f5518a4b3af\\\",\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"141c3eace0da665038626a73d336e48bc2ebc2bdee1f460bedd35034d85f199c1059f5b37c3c9b8a51730c4db0b8240223c00a0fc3fc2807cb46a7b6a0504a36\"}"
+      }
+    },
+    {
+      "id": "typed_rhi_evidence_attestation_017",
+      "kind": "authored_operations.wire",
+      "input": {
+        "contract_id": "radroots.rhi.evidence_attestation.v1",
+        "authoring": "typed"
+      },
+      "expected": {
+        "kind": 3441,
+        "created_at": 1784347200,
+        "pubkey": "585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df",
+        "tags": [
+          [
+            "contract",
+            "radroots.rhi.evidence_attestation.v1"
+          ],
+          [
+            "d",
+            "11111111111111111111111111111111"
+          ],
+          [
+            "x",
+            "2222222222222222222222222222222222222222222222222222222222222222",
+            "claim"
+          ],
+          [
+            "x",
+            "254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30",
+            "statement"
+          ],
+          [
+            "t",
+            "radroots:rhi-outcome:indeterminate"
+          ]
+        ],
+        "content": "{\"attestation_method\":\"signed_evidence_snapshot\",\"claim_mutation_id\":\"2222222222222222222222222222222222222222222222222222222222222222\",\"contract_id\":\"radroots.rhi.evidence_attestation.v1\",\"contract_version\":1,\"evidence_manifest_digest\":\"4444444444444444444444444444444444444444444444444444444444444444\",\"evidence_policy_digest\":\"5555555555555555555555555555555555555555555555555555555555555555\",\"issuer_pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"observed_at_unix_s\":1800000000,\"outcome\":\"indeterminate\",\"projection_digest\":\"6666666666666666666666666666666666666666666666666666666666666666\",\"reason_codes\":[\"required_source_incomplete\"],\"reducer_contract_id\":\"radroots.trade.reducer.v1\",\"reducer_contract_version\":1,\"report_id\":\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"statement_digest\":\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"supersedes_event_id\":null,\"supersedes_report_id\":null,\"trade_generation\":7,\"trade_id\":\"11111111111111111111111111111111\"}",
+        "preimage": "[0,\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",1784347200,3441,[[\"contract\",\"radroots.rhi.evidence_attestation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"2222222222222222222222222222222222222222222222222222222222222222\",\"claim\"],[\"x\",\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"statement\"],[\"t\",\"radroots:rhi-outcome:indeterminate\"]],\"{\\\"attestation_method\\\":\\\"signed_evidence_snapshot\\\",\\\"claim_mutation_id\\\":\\\"2222222222222222222222222222222222222222222222222222222222222222\\\",\\\"contract_id\\\":\\\"radroots.rhi.evidence_attestation.v1\\\",\\\"contract_version\\\":1,\\\"evidence_manifest_digest\\\":\\\"4444444444444444444444444444444444444444444444444444444444444444\\\",\\\"evidence_policy_digest\\\":\\\"5555555555555555555555555555555555555555555555555555555555555555\\\",\\\"issuer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"observed_at_unix_s\\\":1800000000,\\\"outcome\\\":\\\"indeterminate\\\",\\\"projection_digest\\\":\\\"6666666666666666666666666666666666666666666666666666666666666666\\\",\\\"reason_codes\\\":[\\\"required_source_incomplete\\\"],\\\"reducer_contract_id\\\":\\\"radroots.trade.reducer.v1\\\",\\\"reducer_contract_version\\\":1,\\\"report_id\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"statement_digest\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"supersedes_event_id\\\":null,\\\"supersedes_report_id\\\":null,\\\"trade_generation\\\":7,\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\"]",
+        "event_id": "a811ca5f84414e9d817ca47b923d8fd7f61c1a03d498b32f6b0816b99d57b8ce",
+        "signature": "8abd1ba0b3b597629939a559e2536897b602ef4e225f1552a57ddce72dd372f98ad21891cfe10bdb1a50532f50a0dd3d9b14fd46677dccd0a4fa652cdee17063",
+        "raw_json": "{\"id\":\"a811ca5f84414e9d817ca47b923d8fd7f61c1a03d498b32f6b0816b99d57b8ce\",\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"created_at\":1784347200,\"kind\":3441,\"tags\":[[\"contract\",\"radroots.rhi.evidence_attestation.v1\"],[\"d\",\"11111111111111111111111111111111\"],[\"x\",\"2222222222222222222222222222222222222222222222222222222222222222\",\"claim\"],[\"x\",\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\",\"statement\"],[\"t\",\"radroots:rhi-outcome:indeterminate\"]],\"content\":\"{\\\"attestation_method\\\":\\\"signed_evidence_snapshot\\\",\\\"claim_mutation_id\\\":\\\"2222222222222222222222222222222222222222222222222222222222222222\\\",\\\"contract_id\\\":\\\"radroots.rhi.evidence_attestation.v1\\\",\\\"contract_version\\\":1,\\\"evidence_manifest_digest\\\":\\\"4444444444444444444444444444444444444444444444444444444444444444\\\",\\\"evidence_policy_digest\\\":\\\"5555555555555555555555555555555555555555555555555555555555555555\\\",\\\"issuer_pubkey\\\":\\\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\\\",\\\"observed_at_unix_s\\\":1800000000,\\\"outcome\\\":\\\"indeterminate\\\",\\\"projection_digest\\\":\\\"6666666666666666666666666666666666666666666666666666666666666666\\\",\\\"reason_codes\\\":[\\\"required_source_incomplete\\\"],\\\"reducer_contract_id\\\":\\\"radroots.trade.reducer.v1\\\",\\\"reducer_contract_version\\\":1,\\\"report_id\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"statement_digest\\\":\\\"254686397c19fa4235eee820543e8166c0bb758af106ee998684cd9b0f548b30\\\",\\\"supersedes_event_id\\\":null,\\\"supersedes_report_id\\\":null,\\\"trade_generation\\\":7,\\\"trade_id\\\":\\\"11111111111111111111111111111111\\\"}\",\"sig\":\"8abd1ba0b3b597629939a559e2536897b602ef4e225f1552a57ddce72dd372f98ad21891cfe10bdb1a50532f50a0dd3d9b14fd46677dccd0a4fa652cdee17063\"}"
+      }
+    }
+  ]
+}
