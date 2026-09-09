@@ -134,6 +134,7 @@ final class TeraTodayStore: ObservableObject {
       refreshProjection: Bool = true,
       update: TeraTodayProjectionUpdate = .incremental
     ) async {
+        guard !Task.isCancelled else { return }
         guard let context = selectedContext else {
             cards = []
             presentation = TeraTodayPresentation()
@@ -142,7 +143,7 @@ final class TeraTodayStore: ObservableObject {
         }
 
         requestGeneration = requestGeneration.invalidated()
-        let generation = requestGeneration
+        var generation = requestGeneration
         defer {
             if generation == requestGeneration {
               presentation.stop()
@@ -151,18 +152,27 @@ final class TeraTodayStore: ObservableObject {
         frozenAsOfUnixSeconds = nil
         nextCursor = nil
         isLoadingNextPage = false
-        presentation.beginReload(refreshProjection: refreshProjection)
-        var receipt: TeraTodayRefreshReceipt?
-        if refreshProjection {
-            receipt = await refresh(context: context, update: update, generation: generation)
-        }
+        presentation.beginReload()
+        guard generation.isActive else { return }
+        await readFirstPage(context: context, generation: generation, receipt: nil)
+        guard refreshProjection, generation == requestGeneration, !Task.isCancelled else { return }
+        let receipt = await refresh(context: context, update: update, generation: generation)
         guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
+        // Invalidate pagination from the cached page before reading the updated
+        // projection, even when the new page has the same as-of timestamp.
+        requestGeneration = requestGeneration.invalidated()
+        generation = requestGeneration
+        frozenAsOfUnixSeconds = nil
+        nextCursor = nil
+        isLoadingNextPage = false
+        guard generation.isActive else { return }
         await readFirstPage(context: context, generation: generation, receipt: receipt)
     }
 
     private func refresh(
       context: TeraLocalNetwork, update: TeraTodayProjectionUpdate, generation: TeraSessionGeneration
     ) async -> TeraTodayRefreshReceipt? {
+        presentation.beginRefresh()
         do {
             let receipt = try await runtimeClient.refreshToday(
               context: context, nowUnixSeconds: clock.unixSeconds(), update: update

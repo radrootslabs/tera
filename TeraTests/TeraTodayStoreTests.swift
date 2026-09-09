@@ -151,7 +151,18 @@ final class TeraTodayStoreTests: XCTestCase {
     }
 
     @MainActor
-    private func assertCachedRefreshFailure(code: String, expected: TeraTodayFailure) async throws {
+    func testOfflineRefreshStillShowsTheGenuineEmptyLocalPage() async throws {
+        try await assertCachedRefreshFailure(
+          code: "today_relay_offline",
+          expected: .offline(message: TeraUserMessages.text(.networkUnavailable)),
+          hasCachedCards: false
+        )
+    }
+
+    @MainActor
+    private func assertCachedRefreshFailure(
+      code: String, expected: TeraTodayFailure, hasCachedCards: Bool = true
+    ) async throws {
         let context = makeContext(id: "offline", label: "Offline")
         let cached = makeCard(id: "cached", type: .update)
         let failure = TeraRuntimeFailure(
@@ -168,8 +179,8 @@ final class TeraTodayStoreTests: XCTestCase {
           pages: [
             "offline:first": TeraTodayPage(
               asOfUnixSeconds: 1_800_000_100,
-              items: [cached],
-              nextCursor: "cached-next"
+              items: hasCachedCards ? [cached] : [],
+              nextCursor: hasCachedCards ? "cached-next" : nil
             ),
             "offline:cached-next": TeraTodayPage(
               asOfUnixSeconds: 1_800_000_100,
@@ -188,12 +199,12 @@ final class TeraTodayStoreTests: XCTestCase {
 
         await store.reload()
 
-        XCTAssertEqual(store.cards.map(\.id), ["cached"])
-        XCTAssertEqual(store.presentation.content, .available)
+        XCTAssertEqual(store.cards.map(\.id), hasCachedCards ? ["cached"] : [])
+        XCTAssertEqual(store.presentation.content, hasCachedCards ? .available : .empty)
         XCTAssertEqual(store.presentation.refresh, .failed(expected))
         await store.loadNextPage()
-        XCTAssertEqual(store.cards.map(\.id), ["cached", "cached-next"])
-        XCTAssertEqual(store.presentation.content, .available)
+        XCTAssertEqual(store.cards.map(\.id), hasCachedCards ? ["cached", "cached-next"] : [])
+        XCTAssertEqual(store.presentation.content, hasCachedCards ? .available : .empty)
         XCTAssertEqual(store.presentation.refresh, .failed(expected))
         _ = try await client.stop()
     }

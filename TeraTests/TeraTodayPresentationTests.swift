@@ -19,8 +19,11 @@ final class TeraTodayPresentationTests: XCTestCase {
         await store.reload(refreshProjection: false)
       }
       let expected = store.presentation.content
+      let firstRead = await backend.pause(.page, fails: true)
       let pause = await backend.pause(.page, fails: true)
       let task = Task { await store.reload() }
+      await firstRead.entered.wait()
+      await firstRead.resume.open()
       await pause.entered.wait()
       XCTAssertEqual(store.presentation.refresh, .completed)
       XCTAssertEqual(store.presentation.content, expected)
@@ -127,12 +130,15 @@ final class TeraTodayPresentationTests: XCTestCase {
     let (client, store) = try await makeStore(backend)
     let refreshing = await backend.pause(.refresh, fails: true)
     let reading = await backend.pause(.page, fails: true)
+    let rereading = await backend.pause(.page, fails: true)
     let task = Task { await store.reload() }
+    await reading.entered.wait()
+    await reading.resume.open()
     await refreshing.entered.wait()
     await refreshing.resume.open()
-    await reading.entered.wait()
+    await rereading.entered.wait()
     XCTAssertTrue(store.presentation.isReading)
-    await reading.resume.open()
+    await rereading.resume.open()
     await task.value
     XCTAssertEqual(store.presentation.content, .notLoaded)
     XCTAssertNotNil(store.presentation.readFailure)
@@ -149,7 +155,7 @@ final class TeraTodayPresentationTests: XCTestCase {
     if cached != nil {
       await store.reload(refreshProjection: false)
     }
-    let expected = store.presentation.content
+    let expected: TeraTodayContentAvailability = (cached ?? []).isEmpty ? .empty : .available
     let pause = await backend.pause(.refresh, fails: fails)
     let task = Task { await store.reload() }
     await pause.entered.wait()

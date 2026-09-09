@@ -457,9 +457,19 @@ impl TeraRuntime {
                 .as_of
                 .filter(|value| *value != 0)
                 .ok_or(TodayError::InvalidRequest)?;
-            let state = load_state(storage, context, algorithm_generation)
-                .await?
-                .ok_or(TodayError::ProjectionMissing)?;
+            let state = match load_state(storage, context, algorithm_generation).await? {
+                Some(state) => state,
+                None => {
+                    // A first local read must not need a prior relay refresh.
+                    // Materialize only already admitted local events; errors
+                    // remain errors rather than becoming an empty feed.
+                    self.phase1_refresh_today(context, as_of, TodayProjectionUpdate::Incremental)
+                        .await?;
+                    load_state(storage, context, algorithm_generation)
+                        .await?
+                        .ok_or(TodayError::ProjectionMissing)?
+                }
+            };
             if state.store_generation != *event_status.generation().as_bytes() {
                 return Err(CursorError::Stale.into());
             }
@@ -2458,6 +2468,90 @@ mod tests {
         assert_eq!(page.items.len(), 1);
         assert_eq!(page.items[0].card.card_type, TodayCardType::Update);
         assert_eq!(page.items[0].card.content, "Fresh from the field");
+    }
+
+    #[tokio::test]
+    async fn first_local_page_materializes_an_empty_store_without_relay_refresh() {
+        let runtime = TeraRuntime::test_memory().expect("runtime");
+        let context = context(None, 1);
+        let page = runtime
+            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+            .await
+            .expect("local empty page");
+        assert!(page.items.is_empty());
+        assert!(page.next_cursor.is_none());
+        assert_eq!(page.as_of, 2_000_000_200);
+        let state = load_state(
+            runtime.client.storage().expect("storage"),
+            &context,
+            projection_generation().expect("generation"),
+        )
+        .await
+        .expect("local projection")
+        .expect("materialized");
+        assert_eq!(state.source_events, 0);
+        assert!(state.cards.is_empty());
+    }
+
+    #[tokio::test]
+    async fn first_local_page_projects_admitted_events_without_prior_projection() {
+        let runtime = TeraRuntime::test_memory().expect("runtime");
+        let context = context(None, 1);
+        let storage = runtime.client.storage().expect("storage");
+        EventStore::admit(
+            storage,
+            visible_admission(
+                signed(1, Vec::new(), "Already saved locally", 2_000_000_000),
+                2_000_000_100_000,
+            ),
+        )
+        .await
+        .expect("admitted event");
+        assert!(
+            load_state(storage, &context, projection_generation().unwrap())
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let page = runtime
+            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+            .await
+            .expect("local page");
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].card.content, "Already saved locally");
+    }
+
+    #[tokio::test]
+    async fn first_local_page_preserves_corrupt_projection_errors() {
+        let runtime = TeraRuntime::test_memory().expect("runtime");
+        let context = context(None, 1);
+        let storage = runtime.client.storage().expect("storage");
+        let key = projection_document_key(&context);
+        let corrupt = b"invalid projection".to_vec();
+        ProjectionStore::put_projection_document(
+            storage,
+            projection_id().unwrap(),
+            projection_generation().unwrap(),
+            ProjectionDocument::new(key.clone(), corrupt.clone()).unwrap(),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            runtime
+                .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+                .await,
+            Err(TodayError::CorruptProjection)
+        ));
+        let retained = ProjectionStore::projection_document(
+            storage,
+            projection_id().unwrap(),
+            projection_generation().unwrap(),
+            key,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(retained.value(), corrupt);
     }
 
     #[tokio::test]

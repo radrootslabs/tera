@@ -53,15 +53,17 @@ struct TeraTodayPresentation: Sendable, Equatable {
   private(set) var readFailure: TeraTodayFailure?
   private(set) var isReading = false
 
-  mutating func beginReload(refreshProjection: Bool) {
+  mutating func beginReload() {
     readFailure = nil
     isReading = false
     freshness = .unconfirmed
-    if refreshProjection {
-      refresh = .refreshing
-    } else if refresh == .refreshing {
+    if refresh == .refreshing {
       refresh = .idle
     }
+  }
+
+  mutating func beginRefresh() {
+    refresh = .refreshing
   }
 
   mutating func refreshCompleted() {
