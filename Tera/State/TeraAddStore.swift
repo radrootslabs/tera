@@ -28,12 +28,14 @@ final class TeraAddStore: ObservableObject {
   private let observationDelay: @Sendable (UInt32) async throws -> Void
   private let identifier: @Sendable () -> String
   private let clock: TeraClock
-  private var generation: UInt64 = 0
-  private var operationGeneration: UInt64?
+  private var generation = TeraSessionGeneration.initial
+  private var operationGeneration: TeraSessionGeneration?
   private var operationTask: Task<Void, Never>?
-  private var observationTask: Task<Void, Never>?
-  private var isStarted = false
-  private var observationGeneration: UInt64 = 0
+  private let observation = TeraStoreObservation()
+  private var configuration: TeraPresentationConfiguration?
+  private var draftsGeneration = TeraSessionGeneration.initial
+  private var probeGeneration = TeraSessionGeneration.initial
+  private var blossomGeneration = TeraSessionGeneration.initial
   private var revisionTarget: TeraRevisionTarget?
   private var revisionOperationID: String?
   private var activePublicKey: String?
@@ -54,15 +56,11 @@ final class TeraAddStore: ObservableObject {
     self.identifier = identifier
     self.clock = clock
     self.observationDelay = observationDelay
-    form = Self.newForm(
+    form = TeraAddPresentation.newForm(
       type: initialType,
       identifier: identifier,
       clock: clock
     )
-  }
-
-  deinit {
-    observationTask?.cancel()
   }
 
   var selectedSchema: TeraAddSchema? {
@@ -105,20 +103,38 @@ final class TeraAddStore: ObservableObject {
   }
 
   func configure(snapshot: TeraRuntimeSnapshot) {
+    let updated = TeraPresentationConfiguration(snapshot: snapshot)
+    if let configuration, configuration != updated {
+      stop()
+      schemas = []
+      drafts = []
+      activeDraft = nil
+      revisionTarget = nil
+      revisionOperationID = nil
+      form = TeraAddPresentation.newForm(type: form.commandType, identifier: identifier, clock: clock)
+      state = .idle
+      mediaSupport = .unavailable
+      message = nil
+      lastFailureCode = nil
+    }
+    blossomGeneration = blossomGeneration.invalidated()
+    configuration = updated
     activePublicKey = snapshot.identity.publicKeyHex
     blossomConfiguration = snapshot.blossomConfiguration
     blossomEvidence = snapshot.blossomEvidence
   }
 
   func start() async {
-    guard !isStarted else { return }
-    isStarted = true
+    guard !observation.isActive, !Task.isCancelled else { return }
     startObservation()
     guard operationGeneration == nil else { return }
     message = nil
     state = .loading
-    generation &+= 1
+    generation = generation.invalidated()
     let requestedGeneration = generation
+    draftsGeneration = draftsGeneration.invalidated()
+    let draftRequest = draftsGeneration
+    let serviceRequest = blossomGeneration
     do {
       async let schemaResult = runtimeClient.addSchemas()
       async let draftResult = runtimeClient.draftHeads(limit: 100)
@@ -128,47 +144,49 @@ final class TeraAddStore: ObservableObject {
         draftResult,
         supportResult
       )
-      guard requestedGeneration == generation else { return }
-      try await media?.reconcileBackgroundUploads(drafts: loadedDrafts)
-      try Task.checkCancellation()
-      guard requestedGeneration == generation else { return }
+      guard isCurrent(requestedGeneration) else { return }
+      if draftRequest == draftsGeneration {
+        try await media?.reconcileBackgroundUploads(drafts: loadedDrafts)
+      }
+      try ensureCurrent(requestedGeneration)
       schemas = try TeraProductSurfaceContract.validate(schemas: loadedSchemas)
-      drafts = Self.sorted(loadedDrafts)
-      mediaSupport = loadedSupport
+      if draftRequest == draftsGeneration {
+        drafts = TeraAddPresentation.sorted(loadedDrafts)
+      }
+      if serviceRequest == blossomGeneration {
+        mediaSupport = loadedSupport
+      }
       state = .ready
     } catch {
-      guard requestedGeneration == generation else { return }
-      state = .failed(Self.message(for: error))
+      guard isCurrent(requestedGeneration) else { return }
+      state = .failed(TeraAddPresentation.message(for: error))
     }
   }
 
   func stop() {
-    generation &+= 1
+    generation = generation.invalidated()
     operationGeneration = nil
+    probeGeneration = probeGeneration.invalidated()
+    isCheckingBlossom = false
     operationTask?.cancel()
     operationTask = nil
-    isStarted = false
-    observationGeneration &+= 1
-    observationTask?.cancel()
-    observationTask = nil
+    observation.stop()
     observationState = .stopped
     isWorking = false
   }
 
   func suspend() {
-    isStarted = false
-    observationGeneration &+= 1
-    observationTask?.cancel()
-    observationTask = nil
+    observation.stop()
     observationState = .stopped
   }
 
   func selectType(_ type: TeraAddCommandType) {
     guard !isWorking, isFormEditable, form.commandType != type else { return }
+    generation = generation.invalidated()
     activeDraft = nil
     revisionTarget = nil
     revisionOperationID = nil
-    form = Self.newForm(
+    form = TeraAddPresentation.newForm(
       type: type,
       identifier: identifier,
       clock: clock
@@ -178,16 +196,17 @@ final class TeraAddStore: ObservableObject {
 
   func updateForm<Value>(_ keyPath: WritableKeyPath<TeraAddForm, Value>, _ value: Value) {
     guard isFormEditable else { return }
+    generation = generation.invalidated()
     form[keyPath: keyPath] = value
   }
 
   func newDraft(type: TeraAddCommandType? = nil) {
     guard !isWorking else { return }
-    generation &+= 1
+    generation = generation.invalidated()
     activeDraft = nil
     revisionTarget = nil
     revisionOperationID = nil
-    form = Self.newForm(
+    form = TeraAddPresentation.newForm(
       type: type ?? form.commandType,
       identifier: identifier,
       clock: clock
@@ -201,7 +220,7 @@ final class TeraAddStore: ObservableObject {
       message = "This operation has no editable Add form."
       return
     }
-    generation &+= 1
+    generation = generation.invalidated()
     activeDraft = draft
     revisionTarget = nil
     revisionOperationID = draft.isRevision ? draft.id : nil
@@ -214,33 +233,50 @@ final class TeraAddStore: ObservableObject {
       message = "Photo intake is unavailable."
       return
     }
-    await perform {
+    await perform { requestedGeneration in
       let remaining = self.mediaLimit - self.form.media.count
       guard remaining > 0 else { return }
       let imported = try await media.importImages(limit: remaining)
-      try Task.checkCancellation()
+      try self.ensureCurrent(requestedGeneration)
       self.form.media.append(contentsOf: imported.prefix(remaining))
       self.message = "Photo prepared. Add descriptive text before publishing."
     }
   }
 
   func checkPhotoService() async {
-    guard !isCheckingBlossom else { return }
+    guard !isCheckingBlossom, !Task.isCancelled else { return }
     guard blossomConfiguration != nil else {
       mediaSupport = .unavailable
       message = "No photo service is configured for the current network profile."
       return
     }
+    probeGeneration = probeGeneration.invalidated()
+    let probe = probeGeneration
+    blossomGeneration = blossomGeneration.invalidated()
+    let serviceRequest = blossomGeneration
+    let requestedGeneration = generation
     isCheckingBlossom = true
-    defer { isCheckingBlossom = false }
+    defer {
+      if probe == probeGeneration {
+        isCheckingBlossom = false
+      }
+    }
     do {
-      blossomEvidence = try await runtimeClient.probeBlossom()
-      mediaSupport = try await loadMediaSupport()
+      let evidence = try await runtimeClient.probeBlossom()
+      try ensureCurrent(requestedGeneration)
+      let support = try await loadMediaSupport()
+      try ensureCurrent(requestedGeneration)
+      guard probe == probeGeneration, serviceRequest == blossomGeneration else { return }
+      blossomEvidence = evidence
+      mediaSupport = support
       message = "Photo service is reachable."
     } catch {
-      await refreshBlossomSnapshot()
+      guard isCurrent(requestedGeneration), probe == probeGeneration,
+            serviceRequest == blossomGeneration else { return }
+      guard await refreshBlossomSnapshot(), isCurrent(requestedGeneration),
+            probe == probeGeneration else { return }
       mediaSupport = .unavailable
-      message = Self.message(for: error)
+      message = TeraAddPresentation.message(for: error)
     }
   }
 
@@ -249,9 +285,9 @@ final class TeraAddStore: ObservableObject {
       message = "Camera intake is unavailable."
       return
     }
-    await perform {
+    await perform { requestedGeneration in
       let captured = try await media.captureImage()
-      try Task.checkCancellation()
+      try self.ensureCurrent(requestedGeneration)
       guard self.form.media.count < self.mediaLimit else { return }
       self.form.media.append(captured)
       self.message = "Photo prepared. Add descriptive text before publishing."
@@ -260,6 +296,7 @@ final class TeraAddStore: ObservableObject {
 
   func removeMedia(id: String) {
     guard isFormEditable else { return }
+    generation = generation.invalidated()
     form.media.removeAll(where: { $0.id == id })
   }
 
@@ -267,37 +304,40 @@ final class TeraAddStore: ObservableObject {
     guard isFormEditable,
       let index = form.media.firstIndex(where: { $0.id == id })
     else { return }
+    generation = generation.invalidated()
     form.media[index].alt = alt
   }
 
   func save() async {
-    await perform {
-      _ = try await self.saveCurrentForm()
+    await perform { requestedGeneration in
+      _ = try await self.saveCurrentForm(generation: requestedGeneration)
+      try self.ensureCurrent(requestedGeneration)
       self.message = "Draft saved on this device."
     }
   }
 
   func submit() async {
-    await perform {
+    await perform { requestedGeneration in
       var status: TeraDraftStatus =
         if let active = self.activeDraft, !active.state.isEditable {
           active
         } else {
-          try await self.saveCurrentForm()
+          try await self.saveCurrentForm(generation: requestedGeneration)
         }
 
+      try self.ensureCurrent(requestedGeneration)
       if !status.media.isEmpty,
         status.media.contains(where: { $0.stage != .verified })
       {
-        status = try await self.uploadPendingMedia(status)
+        status = try await self.uploadPendingMedia(status, generation: requestedGeneration)
       }
 
+      try self.ensureCurrent(requestedGeneration)
       if status.isRevision {
         let revision = try await self.runtimeClient.advanceRevision(
           operationID: self.revisionOperationID ?? status.id
         )
-        try Task.checkCancellation()
-        self.accept(revision)
+        try self.accept(revision, generation: requestedGeneration)
         self.message = revision.honestSummary
         return
       }
@@ -308,10 +348,11 @@ final class TeraAddStore: ObservableObject {
             id: status.id,
             expectedRevision: status.revision
           )
-          self.accept(status)
+          try self.accept(status, generation: requestedGeneration)
         } catch {
-          if Self.failure(for: error)?.code == "writable_relay_unavailable" {
-            self.accept(status)
+          try self.ensureCurrent(requestedGeneration)
+          if TeraAddPresentation.failure(for: error)?.code == "writable_relay_unavailable" {
+            try self.accept(status, generation: requestedGeneration)
             self.message =
               status.media.isEmpty
               ? "Draft saved. Configure a writable relay to publish."
@@ -322,27 +363,15 @@ final class TeraAddStore: ObservableObject {
         }
       }
 
-      do {
-        if status.state.canAdvance {
-          status = try await self.runtimeClient.advanceDraft(
-            id: status.id,
-            expectedRevision: status.revision
-          )
-          self.accept(status)
-        }
-        self.message = status.honestSummary
-      } catch {
-        // Queueing is the commit point. A later retry must reuse this immutable snapshot.
-        self.message = "Saved for retry. \(Self.message(for: error))"
-      }
+      try await self.advanceSubmittedDraft(status, generation: requestedGeneration)
     }
   }
 
   func retry(_ draft: TeraDraftStatus? = nil) async {
     guard let draft = draft ?? activeDraft else { return }
-    await perform {
+    await perform { requestedGeneration in
       var current = try await self.runtimeClient.draftStatus(id: draft.id)
-      try Task.checkCancellation()
+      try self.ensureCurrent(requestedGeneration)
       if current.state == .draft || current.state == .mediaPreparing
         || current.state == .readyToSign
       {
@@ -358,8 +387,7 @@ final class TeraAddStore: ObservableObject {
         let revision = try await self.runtimeClient.advanceRevision(
           operationID: current.id
         )
-        try Task.checkCancellation()
-        self.accept(revision)
+        try self.accept(revision, generation: requestedGeneration)
         self.message = revision.honestSummary
         return
       }
@@ -369,22 +397,21 @@ final class TeraAddStore: ObservableObject {
           expectedRevision: current.revision
         )
       }
-      self.accept(current)
+      try self.accept(current, generation: requestedGeneration)
       self.message = current.honestSummary
     }
   }
 
   func cancel(_ draft: TeraDraftStatus? = nil) async {
     guard let draft = draft ?? activeDraft, draft.state.canCancel else { return }
-    await perform {
+    await perform { requestedGeneration in
       let current = try await self.runtimeClient.draftStatus(id: draft.id)
-      try Task.checkCancellation()
+      try self.ensureCurrent(requestedGeneration)
       if current.isRevision {
         let cancelled = try await self.runtimeClient.cancelRevision(
           operationID: current.id
         )
-        try Task.checkCancellation()
-        self.accept(cancelled)
+        try self.accept(cancelled, generation: requestedGeneration)
         self.message = cancelled.honestSummary
         return
       }
@@ -392,13 +419,13 @@ final class TeraAddStore: ObservableObject {
         id: current.id,
         expectedRevision: current.revision
       )
-      self.accept(cancelled)
+      try self.accept(cancelled, generation: requestedGeneration)
       self.message = "Local work was cancelled. Any already-published relay effect is preserved."
     }
   }
 
   func retractAndRevise(_ card: TeraTodayCard) async {
-    await perform {
+    await perform { requestedGeneration in
       guard let publicKey = self.activePublicKey, publicKey == card.authorPublicKey else {
         throw TeraRuntimeFailure.local(
           operation: "add.revise",
@@ -414,7 +441,7 @@ final class TeraAddStore: ObservableObject {
         )
       }
       let source = try await self.runtimeClient.draftStatus(id: operationID)
-      try Task.checkCancellation()
+      try self.ensureCurrent(requestedGeneration)
       guard let sourceForm = source.form else {
         throw TeraRuntimeFailure.local(
           operation: "add.revise",
@@ -436,7 +463,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   func retract(_ card: TeraTodayCard) async {
-    await perform {
+    await perform { requestedGeneration in
       guard let publicKey = self.activePublicKey, publicKey == card.authorPublicKey else {
         throw TeraRuntimeFailure.local(
           operation: "add.retract",
@@ -452,7 +479,7 @@ final class TeraAddStore: ObservableObject {
         )
       }
       let draftID = self.identifier()
-      guard Self.isValidIdentifier(draftID) else {
+      guard TeraAddPresentation.isValidIdentifier(draftID) else {
         throw TeraRuntimeFailure.local(
           operation: "add.retract",
           code: "ios.add.identifier_invalid",
@@ -472,24 +499,44 @@ final class TeraAddStore: ObservableObject {
         authoredAtUnixSeconds: self.clock.unixSeconds(),
         persistedAtUnixMilliseconds: self.clock.unixMilliseconds()
       )
-      self.accept(status)
+      try self.accept(status, generation: requestedGeneration)
       status = try await self.runtimeClient.queueAddIntent(
         id: status.id,
         expectedRevision: status.revision
       )
-      self.accept(status)
+      try self.accept(status, generation: requestedGeneration)
       if status.state.canAdvance {
         status = try await self.runtimeClient.advanceDraft(
           id: status.id,
           expectedRevision: status.revision
         )
-        self.accept(status)
+        try self.accept(status, generation: requestedGeneration)
       }
       self.message = status.honestSummary
     }
   }
 
-  private func saveCurrentForm() async throws -> TeraDraftStatus {
+  private func advanceSubmittedDraft(
+    _ initial: TeraDraftStatus, generation requestedGeneration: TeraSessionGeneration
+  ) async throws {
+    var status = initial
+    do {
+      if status.state.canAdvance {
+        status = try await runtimeClient.advanceDraft(
+          id: status.id,
+          expectedRevision: status.revision
+        )
+        try accept(status, generation: requestedGeneration)
+      }
+      message = status.honestSummary
+    } catch {
+      try ensureCurrent(requestedGeneration)
+      // Queueing is the commit point. A later retry must reuse this immutable snapshot.
+      message = "Saved for retry. \(TeraAddPresentation.message(for: error))"
+    }
+  }
+
+  private func saveCurrentForm(generation requestedGeneration: TeraSessionGeneration) async throws -> TeraDraftStatus {
     guard isFormEditable else {
       throw TeraRuntimeFailure.local(
         operation: "add.save",
@@ -499,16 +546,17 @@ final class TeraAddStore: ObservableObject {
     }
     let opened = try await openedMedia()
     defer { opened.close() }
+    try ensureCurrent(requestedGeneration)
     let input = TeraAddRuntimeInput(form: form, media: opened.handles)
     if let target = revisionTarget {
       let revision = try await runtimeClient.saveRevisionIntent(
         target: target,
         replacement: input
       )
-      try Task.checkCancellation()
+      try ensureCurrent(requestedGeneration)
       revisionOperationID = revision.operationID
       revisionTarget = nil
-      accept(revision)
+      try accept(revision, generation: requestedGeneration)
       return revision.replacement
     }
     let status = try await runtimeClient.saveAddIntent(
@@ -516,12 +564,13 @@ final class TeraAddStore: ObservableObject {
       existingDraftID: activeDraft?.isRevision == true ? nil : activeDraft?.id,
       expectedRevision: activeDraft?.isRevision == true ? nil : activeDraft?.revision
     )
-    try Task.checkCancellation()
-    accept(status)
+    try accept(status, generation: requestedGeneration)
     return status
   }
 
-  private func uploadPendingMedia(_ initial: TeraDraftStatus) async throws
+  private func uploadPendingMedia(
+    _ initial: TeraDraftStatus, generation requestedGeneration: TeraSessionGeneration
+  ) async throws
     -> TeraDraftStatus
   {
     guard let media else {
@@ -535,6 +584,7 @@ final class TeraAddStore: ObservableObject {
     guard let form = status.form else { return status }
     let opened = try await openedMedia(form.media)
     defer { opened.close() }
+    try ensureCurrent(requestedGeneration)
     for mediaStatus in status.media where mediaStatus.stage != .verified {
       guard let persisted = form.media.first(where: { $0.remoteURL == mediaStatus.url }),
         let handle = opened.handles.first(where: {
@@ -553,41 +603,48 @@ final class TeraAddStore: ObservableObject {
         media: handle
       )
       let job = try await runtimeClient.prepareAddMediaBackground(input: intent)
-      try Task.checkCancellation()
-      accept(job.draft)
+      try accept(job.draft, generation: requestedGeneration)
       let receipt = try await media.uploadInBackground(job: job, media: persisted)
-      try Task.checkCancellation()
-      do {
-        status = try await runtimeClient.completeAddMediaBackground(
-          input: TeraNativeUploadCompletion(
-            draftID: receipt.draftID,
-            expectedRevision: receipt.expectedRevision,
-            media: handle,
-            statusCode: receipt.statusCode,
-            responseMediaType: receipt.mediaType,
-            responseContentEncoding: receipt.contentEncoding,
-            responseBody: receipt.body
-          )
-        )
-      } catch is CancellationError {
-        // Rust completion may already be durable. Leave the receipt awaiting
-        // verification so relaunch can reconcile the unknown outcome.
-        throw CancellationError()
-      } catch {
-        if Self.failure(for: error)?.code == "ios.runtime.cancelled" {
-          // The bounded runtime client cannot prove whether a cancelled FFI
-          // completion became durable. Preserve the receipt for reconciliation.
-          throw CancellationError()
-        }
-        try? await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: false)
-        throw error
-      }
+      try ensureCurrent(requestedGeneration)
+      status = try await completeBackgroundUpload(receipt, handle: handle, media: media)
       try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
-      try Task.checkCancellation()
-      accept(status)
+      try accept(status, generation: requestedGeneration)
       await refreshBlossomSnapshot()
+      try ensureCurrent(requestedGeneration)
     }
     return status
+  }
+
+  private func completeBackgroundUpload(
+    _ receipt: TeraAddBackgroundUploadReceipt,
+    handle: TeraPreparedMediaHandle,
+    media: any TeraAddMediaHandling
+  ) async throws -> TeraDraftStatus {
+    do {
+      return try await runtimeClient.completeAddMediaBackground(
+        input: TeraNativeUploadCompletion(
+          draftID: receipt.draftID,
+          expectedRevision: receipt.expectedRevision,
+          media: handle,
+          statusCode: receipt.statusCode,
+          responseMediaType: receipt.mediaType,
+          responseContentEncoding: receipt.contentEncoding,
+          responseBody: receipt.body
+        )
+      )
+    } catch is CancellationError {
+      // Rust completion may already be durable. Leave the receipt awaiting
+      // verification so relaunch can reconcile the unknown outcome.
+      throw CancellationError()
+    } catch {
+      if TeraAddPresentation.failure(for: error)?.code == "ios.runtime.cancelled" {
+        // The bounded runtime client cannot prove whether a cancelled FFI
+        // completion became durable. Preserve the receipt for reconciliation.
+        throw CancellationError()
+      }
+      try? await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: false)
+      throw error
+    }
   }
 
   private func openedMedia(_ values: [TeraPreparedMedia]? = nil) async throws
@@ -606,16 +663,21 @@ final class TeraAddStore: ObservableObject {
   }
 
   private func reloadDrafts() async {
+    let requestedGeneration = generation
+    draftsGeneration = draftsGeneration.invalidated()
+    let request = draftsGeneration
     do {
       let loaded = try await runtimeClient.draftHeads(limit: 100)
-      drafts = Self.sorted(loaded)
-      if let activeDraft,
-        let current = loaded.first(where: { $0.id == activeDraft.id })
+      guard isCurrent(requestedGeneration), request == draftsGeneration else { return }
+      drafts = TeraAddPresentation.sorted(loaded)
+      if let activeDraft, let current = loaded.first(where: { $0.id == activeDraft.id }),
+         current.revision >= activeDraft.revision
       {
         self.activeDraft = current
       }
     } catch {
-      message = Self.message(for: error)
+      guard isCurrent(requestedGeneration), request == draftsGeneration else { return }
+      message = TeraAddPresentation.message(for: error)
     }
   }
 
@@ -624,87 +686,76 @@ final class TeraAddStore: ObservableObject {
     return try await media.support()
   }
 
-  private func refreshBlossomSnapshot() async {
-    guard let snapshot = try? await runtimeClient.snapshot() else { return }
-    blossomConfiguration = snapshot.blossomConfiguration
-    blossomEvidence = snapshot.blossomEvidence
+  @discardableResult
+  private func refreshBlossomSnapshot() async -> Bool {
+    let requestedGeneration = generation
+    blossomGeneration = blossomGeneration.invalidated()
+    let request = blossomGeneration
+    let snapshot = try? await runtimeClient.snapshot()
+    guard isCurrent(requestedGeneration), request == blossomGeneration else { return false }
+    if let snapshot, configuration == TeraPresentationConfiguration(snapshot: snapshot) {
+      blossomConfiguration = snapshot.blossomConfiguration
+      blossomEvidence = snapshot.blossomEvidence
+    }
+    return true
   }
 
   private func startObservation() {
-    observationGeneration &+= 1
-    let requestedGeneration = observationGeneration
-    observationTask = Task { [weak self] in
-      await self?.observe(generation: requestedGeneration)
-    }
-  }
-
-  private func observe(generation: UInt64) async {
-    var attempt: UInt32 = 0
-    while isStarted, observationGeneration == generation, !Task.isCancelled {
-      observationState = .subscribing(attempt: attempt &+ 1)
-      var failureMessage = TeraUserMessages.text(.runtimeObservationUnavailable)
-      do {
-        let changes = try await runtimeClient.changes(bufferCapacity: 16)
-        observationState = .active
-        for await change in changes {
-          guard !Task.isCancelled else { break }
-          attempt = 0
-          if change.kind == .drafts || change.kind == .media {
-            await reloadDrafts()
-          }
-          if change.kind == .media || change.kind == .settings {
-            await refreshBlossomSnapshot()
-          }
+    observation.start(
+      client: runtimeClient, capacity: 16, delay: observationDelay,
+      state: { [weak self] in self?.observationState = $0 },
+      change: { [weak self] change in
+        guard let self else { return }
+        let requested = generation
+        if change.kind == .drafts || change.kind == .media {
+          await reloadDrafts()
         }
-      } catch {
-        failureMessage = TeraUserMessages.text(
-          for: error,
-          fallback: .runtimeObservationUnavailable
-        )
+        guard isCurrent(requested) else { return }
+        if change.kind == .media || change.kind == .settings {
+          await refreshBlossomSnapshot()
+        }
       }
-      guard isStarted, observationGeneration == generation, !Task.isCancelled else { break }
-      attempt = attempt == .max ? .max : attempt + 1
-      observationState = .retrying(attempt: attempt, message: failureMessage)
-      do {
-        try await observationDelay(attempt)
-      } catch {
-        break
-      }
-    }
-    guard observationGeneration == generation else { return }
-    observationTask = nil
-    isStarted = false
-    if case .retrying = observationState {
-      return
-    }
-    observationState = .stopped
+    )
   }
 
-  private func accept(_ status: TeraDraftStatus) {
-    guard operationGeneration == generation else { return }
+  private func isCurrent(_ requested: TeraSessionGeneration) -> Bool {
+    requested == generation && generation.isActive && !Task.isCancelled
+  }
+
+  private func ensureCurrent(_ requested: TeraSessionGeneration) throws {
+    guard isCurrent(requested) else { throw CancellationError() }
+  }
+
+  private func accept(
+    _ status: TeraDraftStatus, generation requested: TeraSessionGeneration
+  ) throws {
+    try ensureCurrent(requested)
+    draftsGeneration = draftsGeneration.invalidated()
     activeDraft = status
     if let form = status.form {
       self.form = form
     }
     drafts.removeAll(where: { $0.id == status.id })
     drafts.append(status)
-    drafts = Self.sorted(drafts)
+    drafts = TeraAddPresentation.sorted(drafts)
   }
 
-  private func accept(_ status: TeraRevisionStatus) {
-    guard operationGeneration == generation else { return }
+  private func accept(
+    _ status: TeraRevisionStatus, generation requested: TeraSessionGeneration
+  ) throws {
+    try ensureCurrent(requested)
     revisionOperationID = status.operationID
-    accept(status.replacement)
+    try accept(status.replacement, generation: requested)
     if let retraction = status.retraction {
       drafts.removeAll(where: { $0.id == retraction.id })
       drafts.append(retraction)
-      drafts = Self.sorted(drafts)
+      drafts = TeraAddPresentation.sorted(drafts)
     }
   }
 
-  private func perform(_ operation: @escaping () async throws -> Void) async {
+  private func perform(_ operation: @escaping (TeraSessionGeneration) async throws -> Void) async {
     guard operationTask == nil, !Task.isCancelled else { return }
-    generation &+= 1
+    generation = generation.invalidated()
     let requestedGeneration = generation
     operationGeneration = requestedGeneration
     isWorking = true
@@ -719,92 +770,30 @@ final class TeraAddStore: ObservableObject {
   }
 
   private func execute(
-    _ operation: @escaping () async throws -> Void,
-    generation requestedGeneration: UInt64
+    _ operation: @escaping (TeraSessionGeneration) async throws -> Void,
+    generation requestedGeneration: TeraSessionGeneration
   ) async {
+    defer {
+      if operationGeneration == requestedGeneration {
+        isWorking = false
+        operationGeneration = nil
+        operationTask = nil
+      }
+    }
     do {
-      try await operation()
+      try ensureCurrent(requestedGeneration)
+      try await operation(requestedGeneration)
     } catch is CancellationError {
-      if requestedGeneration == generation {
+      if isCurrent(requestedGeneration) {
         message = TeraUserMessages.text(.operationCancelled)
       }
     } catch {
-      if requestedGeneration == generation {
+      if isCurrent(requestedGeneration) {
         await refreshBlossomSnapshot()
-        message = Self.message(for: error)
-        lastFailureCode = Self.failure(for: error)?.code
+        guard isCurrent(requestedGeneration) else { return }
+        message = TeraAddPresentation.message(for: error)
+        lastFailureCode = TeraAddPresentation.failure(for: error)?.code
       }
     }
-    if requestedGeneration == generation {
-      isWorking = false
-      operationGeneration = nil
-      operationTask = nil
-    }
-  }
-
-  private static func sorted(_ drafts: [TeraDraftStatus]) -> [TeraDraftStatus] {
-    drafts.sorted {
-      if $0.updatedAtUnixMilliseconds == $1.updatedAtUnixMilliseconds {
-        return $0.id < $1.id
-      }
-      return $0.updatedAtUnixMilliseconds > $1.updatedAtUnixMilliseconds
-    }
-  }
-
-  private static func newForm(
-    type: TeraAddCommandType,
-    identifier: @Sendable () -> String,
-    clock: TeraClock
-  ) -> TeraAddForm {
-    var form = TeraAddForm.empty(type)
-    if type == .createEvent || type == .createFoodAvailability {
-      let value = identifier()
-      if isValidIdentifier(value) {
-        form.identifier = value
-      }
-    }
-    if type == .createEvent {
-      guard let now = try? clock.unixSeconds() else {
-        return form
-      }
-      let start = now.addingReportingOverflow(3600).overflow ? now : now + 3600
-      let end = start.addingReportingOverflow(3600).overflow ? start : start + 3600
-      form.eventStartUnixSeconds = start
-      form.eventEndUnixSeconds = end
-      form.eventStartDate = eventDateFormatter.string(
-        from: Date(timeIntervalSince1970: TimeInterval(start))
-      )
-      form.eventEndDate = eventDateFormatter.string(
-        from: Date(timeIntervalSince1970: TimeInterval(end))
-      )
-    }
-    return form
-  }
-
-  private static func isValidIdentifier(_ value: String) -> Bool {
-    value.utf8.count == 32
-      && value.utf8.allSatisfy { byte in
-        (byte >= 0x30 && byte <= 0x39) || (byte >= 0x61 && byte <= 0x66)
-      }
-  }
-
-  private static let eventDateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.calendar = Calendar(identifier: .gregorian)
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    formatter.dateFormat = "yyyy-MM-dd"
-    return formatter
-  }()
-
-  private static func message(for error: Error) -> String {
-    TeraUserMessages.text(for: error, fallback: .addOperationFailed)
-  }
-
-  private static func failure(for error: Error) -> TeraRuntimeFailure? {
-    if case let TeraRuntimeClientError.add(failure) = error {
-      return failure
-    }
-    return error as? TeraRuntimeFailure
   }
 }

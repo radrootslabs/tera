@@ -15,9 +15,12 @@ final class TeraSessionResourceTests: XCTestCase {
     await pause.entered.wait()
     let current = await fixture.session.start()
     guard case .running = current else { return XCTFail("New session must adopt the shared runtime") }
+    let commands = await fixture.backend.identityCommands
     await pause.resume.open()
     _ = await old.value
     try await assertRunning(fixture, phase: current)
+    let after = await fixture.backend.identityCommands
+    XCTAssertEqual(after, commands, "Superseded reconciliation cannot issue identity commands in the live session")
     _ = await fixture.session.stop()
   }
 
@@ -30,9 +33,12 @@ final class TeraSessionResourceTests: XCTestCase {
     await pause.entered.wait()
     let current = await fixture.session.start()
     guard case .running = current else { return XCTFail("New session must adopt the shared runtime") }
+    let commands = await fixture.backend.identityCommands
     await pause.resume.open()
     _ = await old.value
     try await assertRunning(fixture, phase: current)
+    let after = await fixture.backend.identityCommands
+    XCTAssertEqual(after, commands, "Superseded reconciliation cannot issue identity commands in the live session")
     _ = await fixture.session.stop()
   }
 

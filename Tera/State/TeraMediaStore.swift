@@ -25,10 +25,27 @@ enum TeraMediaPresentationState: Equatable {
 
 @MainActor
 final class TeraMediaStore: ObservableObject {
-  @Published private var states: [String: TeraMediaPresentationState] = [:]
+  struct Request: Hashable {
+    let referenceID: String
+    let context: TeraLocalNetwork?
+  }
+
+  private struct Key: Hashable {
+    let account: String?
+    let context: TeraLocalNetwork
+    let reference: String
+  }
+
+  private struct Work {
+    let id: UUID
+    let task: Task<Void, Never>
+  }
+
+  @Published private var states: [Key: TeraMediaPresentationState] = [:]
 
   private let runtimeClient: TeraRuntimeClient
-  private var tasks: [String: Task<Void, Never>] = [:]
+  private var tasks: [Key: Work] = [:]
+  private var configuration: TeraPresentationConfiguration?
 
   init(runtimeClient: TeraRuntimeClient) {
     self.runtimeClient = runtimeClient
@@ -36,7 +53,7 @@ final class TeraMediaStore: ObservableObject {
 
   deinit {
     for task in tasks.values {
-      task.cancel()
+      task.task.cancel()
     }
   }
 
@@ -45,7 +62,7 @@ final class TeraMediaStore: ObservableObject {
     context: TeraLocalNetwork?
   ) -> TeraMediaPresentationState {
     guard let context else { return .unavailable }
-    if let state = states[Self.key(media: media, context: context)] {
+    if let state = states[key(media: media, context: context)] {
       return state
     }
     switch media.verification {
@@ -57,7 +74,7 @@ final class TeraMediaStore: ObservableObject {
 
   func load(media: TeraMediaReference, context: TeraLocalNetwork?) {
     guard let context else { return }
-    let key = Self.key(media: media, context: context)
+    let key = key(media: media, context: context)
     guard states[key] == nil, tasks[key] == nil else { return }
     switch media.verification {
     case .pending:
@@ -84,8 +101,8 @@ final class TeraMediaStore: ObservableObject {
 
   func retry(media: TeraMediaReference, context: TeraLocalNetwork?) {
     guard let context else { return }
-    let key = Self.key(media: media, context: context)
-    tasks[key]?.cancel()
+    let key = key(media: media, context: context)
+    tasks[key]?.task.cancel()
     tasks[key] = nil
     states[key] = nil
     start(key: key, context: context) { [runtimeClient] in
@@ -95,60 +112,63 @@ final class TeraMediaStore: ObservableObject {
 
   func reset() {
     for task in tasks.values {
-      task.cancel()
+      task.task.cancel()
     }
     tasks.removeAll(keepingCapacity: false)
     states.removeAll(keepingCapacity: false)
   }
 
+  func configure(snapshot: TeraRuntimeSnapshot) {
+    let updated = TeraPresentationConfiguration(snapshot: snapshot)
+    guard configuration != updated else { return }
+    reset()
+    configuration = updated
+  }
+
   private func start(
-    key: String,
+    key: Key,
     context: TeraLocalNetwork,
     operation: @escaping @Sendable () async throws -> TeraVerifiedMediaArtifact?
   ) {
     states[key] = .loading
-    tasks[key] = Task { [weak self] in
-      guard let self else { return }
+    let id = UUID()
+    let task = Task { [weak self] in
       do {
-        guard let artifact = try await operation() else {
-          complete(key: key, state: .unavailable)
+        let artifact = try await operation()
+        guard let self, isCurrent(key: key, id: id) else { return }
+        guard let artifact else {
+          complete(key: key, id: id, state: .unavailable)
           return
         }
         guard UIImage(data: artifact.bytes) != nil else {
-          await invalidateCorrupt(artifact: artifact, context: context, key: key)
+          _ = try? await runtimeClient.invalidateMediaArtifact(
+            context: context, artifactID: artifact.artifactID
+          )
+          complete(key: key, id: id, state: .corrupt)
           return
         }
-        complete(key: key, state: .ready(artifact))
+        complete(key: key, id: id, state: .ready(artifact))
       } catch is CancellationError {
-        complete(key: key, state: nil)
+        self?.complete(key: key, id: id, state: nil)
       } catch {
-        complete(key: key, state: Self.failureState(error))
+        self?.complete(key: key, id: id, state: Self.failureState(error))
       }
     }
+    tasks[key] = Work(id: id, task: task)
   }
 
-  private func invalidateCorrupt(
-    artifact: TeraVerifiedMediaArtifact,
-    context: TeraLocalNetwork,
-    key: String
-  ) async {
-    _ = try? await runtimeClient.invalidateMediaArtifact(
-      context: context,
-      artifactID: artifact.artifactID
-    )
-    complete(key: key, state: .corrupt)
+  private func isCurrent(key: Key, id: UUID) -> Bool {
+    tasks[key]?.id == id && !Task.isCancelled
   }
 
-  private func complete(key: String, state: TeraMediaPresentationState?) {
+  private func complete(key: Key, id: UUID, state: TeraMediaPresentationState?) {
+    guard tasks[key]?.id == id else { return }
     tasks[key] = nil
-    states[key] = state
+    states[key] = Task.isCancelled ? nil : state
   }
 
-  private static func key(
-    media: TeraMediaReference,
-    context: TeraLocalNetwork
-  ) -> String {
-    "\(context.id)\u{0}\(context.generation)\u{0}\(media.referenceFingerprint)"
+  private func key(media: TeraMediaReference, context: TeraLocalNetwork) -> Key {
+    Key(account: configuration?.publicKey, context: context, reference: media.referenceFingerprint)
   }
 
   static func failureState(_ error: Error) -> TeraMediaPresentationState {

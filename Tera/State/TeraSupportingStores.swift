@@ -17,7 +17,7 @@ final class TeraSearchStore: ObservableObject {
     private let runtimeClient: TeraRuntimeClient
     private let clock: TeraClock
     private var context: TeraLocalNetwork?
-    private var generation: UInt64 = 0
+    private var generation = TeraSessionGeneration.initial
 
     init(
       runtimeClient: TeraRuntimeClient,
@@ -29,19 +29,18 @@ final class TeraSearchStore: ObservableObject {
 
     func configure(context: TeraLocalNetwork?) {
         guard self.context != context else { return }
-        generation &+= 1
+        generation = generation.invalidated()
         self.context = context
+        query = ""
         results = []
         state = .idle
     }
 
     func updateQuery(_ value: String) {
+        generation = generation.invalidated()
         query = String(value.prefix(256))
-        if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            generation &+= 1
-            results = []
-            state = .idle
-        }
+        results = []
+        state = .idle
     }
 
     func search() async {
@@ -60,7 +59,7 @@ final class TeraSearchStore: ObservableObject {
             return
         }
 
-        generation &+= 1
+        generation = generation.invalidated()
         let requestedGeneration = generation
         state = .loading
         do {
@@ -70,18 +69,20 @@ final class TeraSearchStore: ObservableObject {
               limit: 50,
               asOfUnixSeconds: clock.unixSeconds()
             )
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             results = Self.unique(loaded)
             state = results.isEmpty ? .empty : .loaded
         } catch {
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             results = []
             state = .failed(Self.message(for: error))
         }
     }
 
     func stop() {
-        generation &+= 1
+        generation = generation.invalidated()
+        query = ""
+        results = []
         state = .idle
     }
 
@@ -105,10 +106,8 @@ final class TeraMeStore: ObservableObject {
     private let clock: TeraClock
     private let observationDelay: @Sendable (UInt32) async throws -> Void
     private var context: TeraLocalNetwork?
-    private var generation: UInt64 = 0
-    private var observationTask: Task<Void, Never>?
-    private var isStarted = false
-    private var observationGeneration: UInt64 = 0
+    private var generation = TeraSessionGeneration.initial
+    private let observation = TeraStoreObservation()
 
     init(
       runtimeClient: TeraRuntimeClient,
@@ -121,27 +120,20 @@ final class TeraMeStore: ObservableObject {
         self.observationDelay = observationDelay
     }
 
-    deinit {
-        observationTask?.cancel()
-    }
-
     func configure(context: TeraLocalNetwork?) {
         guard self.context != context else { return }
-        generation &+= 1
+        generation = generation.invalidated()
         self.context = context
         snapshot = nil
         state = .idle
+        if observation.isActive {
+            observation.stop()
+            startObservation()
+        }
     }
 
     func start() async {
-        if !isStarted {
-            isStarted = true
-            observationGeneration &+= 1
-            let requestedGeneration = observationGeneration
-            observationTask = Task { [weak self] in
-                await self?.observe(generation: requestedGeneration)
-            }
-        }
+        startObservation()
         await reload()
     }
 
@@ -151,7 +143,7 @@ final class TeraMeStore: ObservableObject {
             state = .failed("Choose a local network before loading your profile.")
             return
         }
-        generation &+= 1
+        generation = generation.invalidated()
         let requestedGeneration = generation
         if snapshot == nil {
             state = .loading
@@ -161,68 +153,36 @@ final class TeraMeStore: ObservableObject {
               context: context,
               asOfUnixSeconds: clock.unixSeconds()
             )
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             snapshot = loaded
             state = loaded.cards.isEmpty && loaded.profile == nil ? .empty : .loaded
         } catch {
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             state = .failed(Self.message(for: error))
         }
     }
 
     func stop() {
-        generation &+= 1
-        isStarted = false
-        observationGeneration &+= 1
-        observationTask?.cancel()
-        observationTask = nil
+        generation = generation.invalidated()
+        observation.stop()
         observationState = .stopped
+        snapshot = nil
+        state = .idle
     }
 
-    private func observe(generation: UInt64) async {
-        var attempt: UInt32 = 0
-        while isStarted, observationGeneration == generation, !Task.isCancelled {
-            observationState = .subscribing(attempt: attempt &+ 1)
-            var failureMessage = TeraUserMessages.text(.runtimeObservationUnavailable)
-            do {
-                let changes = try await runtimeClient.changes(bufferCapacity: 8)
-                observationState = .active
-                for await change in changes {
-                    guard !Task.isCancelled else { break }
-                    attempt = 0
-                    switch change.kind {
-                    case .today, .identity, .profile, .media, .drafts:
-                        await reload()
-                    case .initial, .settings, .relay, .lifecycle:
-                        continue
-                    }
+    private func startObservation() {
+        observation.start(
+          client: runtimeClient, capacity: 8, delay: observationDelay,
+          state: { [weak self] in self?.observationState = $0 },
+          change: { [weak self] change in
+                switch change.kind {
+                case .today, .identity, .profile, .media, .drafts:
+                    await self?.reload()
+                case .initial, .settings, .relay, .lifecycle:
+                    break
                 }
-            } catch {
-                failureMessage = TeraUserMessages.text(
-                  for: error,
-                  fallback: .runtimeObservationUnavailable
-                )
             }
-            guard isStarted, observationGeneration == generation, !Task.isCancelled else { break }
-            attempt = attempt == .max ? .max : attempt + 1
-            observationState = .retrying(attempt: attempt, message: failureMessage)
-            do {
-                try await observationDelay(attempt)
-            } catch {
-                break
-            }
-        }
-        observationDidFinish(generation: generation)
-    }
-
-    private func observationDidFinish(generation: UInt64) {
-        guard observationGeneration == generation else { return }
-        observationTask = nil
-        isStarted = false
-        if case .retrying = observationState {
-            return
-        }
-        observationState = .stopped
+        )
     }
 
     private static func message(for error: Error) -> String {

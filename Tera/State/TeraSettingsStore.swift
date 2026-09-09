@@ -25,16 +25,17 @@ final class TeraSettingsStore: ObservableObject {
     @Published var profileBot = false
 
     private let runtimeClient: TeraRuntimeClient
-    private var generation: UInt64 = 0
+    private var generation = TeraSessionGeneration.initial
     /// Presentation invalidation cannot release an active mutation's admission.
     private var mutationInProgress = false
+    private var configuration: TeraPresentationConfiguration?
 
     init(runtimeClient: TeraRuntimeClient) {
         self.runtimeClient = runtimeClient
     }
 
     func load(profile: TeraProfileSummary?) async {
-        generation &+= 1
+        generation = generation.invalidated()
         let requestedGeneration = generation
         isWorking = true
         defer {
@@ -44,7 +45,7 @@ final class TeraSettingsStore: ObservableObject {
         }
         do {
             let loaded = try await runtimeClient.mobileSettings()
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             apply(loaded)
             if let profile {
                 profileName = profile.name ?? ""
@@ -55,7 +56,7 @@ final class TeraSettingsStore: ObservableObject {
             message = nil
             failureCode = nil
         } catch {
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             record(error)
         }
     }
@@ -71,7 +72,7 @@ final class TeraSettingsStore: ObservableObject {
     func saveSettings() async -> Bool {
         guard let settings, reserveMutation() else { return false }
         defer { mutationInProgress = false }
-        generation &+= 1
+        generation = generation.invalidated()
         let requestedGeneration = generation
         isWorking = true
         defer {
@@ -99,7 +100,7 @@ final class TeraSettingsStore: ObservableObject {
                   mediaCacheArtifacts: UInt32(max(mediaCacheArtifacts, 1))
                 )
             )
-            guard requestedGeneration == generation, !Task.isCancelled else { return false }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return false }
             apply(transition.settings)
             let effects = [
               transition.runtimeRestartRequired ? "runtime restart" : nil,
@@ -112,7 +113,7 @@ final class TeraSettingsStore: ObservableObject {
             failureCode = nil
             return transition.runtimeRestartRequired
         } catch {
-            guard requestedGeneration == generation, !Task.isCancelled else { return false }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return false }
             record(error)
             return false
         }
@@ -121,7 +122,7 @@ final class TeraSettingsStore: ObservableObject {
     func saveProfile() async {
         guard reserveMutation() else { return }
         defer { mutationInProgress = false }
-        generation &+= 1
+        generation = generation.invalidated()
         let requestedGeneration = generation
         isWorking = true
         defer {
@@ -141,12 +142,12 @@ final class TeraSettingsStore: ObservableObject {
                   bot: profileBot
                 )
             )
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             profileStatus = status
             message = "Profile update saved to the durable outbox."
             failureCode = nil
         } catch {
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             record(error)
         }
     }
@@ -169,8 +170,34 @@ final class TeraSettingsStore: ObservableObject {
     }
 
     func stop() {
-        generation &+= 1
+        generation = generation.invalidated()
         isWorking = false
+    }
+
+    func configure(snapshot: TeraRuntimeSnapshot) {
+        let updated = TeraPresentationConfiguration(snapshot: snapshot)
+        guard configuration != updated else { return }
+        configuration = updated
+        stop()
+        settings = nil
+        profileStatus = nil
+        message = nil
+        failureCode = nil
+        networkEnvironment = .publicNetwork
+        relays = []
+        blossomAuthority = .publicWebPKI
+        blossomPrimaryOrigin = ""
+        blossomFallbackOrigins = ""
+        allowCellularDownloads = true
+        allowCellularUploads = true
+        allowBackgroundTransfers = true
+        mediaCacheMegabytes = 256
+        mediaCacheArtifacts = 1024
+        profileName = ""
+        profileDisplayName = ""
+        profileAbout = ""
+        profileNip05 = ""
+        profileBot = false
     }
 
     private func runProfileOperation(
@@ -178,7 +205,7 @@ final class TeraSettingsStore: ObservableObject {
     ) async {
         guard reserveMutation() else { return }
         defer { mutationInProgress = false }
-        generation &+= 1
+        generation = generation.invalidated()
         let requestedGeneration = generation
         isWorking = true
         defer {
@@ -188,12 +215,12 @@ final class TeraSettingsStore: ObservableObject {
         }
         do {
             let status = try await operation()
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             profileStatus = status
             message = status.honestSummary
             failureCode = nil
         } catch {
-            guard requestedGeneration == generation, !Task.isCancelled else { return }
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             record(error)
         }
     }

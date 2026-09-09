@@ -45,7 +45,7 @@ struct TeraSearchSheet: View {
         }
       }
     }
-    .task { store.configure(context: context) }
+    .task(id: context) { store.configure(context: context) }
     .accessibilityIdentifier("radroots.support.search.sheet")
   }
 
@@ -132,7 +132,7 @@ struct TeraMeSheet: View {
     .sheet(isPresented: $showsDrafts) {
       TeraDraftsSheet(store: addStore)
     }
-    .task {
+    .task(id: context) {
       store.configure(context: context)
       await store.start()
     }

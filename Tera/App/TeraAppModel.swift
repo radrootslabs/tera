@@ -2,13 +2,14 @@ import Foundation
 import RadrootsKit
 
 @MainActor
-struct TeraProductStores {
+final class TeraProductStores {
   let today: TeraTodayStore
   let add: TeraAddStore
   let search: TeraSearchStore
   let me: TeraMeStore
   let settings: TeraSettingsStore
   let media: TeraMediaStore
+  private var generation = TeraSessionGeneration.initial
 
   init(
     runtimeClient: TeraRuntimeClient,
@@ -23,16 +24,26 @@ struct TeraProductStores {
   }
 
   func configure(snapshot: TeraRuntimeSnapshot) {
+    generation = generation.invalidated()
     today.configure(snapshot: snapshot)
     add.configure(snapshot: snapshot)
+    search.stop()
+    search.configure(context: today.selectedContext)
+    me.stop()
+    me.configure(context: today.selectedContext)
+    settings.configure(snapshot: snapshot)
+    media.configure(snapshot: snapshot)
   }
 
   func resume() async {
+    let requested = generation
     await today.start()
+    guard generation == requested, generation.isActive, !Task.isCancelled else { return }
     await add.start()
   }
 
   func suspend() {
+    generation = generation.invalidated()
     today.stop()
     add.suspend()
     search.stop()
@@ -42,6 +53,7 @@ struct TeraProductStores {
   }
 
   func stop() {
+    generation = generation.invalidated()
     today.stop()
     add.stop()
     search.stop()
@@ -62,7 +74,7 @@ final class TeraAppModel: ObservableObject {
   private let sessionStore: TeraSessionStore?
   private let bootstrapFailure: TeraRuntimeFailure?
   private let lifecycleCoordinator: TeraLifecycleCoordinator
-  private var generation: UInt64 = 0
+  private var generation = TeraSessionGeneration.initial
   private var lifecycleRegistered = false
   private var sessionOperationsInFlight = 0
   private var resumePending = false
@@ -201,7 +213,7 @@ final class TeraAppModel: ObservableObject {
   }
 
   func suspend() async {
-    generation &+= 1
+    generation = generation.invalidated()
     resumePending = false
     productStores?.suspend()
     await sessionStore?.suspend()
@@ -229,8 +241,9 @@ final class TeraAppModel: ObservableObject {
     _ operation: @escaping @Sendable (TeraSessionStore) async -> Phase
   ) async {
     guard !isShellUITest else { return }
+    stopPresentationWork()
     sessionOperationsInFlight += 1
-    generation &+= 1
+    generation = generation.invalidated()
     let requestedGeneration = generation
     if showsStarting {
       phase = .starting
@@ -253,7 +266,7 @@ final class TeraAppModel: ObservableObject {
       return
     }
     let result = await operation(sessionStore)
-    guard generation == requestedGeneration else {
+    guard generation == requestedGeneration, generation.isActive, !Task.isCancelled else {
       await finishSessionOperation()
       return
     }

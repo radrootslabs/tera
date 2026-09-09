@@ -24,11 +24,10 @@ final class TeraTodayStore: ObservableObject {
     private let observationDelay: @Sendable (UInt32) async throws -> Void
     private var frozenAsOfUnixSeconds: UInt64?
     private var nextCursor: String?
-    private var requestGeneration: UInt64 = 0
-    private var observationTask: Task<Void, Never>?
+    private var requestGeneration = TeraSessionGeneration.initial
+    private let observation = TeraStoreObservation()
+    private var configuration: TeraPresentationConfiguration?
     private var reloadTask: Task<Void, Never>?
-    private var isStarted = false
-    private var observationGeneration: UInt64 = 0
 
     init(
       runtimeClient: TeraRuntimeClient,
@@ -54,7 +53,6 @@ final class TeraTodayStore: ObservableObject {
     }
 
     deinit {
-        observationTask?.cancel()
         reloadTask?.cancel()
     }
 
@@ -67,33 +65,49 @@ final class TeraTodayStore: ObservableObject {
     }
 
     func configure(snapshot: TeraRuntimeSnapshot) {
-        guard contexts.isEmpty else { return }
-        let context = TeraLocalNetwork.defaultContext(snapshot: snapshot)
-        contexts = [context]
-        selectedContextID = context.id
+        let updated = TeraPresentationConfiguration(snapshot: snapshot)
+        guard configuration != updated else { return }
+        let previous = configuration
+        let reload = observation.isActive
+        invalidatePresentation()
+        configuration = updated
+        if previous != nil || contexts.isEmpty {
+            contexts = [updated.context]
+            selectedContextID = updated.context.id
+        }
+        if reload {
+          scheduleReload()
+        }
     }
 
     func start() async {
-        guard !isStarted else { return }
-        isStarted = true
-        observationGeneration &+= 1
-        let generation = observationGeneration
-        observationTask = Task { [weak self] in
-            await self?.observe(generation: generation)
-        }
+        guard !observation.isActive, !Task.isCancelled else { return }
+        startObservation()
         await reload()
     }
 
     func stop() {
-        isStarted = false
-        observationGeneration &+= 1
-        requestGeneration &+= 1
-        observationTask?.cancel()
-        observationTask = nil
+        observation.stop()
         observationState = .stopped
+        requestGeneration = requestGeneration.invalidated()
         reloadTask?.cancel()
         reloadTask = nil
         isLoadingNextPage = false
+    }
+
+    private func invalidatePresentation() {
+        requestGeneration = requestGeneration.invalidated()
+        reloadTask?.cancel()
+        reloadTask = nil
+        cards = []
+        frozenAsOfUnixSeconds = nil
+        nextCursor = nil
+        isLoadingNextPage = false
+        state = .idle
+        if observation.isActive {
+            observation.stop()
+            startObservation()
+        }
     }
 
     func selectContext(id: String) {
@@ -102,27 +116,24 @@ final class TeraTodayStore: ObservableObject {
         else {
             return
         }
+        invalidatePresentation()
         selectedContextID = id
-        requestGeneration &+= 1
-        reloadTask?.cancel()
-        reloadTask = Task { [weak self] in
-            await self?.reload()
-        }
+        scheduleReload()
     }
 
     func replaceContexts(_ updatedContexts: [TeraLocalNetwork], selectedID: String?) {
         let updatedContexts = Self.unique(updatedContexts)
-        guard !updatedContexts.isEmpty else { return }
+        invalidatePresentation()
         contexts = updatedContexts
         selectedContextID =
             selectedID.flatMap { requested in
                 updatedContexts.contains(where: { $0.id == requested }) ? requested : nil
             } ?? updatedContexts.first?.id
-        requestGeneration &+= 1
-        reloadTask?.cancel()
-        reloadTask = Task { [weak self] in
-            await self?.reload()
-        }
+        scheduleReload()
+    }
+
+    private func scheduleReload() {
+        reloadTask = Task { [weak self] in await self?.reload() }
     }
 
     func reload(
@@ -135,7 +146,7 @@ final class TeraTodayStore: ObservableObject {
             return
         }
 
-        requestGeneration &+= 1
+        requestGeneration = requestGeneration.invalidated()
         let generation = requestGeneration
         frozenAsOfUnixSeconds = nil
         nextCursor = nil
@@ -157,6 +168,7 @@ final class TeraTodayStore: ObservableObject {
             }
         }
 
+        guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
         do {
             let asOf = try clock.unixSeconds()
             let page = try await runtimeClient.todayPage(
@@ -166,13 +178,13 @@ final class TeraTodayStore: ObservableObject {
                   asOfUnixSeconds: asOf
                 )
             )
-            guard generation == requestGeneration, !Task.isCancelled else { return }
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             frozenAsOfUnixSeconds = page.asOfUnixSeconds
             nextCursor = page.nextCursor
             cards = Self.unique(page.items)
             state = refreshFailure.map(Self.failureState) ?? (cards.isEmpty ? .empty : .loaded)
         } catch {
-            guard generation == requestGeneration, !Task.isCancelled else { return }
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             state = Self.failureState(error)
         }
     }
@@ -196,7 +208,7 @@ final class TeraTodayStore: ObservableObject {
             let page = try await runtimeClient.todayPage(
                 request: .after(context: context, limit: pageSize, cursor: cursor)
             )
-            guard generation == requestGeneration, !Task.isCancelled else { return }
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             guard frozenAsOfUnixSeconds == nil || frozenAsOfUnixSeconds == page.asOfUnixSeconds else {
                 state = .failed(message: "Today changed while loading. Refresh to continue.")
                 return
@@ -211,7 +223,7 @@ final class TeraTodayStore: ObservableObject {
                 state = cards.isEmpty ? .empty : .loaded
             }
         } catch {
-            guard generation == requestGeneration, !Task.isCancelled else { return }
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             state = Self.failureState(error)
         }
     }
@@ -221,50 +233,19 @@ final class TeraTodayStore: ObservableObject {
         return contexts.filter { identifiers.insert($0.id).inserted }
     }
 
-    private func observe(generation: UInt64) async {
-        var attempt: UInt32 = 0
-        while isStarted, observationGeneration == generation, !Task.isCancelled {
-            observationState = .subscribing(attempt: attempt &+ 1)
-            var failureMessage = TeraUserMessages.text(.runtimeObservationUnavailable)
-            do {
-                let changes = try await runtimeClient.changes(bufferCapacity: 16)
-                observationState = .active
-                for await change in changes {
-                    guard !Task.isCancelled else { break }
-                    attempt = 0
-                    switch change.kind {
-                    case .today, .drafts, .media, .identity, .profile:
-                        await reload(refreshProjection: false)
-                    case .initial, .settings, .relay, .lifecycle:
-                        continue
-                    }
+    private func startObservation() {
+        observation.start(
+          client: runtimeClient, capacity: 16, delay: observationDelay,
+          state: { [weak self] in self?.observationState = $0 },
+          change: { [weak self] change in
+                switch change.kind {
+                case .today, .drafts, .media, .identity, .profile:
+                    await self?.reload(refreshProjection: false)
+                case .initial, .settings, .relay, .lifecycle:
+                    break
                 }
-            } catch {
-                failureMessage = TeraUserMessages.text(
-                  for: error,
-                  fallback: .runtimeObservationUnavailable
-                )
             }
-            guard isStarted, observationGeneration == generation, !Task.isCancelled else { break }
-            attempt = attempt == .max ? .max : attempt + 1
-            observationState = .retrying(attempt: attempt, message: failureMessage)
-            do {
-                try await observationDelay(attempt)
-            } catch {
-                break
-            }
-        }
-        observationDidFinish(generation: generation)
-    }
-
-    private func observationDidFinish(generation: UInt64) {
-        guard observationGeneration == generation else { return }
-        observationTask = nil
-        isStarted = false
-        if case .retrying = observationState {
-            return
-        }
-        observationState = .stopped
+        )
     }
 
     private static func unique(_ cards: [TeraTodayCard]) -> [TeraTodayCard] {

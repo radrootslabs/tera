@@ -401,7 +401,7 @@ struct TeraLocalMediaContent: View {
         )
       }
     }
-    .task(id: media.id) {
+    .task(id: TeraMediaStore.Request(referenceID: media.id, context: context)) {
       store.load(media: media, context: context)
     }
     .accessibilityElement(children: .combine)

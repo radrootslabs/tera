@@ -59,6 +59,13 @@ targets:
       - path: TeraTests/TeraRootShellTests.swift
       - path: TeraTests/TeraStateMigrationTests.swift
       - path: TeraTests/TeraTodayStoreTests.swift
+      - path: TeraTests/TeraAddSchemaFixtures.swift
+      - path: TeraTests/TeraScopeFixtures.swift
+      - path: TeraTests/TeraScopeBackend.swift
+      - path: TeraTests/TeraScopedStoreTests.swift
+      - path: TeraTests/TeraScopedAddTests.swift
+      - path: TeraTests/TeraScopedMediaTests.swift
+      - path: TeraTests/TeraScopedObservationTests.swift
       - path: TeraTests/TeraMediaStoreTests.swift
       - path: TeraTests/TeraAddStoreTests.swift
       - path: TeraTests/TeraBackgroundUploadFixtures.swift

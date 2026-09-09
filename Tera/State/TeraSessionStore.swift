@@ -1,6 +1,5 @@
 import Foundation
 import RadrootsKit
-import UIKit
 
 final class TeraProtectedDataMonitor: @unchecked Sendable {
   private let lock = NSLock()
@@ -66,65 +65,6 @@ actor TeraSessionStore {
     self.qualificationEvidenceStore = qualificationEvidenceStore
   }
 
-  @MainActor
-  static func production(
-    bundle: Bundle = .main,
-    runtimeClient: TeraRuntimeClient = .production()
-  ) throws -> TeraSessionStore {
-    guard let bundleIdentifier = bundle.bundleIdentifier else {
-      throw TeraConfigurationError.missing("bundle_identifier")
-    }
-    let qualification = try TeraRemoteQualificationEnvironment.current()
-    #if DEBUG
-      let qualificationEvidenceStore = try TeraRemoteQualificationEvidence.prepare()
-    #else
-      let qualificationEvidenceStore: TeraRemoteQualificationEvidenceStore? = nil
-    #endif
-    let servicePrefix =
-      try qualification?.keychainServicePrefix
-      ?? requiredString(
-        "TERA_IOS_KEYCHAIN_SERVICE_PREFIX", bundle: bundle
-      )
-    let bootstrap = try TeraConfigurationBootstrap(
-      runtimeMode: qualification?.runtimeMode
-        ?? requiredString("TERA_IOS_RUNTIME_MODE", bundle: bundle),
-      relayURLs: qualification?.relayURLs
-        ?? array("TERA_IOS_NOSTR_RELAY_URLS", bundle: bundle),
-      blossomOrigins: qualification?.blossomOrigins
-        ?? array("TERA_IOS_BLOSSOM_ORIGINS", bundle: bundle),
-      keychainServicePrefix: servicePrefix,
-      bundleIdentifier: bundleIdentifier,
-      appMetadata: TeraRuntimeAppMetadata(
-        bundleIdentifier: bundleIdentifier,
-        version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-          ?? "0",
-        buildNumber: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
-        buildSHA: normalizedOptional(
-          bundle.object(forInfoDictionaryKey: "GIT_SHA") as? String
-        )
-      )
-    )
-    let roots = try TeraRemoteQualificationEnvironment.applicationFileRoots(
-      appIdentifier: bundleIdentifier
-    )
-    let protectedData = TeraProtectedDataMonitor(
-      available: UIApplication.shared.isProtectedDataAvailable
-    )
-    return try TeraSessionStore(
-      configurationStore: TeraConfigurationStore(bootstrap: bootstrap, roots: roots),
-      identityStore: .production(
-        servicePrefix: servicePrefix,
-        protectedDataAvailable: { protectedData.isAvailable() },
-        qualification: qualification
-      ),
-      runtimeClient: runtimeClient,
-      roots: roots,
-      protectedData: protectedData,
-      automatesQualificationIdentity: qualification?.automatesIdentity == true,
-      qualificationEvidenceStore: qualificationEvidenceStore
-    )
-  }
-
   func updateProtectedDataAvailability(_ available: Bool) {
     protectedData.update(available: available)
   }
@@ -147,10 +87,12 @@ actor TeraSessionStore {
     phase = .starting
     do {
       let identity = try await identityStore.loadAndMigrate()
+      try ensureCurrent(requestedGeneration)
       guard identity.state == .unlocked else {
         return await start()
       }
       let configuration = try await configurationStore.load()
+        try ensureCurrent(requestedGeneration)
       phase = try await startRuntime(
         configuration: configuration,
         identity: identity,
@@ -173,8 +115,9 @@ actor TeraSessionStore {
 
   func suspend() async {
     generation = generation.invalidated()
+    let requestedGeneration = generation
     await runtimeClient.suspend()
-    if case .starting = phase {
+    if generation == requestedGeneration, case .starting = phase {
       phase = .stopped
     }
   }
@@ -205,27 +148,8 @@ actor TeraSessionStore {
       case .corrupt:
         phase = .corruptIdentity(identity)
       case .unlocked:
-        let configuration = try await configurationStore.load()
-        if configuration.activationState == .reconfigurationRequired,
-          !acceptingReconfiguration
-        {
-          phase = .configurationReconfigurationRequired(
-            TeraConfigurationReconfigurationRequirement(
-              generation: configuration.generation,
-              previousBlossomConfigFingerprint: configuration
-                .previousBlossomConfigFingerprint
-            )
-          )
-          return phase
-        }
-        phase = try await startRuntime(
-          configuration: configuration,
-          identity: identity,
-          generation: requestedGeneration.requireActive(),
-          forceReconfiguration: configuration.activationState
-            == .reconfigurationRequired,
-          adoptBootstrapSettings: configuration.activationState
-            == .reconfigurationRequired
+        phase = try await startUnlocked(
+          identity, acceptingReconfiguration: acceptingReconfiguration, generation: requestedGeneration
         )
       }
     } catch TeraRuntimeClientError.superseded {
@@ -246,32 +170,52 @@ actor TeraSessionStore {
     return phase
   }
 
-  func createIdentity(label: String? = nil) async -> TeraSessionPhase {
-    do {
-      _ = try await identityStore.create(label: label)
-    } catch {
-      return failIdentityOperation(error)
+  private func startUnlocked(
+    _ identity: TeraAppIdentity, acceptingReconfiguration: Bool,
+    generation requestedGeneration: TeraSessionGeneration
+  ) async throws -> TeraSessionPhase {
+    let configuration = try await configurationStore.load()
+    try ensureCurrent(requestedGeneration)
+    if configuration.activationState == .reconfigurationRequired,
+      !acceptingReconfiguration
+    {
+      return .configurationReconfigurationRequired(
+        TeraConfigurationReconfigurationRequirement(
+          generation: configuration.generation,
+          previousBlossomConfigFingerprint: configuration
+            .previousBlossomConfigFingerprint
+        )
+      )
     }
-    return await start()
+    return try await startRuntime(
+      configuration: configuration,
+      identity: identity,
+      generation: requestedGeneration.requireActive(),
+      forceReconfiguration: configuration.activationState
+        == .reconfigurationRequired,
+      adoptBootstrapSettings: configuration.activationState
+        == .reconfigurationRequired
+    )
+  }
+
+  func createIdentity(label: String? = nil) async -> TeraSessionPhase {
+    await runIdentityOperation { try await self.identityStore.create(label: label) }
   }
 
   func importIdentity(
     _ material: RadrootsIdentitySecretMaterial,
     label: String? = nil
   ) async -> TeraSessionPhase {
-    do {
-      _ = try await identityStore.importIdentity(material, label: label)
-    } catch {
-      return failIdentityOperation(error)
-    }
-    return await start()
+    await runIdentityOperation { try await self.identityStore.importIdentity(material, label: label) }
   }
 
   func lockIdentity() async -> TeraSessionPhase {
     generation = generation.invalidated()
+    let requestedGeneration = generation
     if case .running = phase,
       let settings = try? await runtimeClient.mobileSettings()
     {
+      guard isCurrent(requestedGeneration) else { return phase }
       _ = try? await runtimeClient.applyIdentityCommand(
         expectedRevision: settings.revision,
         command: TeraIdentityCommand(
@@ -282,41 +226,56 @@ actor TeraSessionStore {
         )
       )
     }
+    guard isCurrent(requestedGeneration) else { return phase }
     _ = try? await runtimeClient.stop()
+    guard isCurrent(requestedGeneration) else { return phase }
     await identityStore.lock()
+    guard isCurrent(requestedGeneration) else { return phase }
     let identity = await identityStore.snapshot()
+    guard isCurrent(requestedGeneration) else { return phase }
     phase = .identityLocked(identity)
     return phase
   }
 
   func unlockIdentity() async -> TeraSessionPhase {
-    do {
-      _ = try await identityStore.unlock()
-    } catch {
-      return failIdentityOperation(error)
-    }
-    return await start()
+    await runIdentityOperation { try await self.identityStore.unlock() }
   }
 
   func recoverIdentity() async -> TeraSessionPhase {
+    await runIdentityOperation { try await self.identityStore.recover() }
+  }
+
+  private func runIdentityOperation(
+    _ operation: () async throws -> TeraAppIdentity
+  ) async -> TeraSessionPhase {
+    generation = generation.invalidated()
+    let requestedGeneration = generation
     do {
-      _ = try await identityStore.recover()
+      try ensureCurrent(requestedGeneration)
+      _ = try await operation()
+      try ensureCurrent(requestedGeneration)
+      return await start()
     } catch {
+      guard generation == requestedGeneration, !Task.isCancelled else { return phase }
       return failIdentityOperation(error)
     }
-    return await start()
   }
 
   func stop() async -> TeraSessionPhase {
     generation = generation.invalidated()
+    let requestedGeneration = generation
     do {
       _ = try await runtimeClient.stop()
+      try ensureCurrent(requestedGeneration)
       await identityStore.lock()
+      try ensureCurrent(requestedGeneration)
       try qualificationEvidenceStore?.cleanup()
       phase = .stopped
     } catch let TeraRuntimeClientError.shutdown(failure) {
+      guard isCurrent(requestedGeneration) else { return phase }
       phase = .failed(failure)
     } catch {
+      guard isCurrent(requestedGeneration) else { return phase }
       phase = .failed(
         .local(
           operation: "session.stop",
@@ -346,6 +305,7 @@ actor TeraSessionStore {
       protectedDataAvailability: protectedData.isAvailable() ? .available : .unavailable
     )
     let sourceGeneration = try await configurationStore.sourceGeneration()
+    try ensureCurrent(requestedGeneration)
     let signer = try await identityStore.signer(for: identity)
     guard generation == requestedGeneration else { throw TeraRuntimeClientError.superseded }
     let launchConfiguration = TeraRuntimeLaunchConfiguration(
@@ -371,7 +331,8 @@ actor TeraSessionStore {
     guard generation == requestedGeneration else {
       throw TeraRuntimeClientError.superseded
     }
-    try await reconcileIdentity(identity)
+    try await reconcileIdentity(identity, generation: requestedGeneration)
+    try ensureCurrent(requestedGeneration)
     if configuration.activationState == .reconfigurationRequired,
       adoptBootstrapSettings
     {
@@ -385,13 +346,16 @@ actor TeraSessionStore {
     return .running(snapshot)
   }
 
-  private func reconcileIdentity(_ identity: TeraAppIdentity) async throws {
+  private func reconcileIdentity(
+    _ identity: TeraAppIdentity, generation requestedGeneration: TeraSessionGeneration
+  ) async throws {
     guard let identityID = identity.identityHandle,
       let publicKeyHex = identity.publicKeyHex
     else {
       throw TeraIdentityStoreError.unavailable
     }
     var settings = try await runtimeClient.mobileSettings()
+    try ensureCurrent(requestedGeneration)
     if let pending = settings.identity.pendingImportOperationID {
       settings = try await runtimeClient.applyIdentityCommand(
         expectedRevision: settings.revision,
@@ -402,7 +366,29 @@ actor TeraSessionStore {
           publicKeyHex: nil
         )
       ).settings
+      try ensureCurrent(requestedGeneration)
     }
+    settings = try await adoptIdentity(
+      identityID: identityID, publicKeyHex: publicKeyHex, settings: settings, generation: requestedGeneration
+    )
+    try ensureCurrent(requestedGeneration)
+    _ = try await runtimeClient.applyIdentityCommand(
+      expectedRevision: settings.revision,
+      command: TeraIdentityCommand(
+        kind: .unlock,
+        operationID: nil,
+        identityID: nil,
+        publicKeyHex: nil
+      )
+    )
+    try ensureCurrent(requestedGeneration)
+  }
+
+  private func adoptIdentity(
+    identityID: String, publicKeyHex: String, settings initial: TeraMobileSettings,
+    generation requestedGeneration: TeraSessionGeneration
+  ) async throws -> TeraMobileSettings {
+    var settings = initial
     if let existing = settings.identity.identities.first(where: {
       $0.publicKeyHex == publicKeyHex
     }) {
@@ -416,6 +402,7 @@ actor TeraSessionStore {
             publicKeyHex: nil
           )
         ).settings
+      try ensureCurrent(requestedGeneration)
       }
     } else {
       let operationID = UUID().uuidString.lowercased()
@@ -428,6 +415,7 @@ actor TeraSessionStore {
           publicKeyHex: nil
         )
       ).settings
+      try ensureCurrent(requestedGeneration)
       settings = try await runtimeClient.applyIdentityCommand(
         expectedRevision: settings.revision,
         command: TeraIdentityCommand(
@@ -437,16 +425,17 @@ actor TeraSessionStore {
           publicKeyHex: publicKeyHex
         )
       ).settings
+      try ensureCurrent(requestedGeneration)
     }
-    _ = try await runtimeClient.applyIdentityCommand(
-      expectedRevision: settings.revision,
-      command: TeraIdentityCommand(
-        kind: .unlock,
-        operationID: nil,
-        identityID: nil,
-        publicKeyHex: nil
-      )
-    )
+    return settings
+  }
+
+  private func isCurrent(_ requested: TeraSessionGeneration) -> Bool {
+    generation == requested && generation.isActive && !Task.isCancelled
+  }
+
+  private func ensureCurrent(_ requested: TeraSessionGeneration) throws {
+    guard isCurrent(requested) else { throw TeraRuntimeClientError.superseded }
   }
 
   private func failIdentityOperation(_ error: Error) -> TeraSessionPhase {
@@ -459,34 +448,5 @@ actor TeraSessionStore {
       )
     )
     return phase
-  }
-
-  @MainActor
-  private static func requiredString(_ key: String, bundle: Bundle) throws -> String {
-    guard let value = normalizedOptional(bundle.object(forInfoDictionaryKey: key) as? String) else {
-      throw TeraConfigurationError.missing(key)
-    }
-    return value
-  }
-
-  @MainActor
-  private static func array(_ key: String, bundle: Bundle) -> [String] {
-    if let values = bundle.object(forInfoDictionaryKey: key) as? [String] {
-      return values.map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        .filter { !$0.isEmpty }
-    }
-    guard let raw = normalizedOptional(bundle.object(forInfoDictionaryKey: key) as? String) else {
-      return []
-    }
-    return raw.components(separatedBy: CharacterSet(charactersIn: ",; \n\r\t"))
-      .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-      .filter { !$0.isEmpty }
-  }
-
-  @MainActor
-  private static func normalizedOptional(_ value: String?) -> String? {
-    guard let value else { return nil }
-    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmed.isEmpty || trimmed == "unknown" ? nil : trimmed
   }
 }

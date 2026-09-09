@@ -286,7 +286,7 @@ final class TeraAddStoreTests: XCTestCase {
     XCTAssertNil(unicodeIdentifierStore.form.identifier)
     _ = try await validClient.stop()
 
-    let exact = AddBackend.schemas()
+    let exact = TeraAddSchemaFixtures.schemas()
     var missingField = exact
     let food = exact[4]
     missingField[4] = TeraAddSchema(
@@ -867,7 +867,7 @@ private actor AddBackend: TeraRuntimeBackend {
     includeWritableRelay: Bool = true,
     delayedPhase: AddDelayPhase? = nil,
     delayAfterBackgroundCompletion: Bool = false,
-    schemas: [TeraAddSchema] = AddBackend.schemas()
+    schemas: [TeraAddSchema] = TeraAddSchemaFixtures.schemas()
   ) {
     self.advanceOffline = advanceOffline
     self.savePause = savePause
@@ -1374,100 +1374,6 @@ private actor AddBackend: TeraRuntimeBackend {
 
 private actor AddSubscriptionToken: TeraRuntimeSubscriptionToken {
   func cancel() {}
-}
-
-private extension AddBackend {
-  nonisolated static func schemas() -> [TeraAddSchema] {
-    let field = {
-      (
-        id: String,
-        label: String,
-        kind: TeraAddFieldKind,
-        required: Bool,
-        choices: [String],
-        maxBytes: UInt64?,
-        maxItems: UInt16?
-      ) in
-      TeraAddField(
-        schemaVersion: 1,
-        id: id,
-        label: label,
-        kind: kind,
-        required: required,
-        choices: choices,
-        maxBytes: maxBytes,
-        maxItems: maxItems
-      )
-    }
-    let text = {
-      (id: String, label: String, kind: TeraAddFieldKind, required: Bool, maximum: UInt64?) in
-      field(id, label, kind, required, [], maximum, nil)
-    }
-    let media = { (required: Bool, maximum: UInt16) in
-      field("media", "Photos", .media, required, [], 10 * 1024 * 1024, maximum)
-    }
-    return [
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createUpdate,
-        label: "Update",
-        fields: [text("content", "Update", .multilineText, true, 65535)]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createPhotoUpdate,
-        label: "Photo update",
-        fields: [
-          text("content", "Update", .multilineText, true, 65535),
-          media(true, 20),
-        ]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createAsk,
-        label: "Ask",
-        fields: [
-          text("content", "Question", .multilineText, true, 65535),
-          media(false, 20),
-        ]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createEvent,
-        label: "Event",
-        fields: [
-          text("identifier", "Identifier", .text, true, 256),
-          text("title", "Title", .text, true, 256),
-          text("content", "Description", .multilineText, false, 65535),
-          text("event_start", "Starts", .dateTime, true, nil),
-          text("event_end", "Ends", .dateTime, false, nil),
-          text("location", "Location", .location, false, 256),
-          media(false, 1),
-        ]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createFoodAvailability,
-        label: "Food availability",
-        fields: [
-          text("identifier", "Identifier", .text, true, 256),
-          text("title", "Food", .text, true, 256),
-          text("summary", "Summary", .text, true, 256),
-          text("content", "Details", .multilineText, true, 65535),
-          text("location", "Pickup location", .location, true, 256),
-          text("price_amount", "Price", .decimal, true, 64),
-          field("currency", "Currency", .choice, true, [], 3, nil),
-          field(
-            "unit", "Unit", .choice, true,
-            ["g", "kg", "lb", "oz", "each", "dozen", "bunch", "punnet", "bag", "basket"],
-            nil, nil
-          ),
-          text("quantity", "Available quantity", .decimal, false, 64),
-          media(false, 20),
-        ]
-      ),
-    ]
-  }
 }
 
 extension TeraAddStoreTests {

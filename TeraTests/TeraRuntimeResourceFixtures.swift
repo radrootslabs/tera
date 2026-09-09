@@ -54,6 +54,7 @@ actor ResourceTestBackend: TeraRuntimeBackend {
   private var shutdownFailure: TeraRuntimeFailure?
   private var shutdownCompleted = false
   private(set) var profileMutations = 0
+  private(set) var identityCommands = 0
   private var receive: (@Sendable (TeraRuntimeChange) async -> Void)?
 
   init(publicKeyHex: String) {
@@ -176,7 +177,8 @@ actor ResourceTestBackend: TeraRuntimeBackend {
   func applyIdentityCommand(
     expectedRevision _: UInt64, command _: TeraIdentityCommand
   ) -> TeraSettingsTransition {
-    TeraSettingsTransition(
+    identityCommands += 1
+    return TeraSettingsTransition(
       settings: settings(), runtimeRestartRequired: false,
       outboxRequeueRequired: false, mediaCacheInvalidationRequired: false
     )
