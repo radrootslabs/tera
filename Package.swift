@@ -58,6 +58,7 @@ let package = Package(
         "Runtime/TeraErrorRecovery.swift",
         "Runtime/TeraGeneratedRuntimeBackend.swift",
         "Runtime/TeraLifecycleCoordinator.swift",
+        "Runtime/TeraRuntimeBoundedTask.swift",
         "Runtime/TeraRuntimeClient.swift",
         "Runtime/TeraRuntimeModels.swift",
         "Runtime/TeraSessionGeneration.swift",

@@ -49,6 +49,7 @@ targets:
       - path: TeraTests/TeraRuntimeClientFixtures.swift
       - path: TeraTests/TeraSessionGenerationTests.swift
       - path: TeraTests/TeraErrorRecoveryTests.swift
+      - path: TeraTests/TeraRuntimeBoundedTaskTests.swift
       - path: TeraTests/TeraRootShellTests.swift
       - path: TeraTests/TeraStateMigrationTests.swift
       - path: TeraTests/TeraTodayStoreTests.swift
