@@ -137,13 +137,27 @@ async fn same_identity_and_generation_do_not_authorize_another_query() {
         .collect();
     assert_eq!(second_ids, expected_ids);
     assert_ne!(other.next_cursor.as_ref(), Some(&cursor));
+    let scope = TodayCursor::scope(&cursor).unwrap();
+    let position = TodayCursor::decode(&cursor, &scope).unwrap();
+    let retained = load_snapshot(
+        runtime.client.storage().unwrap(),
+        projection_id().unwrap(),
+        projection_generation().unwrap(),
+        &scope,
+    )
+    .await
+    .unwrap()
+    .unwrap();
     assert_eq!(
-        runtime
-            .phase1_today_page(&first, TodayPageRequest::after(1, cursor.clone()))
-            .await
-            .unwrap(),
+        page_from_snapshot(retained, scope, Some(position.rank), 1).unwrap(),
         original
     );
+    assert!(matches!(
+        runtime
+            .phase1_today_page(&first, TodayPageRequest::after(1, cursor.clone()))
+            .await,
+        Err(TodayError::Cursor(CursorError::Stale))
+    ));
     for changed in [
         LocalNetwork {
             label: "Changed".into(),

@@ -5,7 +5,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   enum Call: Hashable { case snapshot, drafts, save, probe, page, refresh, search, me, subscribe, media, invalidate }
   struct Pending {
     let pause: ResourceTestPause
-    let fails: Bool
+    let failure: TeraRuntimeFailure?
   }
 
   private(set) var value = TeraScopeFixtures.snapshot()
@@ -24,9 +24,9 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     media = try TeraScopeFixtures.artifact("a")
   }
 
-  func pause(_ call: Call, fails: Bool = false) -> ResourceTestPause {
+  func pause(_ call: Call, fails: Bool = false, failure: TeraRuntimeFailure? = nil) -> ResourceTestPause {
     let pause = ResourceTestPause()
-    pending[call, default: []].append(Pending(pause: pause, fails: fails))
+    pending[call, default: []].append(Pending(pause: pause, failure: failure ?? (fails ? TeraScopeFixtures.failure() : nil)))
     return pause
   }
 
@@ -56,8 +56,8 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     let next = queue.removeFirst()
     pending[call] = queue
     await next.pause.wait()
-    if next.fails {
-      throw TeraScopeFixtures.failure()
+    if let failure = next.failure {
+      throw failure
     }
   }
 

@@ -118,6 +118,8 @@ final class TeraTodayPresentationTests: XCTestCase {
     XCTAssertEqual(store.presentation.refresh, .completed)
     XCTAssertNotNil(store.presentation.readFailure)
     XCTAssertEqual(store.presentation.freshness, .unconfirmed)
+    XCTAssertTrue(store.canLoadNextPage)
+    XCTAssertFalse(store.presentation.readFailure?.requiresRefresh == true)
     await store.loadNextPage()
     XCTAssertEqual(store.cards.map(\.id), ["one", "two"])
     XCTAssertNil(store.presentation.readFailure)

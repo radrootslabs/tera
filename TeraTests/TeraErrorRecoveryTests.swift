@@ -29,7 +29,9 @@ final class TeraErrorRecoveryTests: XCTestCase {
       XCTAssertEqual(TeraUserMessages.key(for: wrapped, fallback: .todayUnavailable), key, code)
       XCTAssertEqual(
         TeraTodayFailure(wrapped),
-        .failed(message: TeraUserMessages.text(key)), code
+        code == "today_cursor_invalid"
+          ? .staleCursor(message: TeraUserMessages.text(key))
+          : .failed(message: TeraUserMessages.text(key)), code
       )
       XCTAssertEqual(TeraMediaStore.failureState(wrapped), .failed, code)
     }

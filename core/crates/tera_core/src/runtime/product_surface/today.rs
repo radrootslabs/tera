@@ -465,10 +465,16 @@ impl TeraRuntime {
             let position = TodayCursor::decode(cursor, &scope)?;
             let mut snapshot = load_snapshot(storage, projection_id, algorithm_generation, &scope)
                 .await?
-                .ok_or(TodayError::SnapshotMissing)?;
+                .ok_or(CursorError::Stale)?;
             let current = load_state(storage, context, algorithm_generation)
                 .await?
-                .ok_or(TodayError::ProjectionMissing)?;
+                .ok_or(CursorError::Stale)?;
+            if current.store_generation != scope.store_generation
+                || current.query_scope != Some(scope.query_scope)
+                || current.content_generation != scope.projection_generation
+            {
+                return Err(CursorError::Stale.into());
+            }
             sanitize_snapshot_media(&mut snapshot, &current.media_cache);
             (scope, snapshot, Some(position.rank))
         } else {
@@ -2597,7 +2603,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn equal_timestamp_pages_are_complete_and_remain_frozen_across_ingest() {
+    async fn changed_projection_rejects_repeated_old_cursor_and_refreshes_completely() {
         let runtime = TeraRuntime::test_memory().expect("runtime");
         let context = context(None, 1);
         for content in ["alpha", "bravo", "charlie"] {
@@ -2624,30 +2630,35 @@ mod tests {
         )
         .await;
 
-        let mut ids = first
-            .items
-            .iter()
-            .map(|card| card.card.card_id.to_hex())
-            .collect::<Vec<_>>();
-        let mut cursor = Some(frozen_cursor);
-        while let Some(value) = cursor {
-            let page = runtime
-                .phase1_today_page(&context, TodayPageRequest::after(1, value))
-                .await
-                .expect("continued frozen page");
-            ids.extend(page.items.iter().map(|card| card.card.card_id.to_hex()));
-            cursor = page.next_cursor;
+        for _ in 0..3 {
+            assert!(matches!(
+                runtime
+                    .phase1_today_page(&context, TodayPageRequest::after(1, frozen_cursor.clone()))
+                    .await,
+                Err(TodayError::Cursor(CursorError::Stale))
+            ));
         }
-        ids.sort();
-        assert_eq!(ids.len(), 3, "each frozen item appears exactly once");
-        ids.dedup();
-        assert_eq!(ids.len(), 3, "frozen snapshot has no loss or duplicates");
 
         let current = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_201))
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_200))
             .await
             .expect("current page");
         assert_eq!(current.items.len(), 4);
+        assert_eq!(
+            current
+                .items
+                .iter()
+                .map(|item| item.card.card_id)
+                .collect::<std::collections::BTreeSet<_>>()
+                .len(),
+            4
+        );
+        assert!(
+            current
+                .items
+                .iter()
+                .any(|item| item.card.content == "delta")
+        );
     }
 
     #[tokio::test]
@@ -3678,7 +3689,7 @@ mod tests {
             runtime
                 .phase1_today_page(&context, TodayPageRequest::after(1, cursor_for(missing)))
                 .await,
-            Err(TodayError::SnapshotMissing)
+            Err(TodayError::Cursor(CursorError::Stale))
         ));
 
         let snapshot =

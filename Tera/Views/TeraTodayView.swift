@@ -95,7 +95,7 @@ struct TeraTodayView: View {
 
   private var feed: some View {
     List {
-      TeraTodayStatusView(presentation: store.presentation)
+      TeraTodayPagingStatusView(store: store)
 
       ForEach(store.cards) { card in
         NavigationLink(value: card) {

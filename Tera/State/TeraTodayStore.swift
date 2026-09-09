@@ -242,7 +242,7 @@ final class TeraTodayStore: ObservableObject {
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             guard frozenAsOfUnixSeconds == nil || frozenAsOfUnixSeconds == page.asOfUnixSeconds else {
-                presentation.failRead(.failed(message: "Today changed while loading. Refresh to continue."))
+                failPagination(.staleCursor(message: "Today changed while loading. Refresh to continue."))
                 return
             }
             frozenAsOfUnixSeconds = page.asOfUnixSeconds
@@ -251,7 +251,7 @@ final class TeraTodayStore: ObservableObject {
             presentation.acceptPage(count: cards.count)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
-            presentation.failRead(TeraTodayFailure(error))
+            failPagination(TeraTodayFailure(error))
         }
     }
 
@@ -279,5 +279,14 @@ final class TeraTodayStore: ObservableObject {
     private static func unique(_ cards: [TeraTodayCard]) -> [TeraTodayCard] {
         var identifiers = Set<String>()
         return cards.filter { identifiers.insert($0.id).inserted }
+    }
+}
+
+private extension TeraTodayStore {
+    func failPagination(_ failure: TeraTodayFailure) {
+        if failure.requiresRefresh {
+          nextCursor = nil
+        }
+        presentation.failRead(failure)
     }
 }

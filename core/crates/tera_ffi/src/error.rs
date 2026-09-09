@@ -445,6 +445,14 @@ mod tests {
         ] {
             let error = TeraAppError::from(TodayError::Cursor(cursor));
             assert_eq!(error.report().code, "today_cursor_invalid");
+            let recovery = crate::recovery::classify_error_recovery(
+                error.report().schema_version,
+                error.report().code.clone(),
+            );
+            assert_eq!(
+                recovery.disposition,
+                crate::recovery::FfiRecoveryDisposition::StaleCursor
+            );
         }
         for media in [
             Phase1InboundMediaError::InvalidReference,

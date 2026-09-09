@@ -721,10 +721,10 @@
         "sha256": "76e3bddfc237dac63293d264d68991b489585136fe377e39dbba72aa3a1181f4"
       },
       "core/crates/tera_core/src/runtime/product_surface/today.rs": {
-        "bytes": 140369,
-        "git_blob": "5b3c7fdf795eb3fa203a53a695cf7468af724c7e",
+        "bytes": 140595,
+        "git_blob": "a006f757c82a3160d140afb99d2c4615738010ef",
         "mode": "100644",
-        "sha256": "349d6f786d8b7759c2c8e7231d36fc042d9bb937d064d9e7ed4b2a4242fc2708"
+        "sha256": "00ec4a99b1ee3acd22460540a52630c9f6d05715372d1957268303b9bb810f76"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_paging_scope.rs": {
         "bytes": 1703,
@@ -733,10 +733,10 @@
         "sha256": "e9ea1a0ee6c52031895184cd0a2b3c526318fd521ab2bd6b1b08ef53f3c9ff66"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_scope_tests.rs": {
-        "bytes": 13698,
-        "git_blob": "e1640d8367278dc45dd85fcc598f991ae7cb16ca",
+        "bytes": 14171,
+        "git_blob": "0656c65da966fa6f46a634a91201236d8469cc2e",
         "mode": "100644",
-        "sha256": "ee40a9f39d46c0780dff2d64d0d88c7a48a9ce81d68e636063c2d02ec5501357"
+        "sha256": "3d286106402df349e1acd61b1a962dca97837301fc265d624d4bc72174589376"
       },
       "core/crates/tera_core/src/runtime/sdk.rs": {
         "bytes": 20647,
@@ -787,10 +787,10 @@
         "sha256": "b1460005306c2547ddcd419237f5e0fd16ba5208bdec93d313756d5a153d3499"
       },
       "core/crates/tera_ffi/src/error.rs": {
-        "bytes": 19893,
-        "git_blob": "2313f32ede9e60334e68f137f86249810d349b19",
+        "bytes": 20215,
+        "git_blob": "74cd2baef3245474d56ce8033281b6be23e2b595",
         "mode": "100644",
-        "sha256": "f02e95e9eb45a5d2775e9447e410d44d8e6111192772fdc9f4d4395594228f82"
+        "sha256": "2a2b0ee85005a41d30a331ef2a02f9f8ded1ee0480493307fced379452d963cb"
       },
       "core/crates/tera_ffi/src/invalidation.rs": {
         "bytes": 6914,
@@ -1358,6 +1358,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "15bab536eccf803b40d32dbb228e64282272709f"
+    "tree": "4cf86c25de8e96b9636e00cb4d2d59b4be732688"
   }
 }

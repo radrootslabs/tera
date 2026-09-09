@@ -22,19 +22,23 @@ enum TeraTodayFreshness: Sendable, Equatable {
 enum TeraTodayFailure: Sendable, Equatable {
   case offline(message: String)
   case failed(message: String)
+  case staleCursor(message: String)
 
   init(_ error: Error) {
     let message = TeraUserMessages.text(for: error, fallback: .todayUnavailable)
-    if TeraRuntimeFailure.from(error)?.recovery.disposition == .networkUnavailable {
+    switch TeraRuntimeFailure.from(error)?.recovery.disposition {
+    case .staleCursor:
+      self = .staleCursor(message: message)
+    case .networkUnavailable:
       self = .offline(message: message)
-    } else {
+    default:
       self = .failed(message: message)
     }
   }
 
   var message: String {
     switch self {
-    case let .offline(message), let .failed(message): message
+    case let .offline(message), let .failed(message), let .staleCursor(message): message
     }
   }
 
@@ -42,7 +46,19 @@ enum TeraTodayFailure: Sendable, Equatable {
     switch self {
     case .offline: "wifi.slash"
     case .failed: "exclamationmark.triangle"
+    case .staleCursor: "arrow.clockwise"
     }
+  }
+
+  var requiresRefresh: Bool {
+    if case .staleCursor = self {
+      return true
+    }
+    return false
+  }
+
+  var readStatus: String {
+    requiresRefresh ? message : "Saved posts could not be read. \(message)"
   }
 }
 
@@ -124,7 +140,7 @@ struct TeraTodayPresentation: Sendable, Equatable {
       messages.append("Refresh failed. \(failure.message)")
     }
     if let readFailure {
-      messages.append("Saved posts could not be read. \(readFailure.message)")
+      messages.append(readFailure.readStatus)
     }
     if let freshnessMessage {
       messages.append(freshnessMessage)

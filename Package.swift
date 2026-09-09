@@ -92,6 +92,7 @@ let package = Package(
         "Views/TeraSupportingViews.swift",
         "Views/TeraTodayView.swift",
         "Views/TeraTodayStatusView.swift",
+        "Views/TeraTodayPagingStatusView.swift",
         "Views/RuntimeStatusView.swift",
       ],
       resources: [

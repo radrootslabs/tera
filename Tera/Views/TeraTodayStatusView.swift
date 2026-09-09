@@ -15,7 +15,7 @@ struct TeraTodayStatusView: View {
         Label("Refresh failed. \(failure.message)", systemImage: failure.systemImage)
       }
       if let failure = presentation.readFailure {
-        Label("Saved posts could not be read. \(failure.message)", systemImage: failure.systemImage)
+        Label(failure.readStatus, systemImage: failure.systemImage)
       }
       if let message = presentation.freshnessMessage {
         Text(message)
