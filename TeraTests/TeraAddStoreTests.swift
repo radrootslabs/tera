@@ -845,6 +845,7 @@ private enum AddDelayPhase: String, CaseIterable {
 }
 
 private actor AddBackend: TeraRuntimeBackend {
+  private let savePause: ResourceTestPause?
   private let advanceOffline: Bool
   private let saveFailure: TeraRuntimeFailure?
   private let includeWritableRelay: Bool
@@ -860,6 +861,7 @@ private actor AddBackend: TeraRuntimeBackend {
   private var closed = false
 
   init(
+    savePause: ResourceTestPause? = nil,
     advanceOffline: Bool = false,
     saveFailure: TeraRuntimeFailure? = nil,
     includeWritableRelay: Bool = true,
@@ -868,6 +870,7 @@ private actor AddBackend: TeraRuntimeBackend {
     schemas: [TeraAddSchema] = AddBackend.schemas()
   ) {
     self.advanceOffline = advanceOffline
+    self.savePause = savePause
     self.saveFailure = saveFailure
     self.includeWritableRelay = includeWritableRelay
     self.delayedPhase = delayedPhase
@@ -931,103 +934,12 @@ private actor AddBackend: TeraRuntimeBackend {
     schemaInventory
   }
 
-  nonisolated static func schemas() -> [TeraAddSchema] {
-    let field = {
-      (
-        id: String,
-        label: String,
-        kind: TeraAddFieldKind,
-        required: Bool,
-        choices: [String],
-        maxBytes: UInt64?,
-        maxItems: UInt16?
-      ) in
-      TeraAddField(
-        schemaVersion: 1,
-        id: id,
-        label: label,
-        kind: kind,
-        required: required,
-        choices: choices,
-        maxBytes: maxBytes,
-        maxItems: maxItems
-      )
-    }
-    let text = {
-      (id: String, label: String, kind: TeraAddFieldKind, required: Bool, maximum: UInt64?) in
-      field(id, label, kind, required, [], maximum, nil)
-    }
-    let media = { (required: Bool, maximum: UInt16) in
-      field("media", "Photos", .media, required, [], 10 * 1024 * 1024, maximum)
-    }
-    return [
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createUpdate,
-        label: "Update",
-        fields: [text("content", "Update", .multilineText, true, 65535)]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createPhotoUpdate,
-        label: "Photo update",
-        fields: [
-          text("content", "Update", .multilineText, true, 65535),
-          media(true, 20),
-        ]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createAsk,
-        label: "Ask",
-        fields: [
-          text("content", "Question", .multilineText, true, 65535),
-          media(false, 20),
-        ]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createEvent,
-        label: "Event",
-        fields: [
-          text("identifier", "Identifier", .text, true, 256),
-          text("title", "Title", .text, true, 256),
-          text("content", "Description", .multilineText, false, 65535),
-          text("event_start", "Starts", .dateTime, true, nil),
-          text("event_end", "Ends", .dateTime, false, nil),
-          text("location", "Location", .location, false, 256),
-          media(false, 1),
-        ]
-      ),
-      TeraAddSchema(
-        schemaVersion: 1,
-        commandType: .createFoodAvailability,
-        label: "Food availability",
-        fields: [
-          text("identifier", "Identifier", .text, true, 256),
-          text("title", "Food", .text, true, 256),
-          text("summary", "Summary", .text, true, 256),
-          text("content", "Details", .multilineText, true, 65535),
-          text("location", "Pickup location", .location, true, 256),
-          text("price_amount", "Price", .decimal, true, 64),
-          field("currency", "Currency", .choice, true, [], 3, nil),
-          field(
-            "unit", "Unit", .choice, true,
-            ["g", "kg", "lb", "oz", "each", "dozen", "bunch", "punnet", "bag", "basket"],
-            nil, nil
-          ),
-          text("quantity", "Available quantity", .decimal, false, 64),
-          media(false, 20),
-        ]
-      ),
-    ]
-  }
-
   func saveAddIntent(
     input: TeraAddRuntimeInput,
     existingDraftID: String?,
     expectedRevision: UInt64?
   ) async throws -> TeraDraftStatus {
+    await savePause?.wait()
     if let saveFailure {
       throw saveFailure
     }
@@ -1464,321 +1376,153 @@ private actor AddSubscriptionToken: TeraRuntimeSubscriptionToken {
   func cancel() {}
 }
 
-private final class BackgroundUploadFixture: @unchecked Sendable {
-  let draftID = String(repeating: "1", count: 32)
-  let media: TeraPreparedMedia
-  private let root: URL
-  private let roots: RadrootsAppleFileRoots
-
-  init() throws {
-    let bytes = Data("radroots-background-upload".utf8)
-    let digest = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined()
-    root = FileManager.default.temporaryDirectory
-      .appendingPathComponent("radroots-background-tests-\(UUID().uuidString)", isDirectory: true)
-    roots = try RadrootsAppleFileRoots(
-      appIdentifier: "org.radroots.background-tests",
-      dataRoot: root.appendingPathComponent("data", isDirectory: true),
-      cacheRoot: root.appendingPathComponent("cache", isDirectory: true),
-      temporaryRoot: root.appendingPathComponent("temporary", isDirectory: true)
-    )
-    try FileManager.default.createDirectory(
-      at: roots.stagedBlobsRoot,
-      withIntermediateDirectories: true
-    )
-    try bytes.write(to: roots.stagedBlobsRoot.appendingPathComponent(digest))
-    media = TeraPreparedMedia(
-      opaqueReference: "media:\(digest)",
-      remoteURL: "http://127.0.0.1:3000/\(digest).png",
-      sha256: digest,
-      mediaType: "image/png",
-      byteSize: UInt64(bytes.count),
-      width: 2,
-      height: 2,
-      alt: "Background upload",
-      preparedAtUnixSeconds: 1_800_000_000
-    )
-  }
-
-  func remove() {
-    try? FileManager.default.removeItem(at: root)
-  }
-
-  func coordinator(transfer: any RadrootsBackgroundTransfer) -> TeraAddMediaCoordinator {
-    TeraAddMediaCoordinator(
-      roots: roots,
-      picker: BackgroundMediaPicker(),
-      preparer: RadrootsAppleMediaPreparer(roots: roots),
-      transfer: transfer
-    )
-  }
-
-  func job(revision: UInt64, operation: String) -> TeraNativeUploadJob {
-    TeraNativeUploadJob(
-      operationID: operation,
-      draft: draft(revision: revision, stage: .uploading),
-      remoteURL: media.remoteURL!,
-      authorizationHeader: "Nostr test-authorization",
-      expectedSHA256: media.sha256,
-      mediaType: media.mediaType,
-      byteSize: media.byteSize
-    )
-  }
-
-  func draft(revision: UInt64, stage: TeraDraftMediaStage) -> TeraDraftStatus {
-    var form = TeraAddForm.empty(.createPhotoUpdate)
-    form.content = "Background transfer"
-    form.media = [media]
-    return TeraDraftStatus(
-      id: draftID,
-      revision: revision,
-      authorPublicKey: String(repeating: "a", count: 64),
-      kind: .add,
-      commandType: .createPhotoUpdate,
-      form: form,
-      state: stage == .verified ? .readyToSign : .mediaUploading,
-      cardID: String(repeating: "c", count: 64),
-      operationID: String(repeating: "d", count: 32),
-      createdAtUnixMilliseconds: 1_800_000_000_000,
-      updatedAtUnixMilliseconds: 1_800_000_000_001,
-      media: [
-        TeraDraftMediaStatus(
-          url: media.remoteURL!,
-          stage: stage,
-          uploadAttempts: stage == .verified ? 1 : 0,
-          verifiedAtUnixMilliseconds: stage == .verified ? 1_800_000_000_001 : nil,
-          possibleOrphan: false,
-          orphanReasonCode: nil,
-          orphanRecordedAtUnixMilliseconds: nil
-        ),
-      ],
-      settlement: nil,
-      isRevision: false
-    )
-  }
-
-  func request(
-    job: TeraNativeUploadJob,
-    remoteURL: String? = nil
-  ) throws -> RadrootsBackgroundTransferRequest {
-    let blob = try RadrootsStagedBlobReference(
-      blobID: media.sha256,
-      sizeBytes: Int(media.byteSize),
-      mediaType: media.mediaType,
-      filenameHint: "\(media.sha256).png"
-    )
-    return try RadrootsBackgroundTransferRequest(
-      identifier: RadrootsBackgroundTransferIdentifier(job.transferIdentifier),
-      remoteURL: URL(string: remoteURL ?? job.remoteURL)!,
-      method: .put,
-      operation: .upload(source: .stagedBlob(blob)),
-      headers: [:],
-      metadata: [:],
-      networkPolicy: .simulatorLoopbackHTTP,
-      responsePolicy: .boundedJSON(),
-      expectedSourceSHA256: media.sha256
-    )
-  }
-}
-
-extension TeraNativeUploadJob {
-  fileprivate var transferIdentifier: String {
-    "radroots.add.\(draft.id).\(draft.revision).\(operationID)"
-  }
-}
-
-private struct BackgroundMediaPicker: RadrootsMediaPicker {
-  func currentSupport() async throws -> RadrootsMediaPickerSupport {
-    try RadrootsMediaPickerSupport(
-      importAvailable: false,
-      cameraCaptureAvailable: false,
-      supportedImportKinds: [],
-      supportedCaptureKinds: [],
-      multipleSelectionSupported: false
-    )
-  }
-
-  func importMedia(_: RadrootsMediaImportRequest) async throws -> RadrootsMediaImportResult {
-    throw RadrootsCaptureIntakeError.unavailable
-  }
-
-  func captureMedia(_: RadrootsMediaCaptureRequest) async throws -> RadrootsMediaCaptureResult {
-    throw RadrootsCaptureIntakeError.unavailable
-  }
-}
-
-private actor BackgroundTransferHarness: RadrootsBackgroundTransfer {
-  private var values: [RadrootsBackgroundTransferIdentifier: RadrootsBackgroundTransferSnapshot] =
-    [:]
-  private let enqueueState: RadrootsBackgroundTransferState
-  private let pause: BackgroundTransferPause
-  private var pauseReleased: Bool
-  private(set) var isPaused = false
-  private(set) var enqueueCount = 0
-  private(set) var retryCount = 0
-  private(set) var cancelCount = 0
-  private(set) var acceptedSettlementCount = 0
-  private(set) var snapshotCount = 0
-
-  init(
-    enqueueState: RadrootsBackgroundTransferState = .awaitingVerification,
-    pause: BackgroundTransferPause = .none
-  ) {
-    self.enqueueState = enqueueState
-    self.pause = pause
-    pauseReleased = pause == .none
-  }
-
-  var state: RadrootsBackgroundTransferState? {
-    values.values.first?.state
-  }
-
-  var counts: (enqueue: Int, retry: Int, cancel: Int, acceptedSettlement: Int) {
-    (enqueueCount, retryCount, cancelCount, acceptedSettlementCount)
-  }
-
-  func seed(
-    request: RadrootsBackgroundTransferRequest,
-    state: RadrootsBackgroundTransferState
-  ) throws {
-    values[request.identifier] = try snapshot(request: request, state: state)
-  }
-
-  func setState(_ state: RadrootsBackgroundTransferState) throws {
-    for (identifier, value) in values {
-      values[identifier] = try snapshot(request: value.request, state: state)
-    }
-  }
-
-  func removeAll() {
-    values.removeAll()
-  }
-
-  func releasePause() {
-    pauseReleased = true
-  }
-
-  func enqueue(_ request: RadrootsBackgroundTransferRequest) async throws
-    -> RadrootsBackgroundTransferHandle
-  {
-    enqueueCount += 1
-    values[request.identifier] = try snapshot(
-      request: persisted(request),
-      state: enqueueState
-    )
-    return RadrootsBackgroundTransferHandle(request: request)
-  }
-
-  func retry(_ request: RadrootsBackgroundTransferRequest) async throws
-    -> RadrootsBackgroundTransferHandle
-  {
-    retryCount += 1
-    values[request.identifier] = try snapshot(
-      request: persisted(request),
-      state: .awaitingVerification
-    )
-    return RadrootsBackgroundTransferHandle(request: request)
-  }
-
-  func cancel(_ identifier: RadrootsBackgroundTransferIdentifier) async throws {
-    cancelCount += 1
-    if let value = values[identifier] {
-      values[identifier] = try snapshot(request: value.request, state: .cancelled)
-    }
-  }
-
-  func expire(_ identifier: RadrootsBackgroundTransferIdentifier) async throws {
-    if let value = values[identifier] {
-      values[identifier] = try snapshot(request: value.request, state: .expired)
-    }
-  }
-
-  func settle(
-    _ identifier: RadrootsBackgroundTransferIdentifier,
-    verification: RadrootsBackgroundTransferVerification
-  ) async throws {
-    guard let value = values[identifier] else {
-      throw RadrootsBackgroundTransferError.transferFailure
-    }
-    switch verification {
-    case .accepted:
-      acceptedSettlementCount += 1
-      values[identifier] = try snapshot(request: value.request, state: .completed)
-    case let .rejected(failure):
-      values[identifier] = try RadrootsBackgroundTransferSnapshot(
-        request: value.request,
-        state: .failed,
-        failure: failure
+private extension AddBackend {
+  nonisolated static func schemas() -> [TeraAddSchema] {
+    let field = {
+      (
+        id: String,
+        label: String,
+        kind: TeraAddFieldKind,
+        required: Bool,
+        choices: [String],
+        maxBytes: UInt64?,
+        maxItems: UInt16?
+      ) in
+      TeraAddField(
+        schemaVersion: 1,
+        id: id,
+        label: label,
+        kind: kind,
+        required: required,
+        choices: choices,
+        maxBytes: maxBytes,
+        maxItems: maxItems
       )
     }
-  }
-
-  func snapshot(for identifier: RadrootsBackgroundTransferIdentifier) async throws
-    -> RadrootsBackgroundTransferSnapshot?
-  {
-    snapshotCount += 1
-    try await waitIfPaused(at: .snapshot)
-    return values[identifier]
-  }
-
-  func snapshots() async throws -> [RadrootsBackgroundTransferSnapshot] {
-    try await waitIfPaused(at: .discovery)
-    return values.values.sorted { $0.identifier < $1.identifier }
-  }
-
-  func handleEventsForBackgroundURLSession(
-    identifier _: String,
-    completionHandler: @escaping @Sendable () -> Void
-  ) async {
-    completionHandler()
-  }
-
-  private func persisted(
-    _ request: RadrootsBackgroundTransferRequest
-  ) throws -> RadrootsBackgroundTransferRequest {
-    try RadrootsBackgroundTransferRequest(
-      identifier: request.identifier,
-      remoteURL: request.remoteURL,
-      method: request.method,
-      operation: request.operation,
-      headers: [:],
-      metadata: [:],
-      networkPolicy: request.networkPolicy,
-      responsePolicy: request.responsePolicy,
-      expectedSourceSHA256: request.expectedSourceSHA256,
-      maximumTransferBytes: request.maximumTransferBytes
-    )
-  }
-
-  private func snapshot(
-    request: RadrootsBackgroundTransferRequest,
-    state: RadrootsBackgroundTransferState
-  ) throws -> RadrootsBackgroundTransferSnapshot {
-    try RadrootsBackgroundTransferSnapshot(
-      request: request,
-      state: state,
-      response: [.awaitingVerification, .completed].contains(state)
-        ? RadrootsBackgroundTransferResponse(
-          statusCode: 200,
-          mediaType: "application/json",
-          body: Data("{}".utf8)
-        ) : nil,
-      possibleRemoteOrphan: false,
-      updatedAt: Date(timeIntervalSince1970: 1_800_000_000)
-    )
-  }
-
-  private func waitIfPaused(at point: BackgroundTransferPause) async throws {
-    guard pause == point, !pauseReleased else { return }
-    isPaused = true
-    defer { isPaused = false }
-    while !pauseReleased {
-      try await Task.sleep(nanoseconds: 1_000_000)
+    let text = {
+      (id: String, label: String, kind: TeraAddFieldKind, required: Bool, maximum: UInt64?) in
+      field(id, label, kind, required, [], maximum, nil)
     }
+    let media = { (required: Bool, maximum: UInt16) in
+      field("media", "Photos", .media, required, [], 10 * 1024 * 1024, maximum)
+    }
+    return [
+      TeraAddSchema(
+        schemaVersion: 1,
+        commandType: .createUpdate,
+        label: "Update",
+        fields: [text("content", "Update", .multilineText, true, 65535)]
+      ),
+      TeraAddSchema(
+        schemaVersion: 1,
+        commandType: .createPhotoUpdate,
+        label: "Photo update",
+        fields: [
+          text("content", "Update", .multilineText, true, 65535),
+          media(true, 20),
+        ]
+      ),
+      TeraAddSchema(
+        schemaVersion: 1,
+        commandType: .createAsk,
+        label: "Ask",
+        fields: [
+          text("content", "Question", .multilineText, true, 65535),
+          media(false, 20),
+        ]
+      ),
+      TeraAddSchema(
+        schemaVersion: 1,
+        commandType: .createEvent,
+        label: "Event",
+        fields: [
+          text("identifier", "Identifier", .text, true, 256),
+          text("title", "Title", .text, true, 256),
+          text("content", "Description", .multilineText, false, 65535),
+          text("event_start", "Starts", .dateTime, true, nil),
+          text("event_end", "Ends", .dateTime, false, nil),
+          text("location", "Location", .location, false, 256),
+          media(false, 1),
+        ]
+      ),
+      TeraAddSchema(
+        schemaVersion: 1,
+        commandType: .createFoodAvailability,
+        label: "Food availability",
+        fields: [
+          text("identifier", "Identifier", .text, true, 256),
+          text("title", "Food", .text, true, 256),
+          text("summary", "Summary", .text, true, 256),
+          text("content", "Details", .multilineText, true, 65535),
+          text("location", "Pickup location", .location, true, 256),
+          text("price_amount", "Price", .decimal, true, 64),
+          field("currency", "Currency", .choice, true, [], 3, nil),
+          field(
+            "unit", "Unit", .choice, true,
+            ["g", "kg", "lb", "oz", "each", "dozen", "bunch", "punnet", "bag", "basket"],
+            nil, nil
+          ),
+          text("quantity", "Available quantity", .decimal, false, 64),
+          media(false, 20),
+        ]
+      ),
+    ]
   }
 }
 
-private enum BackgroundTransferPause: Sendable {
-  case none
-  case discovery
-  case snapshot
+extension TeraAddStoreTests {
+  @MainActor
+  func testMutationAdmissionKeepsOneAddOperationBeforeItsBackendWait() async throws {
+    let pause = ResourceTestPause()
+    let backend = AddBackend(savePause: pause)
+    let client = try await Self.startedClient(backend)
+    let store = TeraAddStore(runtimeClient: client)
+    await store.configure(snapshot: backend.snapshot())
+    await store.start()
+    store.updateForm(\.content, "One admitted draft")
+    let owner = Task { await store.save() }
+    await admissionPauseEntered(pause)
+    XCTAssertTrue(store.isWorking)
+    await store.save()
+    await store.submit()
+    XCTAssertTrue(store.isWorking)
+    XCTAssertNil(store.activeDraft)
+    await pause.resume.open()
+    await owner.value
+    XCTAssertEqual(store.drafts.count, 1)
+    XCTAssertEqual(store.activeDraft?.revision, 1)
+    XCTAssertEqual(store.activeDraft?.state, .draft)
+    XCTAssertFalse(store.isWorking)
+    _ = try await client.stop()
+  }
+
+  @MainActor
+  func testMutationAdmissionIgnoresAnAddCallerCancelledWhileQueued() async throws {
+    let backend = AddBackend()
+    let client = try await Self.startedClient(backend)
+    let store = TeraAddStore(runtimeClient: client)
+    await store.configure(snapshot: backend.snapshot())
+    await store.start()
+    store.updateForm(\.content, "Only save after explicit admission")
+    let pause = ResourceTestPause()
+    let queued = Task { await pause.wait(); await store.save() }
+    await admissionPauseEntered(pause)
+    queued.cancel()
+    await pause.resume.open()
+    await queued.value
+    XCTAssertTrue(store.drafts.isEmpty)
+    XCTAssertFalse(store.isWorking)
+    await store.save()
+    XCTAssertEqual(store.drafts.count, 1)
+    _ = try await client.stop()
+  }
+
+  @MainActor
+  private func admissionPauseEntered(_ pause: ResourceTestPause) async {
+    let entered = expectation(description: "Entered the explicit Add pause")
+    let observer = Task { await pause.entered.wait(); entered.fulfill() }
+    await fulfillment(of: [entered], timeout: 2)
+    await pause.entered.open()
+    await observer.value
+  }
 }

@@ -2407,6 +2407,7 @@ mod tests {
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
             store_public_key: None,
+            mutations: Default::default(),
             settings_lock: tokio::sync::Mutex::new(()),
             identity_session: tokio::sync::RwLock::new(None),
             inbound_media_directory: None,

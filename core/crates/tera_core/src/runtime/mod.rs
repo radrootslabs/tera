@@ -1,6 +1,8 @@
 pub mod app_info;
 pub mod builder;
 pub mod info;
+#[cfg(feature = "mobile-social")]
+mod mutation_admission;
 pub mod product_surface;
 pub mod sdk;
 pub mod store;
@@ -27,6 +29,8 @@ pub struct TeraRuntime {
     pub(crate) shutting_down: AtomicBool,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
     pub(crate) store_public_key: Option<PublicKey>,
+    #[cfg(feature = "mobile-social")]
+    mutations: mutation_admission::MutationAdmission,
     #[cfg(feature = "mobile-social")]
     pub(crate) settings_lock: tokio::sync::Mutex<()>,
     #[cfg(feature = "mobile-social")]
@@ -84,6 +88,8 @@ impl TeraRuntime {
             shutting_down: AtomicBool::new(false),
             platform_app: RwLock::new(None),
             store_public_key,
+            #[cfg(feature = "mobile-social")]
+            mutations: mutation_admission::MutationAdmission::default(),
             #[cfg(feature = "mobile-social")]
             settings_lock: tokio::sync::Mutex::new(()),
             #[cfg(feature = "mobile-social")]

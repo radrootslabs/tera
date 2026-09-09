@@ -60,6 +60,8 @@ targets:
       - path: TeraTests/TeraTodayStoreTests.swift
       - path: TeraTests/TeraMediaStoreTests.swift
       - path: TeraTests/TeraAddStoreTests.swift
+      - path: TeraTests/TeraBackgroundUploadFixtures.swift
+      - path: TeraTests/TeraMutationAdmissionTests.swift
       - path: TeraTests/TeraSupportingStoreTests.swift
       - path: TeraTests/TeraLifecycleTests.swift
       - path: TeraTests/TeraClockTests.swift

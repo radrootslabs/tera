@@ -703,7 +703,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   private func perform(_ operation: @escaping () async throws -> Void) async {
-    guard operationTask == nil else { return }
+    guard operationTask == nil, !Task.isCancelled else { return }
     generation &+= 1
     let requestedGeneration = generation
     operationGeneration = requestedGeneration
@@ -711,7 +711,7 @@ final class TeraAddStore: ObservableObject {
     message = nil
     lastFailureCode = nil
     let task = Task { @MainActor [weak self] in
-      guard let self else { return }
+      guard let self, !Task.isCancelled else { return }
       await execute(operation, generation: requestedGeneration)
     }
     operationTask = task

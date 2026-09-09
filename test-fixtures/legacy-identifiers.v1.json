@@ -245,7 +245,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
         },
         {
@@ -351,7 +351,11 @@
           "count": 3
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -401,7 +405,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 1
         }
       ]
@@ -483,7 +487,7 @@
           "count": 3
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
         }
       ]
@@ -523,7 +527,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         },
         {
@@ -547,7 +551,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 4
         }
       ]
@@ -558,10 +562,14 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 7
+          "count": 3
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "count": 4
+        },
+        {
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
         }
       ]
@@ -572,10 +580,14 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 8
+          "count": 2
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "count": 7
+        },
+        {
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 9
         }
       ]
@@ -585,7 +597,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 1
         }
       ]
@@ -595,7 +607,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -605,7 +617,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 1
         }
       ]
@@ -619,7 +631,7 @@
           "count": 1
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
         }
       ]
@@ -629,7 +641,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
         }
       ]
@@ -649,7 +661,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -717,7 +729,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
         },
         {
@@ -1015,6 +1027,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 1
         },
@@ -1051,7 +1067,15 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraMutationAdmissionTests.swift",
           "count": 1
         },
         {
@@ -1141,7 +1165,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1155,7 +1179,7 @@
           "count": 1
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1169,7 +1193,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1183,7 +1207,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1197,7 +1221,7 @@
           "count": 4
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1211,7 +1235,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
         }
       ]
@@ -1358,10 +1382,14 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 3
+          "count": 1
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1715,7 +1743,7 @@
           "count": 1
         },
         {
-          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 1
         },
         {
@@ -1787,7 +1815,7 @@
       "category": "verification_compatibility",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1797,7 +1825,7 @@
       "category": "verification_compatibility",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -1952,11 +1980,19 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraAddStoreTests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
         }
       ]
     },
@@ -2431,7 +2467,7 @@
       "category": "verification_compatibility",
       "occurrences": [
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         }
       ]
@@ -3877,6 +3913,10 @@
           "count": 6
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/mutation_admission_tests.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 2
         },
@@ -4169,6 +4209,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/mutation_admission_tests.rs",
+          "count": 2
         }
       ]
     },
@@ -4224,7 +4268,11 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
-          "count": 41
+          "count": 43
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/mutation_admission_tests.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
@@ -4293,8 +4341,16 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/mutation_admission.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/mutation_admission_tests.rs",
+          "count": 6
         },
         {
           "path": "core/crates/tera_ffi/Cargo.toml",
@@ -4316,6 +4372,10 @@
         },
         {
           "path": "core/crates/tera_core/Cargo.toml",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/mutation_admission.rs",
           "count": 1
         },
         {

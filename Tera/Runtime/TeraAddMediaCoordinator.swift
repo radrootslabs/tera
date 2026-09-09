@@ -76,6 +76,9 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   private let preparer: RadrootsAppleMediaPreparer
   private let transfer: any RadrootsBackgroundTransfer
   private let clock: TeraClock
+  /// Reserve before request preparation or native callbacks. A cancelled waiter
+  /// releases this caller's admission; OS transfer state remains authoritative.
+  private var activeUploadDrafts: Set<String> = []
 
   init(
     roots: RadrootsAppleFileRoots,
@@ -193,38 +196,15 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     job: TeraNativeUploadJob,
     media: TeraPreparedMedia
   ) async throws -> TeraAddBackgroundUploadReceipt {
-    guard job.expectedSHA256 == media.sha256,
-      job.mediaType == media.mediaType,
-      job.byteSize == media.byteSize,
-      let byteSize = Int(exactly: media.byteSize),
-      let remoteURL = URL(string: job.remoteURL)
-    else {
-      throw TeraRuntimeFailure.local(
-        operation: "add.media.background",
-        code: "ios.add.background_upload_mismatch",
-        safeMessage: "The prepared photo no longer matches the authorized upload."
-      )
+    try Task.checkCancellation()
+    guard activeUploadDrafts.insert(job.draft.id).inserted else {
+      throw TeraBackgroundUploadRequest.operationInProgress
     }
-    let identifier = try Self.transferIdentifier(job: job)
-    let prepared = try RadrootsApplePreparedImage(
-      file: RadrootsStagedBlobReference(
-        blobID: media.sha256,
-        sizeBytes: byteSize,
-        mediaType: media.mediaType,
-        filenameHint: "\(media.sha256).png"
-      ),
-      sha256: media.sha256,
-      width: media.width,
-      height: media.height
+    defer { activeUploadDrafts.remove(job.draft.id) }
+    let request = try await TeraBackgroundUploadRequest.prepare(
+      job: job, media: media, preparer: preparer
     )
-    let request = try await preparer.blossomUploadRequest(
-      preparedImage: prepared,
-      remoteURL: remoteURL,
-      authorization: job.authorizationHeader,
-      networkPolicy: remoteURL.scheme?.lowercased() == "https"
-        ? .publicHTTPS : .simulatorLoopbackHTTP,
-      identifier: identifier
-    )
+    let identifier = request.identifier
     let persisted = try await matchingPersistedUpload(
       draftID: job.draft.id,
       expectedRevision: job.draft.revision,
@@ -234,7 +214,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     if let persisted {
       activeIdentifier = persisted.identifier
       if [.failed, .interrupted, .cancelled, .expired].contains(persisted.state) {
-        let retry = try Self.replacingIdentifier(in: request, with: activeIdentifier)
+        let retry = try TeraBackgroundUploadRequest.replacingIdentifier(in: request, with: activeIdentifier)
+        try Task.checkCancellation()
         _ = try await transfer.retry(retry)
       }
     } else {
@@ -288,7 +269,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     for snapshot in try await transfer.snapshots()
     where snapshot.state == .awaitingVerification {
       try Task.checkCancellation()
-      guard let identity = Self.transferIdentity(snapshot.identifier),
+      guard let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
         let draft = draftsByID[identity.draftID]
       else { continue }
       guard draft.revision > identity.revision,
@@ -298,7 +279,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
             && $0.sha256 == snapshot.request.expectedSourceSHA256
         }),
         draft.media.contains(where: { $0.url == media.remoteURL && $0.stage == .verified }),
-        try Self.persistedRequestMatchesMedia(snapshot.request, media: media)
+        try TeraBackgroundUploadRequest.persistedRequestMatchesMedia(snapshot.request, media: media)
       else {
         throw Self.failure(
           code: "ios.add.background_upload_mismatch",
@@ -326,14 +307,6 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     )
   }
 
-  private static func transferIdentifier(
-    job: TeraNativeUploadJob
-  ) throws -> RadrootsBackgroundTransferIdentifier {
-    try RadrootsBackgroundTransferIdentifier(
-      "radroots.add.\(job.draft.id).\(job.draft.revision).\(job.operationID)"
-    )
-  }
-
   private func matchingPersistedUpload(
     draftID: String,
     expectedRevision: UInt64,
@@ -344,7 +317,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     let prefix = "radroots.add.\(draftID)."
     let owned = snapshots.filter { $0.identifier.rawValue.hasPrefix(prefix) }
     let parsed = try owned.map { snapshot in
-      guard let identity = Self.transferIdentity(snapshot.identifier),
+      guard let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
         identity.draftID == draftID,
         identity.revision <= expectedRevision
       else {
@@ -357,7 +330,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     }
     let candidates = parsed.filter { snapshot in
       snapshot.state != .completed
-        || Self.persistedRequestMatches(snapshot.request, request: request)
+        || TeraBackgroundUploadRequest.persistedRequestMatches(snapshot.request, request: request)
     }
     try Task.checkCancellation()
     let active = candidates.filter { $0.state != .completed }
@@ -368,7 +341,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
       )
     }
     if let candidate = active.first {
-      guard Self.persistedRequestMatches(candidate.request, request: request) else {
+      guard TeraBackgroundUploadRequest.persistedRequestMatches(candidate.request, request: request) else {
         throw Self.failure(
           code: "ios.add.background_upload_mismatch",
           message: "The persisted photo upload does not match the authorized upload."
@@ -377,7 +350,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
       return candidate
     }
     let completed = candidates.filter {
-      $0.state == .completed && Self.persistedRequestMatches($0.request, request: request)
+      $0.state == .completed && TeraBackgroundUploadRequest.persistedRequestMatches($0.request, request: request)
     }
     guard completed.count <= 1 else {
       throw Self.failure(
@@ -402,7 +375,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
           message: "The background photo upload could not be recovered."
         )
       }
-      guard Self.persistedRequestMatches(snapshot.request, request: request) else {
+      guard TeraBackgroundUploadRequest.persistedRequestMatches(snapshot.request, request: request) else {
         throw Self.failure(
           code: "ios.add.background_upload_mismatch",
           message: "The persisted photo upload no longer matches its request."
@@ -438,79 +411,6 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
         try await Task.sleep(for: .milliseconds(100))
       }
     }
-  }
-
-  private static func persistedRequestMatches(
-    _ persisted: RadrootsBackgroundTransferRequest,
-    request: RadrootsBackgroundTransferRequest
-  ) -> Bool {
-    persisted.headers.isEmpty && persisted.metadata.isEmpty
-      && persisted.remoteURL == request.remoteURL
-      && persisted.method == request.method
-      && persisted.operation == request.operation
-      && persisted.networkPolicy == request.networkPolicy
-      && persisted.responsePolicy == request.responsePolicy
-      && persisted.expectedSourceSHA256 == request.expectedSourceSHA256
-      && persisted.maximumTransferBytes == request.maximumTransferBytes
-  }
-
-  private static func persistedRequestMatchesMedia(
-    _ persisted: RadrootsBackgroundTransferRequest,
-    media: TeraPreparedMedia
-  ) throws -> Bool {
-    guard let remoteURL = media.remoteURL.flatMap(URL.init(string:)),
-      let byteSize = Int(exactly: media.byteSize)
-    else { return false }
-    let blob = try RadrootsStagedBlobReference(
-      blobID: media.sha256,
-      sizeBytes: byteSize,
-      mediaType: media.mediaType,
-      filenameHint: "\(media.sha256).png"
-    )
-    let responsePolicy = try RadrootsBackgroundTransferResponsePolicy.boundedJSON()
-    return persisted.headers.isEmpty && persisted.metadata.isEmpty
-      && persisted.remoteURL == remoteURL
-      && persisted.method == .put
-      && persisted.operation == .upload(source: .stagedBlob(blob))
-      && persisted.networkPolicy
-        == (remoteURL.scheme?.lowercased() == "https" ? .publicHTTPS : .simulatorLoopbackHTTP)
-      && persisted.responsePolicy == responsePolicy
-      && persisted.expectedSourceSHA256 == media.sha256
-      && persisted.maximumTransferBytes
-        == RadrootsBackgroundTransferRequest.defaultMaximumTransferBytes
-  }
-
-  private static func replacingIdentifier(
-    in request: RadrootsBackgroundTransferRequest,
-    with identifier: RadrootsBackgroundTransferIdentifier
-  ) throws -> RadrootsBackgroundTransferRequest {
-    try RadrootsBackgroundTransferRequest(
-      identifier: identifier,
-      remoteURL: request.remoteURL,
-      method: request.method,
-      operation: request.operation,
-      headers: request.headers,
-      metadata: request.metadata,
-      networkPolicy: request.networkPolicy,
-      responsePolicy: request.responsePolicy,
-      expectedSourceSHA256: request.expectedSourceSHA256,
-      maximumTransferBytes: request.maximumTransferBytes
-    )
-  }
-
-  private static func transferIdentity(
-    _ identifier: RadrootsBackgroundTransferIdentifier
-  ) -> (draftID: String, revision: UInt64)? {
-    let components = identifier.rawValue.split(separator: ".", omittingEmptySubsequences: false)
-    guard components.count == 5,
-      components[0] == "radroots",
-      components[1] == "add",
-      components[2].range(of: "^[0-9a-f]{32}$", options: .regularExpression) != nil,
-      let revision = UInt64(components[3]),
-      String(revision) == components[3],
-      components[4].range(of: "^[0-9a-f]{32}$", options: .regularExpression) != nil
-    else { return nil }
-    return (String(components[2]), revision)
   }
 
   private static func failure(code: String, message: String) -> TeraRuntimeFailure {

@@ -207,6 +207,15 @@ impl From<Phase1DraftError> for TeraAppError {
             Phase1DraftError::OperationUnavailable => {
                 ("authoring_unavailable", true, &["retry"][..])
             }
+            Phase1DraftError::OperationInProgress => {
+                return Self::failure(
+                    "operation_in_progress",
+                    "operation",
+                    true,
+                    &["retry_operation_with_same_idempotency_key"],
+                    "An authored transition is already in progress for this operation.",
+                );
+            }
             Phase1DraftError::Storage => (
                 "authoring_storage_failed",
                 true,
@@ -278,6 +287,25 @@ impl From<ProfileMetadataError> for TeraAppError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn mutation_admission_reports_the_existing_typed_recovery_contract() {
+        let error = TeraAppError::from(Phase1DraftError::OperationInProgress);
+        let report = error.report();
+        assert_eq!(report.schema_version, MOBILE_FFI_SCHEMA_VERSION);
+        assert_eq!(report.code, "operation_in_progress");
+        assert_eq!(report.category, "operation");
+        assert!(report.retryable);
+        assert_eq!(
+            report.recovery_actions,
+            ["retry_operation_with_same_idempotency_key"]
+        );
+        let recovery = tera_core::error::recovery::classify(report.schema_version, &report.code);
+        assert_eq!(
+            recovery.disposition,
+            tera_core::error::recovery::RecoveryDisposition::OutcomeUnknown
+        );
+    }
 
     #[test]
     fn internal_core_messages_are_not_copied_to_the_ffi_record() {

@@ -49,6 +49,8 @@ actor ResourceTestBackend: TeraRuntimeBackend {
   private var subscriptionPause: ResourceTestPause?
   private var snapshotPause: ResourceTestPause?
   private var settingsPause: ResourceTestPause?
+  private var profilePause: ResourceTestPause?
+  private(set) var profileMutations = 0
   private var receive: (@Sendable (TeraRuntimeChange) async -> Void)?
 
   init(publicKeyHex: String) {
@@ -73,6 +75,35 @@ actor ResourceTestBackend: TeraRuntimeBackend {
 
   func pauseSettings(_ pause: ResourceTestPause) {
     settingsPause = pause
+  }
+
+  func pauseProfile(_ pause: ResourceTestPause) {
+    profilePause = pause
+  }
+
+  func saveProfileMetadata(input _: TeraProfileMetadataInput) async -> TeraProfileStatus {
+    await profileMutation()
+  }
+
+  func advanceProfile(operationID _: String) async -> TeraProfileStatus {
+    await profileMutation()
+  }
+
+  func cancelProfile(operationID _: String, expectedRevision _: UInt64) async -> TeraProfileStatus {
+    await profileMutation()
+  }
+
+  private func profileMutation() async -> TeraProfileStatus {
+    profileMutations += 1
+    let pause = profilePause
+    profilePause = nil
+    await pause?.wait()
+    return TeraProfileStatus(
+      id: String(repeating: "a", count: 32), revision: UInt64(profileMutations),
+      authorPublicKey: value.identity.publicKeyHex, state: .draft, deliveryID: nil,
+      createdAtUnixMilliseconds: 1_800_000_000_000, updatedAtUnixMilliseconds: 1_800_000_000_000,
+      settlement: nil
+    )
   }
 
   func snapshot() async throws -> TeraRuntimeSnapshot {
