@@ -13,6 +13,7 @@ SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
+import ffi_build as builder  # noqa: E402
 import ffi_provenance as provenance  # noqa: E402
 import ffi_source as source  # noqa: E402
 import package_contract as contract  # noqa: E402
@@ -99,6 +100,7 @@ class ProducerSourceTests(unittest.TestCase):
                 "target": "aarch64-apple-ios",
                 "rustc": "rustc 1.97.1",
                 "features": [],
+                "package_rust_flags": [],
                 "feature_graph": ["tera_core|mobile-social"],
             },
         }
@@ -109,6 +111,7 @@ class ProducerSourceTests(unittest.TestCase):
             ("build", "target", "aarch64-apple-ios-sim"),
             ("build", "rustc", "rustc 1.96.0"),
             ("build", "features", ["extra"]),
+            ("build", "package_rust_flags", ["-Copt-level=0"]),
             ("build", "feature_graph", []),
         ):
             with self.subTest(section=section, key=key):
@@ -175,6 +178,61 @@ class ProducerSourceTests(unittest.TestCase):
             contract.PackageContractError, "foundation Cargo revision"
         ):
             source.validate_foundation(changed, lock)
+
+    def test_host_install_name_is_fixed_and_scoped_to_the_ffi_library(self) -> None:
+        config = source.producer_contract(SCRIPTS.parent)
+        build = config["build"]
+        flags = [
+            "-Clink-arg=-Wl,-install_name,@rpath/libtera_ffi.dylib",
+            "-Clink-arg=-Wl,-reproducible",
+            "-Clink-arg=-Wl,-oso_prefix,{extbuild_root}",
+        ]
+        project = Path("/external/test-producer")
+        for target in build["targets"]:
+            with self.subTest(target=target):
+                command = builder.library_command(SCRIPTS.parent, target, project)
+                self.assertIn("--lib", command)
+                self.assertEqual(command[command.index("-p") + 1], "tera_ffi")
+                if target == build["host"]:
+                    self.assertEqual(command[1], "rustc")
+                    self.assertEqual(
+                        command[-4:],
+                        ["--", *(flag.format(extbuild_root=project) for flag in flags)],
+                    )
+                    self.assertEqual(source.library_rust_flags(build, target), flags)
+                else:
+                    self.assertEqual(command[1], "build")
+                    self.assertNotIn("--", command)
+                    self.assertEqual(source.library_rust_flags(build, target), [])
+        self.assertFalse(any("install_name" in flag for flag in build["rust_flags"]))
+        for install_name in (
+            "/tmp/libtera_ffi.dylib",
+            "libtera_ffi.dylib",
+            "@rpath/other.dylib",
+        ):
+            changed = copy.deepcopy(build)
+            changed["host_dylib_install_name"] = install_name
+            with (
+                self.subTest(install_name=install_name),
+                self.assertRaises(contract.PackageContractError),
+            ):
+                source.validate_build(changed)
+        for prefix in ("/tmp", "{producer_root}", ""):
+            changed = copy.deepcopy(build)
+            changed["host_oso_prefix"] = prefix
+            with (
+                self.subTest(prefix=prefix),
+                self.assertRaises(contract.PackageContractError),
+            ):
+                source.validate_build(changed)
+        for reproducible in (False, 1, "true"):
+            changed = copy.deepcopy(build)
+            changed["host_linker_reproducible"] = reproducible
+            with (
+                self.subTest(reproducible=reproducible),
+                self.assertRaises(contract.PackageContractError),
+            ):
+                source.validate_build(changed)
 
 
 if __name__ == "__main__":

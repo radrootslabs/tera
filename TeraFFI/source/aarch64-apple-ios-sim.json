@@ -367,6 +367,7 @@
     "features": [],
     "ios_deployment_target": "18.0",
     "package": "tera_ffi",
+    "package_rust_flags": [],
     "profile": "release",
     "rust_flags": [
       "--remap-path-prefix={producer_root}=/tera",
@@ -518,10 +519,10 @@
         "sha256": "7e9bc238cc27041e3f6b63d40d28712f3276bf0b3f3deb7609f4fb962db4f4c1"
       },
       "TeraFFI/producer.toml": {
-        "bytes": 963,
-        "git_blob": "87e4526a6595ded35ea62b6ef1b3aa67b923b515",
+        "bytes": 1084,
+        "git_blob": "23e07f3d818f7f3d57a77fca3bca6b32b9218e74",
         "mode": "100644",
-        "sha256": "c497212bfb54d997bbf5938cd04c7a41c3ef2ce7adaef861fc07e2565cd26661"
+        "sha256": "eebaf5b181e9b27c3854201c6f6ac1662b7a7045168f960a5c1dac8c5de29013"
       },
       "TeraFFI/scripts/verify-installed-artifacts.sh": {
         "bytes": 255,
@@ -986,10 +987,10 @@
         "sha256": "568ee230a99a907cc9063c203fbecc80e6ba4aca3db6c1e3af93abdbc904b7d5"
       },
       "scripts/ffi_build.py": {
-        "bytes": 12781,
-        "git_blob": "dfa9f484fd6d2206e9729c8f121facb0489b7cff",
+        "bytes": 13121,
+        "git_blob": "0e4f11cd56003b562bccb90eeb30ca706a272863",
         "mode": "100644",
-        "sha256": "b58076013b5a4187c048aa5de8007d259404cc38cee5d72636edd0e3722dc3f3"
+        "sha256": "eafe2189e97a436522fdf18909aa494392ab0347da28b338cc999b30044fc90d"
       },
       "scripts/ffi_installed.py": {
         "bytes": 8207,
@@ -998,16 +999,16 @@
         "sha256": "2f14e83fe08d70b4c92361d9bccd08dd6c480eebd767a692a8b5f03fdb0e5380"
       },
       "scripts/ffi_provenance.py": {
-        "bytes": 6732,
-        "git_blob": "482e69d766c7d76c9fee438b5661f35e070b085c",
+        "bytes": 6808,
+        "git_blob": "de2c086a110501f8bd11f1e5b26b2473c468ce28",
         "mode": "100644",
-        "sha256": "e032f5d2f92de7b5e9761196c30ff2209108231d664a95a25a653c353b16f9fa"
+        "sha256": "2a1a89db83bfd1b1a2e80c1fbd31288dcf2f75a1439ba3446633c755dec0255f"
       },
       "scripts/ffi_source.py": {
-        "bytes": 12532,
-        "git_blob": "9287d6f6f3f924f2a6572def96dd3d3bf9554c7f",
+        "bytes": 13386,
+        "git_blob": "eec045f0fce4a6be04416519bd1f2d71c689fcf3",
         "mode": "100644",
-        "sha256": "8470f7dba319fad00e7ed257d144917e7084330285b1bd706540c554899c5d34"
+        "sha256": "08f5fdfa58c7a3ef89838e6c1c08bc9156e86be36a6ada127aa0cb307711dde3"
       },
       "scripts/generate-project.sh": {
         "bytes": 2964,
@@ -1106,10 +1107,10 @@
         "sha256": "1a60456d7780dfb26dbc71c3c3a07190f6d78c44521f264e0d8aa3ee41c7ff59"
       },
       "scripts/test_ffi_provenance.py": {
-        "bytes": 7905,
-        "git_blob": "5e01f74aeef97593ca6ac38091e137501d046c01",
+        "bytes": 10601,
+        "git_blob": "288809fab06c2af2a0cafe157b021772da3d754e",
         "mode": "100644",
-        "sha256": "6f0196a26af8c1e63ce400ca351c56e95f1122142cecb5fd8d09f4bdc9a2fb83"
+        "sha256": "707cf2cfc9de12e7409247c875289efc4a7b08c6df845ea10c337b84bb98e39b"
       },
       "scripts/test_legacy_identifiers.py": {
         "bytes": 5760,
@@ -1155,6 +1156,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "5364e38f7c08b01eef0d63a2eb48383215e887d8"
+    "tree": "ed13f3efac75566f8f21f1fcc0f9cea938d21d53"
   }
 }

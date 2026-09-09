@@ -44,6 +44,7 @@ def capture(root: Path, target: str) -> dict[str, Any]:
             "profile": build["profile"],
             "ios_deployment_target": build["ios_deployment_target"],
             "rust_flags": build["rust_flags"],
+            "package_rust_flags": source.library_rust_flags(build, target),
             "source_date_epoch": build["source_date_epoch"],
             "rustc": rustc,
             "symbol_reader": source.command(

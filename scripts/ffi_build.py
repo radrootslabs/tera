@@ -84,6 +84,28 @@ def run(
     return log
 
 
+def library_command(root: Path, target: str, project: Path) -> list[str]:
+    config = source.producer_contract(root)
+    flags = [
+        flag.format(extbuild_root=project)
+        for flag in source.library_rust_flags(config["build"], target)
+    ]
+    command = [
+        "cargo",
+        "rustc" if flags else "build",
+        "--manifest-path",
+        str(root / "Cargo.toml"),
+        "-p",
+        "tera_ffi",
+        "--lib",
+        "--release",
+        "--locked",
+        "--target",
+        target,
+    ]
+    return command + (["--", *flags] if flags else [])
+
+
 def build_libraries(
     root: Path, bundle: Path, target_root: Path, logs: Path, env: dict[str, str]
 ) -> None:
@@ -92,18 +114,7 @@ def build_libraries(
             root,
             logs,
             "build-" + target,
-            [
-                "cargo",
-                "build",
-                "--manifest-path",
-                str(root / "Cargo.toml"),
-                "-p",
-                "tera_ffi",
-                "--release",
-                "--locked",
-                "--target",
-                target,
-            ],
+            library_command(root, target, Path(env["EXT_BUILD_PROJECT_DIR"])),
             env,
         )
         extension = "dylib" if target == artifacts.TARGETS[-1] else "a"

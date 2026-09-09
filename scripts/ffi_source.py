@@ -133,6 +133,9 @@ def validate_build(value: Any) -> None:
             "rust_flags",
             "source_date_epoch",
             "host",
+            "host_dylib_install_name",
+            "host_linker_reproducible",
+            "host_oso_prefix",
             "targets",
         },
         "producer build fields",
@@ -143,6 +146,19 @@ def validate_build(value: Any) -> None:
         value["ios_deployment_target"], "18.0", "producer deployment target"
     )
     contract._exact(value["host"], "aarch64-apple-darwin", "producer host")
+    contract._exact(
+        value["host_dylib_install_name"],
+        "@rpath/libtera_ffi.dylib",
+        "producer host dylib install name",
+    )
+    contract._exact(
+        value["host_linker_reproducible"] is True,
+        True,
+        "producer host linker reproducibility",
+    )
+    contract._exact(
+        value["host_oso_prefix"], "{extbuild_root}", "producer host debug-map prefix"
+    )
     contract._exact(
         value["rust_flags"],
         [
@@ -163,6 +179,16 @@ def validate_build(value: Any) -> None:
     )
     if type(value["source_date_epoch"]) is not int or value["source_date_epoch"] <= 0:
         raise ProvenanceError("producer source epoch is invalid")
+
+
+def library_rust_flags(build: dict[str, Any], target: str) -> list[str]:
+    if target == build["host"]:
+        return [
+            f"-Clink-arg=-Wl,-install_name,{build['host_dylib_install_name']}",
+            "-Clink-arg=-Wl,-reproducible",
+            f"-Clink-arg=-Wl,-oso_prefix,{build['host_oso_prefix']}",
+        ]
+    return []
 
 
 def validate_foundation(cargo: dict[str, Any], lock: dict[str, Any]) -> None:
