@@ -61,6 +61,8 @@ let package = Package(
         "Runtime/TeraRuntimeBoundedTask.swift",
         "Runtime/TeraRuntimeClient.swift",
         "Runtime/TeraRuntimeModels.swift",
+        "Runtime/TeraRuntimeResourceCreation.swift",
+        "Runtime/TeraRuntimeResourceTask.swift",
         "Runtime/TeraSessionGeneration.swift",
         "Runtime/TeraUserMessageClassifier.swift",
         "Runtime/TeraUserMessages.swift",

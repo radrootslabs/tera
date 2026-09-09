@@ -257,7 +257,7 @@
           "count": 1
         },
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 2
         }
       ]
@@ -861,6 +861,10 @@
           "count": 5
         },
         {
+          "path": "TeraTests/TeraSessionResourceTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraStateMigrationTests.swift",
           "count": 3
         }
@@ -873,6 +877,10 @@
         {
           "path": "Tera/State/TeraIdentityStore.swift",
           "count": 4
+        },
+        {
+          "path": "TeraTests/TeraSessionResourceTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
@@ -909,7 +917,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 4
         }
       ]
@@ -919,7 +927,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
       ]
@@ -1051,7 +1059,15 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraSessionResourceTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraStateMigrationTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         },
         {
@@ -1299,7 +1315,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
       ]
@@ -1313,7 +1329,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
       ]
@@ -1328,7 +1344,11 @@
         },
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
-          "count": 6
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStateTestFixtures.swift",
+          "count": 5
         }
       ]
     },
@@ -1567,7 +1587,7 @@
           "count": 1
         },
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
       ]
@@ -1615,7 +1635,7 @@
           "count": 1
         },
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
       ]
@@ -1629,7 +1649,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 2
         }
       ]
@@ -1643,7 +1663,7 @@
           "count": 2
         },
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 2
         }
       ]
@@ -1901,7 +1921,7 @@
       "category": "verification_compatibility",
       "occurrences": [
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
       ]
@@ -3501,7 +3521,7 @@
           "count": 1
         },
         {
-          "path": "TeraTests/TeraStateMigrationTests.swift",
+          "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 4
         }
       ]
@@ -4044,6 +4064,10 @@
       "occurrences": [
         {
           "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraSessionResourceTests.swift",
           "count": 1
         },
         {

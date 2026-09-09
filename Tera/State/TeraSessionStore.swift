@@ -347,6 +347,7 @@ actor TeraSessionStore {
     )
     let sourceGeneration = try await configurationStore.sourceGeneration()
     let signer = try await identityStore.signer(for: identity)
+    guard generation == requestedGeneration else { throw TeraRuntimeClientError.superseded }
     let launchConfiguration = TeraRuntimeLaunchConfiguration(
       applicationSupportDirectory: mobileStore.applicationSupportDirectory.path,
       publicKeyHex: publicKeyHex,
@@ -368,7 +369,6 @@ actor TeraSessionStore {
         try await runtimeClient.start(configuration: launchConfiguration)
       }
     guard generation == requestedGeneration else {
-      _ = try? await runtimeClient.stop()
       throw TeraRuntimeClientError.superseded
     }
     try await reconcileIdentity(identity)
@@ -380,7 +380,6 @@ actor TeraSessionStore {
       )
     }
     guard generation == requestedGeneration else {
-      _ = try? await runtimeClient.stop()
       throw TeraRuntimeClientError.superseded
     }
     return .running(snapshot)

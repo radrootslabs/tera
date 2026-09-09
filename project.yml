@@ -50,6 +50,11 @@ targets:
       - path: TeraTests/TeraSessionGenerationTests.swift
       - path: TeraTests/TeraErrorRecoveryTests.swift
       - path: TeraTests/TeraRuntimeBoundedTaskTests.swift
+      - path: TeraTests/TeraRuntimeResourceFixtures.swift
+      - path: TeraTests/TeraRuntimeResourceTaskTests.swift
+      - path: TeraTests/TeraRuntimeResourceLifecycleTests.swift
+      - path: TeraTests/TeraSessionResourceTests.swift
+      - path: TeraTests/TeraStateTestFixtures.swift
       - path: TeraTests/TeraRootShellTests.swift
       - path: TeraTests/TeraStateMigrationTests.swift
       - path: TeraTests/TeraTodayStoreTests.swift

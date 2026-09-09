@@ -292,7 +292,8 @@ actor TeraRuntimeClient {
   private struct StartupOperation: Sendable {
     let identity: TeraRuntimeOperationIdentity
     let configuration: TeraRuntimeLaunchConfiguration
-    let task: TeraRuntimeBoundedTask<TeraRuntimeBackendStart>
+    let task: TeraRuntimeResourceTask<TeraRuntimeBackendStart>
+    var waiters = 0
   }
 
   private struct ShutdownOperation: Sendable {
@@ -385,33 +386,9 @@ actor TeraRuntimeClient {
     lifecycleState = .starting(generation: operationGeneration)
 
     let identity = nextIdentity(kind: kind)
-    let factory = factory
-    let cleanupDeadline = deadlines.shutdownNanoseconds
-    let task = TeraRuntimeBoundedTask<TeraRuntimeBackendStart>(
-      deadlineNanoseconds: deadlines.startupNanoseconds,
-      operation: {
-        do {
-          return try await .success(factory(requestedConfiguration))
-        } catch {
-          return .failure(Self.failure(from: error, operation: identity.rawValue))
-        }
-      },
-      onAbandonedResult: { result in
-        guard case let .success(started) = result else { return }
-        let cleanup = TeraRuntimeBoundedTask<TeraRuntimeShutdownReceipt>(
-          deadlineNanoseconds: cleanupDeadline,
-          operation: {
-            do {
-              return try await .success(started.backend.shutdown())
-            } catch {
-              return .failure(
-                Self.failure(from: error, operation: "runtime.abandoned_startup")
-              )
-            }
-          }
-        )
-        _ = await cleanup.value()
-      }
+    let task = TeraRuntimeResourceCreation.startup(
+      configuration: requestedConfiguration, factory: factory,
+      identity: identity, deadlines: deadlines
     )
     let operation = StartupOperation(
       identity: identity,
@@ -754,36 +731,12 @@ actor TeraRuntimeClient {
       token: nil
     )
 
-    let subscriptionDeadline = deadlines.subscriptionNanoseconds
-    let task = TeraRuntimeBoundedTask<any TeraRuntimeSubscriptionToken>(
-      deadlineNanoseconds: subscriptionDeadline,
-      operation: {
-        do {
-          return try await .success(
-            backend.subscribe(bufferCapacity: bufferCapacity) { [weak self] change in
-              await self?.receive(
-                change,
-                subscriptionID: id,
-                generation: subscriptionGeneration
-              )
-            }
-          )
-        } catch {
-          return .failure(Self.failure(from: error, operation: identity.rawValue))
-        }
-      },
-      onAbandonedResult: { result in
-        guard case let .success(token) = result else { return }
-        let cancellation = TeraRuntimeBoundedTask<Void>(
-          deadlineNanoseconds: subscriptionDeadline,
-          operation: {
-            await token.cancel()
-            return .success(())
-          }
-        )
-        _ = await cancellation.value()
-      }
-    )
+    let task = TeraRuntimeResourceCreation.subscription(
+      backend: backend, bufferCapacity: bufferCapacity,
+      identity: identity, deadline: deadlines.subscriptionNanoseconds
+    ) { [weak self] change in
+      await self?.receive(change, subscriptionID: id, generation: subscriptionGeneration)
+    }
     activeOperations[identity.sequence] = ActiveOperation(
       identity: identity,
       cancel: { task.cancel() }
@@ -796,14 +749,22 @@ actor TeraRuntimeClient {
           var subscription = subscriptions[id]
     else {
       subscriptions.removeValue(forKey: id)?.continuation.finish()
-      if case let .completed(.success(token)) = outcome {
-        cancelTokenDetached(token)
-      }
+      task.cancel()
       throw TeraRuntimeClientError.superseded
+    }
+
+    if Task.isCancelled {
+      subscriptions.removeValue(forKey: id)?.continuation.finish()
+      task.cancel()
+      throw TeraRuntimeClientError.subscription(Self.cancellationFailure(identity: identity))
     }
 
     switch outcome {
     case let .completed(.success(token)):
+      guard task.adopt() else {
+        subscriptions.removeValue(forKey: id)?.continuation.finish()
+        throw TeraRuntimeClientError.superseded
+      }
       subscription.token = token
       subscriptions[id] = subscription
       return pair.stream
@@ -864,17 +825,18 @@ actor TeraRuntimeClient {
   private func finishStartup(
     _ operation: StartupOperation
   ) async throws -> TeraRuntimeSnapshot {
+    if startupOperation?.identity == operation.identity {
+      startupOperation?.waiters += 1
+    }
+    defer { releaseStartupWaiter(operation) }
     let outcome = await operation.task.value(cancelsOperationWhenWaiterCancelled: false)
     guard generation == operation.identity.generation else {
+      operation.task.cancel()
       throw TeraRuntimeClientError.superseded
     }
 
-    if case .cancelled = outcome,
-       startupOperation?.identity == operation.identity
-    {
-      throw TeraRuntimeClientError.startup(
-        Self.cancellationFailure(identity: operation.identity)
-      )
+    if Task.isCancelled {
+      throw TeraRuntimeClientError.startup(Self.cancellationFailure(identity: operation.identity))
     }
 
     if startupOperation?.identity == operation.identity {
@@ -890,6 +852,7 @@ actor TeraRuntimeClient {
 
     switch outcome {
     case let .completed(.success(started)):
+      guard operation.task.adopt() else { throw TeraRuntimeClientError.superseded }
       backend = started.backend
       configuration = operation.configuration
       lifecycleState = .running(generation: operation.identity.generation)
@@ -906,6 +869,19 @@ actor TeraRuntimeClient {
       lifecycleState = .failed(generation: operation.identity.generation, failure: failure)
       throw TeraRuntimeClientError.startup(failure)
     }
+  }
+
+  private func releaseStartupWaiter(_ operation: StartupOperation) {
+    guard var pending = startupOperation, pending.identity == operation.identity else { return }
+    pending.waiters -= 1
+    guard pending.waiters == 0 else {
+      startupOperation = pending
+      return
+    }
+    pending.task.cancel()
+    startupOperation = nil
+    configuration = nil
+    lifecycleState = .stopped
   }
 
   private func beginShutdown() -> ShutdownOperation {
@@ -1180,7 +1156,7 @@ actor TeraRuntimeClient {
     )
   }
 
-  private static func failure(from error: Error, operation: String) -> TeraRuntimeFailure {
+  static func failure(from error: Error, operation: String) -> TeraRuntimeFailure {
     if let failure = error as? TeraRuntimeFailure {
       return failure
     }
