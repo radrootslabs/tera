@@ -59,6 +59,7 @@ let package = Package(
         "Runtime/TeraLifecycleCoordinator.swift",
         "Runtime/TeraRuntimeClient.swift",
         "Runtime/TeraRuntimeModels.swift",
+        "Runtime/TeraSessionGeneration.swift",
         "Runtime/TeraUserMessageClassifier.swift",
         "Runtime/TeraUserMessages.swift",
         "State/TeraAddStore.swift",

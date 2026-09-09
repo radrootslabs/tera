@@ -8,6 +8,7 @@ mod authoring;
 mod context;
 mod cursor;
 mod identity;
+mod local_network_id;
 mod media;
 mod model;
 #[cfg(feature = "mobile-social")]
@@ -28,6 +29,7 @@ pub use context::{
 };
 pub use cursor::{CursorError, CursorScope, TodayCursor, TodayCursorPosition};
 pub use identity::{CARD_ID_SCHEMA_VERSION, CardId, CardIdError, CardSourceIdentity};
+pub use local_network_id::LocalNetworkId;
 #[cfg(feature = "mobile-social")]
 pub use media::Phase1LocalMediaArtifact;
 pub use media::{
@@ -135,7 +137,8 @@ mod tests {
                     1,
                 )
                 .expect("network")
-                .id,
+                .id
+                .as_str(),
             "nearby"
         );
         assert!(

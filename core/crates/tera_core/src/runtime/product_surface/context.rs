@@ -4,6 +4,8 @@ use radroots_transport_nostr::{RelayUrl, RelayUrlPolicy};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use super::LocalNetworkId;
+
 const CONTEXT_TEXT_MAX_BYTES: usize = 256;
 const RELAY_URL_MAX_BYTES: usize = 2_048;
 
@@ -11,7 +13,7 @@ const RELAY_URL_MAX_BYTES: usize = 2_048;
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalNetwork {
-    pub id: String,
+    pub id: LocalNetworkId,
     pub label: String,
     pub relay_urls: Vec<String>,
     pub locality: Option<String>,
@@ -75,7 +77,7 @@ impl LocalNetwork {
         generation: u64,
         relay_policy: LocalNetworkRelayPolicy,
     ) -> Result<Self, LocalNetworkError> {
-        validate_text(&id, "id")?;
+        let id = LocalNetworkId::new(id)?;
         validate_text(&label, "label")?;
         if let Some(locality) = locality.as_deref() {
             validate_text(locality, "locality")?;

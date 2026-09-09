@@ -458,7 +458,7 @@ impl TeraRuntime {
                 return Err(CursorError::Stale.into());
             }
             let scope = CursorScope::new(
-                context.id.clone(),
+                context.id.clone().into(),
                 context.generation,
                 as_of,
                 state.store_generation,
@@ -1361,7 +1361,7 @@ fn project_state(
     }
     Ok(TodayProjectionState {
         schema_version: TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION,
-        context_id: context.id.clone(),
+        context_id: context.id.clone().into(),
         context_generation: context.generation,
         store_generation: *store_generation,
         source_events,
@@ -1567,7 +1567,7 @@ fn frozen_snapshot(
 ) -> Result<FrozenTodaySnapshot, TodayError> {
     Ok(FrozenTodaySnapshot {
         schema_version: TODAY_SNAPSHOT_SCHEMA_VERSION,
-        context_id: context.id.clone(),
+        context_id: context.id.clone().into(),
         context_generation: context.generation,
         as_of,
         store_generation: state.store_generation,
@@ -1619,7 +1619,7 @@ fn validate_snapshot(
     scope: &CursorScope,
 ) -> Result<(), TodayError> {
     if snapshot.schema_version != TODAY_SNAPSHOT_SCHEMA_VERSION
-        || snapshot.context_id != scope.context_id
+        || snapshot.context_id != scope.context_id.as_str()
         || snapshot.context_generation != scope.context_generation
         || snapshot.as_of != scope.as_of
         || snapshot.store_generation != scope.store_generation
@@ -3457,7 +3457,7 @@ mod tests {
             .expect("load state")
             .expect("state");
         let scope = CursorScope::new(
-            context.id.clone(),
+            context.id.clone().into(),
             context.generation,
             2_000_000_200,
             state.store_generation,
@@ -3472,7 +3472,8 @@ mod tests {
                 .to_owned()
         };
         let mut wrong_context = scope.clone();
-        wrong_context.context_id = "elsewhere".into();
+        wrong_context.context_id =
+            crate::runtime::product_surface::LocalNetworkId::new("elsewhere".into()).unwrap();
         assert!(matches!(
             runtime
                 .phase1_today_page(

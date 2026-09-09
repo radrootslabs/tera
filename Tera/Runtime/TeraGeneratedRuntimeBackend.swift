@@ -92,7 +92,7 @@ private final class TeraGeneratedRuntimeObserver: TeraRuntimeObserver, @unchecke
     continuation.yield(
       TeraRuntimeChange(
         schemaVersion: change.schemaVersion,
-        generation: change.generation,
+        generation: TeraProjectionRevision(rawValue: change.generation),
         kind: change.kind.appValue,
         entityID: change.entityId
       )

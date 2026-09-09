@@ -1,19 +1,18 @@
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
-use super::{CardId, ContextRank, TODAY_RANK_SCHEMA_VERSION, TodayRank};
+use super::{CardId, ContextRank, LocalNetworkId, TODAY_RANK_SCHEMA_VERSION, TodayRank};
 use crate::runtime::product_surface::ranking::TODAY_RANK_ALGORITHM_VERSION;
 
 const CURSOR_PREFIX: &str = "rrtc1:";
 const CURSOR_DOMAIN: &[u8] = b"radroots.today-cursor.v1\0";
 const CURSOR_SCHEMA_VERSION: u16 = 1;
-const MAX_CONTEXT_ID_BYTES: usize = 256;
 const FIXED_PAYLOAD_BYTES: usize = 2 + 2 + 2 + 2 + 8 + 8 + 32 + 8 + 1 + 1 + 8 + 32;
 const DIGEST_BYTES: usize = 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CursorScope {
-    pub context_id: String,
+    pub context_id: LocalNetworkId,
     pub context_generation: u64,
     pub as_of: u64,
     pub store_generation: [u8; 32],
@@ -28,7 +27,8 @@ impl CursorScope {
         store_generation: [u8; 32],
         projection_generation: u64,
     ) -> Result<Self, CursorError> {
-        validate_context_id(&context_id)?;
+        let context_id =
+            LocalNetworkId::new(context_id).map_err(|_| CursorError::InvalidContext)?;
         Ok(Self {
             context_id,
             context_generation,
@@ -165,7 +165,8 @@ fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), 
     let context_len = usize::from(decoder.u16()?);
     let context_id =
         core::str::from_utf8(decoder.bytes(context_len)?).map_err(|_| CursorError::Malformed)?;
-    validate_context_id(context_id)?;
+    let context_id =
+        LocalNetworkId::new(context_id.to_owned()).map_err(|_| CursorError::InvalidContext)?;
     let context_generation = decoder.u64()?;
     let as_of = decoder.u64()?;
     let store_generation = decoder.array_32()?;
@@ -183,7 +184,7 @@ fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), 
     }
     Ok((
         CursorScope {
-            context_id: context_id.to_owned(),
+            context_id,
             context_generation,
             as_of,
             store_generation,
@@ -200,17 +201,6 @@ fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), 
             },
         },
     ))
-}
-
-fn validate_context_id(value: &str) -> Result<(), CursorError> {
-    if value.is_empty()
-        || value.len() > MAX_CONTEXT_ID_BYTES
-        || value.trim() != value
-        || value.chars().any(char::is_control)
-    {
-        return Err(CursorError::InvalidContext);
-    }
-    Ok(())
 }
 
 fn cursor_digest(payload: &[u8]) -> [u8; 32] {

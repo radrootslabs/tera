@@ -338,7 +338,7 @@ enum TeraRuntimeChangeKind: Sendable, Equatable {
 
 struct TeraRuntimeChange: Sendable, Equatable {
   let schemaVersion: UInt16
-  let generation: UInt64
+  let generation: TeraProjectionRevision
   let kind: TeraRuntimeChangeKind
   let entityID: String?
 }
@@ -356,16 +356,6 @@ enum TeraRuntimeOperationKind: String, Sendable, Equatable, Hashable {
   case reconfiguration
   case subscription
   case shutdown
-}
-
-struct TeraRuntimeOperationIdentity: Sendable, Equatable, Hashable {
-  let generation: UInt64
-  let sequence: UInt64
-  let kind: TeraRuntimeOperationKind
-
-  var rawValue: String {
-    "ios-runtime-\(generation)-\(sequence)-\(kind.rawValue)"
-  }
 }
 
 struct TeraRuntimeDeadlinePolicy: Sendable, Equatable {
@@ -1237,8 +1227,8 @@ struct TeraNativeUploadCompletion: Sendable, Equatable {
 
 enum TeraRuntimeLifecycle: Sendable, Equatable {
   case stopped
-  case starting(generation: UInt64)
-  case running(generation: UInt64)
-  case stopping(generation: UInt64)
-  case failed(generation: UInt64, failure: TeraRuntimeFailure)
+  case starting(generation: TeraSessionGeneration)
+  case running(generation: TeraSessionGeneration)
+  case stopping(generation: TeraSessionGeneration)
+  case failed(generation: TeraSessionGeneration, failure: TeraRuntimeFailure)
 }

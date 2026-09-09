@@ -45,7 +45,7 @@ actor TeraSessionStore {
   private let protectedData: TeraProtectedDataMonitor
   private let automatesQualificationIdentity: Bool
   private let qualificationEvidenceStore: TeraRemoteQualificationEvidenceStore?
-  private var generation: UInt64 = 0
+  private var generation = TeraSessionGeneration.initial
   private var phase: TeraSessionPhase = .starting
 
   init(
@@ -142,7 +142,7 @@ actor TeraSessionStore {
   }
 
   func applySettingsReconfiguration() async -> TeraSessionPhase {
-    generation &+= 1
+    generation = generation.invalidated()
     let requestedGeneration = generation
     phase = .starting
     do {
@@ -154,7 +154,7 @@ actor TeraSessionStore {
       phase = try await startRuntime(
         configuration: configuration,
         identity: identity,
-        generation: requestedGeneration,
+        generation: requestedGeneration.requireActive(),
         forceReconfiguration: true,
         adoptBootstrapSettings: false
       )
@@ -172,7 +172,7 @@ actor TeraSessionStore {
   }
 
   func suspend() async {
-    generation &+= 1
+    generation = generation.invalidated()
     await runtimeClient.suspend()
     if case .starting = phase {
       phase = .stopped
@@ -180,7 +180,7 @@ actor TeraSessionStore {
   }
 
   private func start(acceptingReconfiguration: Bool) async -> TeraSessionPhase {
-    generation &+= 1
+    generation = generation.invalidated()
     let requestedGeneration = generation
     phase = .starting
     do {
@@ -221,7 +221,7 @@ actor TeraSessionStore {
         phase = try await startRuntime(
           configuration: configuration,
           identity: identity,
-          generation: requestedGeneration,
+          generation: requestedGeneration.requireActive(),
           forceReconfiguration: configuration.activationState
             == .reconfigurationRequired,
           adoptBootstrapSettings: configuration.activationState
@@ -268,7 +268,7 @@ actor TeraSessionStore {
   }
 
   func lockIdentity() async -> TeraSessionPhase {
-    generation &+= 1
+    generation = generation.invalidated()
     if case .running = phase,
       let settings = try? await runtimeClient.mobileSettings()
     {
@@ -308,7 +308,7 @@ actor TeraSessionStore {
   }
 
   func stop() async -> TeraSessionPhase {
-    generation &+= 1
+    generation = generation.invalidated()
     do {
       _ = try await runtimeClient.stop()
       await identityStore.lock()
@@ -331,7 +331,7 @@ actor TeraSessionStore {
   private func startRuntime(
     configuration: TeraAppConfiguration,
     identity: TeraAppIdentity,
-    generation requestedGeneration: UInt64,
+    generation requestedGeneration: TeraSessionGeneration,
     forceReconfiguration: Bool,
     adoptBootstrapSettings: Bool
   ) async throws -> TeraSessionPhase {
@@ -451,7 +451,7 @@ actor TeraSessionStore {
   }
 
   private func failIdentityOperation(_ error: Error) -> TeraSessionPhase {
-    generation &+= 1
+    generation = generation.invalidated()
     phase = .failed(
       .local(
         operation: "identity.operation",

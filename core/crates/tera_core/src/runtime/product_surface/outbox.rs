@@ -441,14 +441,15 @@ impl Phase1QueuePolicy {
 /// Existing durable draft selected for an optimistic replacement.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Phase1ExistingDraft {
-    draft_id: [u8; 16],
-    expected_revision: u64,
+    draft_id: AuthoredDraftId,
+    expected_revision: AuthoredDraftRevision,
 }
 
 impl Phase1ExistingDraft {
     pub fn new(draft_id: [u8; 16], expected_revision: u64) -> Result<Self, Phase1DraftError> {
-        AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
-        AuthoredDraftRevision::new(expected_revision)
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected_revision = AuthoredDraftRevision::new(expected_revision)
             .map_err(|_| Phase1DraftError::RevisionConflict)?;
         Ok(Self {
             draft_id,
@@ -491,14 +492,15 @@ impl Phase1AddIntent {
 /// cancellation are derived from the active typed Rust transport profile.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Phase1QueueIntent {
-    draft_id: [u8; 16],
-    expected_revision: u64,
+    draft_id: AuthoredDraftId,
+    expected_revision: AuthoredDraftRevision,
 }
 
 impl Phase1QueueIntent {
     pub fn new(draft_id: [u8; 16], expected_revision: u64) -> Result<Self, Phase1DraftError> {
-        AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
-        AuthoredDraftRevision::new(expected_revision)
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected_revision = AuthoredDraftRevision::new(expected_revision)
             .map_err(|_| Phase1DraftError::RevisionConflict)?;
         Ok(Self {
             draft_id,
@@ -510,8 +512,8 @@ impl Phase1QueueIntent {
 /// Bounded exact-byte input for one Rust-planned Blossom upload attempt.
 #[derive(Clone)]
 pub struct Phase1UploadIntent {
-    draft_id: [u8; 16],
-    expected_revision: u64,
+    draft_id: AuthoredDraftId,
+    expected_revision: AuthoredDraftRevision,
     bytes: Arc<[u8]>,
     media_type: MediaType,
     dimensions: radroots_sdk::transport::BlossomImageDimensions,
@@ -526,8 +528,9 @@ impl Phase1UploadIntent {
         width: u32,
         height: u32,
     ) -> Result<Self, Phase1DraftError> {
-        AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
-        AuthoredDraftRevision::new(expected_revision)
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected_revision = AuthoredDraftRevision::new(expected_revision)
             .map_err(|_| Phase1DraftError::RevisionConflict)?;
         if bytes.is_empty() {
             return Err(Phase1DraftError::InvalidMedia);
@@ -550,8 +553,8 @@ pub struct Phase1UploadPlan {
     pub authorization_content: String,
     pub authorization_created_at_unix_s: u64,
     pub authorization_lifetime_seconds: u64,
-    pub operation_id: [u8; 16],
-    pub artifact_id: [u8; 16],
+    pub operation_id: SigningOperationId,
+    pub artifact_id: AuthoredArtifactId,
     pub signing_deadline_unix_ms: u64,
     pub cancellation: Phase1CancellationPolicy,
     pub updated_at_unix_ms: u64,
@@ -863,8 +866,10 @@ impl Phase1UploadPlan {
             authorization_created_at_unix_s: now_unix_s
                 .saturating_sub(BLOSSOM_AUTHORIZATION_BACKDATE_SECONDS),
             authorization_lifetime_seconds: BLOSSOM_AUTHORIZATION_LIFETIME_SECONDS,
-            operation_id,
-            artifact_id,
+            operation_id: SigningOperationId::new(operation_id)
+                .map_err(|_| Phase1DraftError::InvalidDraft)?,
+            artifact_id: AuthoredArtifactId::new(artifact_id)
+                .map_err(|_| Phase1DraftError::InvalidDraft)?,
             signing_deadline_unix_ms: now_unix_ms
                 .checked_add(BLOSSOM_SIGNING_TIMEOUT_MS)
                 .ok_or(Phase1DraftError::DeadlineOverflow)?,
@@ -1389,7 +1394,10 @@ impl TeraRuntime {
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let authored_at_unix_s = now_unix_ms / 1_000;
         let (draft_id, expected_revision) = match intent.existing {
-            Some(existing) => (existing.draft_id, Some(existing.expected_revision)),
+            Some(existing) => (
+                *existing.draft_id.as_bytes(),
+                Some(existing.expected_revision.get()),
+            ),
             None => (phase1_random_id()?, None),
         };
         self.phase1_save_draft_with_form(
@@ -1413,8 +1421,8 @@ impl TeraRuntime {
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let policy = self.active_queue_policy(now_unix_ms)?;
         self.phase1_queue_draft(
-            intent.draft_id,
-            intent.expected_revision,
+            *intent.draft_id.as_bytes(),
+            intent.expected_revision.get(),
             policy,
             now_unix_ms,
         )
@@ -1476,14 +1484,14 @@ impl TeraRuntime {
         )
         .map_err(|_| Phase1DraftError::InvalidMedia)?;
         self.phase1_upload_draft_media(
-            intent.draft_id,
-            intent.expected_revision,
+            *intent.draft_id.as_bytes(),
+            intent.expected_revision.get(),
             request,
             content,
             plan.authorization_created_at_unix_s,
             plan.authorization_lifetime_seconds,
-            plan.operation_id,
-            plan.artifact_id,
+            *plan.operation_id.as_bytes(),
+            *plan.artifact_id.as_bytes(),
             plan.signing_deadline_unix_ms,
             plan.cancellation,
             radroots_sdk::transport::BlossomCancellation::default(),
@@ -1531,8 +1539,8 @@ impl TeraRuntime {
             .map_err(|_| Phase1DraftError::Operation)?;
         let authorization = self
             .phase1_authorize_blossom_upload(
-                plan.operation_id,
-                plan.artifact_id,
+                *plan.operation_id.as_bytes(),
+                *plan.artifact_id.as_bytes(),
                 claim,
                 plan.signing_deadline_unix_ms,
                 plan.cancellation,
@@ -1540,8 +1548,8 @@ impl TeraRuntime {
             .await?;
         let uploading = self
             .phase1_update_draft_media(
-                intent.draft_id,
-                intent.expected_revision,
+                *intent.draft_id.as_bytes(),
+                intent.expected_revision.get(),
                 remote_url.as_str(),
                 Phase1MediaStage::Uploading,
                 None,
@@ -1551,7 +1559,7 @@ impl TeraRuntime {
         Ok((
             uploading,
             Phase1NativeUploadJob {
-                operation_id: plan.operation_id,
+                operation_id: *plan.operation_id.as_bytes(),
                 remote_url,
                 authorization_header: authorization.into_string(),
                 expected_sha256: transaction.request().sha256().to_string(),
@@ -1601,8 +1609,8 @@ impl TeraRuntime {
         {
             Ok(receipt) => {
                 self.phase1_complete_draft_media(
-                    intent.draft_id,
-                    intent.expected_revision,
+                    *intent.draft_id.as_bytes(),
+                    intent.expected_revision.get(),
                     url.as_str(),
                     receipt,
                     now_unix_ms,
@@ -1611,8 +1619,8 @@ impl TeraRuntime {
             }
             Err(error) => {
                 self.phase1_fail_draft_media(
-                    intent.draft_id,
-                    intent.expected_revision,
+                    *intent.draft_id.as_bytes(),
+                    intent.expected_revision.get(),
                     url.as_str(),
                     &error,
                     now_unix_ms,
@@ -3401,8 +3409,8 @@ mod tests {
         assert_eq!(plan.authorization_content, BLOSSOM_AUTHORIZATION_CONTENT);
         assert_eq!(plan.authorization_created_at_unix_s, 1_799_999_995);
         assert_eq!(plan.authorization_lifetime_seconds, 300);
-        assert_eq!(plan.operation_id, [7; 16]);
-        assert_eq!(plan.artifact_id, [8; 16]);
+        assert_eq!(*plan.operation_id.as_bytes(), [7; 16]);
+        assert_eq!(*plan.artifact_id.as_bytes(), [8; 16]);
         assert_eq!(plan.signing_deadline_unix_ms, 1_800_000_060_000);
         assert_eq!(
             plan.cancellation,

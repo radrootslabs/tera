@@ -457,14 +457,14 @@ actor TeraRuntimeClient {
   }
 
   private struct Subscription {
-    let generation: UInt64
+    let generation: TeraSessionGeneration
     let continuation: AsyncStream<TeraRuntimeChange>.Continuation
     var token: (any TeraRuntimeSubscriptionToken)?
   }
 
   private let factory: TeraRuntimeBackendFactory
   private let deadlines: TeraRuntimeDeadlinePolicy
-  private var generation: UInt64 = 0
+  private var generation = TeraSessionGeneration.initial
   private var operationSequence: UInt64 = 0
   private var lifecycleState: TeraRuntimeLifecycle = .stopped
   private var configuration: TeraRuntimeLaunchConfiguration?
@@ -530,7 +530,7 @@ actor TeraRuntimeClient {
       _ = try await finishShutdown(operation)
     }
 
-    generation &+= 1
+    generation = try generation.next()
     let operationGeneration = generation
     lifecycleState = .starting(generation: operationGeneration)
 
@@ -989,7 +989,7 @@ actor TeraRuntimeClient {
     }
 
     if let startupOperation {
-      generation &+= 1
+      generation = generation.invalidated()
       startupOperation.task.cancel()
       self.startupOperation = nil
       configuration = nil
@@ -1059,7 +1059,7 @@ actor TeraRuntimeClient {
   }
 
   private func beginShutdown() -> ShutdownOperation {
-    generation &+= 1
+    generation = generation.invalidated()
     let operationGeneration = generation
     let pendingStartup = startupOperation
     let activeBackend = backend ?? quarantinedBackend
@@ -1241,7 +1241,7 @@ actor TeraRuntimeClient {
   private func receive(
     _ change: TeraRuntimeChange,
     subscriptionID: UUID,
-    generation subscriptionGeneration: UInt64
+    generation subscriptionGeneration: TeraSessionGeneration
   ) {
     guard generation == subscriptionGeneration,
           case .running = lifecycleState,
@@ -1253,7 +1253,7 @@ actor TeraRuntimeClient {
     subscription.continuation.yield(change)
   }
 
-  private func cancelSubscription(id: UUID, generation subscriptionGeneration: UInt64) {
+  private func cancelSubscription(id: UUID, generation subscriptionGeneration: TeraSessionGeneration) {
     guard let subscription = subscriptions[id],
           subscription.generation == subscriptionGeneration
     else {

@@ -4313,6 +4313,10 @@
         {
           "path": "core/crates/tera_ffi/src/dto.rs",
           "count": 2
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/identity_contract.rs",
+          "count": 1
         }
       ]
     },

@@ -497,7 +497,7 @@ impl From<LocalNetwork> for FfiLocalNetworkRecord {
     fn from(value: LocalNetwork) -> Self {
         Self {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            id: value.id,
+            id: value.id.into(),
             label: value.label,
             relay_urls: value.relay_urls,
             locality: value.locality,
