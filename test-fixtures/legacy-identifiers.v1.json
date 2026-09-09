@@ -4233,6 +4233,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/lifecycle.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 1
         }
@@ -4261,6 +4265,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/info.rs",
           "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/lifecycle.rs",
+          "count": 4
         },
         {
           "path": "core/crates/tera_core/src/runtime/mod.rs",

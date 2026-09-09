@@ -53,6 +53,7 @@ targets:
       - path: TeraTests/TeraRuntimeResourceFixtures.swift
       - path: TeraTests/TeraRuntimeResourceTaskTests.swift
       - path: TeraTests/TeraRuntimeResourceLifecycleTests.swift
+      - path: TeraTests/TeraRuntimeShutdownTests.swift
       - path: TeraTests/TeraSessionResourceTests.swift
       - path: TeraTests/TeraStateTestFixtures.swift
       - path: TeraTests/TeraRootShellTests.swift

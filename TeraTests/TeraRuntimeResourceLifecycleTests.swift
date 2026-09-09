@@ -61,7 +61,7 @@ final class TeraRuntimeResourceLifecycleTests: XCTestCase {
     })
     let first = Task { try await client.start(configuration: firstConfig) }
     await pause.entered.wait()
-    _ = try await client.start(configuration: nextConfig)
+    let replacement = Task { try await client.start(configuration: nextConfig) }
     do {
       _ = try await first.value
       XCTFail("Old startup must be superseded")
@@ -70,6 +70,7 @@ final class TeraRuntimeResourceLifecycleTests: XCTestCase {
     }
     await pause.resume.open()
     await assertClosed(old)
+    _ = try await replacement.value
     let snapshot = try await client.snapshot()
     let activeCloses = await current.shutdownCount
     XCTAssertEqual(snapshot.identity.publicKeyHex, nextConfig.publicKeyHex)
@@ -124,9 +125,10 @@ final class TeraRuntimeResourceLifecycleTests: XCTestCase {
     _ = try await client.start(configuration: configuration)
     let creation = Task { try await client.changes() }
     await pause.entered.wait()
+    var stop: Task<TeraRuntimeShutdownReceipt, Error>?
     switch termination {
     case .cancel: creation.cancel()
-    case .stop: _ = try await client.stop()
+    case .stop: stop = Task { try await client.stop() }
     case .timeout: break
     }
     do {
@@ -146,6 +148,7 @@ final class TeraRuntimeResourceLifecycleTests: XCTestCase {
     await fulfillment(of: [detached], timeout: 2)
     await backend.token.cancelled.open()
     await wait.value
+    _ = try await stop?.value
     _ = try await client.stop()
     let count = await backend.token.cancelCount
     XCTAssertEqual(count, 1)

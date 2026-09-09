@@ -146,6 +146,8 @@ impl TodayPageRequest {
 
 #[derive(Debug, Error)]
 pub enum TodayError {
+    #[error(transparent)]
+    Lifecycle(#[from] crate::runtime::lifecycle::RuntimeLifecycleError),
     #[error("today runtime is unavailable")]
     RuntimeUnavailable,
     #[error("today request is invalid")]
@@ -226,6 +228,7 @@ impl TeraRuntime {
         now_unix_seconds: u64,
         update: TodayProjectionUpdate,
     ) -> Result<TodaySyncReceipt, TodayError> {
+        let _command = self.lifecycle.enter()?;
         if now_unix_seconds == 0 {
             return Err(TodayError::InvalidRequest);
         }
@@ -291,6 +294,7 @@ impl TeraRuntime {
         context: &LocalNetwork,
         now_unix_seconds: u64,
     ) -> Result<TodayIngestReceipt, TodayError> {
+        let _command = self.lifecycle.enter()?;
         if admission.visible_event().is_none() {
             return Err(TodayError::EventNotVisible);
         }
@@ -316,6 +320,7 @@ impl TeraRuntime {
         now_unix_seconds: u64,
         update: TodayProjectionUpdate,
     ) -> Result<TodayRefreshReceipt, TodayError> {
+        let _command = self.lifecycle.enter()?;
         if now_unix_seconds == 0 {
             return Err(TodayError::InvalidRequest);
         }
@@ -415,6 +420,7 @@ impl TeraRuntime {
         context: &LocalNetwork,
         request: TodayPageRequest,
     ) -> Result<TodayPage, TodayError> {
+        let _command = self.lifecycle.enter()?;
         if request.limit == 0 || request.limit > TODAY_PAGE_LIMIT_MAX {
             return Err(TodayError::InvalidRequest);
         }
@@ -480,6 +486,7 @@ impl TeraRuntime {
         limit: u16,
         as_of: u64,
     ) -> Result<Vec<SearchResult>, TodayError> {
+        let _command = self.lifecycle.enter()?;
         if limit == 0 || limit > TODAY_SEARCH_LIMIT_MAX || as_of == 0 {
             return Err(TodayError::InvalidRequest);
         }
@@ -552,6 +559,7 @@ impl TeraRuntime {
         public_key: &str,
         as_of: u64,
     ) -> Result<MeSnapshot, TodayError> {
+        let _command = self.lifecycle.enter()?;
         if !valid_public_key(public_key) || as_of == 0 {
             return Err(TodayError::InvalidRequest);
         }
@@ -587,6 +595,7 @@ impl TeraRuntime {
         reference_fingerprint: [u8; 32],
         pending: Phase1InboundMediaPending,
     ) -> Result<bool, TodayError> {
+        let _command = self.lifecycle.enter()?;
         let storage = self
             .client
             .storage()
@@ -620,6 +629,7 @@ impl TeraRuntime {
         reference_fingerprint: [u8; 32],
         failure: Phase1InboundMediaFailure,
     ) -> Result<bool, TodayError> {
+        let _command = self.lifecycle.enter()?;
         let storage = self
             .client
             .storage()
@@ -682,6 +692,7 @@ impl TeraRuntime {
         artifact_id: Phase1MediaArtifactId,
         observed_at_unix_ms: u64,
     ) -> Result<bool, TodayError> {
+        let _command = self.lifecycle.enter()?;
         let storage = self
             .client
             .storage()
@@ -703,6 +714,7 @@ impl TeraRuntime {
         context: &LocalNetwork,
         artifact_id: Phase1MediaArtifactId,
     ) -> Result<bool, TodayError> {
+        let _command = self.lifecycle.enter()?;
         #[cfg(feature = "mobile-social")]
         let _guard = self.inbound_media_lock.lock().await;
         let storage = self
@@ -732,6 +744,7 @@ impl TeraRuntime {
         context: &LocalNetwork,
         configuration: Phase1MediaConfigurationFingerprint,
     ) -> Result<Vec<Phase1MediaArtifactId>, TodayError> {
+        let _command = self.lifecycle.enter()?;
         #[cfg(feature = "mobile-social")]
         let _guard = self.inbound_media_lock.lock().await;
         let storage = self
@@ -763,6 +776,7 @@ impl TeraRuntime {
         &self,
         context: &LocalNetwork,
     ) -> Result<Phase1MediaCacheStatus, TodayError> {
+        let _command = self.lifecycle.enter()?;
         let storage = self
             .client
             .storage()
@@ -782,6 +796,7 @@ impl TeraRuntime {
         artifact_id: Phase1MediaArtifactId,
         observed_at_unix_ms: u64,
     ) -> Result<Option<Phase1LocalMediaArtifact>, TodayError> {
+        let _command = self.lifecycle.enter()?;
         let _guard = self.inbound_media_lock.lock().await;
         let directory = self
             .inbound_media_directory
@@ -826,6 +841,7 @@ impl TeraRuntime {
         policy: Phase1MediaCachePolicy,
         cancellation: BlossomCancellation,
     ) -> Result<Phase1LocalMediaArtifact, TodayError> {
+        let _command = self.lifecycle.enter()?;
         let _guard = self.inbound_media_lock.lock().await;
         let directory = self
             .inbound_media_directory
@@ -972,6 +988,7 @@ impl TeraRuntime {
         card_id: CardId,
         overlay: Option<LocalAuthorOverlay>,
     ) -> Result<(), TodayError> {
+        let _command = self.lifecycle.enter()?;
         let storage = self
             .client
             .storage()
@@ -2405,6 +2422,7 @@ mod tests {
             client,
             started_unix_ms: 1,
             shutting_down: AtomicBool::new(false),
+            lifecycle: Default::default(),
             platform_app: RwLock::new(None),
             store_public_key: None,
             mutations: Default::default(),

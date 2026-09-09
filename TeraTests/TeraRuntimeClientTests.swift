@@ -162,7 +162,7 @@ final class TeraRuntimeClientTests: XCTestCase {
         XCTAssertEqual(shutdownCount, 1)
     }
 
-    func testStopDoesNotWaitForCancellationIgnoringStartup() async throws {
+    func testStopDrainsCancellationIgnoringStartup() async throws {
         let harness = RuntimeHarness(startDelayNanoseconds: 100_000_000)
         let client = TeraRuntimeClient(factory: harness.start)
         let configuration = makeConfiguration(generation: "08")
@@ -171,19 +171,17 @@ final class TeraRuntimeClientTests: XCTestCase {
         }
         try await Task.sleep(nanoseconds: 2_000_000)
 
-        let clock = ContinuousClock()
-        let startedAt = clock.now
         let receipt = try await client.stop()
 
         XCTAssertEqual(receipt, .alreadyStopped)
-        XCTAssertLessThan(startedAt.duration(to: clock.now), .milliseconds(50))
+        let completedCloses = await harness.shutdownCount()
+        XCTAssertEqual(completedCloses, 1)
         do {
             _ = try await startup.value
             XCTFail("The cancelled startup must not claim backend ownership")
         } catch {
             XCTAssertEqual(error as? TeraRuntimeClientError, .superseded)
         }
-        try await Task.sleep(nanoseconds: 120_000_000)
         let shutdownCount = await harness.shutdownCount()
         XCTAssertEqual(shutdownCount, 1)
     }

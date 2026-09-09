@@ -65,7 +65,7 @@ final class TeraLifecycleTests: XCTestCase {
   func testLifecycleBridgeRunsRegisteredShutdownOnlyOnce() async {
     let bridge = TeraLifecycleBridge()
     let shutdowns = CompletionProbe()
-    await bridge.register { shutdowns.increment() }
+    await bridge.register { shutdowns.increment(); return true }
 
     await bridge.requestShutdown()
     await bridge.requestShutdown()

@@ -103,6 +103,7 @@ impl TeraRuntime {
     }
 
     pub async fn sdk_storage_status(&self) -> Result<SdkStorageStatusRecord, TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         let status = self
             .client
             .storage_status()
@@ -122,6 +123,7 @@ impl TeraRuntime {
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         self.configure_relay_endpoints(
             radroots_sdk::transport::RelayProfileKind::Public,
             radroots_sdk::transport::RelayUrlPolicy::Public,
@@ -135,6 +137,7 @@ impl TeraRuntime {
         &self,
         loopback_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         self.configure_relay_endpoints(
             radroots_sdk::transport::RelayProfileKind::Simulator,
             radroots_sdk::transport::RelayUrlPolicy::Local,
@@ -148,6 +151,7 @@ impl TeraRuntime {
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         self.configure_relay_endpoints(
             radroots_sdk::transport::RelayProfileKind::Device,
             radroots_sdk::transport::RelayUrlPolicy::PrivateNetwork,
@@ -194,6 +198,7 @@ impl TeraRuntime {
         &self,
         preferences: &RelayPreferences,
     ) -> Result<(), TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         self.configure_relay_profile(
             preferences
                 .sdk_profile()
@@ -210,6 +215,7 @@ impl TeraRuntime {
         primary_origin: String,
         fallback_origins: Vec<String>,
     ) -> Result<(), TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         self.configure_blossom_profile(
             radroots_sdk::transport::BlossomProfile::new(
                 host_kind,
@@ -239,6 +245,7 @@ impl TeraRuntime {
         &self,
         preferences: &BlossomPreferences,
     ) -> Result<(), TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         self.configure_blossom_profile(
             preferences
                 .sdk_profile()
@@ -251,6 +258,7 @@ impl TeraRuntime {
     pub fn sdk_blossom_slot(
         &self,
     ) -> Result<Option<radroots_sdk::transport::BlossomSlot>, TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         self.client
             .blossom()
             .map(|slot| slot.cloned())
@@ -262,6 +270,7 @@ impl TeraRuntime {
     pub fn sdk_blossom_configuration(
         &self,
     ) -> Result<Option<SdkBlossomConfigurationRecord>, TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         let configuration = self
             .client
             .blossom()
@@ -285,6 +294,7 @@ impl TeraRuntime {
     /// Returns the latest passive Blossom evidence without network I/O.
     #[cfg(feature = "mobile-social")]
     pub fn sdk_blossom_evidence(&self) -> Result<Option<SdkBlossomEvidenceRecord>, TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         let evidence = self
             .client
             .blossom()
@@ -296,6 +306,7 @@ impl TeraRuntime {
     /// Explicitly probes the primary Blossom origin without mutation or authorization.
     #[cfg(feature = "mobile-social")]
     pub async fn probe_blossom(&self) -> Result<SdkBlossomEvidenceRecord, TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         let blossom = self
             .client
             .blossom()
@@ -311,6 +322,7 @@ impl TeraRuntime {
     /// Returns passive relay evidence without DNS, socket, or probe work.
     #[cfg(feature = "mobile-social")]
     pub fn sdk_relay_status(&self) -> Result<Option<SdkRelayStatusReportRecord>, TeraAppError> {
+        let _command = self.lifecycle.enter()?;
         let report = self.client.nostr_status().map_err(TeraAppError::from_sdk)?;
         Ok(report.map(|report| SdkRelayStatusReportRecord {
             profile: relay_profile_label(report.profile_kind()).to_owned(),

@@ -326,3 +326,67 @@ async fn mutation_admission_upload_authorization_uses_the_existing_operation_ide
     assert!(!owner.await.unwrap().unwrap().as_str().is_empty());
     assert_eq!(signer.signatures.load(Ordering::SeqCst), 1);
 }
+
+#[tokio::test]
+async fn shutdown_drains_signing_and_cancelled_close_never_reopens_admission() {
+    use crate::runtime::lifecycle::RuntimeLifecycleError;
+    use std::{
+        future::Future,
+        task::{Context, Poll, Waker},
+    };
+    let signer = PausedSigner::new(false, true);
+    let runtime = runtime(Arc::clone(&signer));
+    let status = queued(&runtime, [8; 16]).await;
+    let revision = status.draft().revision().get();
+    let owner = signing(&runtime, [8; 16], revision);
+    signer.wait().await;
+    let mut close = Box::pin(runtime.shutdown());
+    assert!(matches!(
+        close.as_mut().poll(&mut Context::from_waker(Waker::noop())),
+        Poll::Pending
+    ));
+    assert!(!runtime.client.is_closed());
+    assert!(runtime.info().app.shutting_down);
+    let crate::TeraAppError::Sdk { report } = runtime.shutdown().await.unwrap_err() else {
+        panic!("typed close failure");
+    };
+    assert_eq!(report.code, "client_close_in_progress");
+    assert_eq!(
+        runtime
+            .phase1_sign_queued_draft([8; 16], revision)
+            .await
+            .unwrap_err(),
+        Phase1DraftError::Lifecycle(RuntimeLifecycleError::Closing)
+    );
+    assert!(matches!(
+        runtime.phase1_settings().await,
+        Err(super::super::SettingsError::Lifecycle(
+            RuntimeLifecycleError::Closing
+        ))
+    ));
+    assert!(runtime.sdk_storage_status().await.is_err());
+    drop(close);
+    assert_eq!(
+        runtime.phase1_draft_heads(10).await.unwrap_err(),
+        Phase1DraftError::Lifecycle(RuntimeLifecycleError::Closing)
+    );
+    signer.resume.notify_one();
+    let signed = owner.await.unwrap().unwrap();
+    assert!(signed.push().unwrap().artifact().signed().is_some());
+    assert_eq!(signer.signatures.load(Ordering::SeqCst), 1);
+    assert!(!runtime.shutdown().await.unwrap().already_closed);
+    assert!(runtime.shutdown().await.unwrap().already_closed);
+    assert_eq!(
+        runtime.phase1_draft_status([8; 16]).await.unwrap_err(),
+        Phase1DraftError::Lifecycle(RuntimeLifecycleError::Closed)
+    );
+}
+
+#[tokio::test]
+async fn shutdown_of_an_unpolled_future_does_not_close_command_admission() {
+    let runtime = runtime(PausedSigner::new(false, false));
+    drop(runtime.shutdown());
+    assert!(!runtime.info().app.shutting_down);
+    assert!(runtime.phase1_settings().await.is_ok());
+    assert_eq!(runtime.shutdown().await.unwrap().state, "closed");
+}

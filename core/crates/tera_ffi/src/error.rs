@@ -144,6 +144,7 @@ impl From<tera_core::TeraAppError> for TeraAppError {
 impl From<TodayError> for TeraAppError {
     fn from(error: TodayError) -> Self {
         let (code, retryable, actions) = match error {
+            TodayError::Lifecycle(error) => return tera_core::TeraAppError::from(error).into(),
             TodayError::InvalidRequest | TodayError::EventNotVisible => {
                 ("today_invalid_request", false, &["correct_input"][..])
             }
@@ -184,6 +185,9 @@ impl From<TodayError> for TeraAppError {
 impl From<Phase1DraftError> for TeraAppError {
     fn from(error: Phase1DraftError) -> Self {
         let (code, retryable, actions) = match error {
+            Phase1DraftError::Lifecycle(error) => {
+                return tera_core::TeraAppError::from(error).into();
+            }
             Phase1DraftError::IdentityUnavailable => (
                 "identity_unavailable",
                 true,
@@ -251,6 +255,9 @@ impl From<Phase1DraftError> for TeraAppError {
 
 impl From<SettingsError> for TeraAppError {
     fn from(error: SettingsError) -> Self {
+        if let SettingsError::Lifecycle(error) = error {
+            return tera_core::TeraAppError::from(error).into();
+        }
         let retryable = matches!(
             error,
             SettingsError::RevisionConflict | SettingsError::Storage

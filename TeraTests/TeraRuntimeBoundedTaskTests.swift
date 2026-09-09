@@ -69,6 +69,22 @@ final class TeraRuntimeBoundedTaskTests: XCTestCase {
     await assertOutcome(task.value(), terminal: .completion)
   }
 
+  func testCallerCancellationDoesNotClaimActualOperationSettlement() async {
+    let pause = ResourceTestPause()
+    let task = Bounded(deadlineNanoseconds: .max) {
+      await pause.wait()
+      return .success(42)
+    }
+    await pause.entered.wait()
+    task.cancel()
+    await assertOutcome(task.value(), terminal: .cancellation)
+    XCTAssertNil(task.settlement())
+    await pause.resume.open()
+    let actual = await task.settle()
+    guard case .success(42) = actual else { return XCTFail("Preserve the actual late result") }
+    await assertOutcome(task.value(), terminal: .cancellation)
+  }
+
   private func assertInstallation(terminal: Terminal, terminalFirst: Bool) async {
     let state = Bounded.State()
     let gate = BoundedTestGate()
@@ -91,7 +107,7 @@ final class TeraRuntimeBoundedTaskTests: XCTestCase {
     await gate.open()
     await operation.value
     await timer.value
-    state.finishOperation()
+    state.finishOperation(.success(42))
   }
 
   private func assertOutcome(_ outcome: Bounded.Outcome, terminal: Terminal) {

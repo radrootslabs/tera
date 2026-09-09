@@ -2,24 +2,6 @@ import Combine
 import Foundation
 import RadrootsKit
 
-final class TeraCompletionOnce: @unchecked Sendable {
-  private let lock = NSLock()
-  private var completion: (() -> Void)?
-
-  init(_ completion: @escaping () -> Void) {
-    self.completion = completion
-  }
-
-  func complete() {
-    let action = lock.withLock {
-      let action = completion
-      completion = nil
-      return action
-    }
-    action?()
-  }
-}
-
 actor TeraBackgroundEventRouter {
   typealias Handler =
     @Sendable (
@@ -110,23 +92,6 @@ actor TeraBackgroundEventRouter {
     guard let index = pending.firstIndex(where: { $0.token == token }) else { return }
     let event = pending.remove(at: index)
     event.completion.complete()
-  }
-}
-
-actor TeraLifecycleBridge {
-  static let shared = TeraLifecycleBridge()
-
-  private var shutdown: (@Sendable () async -> Void)?
-
-  func register(shutdown: @escaping @Sendable () async -> Void) {
-    self.shutdown = shutdown
-  }
-
-  func requestShutdown() async {
-    let action = shutdown
-    shutdown = nil
-    await action?()
-    await TeraBackgroundEventRouter.shared.detachAndCompletePending()
   }
 }
 

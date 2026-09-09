@@ -50,6 +50,9 @@ actor ResourceTestBackend: TeraRuntimeBackend {
   private var snapshotPause: ResourceTestPause?
   private var settingsPause: ResourceTestPause?
   private var profilePause: ResourceTestPause?
+  private var shutdownPause: ResourceTestPause?
+  private var shutdownFailure: TeraRuntimeFailure?
+  private var shutdownCompleted = false
   private(set) var profileMutations = 0
   private var receive: (@Sendable (TeraRuntimeChange) async -> Void)?
 
@@ -75,6 +78,14 @@ actor ResourceTestBackend: TeraRuntimeBackend {
 
   func pauseSettings(_ pause: ResourceTestPause) {
     settingsPause = pause
+  }
+
+  func pauseShutdown(_ pause: ResourceTestPause) {
+    shutdownPause = pause
+  }
+
+  func failShutdownOnce(_ failure: TeraRuntimeFailure) {
+    shutdownFailure = failure
   }
 
   func pauseProfile(_ pause: ResourceTestPause) {
@@ -140,10 +151,19 @@ actor ResourceTestBackend: TeraRuntimeBackend {
     ))
   }
 
-  func shutdown() async -> TeraRuntimeShutdownReceipt {
+  func shutdown() async throws -> TeraRuntimeShutdownReceipt {
     shutdownCount += 1
+    let pause = shutdownPause
+    shutdownPause = nil
+    await pause?.wait()
+    if let failure = shutdownFailure {
+      shutdownFailure = nil
+      throw failure
+    }
+    let alreadyClosed = shutdownCompleted
+    shutdownCompleted = true
     await closed.open()
-    return TeraRuntimeShutdownReceipt(state: "closed", alreadyClosed: shutdownCount > 1)
+    return TeraRuntimeShutdownReceipt(state: "closed", alreadyClosed: alreadyClosed)
   }
 
   func mobileSettings() async -> TeraMobileSettings {

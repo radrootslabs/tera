@@ -966,6 +966,8 @@ impl Phase1DraftStatus {
 
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum Phase1DraftError {
+    #[error(transparent)]
+    Lifecycle(#[from] crate::runtime::lifecycle::RuntimeLifecycleError),
     #[error("authenticated draft identity is unavailable")]
     IdentityUnavailable,
     #[error("phase 1 draft input is invalid")]
@@ -1222,6 +1224,7 @@ impl TeraRuntime {
         &self,
         command: ProfileMetadataCommand,
     ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let author = self.draft_author()?;
         let draft_id = AuthoredDraftId::new(phase1_random_id()?)
@@ -1259,6 +1262,7 @@ impl TeraRuntime {
         &self,
         draft_id: [u8; 16],
     ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
         let head = self
@@ -1276,6 +1280,7 @@ impl TeraRuntime {
         &self,
         draft_id: [u8; 16],
     ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let _admission = self.mutations.draft(draft_id)?;
         let mut status = self.phase1_profile_status(draft_id).await?;
         if status.draft.stage() == AuthoredDraftStage::Draft {
@@ -1351,6 +1356,7 @@ impl TeraRuntime {
         draft_id: [u8; 16],
         expected_revision: u64,
     ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let _admission = self.mutations.draft(draft_id)?;
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
@@ -1399,6 +1405,7 @@ impl TeraRuntime {
         &self,
         intent: Phase1AddIntent,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let authored_at_unix_s = now_unix_ms / 1_000;
         let (draft_id, expected_revision) = match intent.existing {
@@ -1426,6 +1433,7 @@ impl TeraRuntime {
         &self,
         intent: Phase1QueueIntent,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let policy = self.active_queue_policy(now_unix_ms)?;
         self.phase1_queue_draft(
@@ -1468,6 +1476,7 @@ impl TeraRuntime {
         &self,
         draft_id: [u8; 16],
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         self.phase1_recover_draft_queue(draft_id, phase1_operation_now_unix_ms()?)
             .await
     }
@@ -1478,6 +1487,7 @@ impl TeraRuntime {
         &self,
         intent: Phase1UploadIntent,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let plan = Phase1UploadPlan::derive(now_unix_ms, phase1_random_id()?, phase1_random_id()?)?;
         let request = radroots_sdk::transport::BlossomUploadRequest::new(
@@ -1515,6 +1525,7 @@ impl TeraRuntime {
         &self,
         intent: Phase1UploadIntent,
     ) -> Result<(Phase1DraftStatus, Phase1NativeUploadJob), Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(*intent.draft_id.as_bytes())?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let plan = Phase1UploadPlan::derive(now_unix_ms, phase1_random_id()?, phase1_random_id()?)?;
@@ -1589,6 +1600,7 @@ impl TeraRuntime {
         response_content_encoding: Option<&str>,
         response_body: &[u8],
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(*intent.draft_id.as_bytes())?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let request = radroots_sdk::transport::BlossomUploadRequest::new(
@@ -1650,6 +1662,7 @@ impl TeraRuntime {
         draft_id: [u8; 16],
         expected_revision: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         self.phase1_cancel_draft(draft_id, expected_revision, phase1_operation_now_unix_ms()?)
             .await
     }
@@ -1661,6 +1674,7 @@ impl TeraRuntime {
         &self,
         intent: Phase1ReviseIntent,
     ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let authored_at_unix_s = now_unix_ms / 1_000;
         let author = self.draft_author()?;
@@ -1723,6 +1737,7 @@ impl TeraRuntime {
         &self,
         replacement_draft_id: [u8; 16],
     ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let replacement = self.phase1_draft_status(replacement_draft_id).await?;
         let payload = Phase1DraftPayload::decode(replacement.draft())?;
         let revision = payload.revision.ok_or(Phase1DraftError::InvalidRevision)?;
@@ -1753,6 +1768,7 @@ impl TeraRuntime {
         &self,
         replacement_draft_id: [u8; 16],
     ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(replacement_draft_id)?;
         let mut status = self.phase1_revision_status(replacement_draft_id).await?;
         if matches!(
@@ -1835,6 +1851,7 @@ impl TeraRuntime {
         &self,
         replacement_draft_id: [u8; 16],
     ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(replacement_draft_id)?;
         let mut status = self.phase1_revision_status(replacement_draft_id).await?;
         if !matches!(
@@ -1917,6 +1934,7 @@ impl TeraRuntime {
         expected_revision: Option<u64>,
         persisted_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         self.phase1_save_draft_inner(
             draft_id,
             command,
@@ -1941,6 +1959,7 @@ impl TeraRuntime {
         expected_revision: Option<u64>,
         persisted_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         self.phase1_save_draft_inner(
             draft_id,
             command,
@@ -2036,6 +2055,7 @@ impl TeraRuntime {
         authored_at_unix_s: u64,
         persisted_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         self.phase1_save_retraction_draft_admitted(
             &admission,
@@ -2129,6 +2149,7 @@ impl TeraRuntime {
         failure_code: Option<String>,
         updated_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         self.phase1_update_draft_media_admitted(
             &admission,
@@ -2212,6 +2233,7 @@ impl TeraRuntime {
         receipt: radroots_sdk::transport::BlossomUploadReceipt,
         updated_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         self.phase1_complete_draft_media_admitted(
             &admission,
@@ -2287,6 +2309,7 @@ impl TeraRuntime {
         error: &radroots_sdk::transport::BlossomError,
         updated_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         self.phase1_fail_draft_media_admitted(
             &admission,
@@ -2374,6 +2397,7 @@ impl TeraRuntime {
         policy: Phase1QueuePolicy,
         queued_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         self.phase1_queue_draft_admitted(
             &admission,
@@ -2462,6 +2486,7 @@ impl TeraRuntime {
         draft_id: [u8; 16],
         recovered_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let _admission = self.mutations.draft(draft_id)?;
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
@@ -2492,6 +2517,7 @@ impl TeraRuntime {
         draft_id: [u8; 16],
         expected_revision: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let _admission = self.mutations.draft(draft_id)?;
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
@@ -2520,6 +2546,7 @@ impl TeraRuntime {
         draft_id: [u8; 16],
         expected_revision: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         self.phase1_advance_draft_admitted(&admission, draft_id, expected_revision)
             .await
@@ -2607,6 +2634,7 @@ impl TeraRuntime {
         deadline_unix_ms: u64,
         cancellation: Phase1CancellationPolicy,
     ) -> Result<radroots_sdk::signing::AuthorizationHeader, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let public_key = self
             .store_public_key
             .ok_or(Phase1DraftError::IdentityUnavailable)?;
@@ -2658,6 +2686,7 @@ impl TeraRuntime {
         transfer_cancellation: radroots_sdk::transport::BlossomCancellation,
         updated_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         let blossom = self
             .client
@@ -2761,6 +2790,7 @@ impl TeraRuntime {
         &self,
         draft_id: [u8; 16],
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
         let head = self
@@ -2777,6 +2807,7 @@ impl TeraRuntime {
         &self,
         limit: u16,
     ) -> Result<Vec<Phase1DraftStatus>, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let drafts = self
             .storage()?
             .authored_draft_heads(self.draft_author()?, limit)
@@ -2797,6 +2828,7 @@ impl TeraRuntime {
         expected_revision: u64,
         cancelled_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let admission = self.mutations.draft(draft_id)?;
         self.phase1_cancel_draft_admitted(
             &admission,
@@ -2865,6 +2897,7 @@ impl TeraRuntime {
         context: &LocalNetwork,
         draft_id: [u8; 16],
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let _command = self.lifecycle.enter()?;
         let _admission = self.mutations.draft(draft_id)?;
         let status = self.phase1_draft_status(draft_id).await?;
         let operation_id = status

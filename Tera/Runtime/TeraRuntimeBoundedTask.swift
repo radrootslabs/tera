@@ -18,6 +18,8 @@ final class TeraRuntimeBoundedTask<Value: Sendable>: @unchecked Sendable {
     private var cancelledWaiters: Set<UUID> = []
     private var operationTask: Task<Void, Never>?
     private var timeoutTask: Task<Void, Never>?
+    private var settledResult: Result<Value, TeraRuntimeFailure>?
+    private var settlementWaiters: [CheckedContinuation<Result<Value, TeraRuntimeFailure>, Never>] = []
 
     func install(operationTask: Task<Void, Never>, timeoutTask: Task<Void, Never>) {
       let terminal = lock.withLock { () -> Outcome? in
@@ -78,8 +80,36 @@ final class TeraRuntimeBoundedTask<Value: Sendable>: @unchecked Sendable {
       taskToCancel?.cancel()
     }
 
-    func finishOperation() {
-      lock.withLock { operationTask = nil }
+    func finishOperation(_ result: Result<Value, TeraRuntimeFailure>) {
+      let waiters = lock.withLock {
+        operationTask = nil
+        settledResult = result
+        let pending = settlementWaiters
+        settlementWaiters.removeAll()
+        return pending
+      }
+      for waiter in waiters {
+        waiter.resume(returning: result)
+      }
+    }
+
+    func settlement() -> Result<Value, TeraRuntimeFailure>? {
+      lock.withLock { settledResult }
+    }
+
+    func settle() async -> Result<Value, TeraRuntimeFailure> {
+      await withCheckedContinuation { continuation in
+        let immediate = lock.withLock { () -> Result<Value, TeraRuntimeFailure>? in
+          if let settledResult {
+            return settledResult
+          }
+          settlementWaiters.append(continuation)
+          return nil
+        }
+        if let immediate {
+          continuation.resume(returning: immediate)
+        }
+      }
     }
 
     private func cancelWaiter(_ waiterID: UUID) {
@@ -134,7 +164,7 @@ final class TeraRuntimeBoundedTask<Value: Sendable>: @unchecked Sendable {
       if !state.resolve(.completed(result)) {
         await onAbandonedResult(result)
       }
-      state.finishOperation()
+      state.finishOperation(result)
     }
 
     let timeoutTask = Task { [state] in
@@ -156,5 +186,15 @@ final class TeraRuntimeBoundedTask<Value: Sendable>: @unchecked Sendable {
 
   func cancel() {
     state.cancel()
+  }
+
+  /// Only the shutdown owner awaits actual completion. A caller deadline or
+  /// cancellation resolves `value`, but cannot prove that the operation ended.
+  func settle() async -> Result<Value, TeraRuntimeFailure> {
+    await state.settle()
+  }
+
+  func settlement() -> Result<Value, TeraRuntimeFailure>? {
+    state.settlement()
   }
 }

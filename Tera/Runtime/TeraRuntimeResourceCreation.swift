@@ -16,7 +16,7 @@ enum TeraRuntimeResourceCreation {
         }
       },
       cleanup: { started in
-        _ = try? await started.backend.shutdown()
+        _ = try await started.backend.shutdown()
       }
     )
   }

@@ -93,6 +93,7 @@ impl TeraRuntime {
     }
 
     pub async fn shutdown(&self) -> Result<FfiShutdownRecord, TeraAppError> {
+        self.subscriptions.close();
         let result = self
             .inner
             .shutdown()
@@ -100,9 +101,7 @@ impl TeraRuntime {
             .map(Into::into)
             .map_err(Into::into);
         if result.is_ok() {
-            self.subscriptions
-                .notify(FfiRuntimeChangeKind::Lifecycle, None);
-            self.subscriptions.close();
+            self.subscriptions.drain().await;
         }
         result
     }

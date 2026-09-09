@@ -223,12 +223,6 @@ final class TeraAppModel: ObservableObject {
     }
   }
 
-  func shutdown() async {
-    await lifecycleCoordinator.record("ios.lifecycle.shutdown_requested", level: .notice)
-    await stop()
-    await TeraBackgroundEventRouter.shared.detachAndCompletePending()
-  }
-
   private func run(
     name: String,
     showsStarting: Bool = false,
@@ -280,15 +274,6 @@ final class TeraAppModel: ObservableObject {
     guard sessionOperationsInFlight == 0, resumePending else { return }
     resumePending = false
     await resume()
-  }
-
-  private func ensureLifecycleRegistration() async {
-    guard !lifecycleRegistered else { return }
-    lifecycleRegistered = true
-    await lifecycleCoordinator.attachBackgroundEvents()
-    await TeraLifecycleBridge.shared.register { @Sendable [weak self] in
-      await self?.shutdown()
-    }
   }
 
   private func stopPresentationWork() {
@@ -356,3 +341,25 @@ final class TeraAppModel: ObservableObject {
     )
   }
 #endif
+
+extension TeraAppModel {
+  @discardableResult
+  func shutdown() async -> Bool {
+    await lifecycleCoordinator.record("ios.lifecycle.shutdown_requested", level: .notice)
+    await stop()
+    await TeraBackgroundEventRouter.shared.detachAndCompletePending()
+    if case .stopped = phase {
+      return true
+    }
+    return isShellUITest
+  }
+
+  private func ensureLifecycleRegistration() async {
+    guard !lifecycleRegistered else { return }
+    lifecycleRegistered = true
+    await lifecycleCoordinator.attachBackgroundEvents()
+    await TeraLifecycleBridge.shared.register { @Sendable [weak self] in
+      await self?.shutdown() ?? true
+    }
+  }
+}

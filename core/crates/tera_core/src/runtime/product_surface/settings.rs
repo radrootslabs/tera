@@ -851,6 +851,8 @@ pub struct SettingsTransition {
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum SettingsError {
+    #[error(transparent)]
+    Lifecycle(#[from] crate::runtime::lifecycle::RuntimeLifecycleError),
     #[error("relay access value is unknown")]
     UnknownRelayAccess,
     #[error("relay endpoint is invalid")]
@@ -886,6 +888,7 @@ pub enum SettingsError {
 impl SettingsError {
     pub const fn code(&self) -> &'static str {
         match self {
+            Self::Lifecycle(error) => error.code(),
             Self::UnknownRelayAccess => "unknown_relay_access",
             Self::InvalidRelayEndpoint => "invalid_relay_endpoint",
             Self::InvalidRelayEndpointCount => "invalid_relay_endpoint_count",
@@ -907,6 +910,7 @@ impl SettingsError {
 
 impl TeraRuntime {
     pub async fn phase1_settings(&self) -> Result<MobileSettings, SettingsError> {
+        let _command = self.lifecycle.enter()?;
         let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
         let mut settings = load_settings(storage).await?;
         let session = self.identity_session.read().await;
@@ -922,6 +926,7 @@ impl TeraRuntime {
         &self,
         command: ReplaceMobileSettings,
     ) -> Result<SettingsTransition, SettingsError> {
+        let _command = self.lifecycle.enter()?;
         let _guard = self.settings_lock.lock().await;
         let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
         let transition = replace_settings(storage, command).await?;
@@ -937,6 +942,7 @@ impl TeraRuntime {
         expected_revision: u64,
         command: IdentityCommand,
     ) -> Result<SettingsTransition, SettingsError> {
+        let _command = self.lifecycle.enter()?;
         let _guard = self.settings_lock.lock().await;
         let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
         let mut prior = load_settings(storage).await?;

@@ -1,6 +1,7 @@
 pub mod app_info;
 pub mod builder;
 pub mod info;
+pub mod lifecycle;
 #[cfg(feature = "mobile-social")]
 mod mutation_admission;
 pub mod product_surface;
@@ -27,6 +28,7 @@ pub struct TeraRuntime {
     pub(crate) client: Client,
     pub(crate) started_unix_ms: i64,
     pub(crate) shutting_down: AtomicBool,
+    lifecycle: lifecycle::RuntimeLifecycle,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
     pub(crate) store_public_key: Option<PublicKey>,
     #[cfg(feature = "mobile-social")]
@@ -86,6 +88,7 @@ impl TeraRuntime {
             client,
             started_unix_ms: Utc::now().timestamp_millis(),
             shutting_down: AtomicBool::new(false),
+            lifecycle: lifecycle::RuntimeLifecycle::default(),
             platform_app: RwLock::new(None),
             store_public_key,
             #[cfg(feature = "mobile-social")]
@@ -120,13 +123,30 @@ impl TeraRuntime {
     /// Closes SDK resources asynchronously across every runtime reference.
     ///
     /// Dropping the returned future before its first poll has no effect. If a
-    /// host cancels after close begins, it must call `shutdown` again; the SDK
-    /// remains unavailable and resumes the explicit close attempt. Completed
-    /// calls are idempotent and no blocking destructor is installed.
+    /// host cancels after close begins, it must call `shutdown` again. Command
+    /// admission remains closed while existing caller-owned work drains. The
+    /// SDK remains the storage owner; its terminal close failure is retained.
+    /// Closing storage does not erase durable claims or imply external rollback.
+    /// No worker, executor, or blocking destructor is installed.
     pub async fn shutdown(&self) -> Result<sdk::SdkShutdownRecord, TeraAppError> {
-        let already_closed = self.client.is_closed();
+        let attempt = self.lifecycle.begin_close()?;
         self.shutting_down.store(true, Ordering::Release);
-        self.client.close().await.map_err(TeraAppError::from_sdk)?;
+        attempt.drain().await?;
+        let completed = attempt.completed()?;
+        let already_closed = completed.is_some();
+        let result = if let Some(result) = completed {
+            result
+        } else {
+            let result = self.client.close().await.map_err(|error| {
+                let TeraAppError::Sdk { report } = TeraAppError::from_sdk(error) else {
+                    unreachable!("SDK conversion always retains its typed report")
+                };
+                report
+            });
+            attempt.complete(result.clone())?;
+            result
+        };
+        result.map_err(|report| TeraAppError::Sdk { report })?;
         Ok(sdk::SdkShutdownRecord {
             state: "closed".to_owned(),
             already_closed,
@@ -160,6 +180,9 @@ impl TeraRuntime {
         build_number: Option<String>,
         build_sha: Option<String>,
     ) {
+        let Ok(_command) = self.lifecycle.enter() else {
+            return;
+        };
         let platform_info =
             AppInfoPlatform::new(platform, bundle_id, version, build_number, build_sha);
         if let Ok(mut guard) = self.platform_app.write() {

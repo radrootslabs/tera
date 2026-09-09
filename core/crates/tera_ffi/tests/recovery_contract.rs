@@ -208,3 +208,31 @@ fn complete_safe_envelopes_survive_mapping_without_relabeling_future_versions() 
     assert_eq!(report.operation_id, None);
     assert_eq!(report.capability_id, None);
 }
+
+#[test]
+fn closing_admission_preserves_the_same_typed_catalog_across_product_families() {
+    use tera_core::runtime::{lifecycle::RuntimeLifecycleError, product_surface::SettingsError};
+    for state in [
+        RuntimeLifecycleError::Closing,
+        RuntimeLifecycleError::Closed,
+        RuntimeLifecycleError::CloseInProgress,
+    ] {
+        let expected = TeraAppError::from(tera_core::TeraAppError::from(state));
+        for observed in [
+            TeraAppError::from(TodayError::Lifecycle(state)),
+            TeraAppError::from(Phase1DraftError::Lifecycle(state)),
+            TeraAppError::from(SettingsError::Lifecycle(state)),
+        ] {
+            assert_eq!(observed.report(), expected.report());
+            let recovery = classify_error_recovery(1, observed.report().code.clone());
+            assert_eq!(
+                recovery.disposition,
+                if state == RuntimeLifecycleError::Closed {
+                    Recovery::RuntimeUnavailable
+                } else {
+                    Recovery::OutcomeUnknown
+                }
+            );
+        }
+    }
+}
