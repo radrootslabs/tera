@@ -90,6 +90,8 @@ impl Ord for TodayRank {
             .then_with(|| other.time_relevance_rank.cmp(&self.time_relevance_rank))
             .then_with(|| other.effective_at.cmp(&self.effective_at))
             .then_with(|| self.card_id.cmp(&other.card_id))
+            .then_with(|| self.schema_version.cmp(&other.schema_version))
+            .then_with(|| self.algorithm_version.cmp(&other.algorithm_version))
     }
 }
 
@@ -196,6 +198,20 @@ mod tests {
     fn tuple_sorts_in_locked_feed_order_and_has_a_fixed_digest() {
         let exact = TodayRank::derive(input(TodayCardType::Update, TimeRelevance::Published))
             .expect("rank");
+        for mixed in [
+            TodayRank {
+                schema_version: 2,
+                ..exact
+            },
+            TodayRank {
+                algorithm_version: 2,
+                ..exact
+            },
+        ] {
+            assert_ne!(exact, mixed);
+            assert_ne!(exact.cmp(&mixed), Ordering::Equal);
+            assert_eq!(exact.cmp(&mixed), mixed.cmp(&exact).reverse());
+        }
         assert_eq!(
             exact.digest_hex(),
             "c7792876c8177f6f5420cc0f9aa84fb3c478f0bc6555c94ea5a7288502d6e4db"

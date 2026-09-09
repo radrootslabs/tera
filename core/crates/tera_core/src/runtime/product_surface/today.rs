@@ -56,7 +56,7 @@ use crate::runtime::TeraRuntime;
 
 const TODAY_PROJECTION_ID: &str = "radroots.today.v1";
 const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 1;
-const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 1;
+const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 2;
 const TODAY_PAGE_LIMIT_MAX: u16 = 100;
 const TODAY_SEARCH_LIMIT_MAX: u16 = 100;
 #[cfg(feature = "mobile-social")]
@@ -68,7 +68,14 @@ const TODAY_SYNC_KINDS: [u32; 7] = [0, 1, 5, 1111, 30_402, 31_922, 31_923];
 const PROJECTION_GENERATION_DOMAIN: &[u8] = b"radroots.today-projection.v1\0";
 const PROJECTION_CONTENT_DOMAIN: &[u8] = b"radroots.today-content-generation.v1\0";
 const PROJECTION_DOCUMENT_KEY_DOMAIN: &[u8] = b"radroots.today-document-key.v1\0";
-const SNAPSHOT_ID_DOMAIN: &[u8] = b"radroots.today-snapshot-id.v1\0";
+const SNAPSHOT_ID_DOMAIN: &[u8] = b"radroots.today-snapshot-id.v2\0";
+
+#[path = "today_paging_scope.rs"]
+mod paging_scope;
+
+#[cfg(test)]
+#[path = "today_scope_tests.rs"]
+mod scope_tests;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -204,6 +211,10 @@ struct TodayProjectionState {
     overlays: BTreeMap<String, LocalAuthorOverlay>,
     #[serde(default)]
     media_cache: Phase1MediaCacheIndex,
+    // Missing metadata remains readable with the original content hash. The
+    // next scoped read rebuilds it from source while retaining overlays/cache.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    query_scope: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -215,6 +226,7 @@ struct FrozenTodaySnapshot {
     as_of: u64,
     store_generation: [u8; 32],
     projection_generation: u64,
+    query_scope: [u8; 32],
     items: Vec<TodayCard>,
 }
 
@@ -339,11 +351,13 @@ impl TeraRuntime {
         let projection_id = projection_id()?;
         let key = projection_document_key(context);
         let prior = load_state(storage, context, generation).await?;
+        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
 
         if update == TodayProjectionUpdate::Incremental
-            && prior
-                .as_ref()
-                .is_some_and(|state| state.source_events == event_status.raw_events())
+            && prior.as_ref().is_some_and(|state| {
+                state.source_events == event_status.raw_events()
+                    && state.query_scope == Some(query_scope)
+            })
         {
             let state = prior.expect("checked present");
             return Ok(refresh_receipt(update, &state, false));
@@ -363,6 +377,7 @@ impl TeraRuntime {
             visible,
             overlays,
         )?;
+        state.query_scope = Some(query_scope);
         state.media_cache = media_cache;
         apply_local_media_evidence(&mut state, &local_media);
         state.content_generation = content_generation(&state)?;
@@ -431,10 +446,14 @@ impl TeraRuntime {
         let event_status = EventStore::status(storage).await?;
         let algorithm_generation = projection_generation()?;
         let projection_id = projection_id()?;
+        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
 
         let (scope, snapshot, after) = if let Some(cursor) = request.cursor.as_deref() {
             let scope = TodayCursor::scope(cursor)?;
-            if scope.context_id != context.id || scope.context_generation != context.generation {
+            if scope.context_id != context.id
+                || scope.context_generation != context.generation
+                || scope.query_scope != query_scope
+            {
                 return Err(CursorError::ContextMismatch.into());
             }
             if request.as_of.is_some_and(|as_of| as_of != scope.as_of) {
@@ -458,8 +477,8 @@ impl TeraRuntime {
                 .filter(|value| *value != 0)
                 .ok_or(TodayError::InvalidRequest)?;
             let state = match load_state(storage, context, algorithm_generation).await? {
-                Some(state) => state,
-                None => {
+                Some(state) if state.query_scope == Some(query_scope) => state,
+                _ => {
                     // A first local read must not need a prior relay refresh.
                     // Materialize only already admitted local events; errors
                     // remain errors rather than becoming an empty feed.
@@ -470,7 +489,9 @@ impl TeraRuntime {
                         .ok_or(TodayError::ProjectionMissing)?
                 }
             };
-            if state.store_generation != *event_status.generation().as_bytes() {
+            if state.store_generation != *event_status.generation().as_bytes()
+                || state.query_scope != Some(query_scope)
+            {
                 return Err(CursorError::Stale.into());
             }
             let scope = CursorScope::new(
@@ -479,8 +500,9 @@ impl TeraRuntime {
                 as_of,
                 state.store_generation,
                 state.content_generation,
+                query_scope,
             )?;
-            let snapshot = frozen_snapshot(&state, context, as_of)?;
+            let snapshot = frozen_snapshot(&state, context, as_of, query_scope)?;
             persist_snapshot(storage, algorithm_generation, &scope, &snapshot).await?;
             (scope, snapshot, None)
         };
@@ -1398,6 +1420,7 @@ fn project_state(
         thread,
         overlays,
         media_cache: Phase1MediaCacheIndex::default(),
+        query_scope: None,
     })
 }
 
@@ -1591,6 +1614,7 @@ fn frozen_snapshot(
     state: &TodayProjectionState,
     context: &LocalNetwork,
     as_of: u64,
+    query_scope: [u8; 32],
 ) -> Result<FrozenTodaySnapshot, TodayError> {
     Ok(FrozenTodaySnapshot {
         schema_version: TODAY_SNAPSHOT_SCHEMA_VERSION,
@@ -1599,6 +1623,7 @@ fn frozen_snapshot(
         as_of,
         store_generation: state.store_generation,
         projection_generation: state.content_generation,
+        query_scope,
         items: ranked_cards(state, context, as_of)?,
     })
 }
@@ -1610,6 +1635,7 @@ fn page_from_snapshot(
     limit: u16,
 ) -> Result<TodayPage, TodayError> {
     validate_snapshot(&snapshot, &scope)?;
+    paging_scope::validate_order(&snapshot.items)?;
     let start = if let Some(after) = after {
         snapshot
             .items
@@ -1651,6 +1677,7 @@ fn validate_snapshot(
         || snapshot.as_of != scope.as_of
         || snapshot.store_generation != scope.store_generation
         || snapshot.projection_generation != scope.projection_generation
+        || snapshot.query_scope != scope.query_scope
     {
         return Err(TodayError::CorruptProjection);
     }
@@ -1831,6 +1858,15 @@ fn sanitize_snapshot_media(snapshot: &mut FrozenTodaySnapshot, cache: &Phase1Med
 }
 
 fn decode_snapshot(value: &[u8]) -> Result<FrozenTodaySnapshot, TodayError> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Header {
+        schema_version: u16,
+    }
+    let header: Header = decode(value)?;
+    if header.schema_version == 1 {
+        return Err(CursorError::Stale.into());
+    }
     let snapshot: FrozenTodaySnapshot = match serde_json::from_slice(value) {
         Ok(snapshot) => snapshot,
         Err(_) => {
@@ -2000,6 +2036,7 @@ fn snapshot_id(scope: &CursorScope) -> [u8; 32] {
     digest.update(scope.as_of.to_be_bytes());
     digest.update(scope.store_generation);
     digest.update(scope.projection_generation.to_be_bytes());
+    digest.update(scope.query_scope);
     digest.finalize().into()
 }
 
@@ -2145,7 +2182,7 @@ mod tests {
         }
     }
 
-    fn context(locality: Option<&str>, generation: u64) -> LocalNetwork {
+    pub(super) fn context(locality: Option<&str>, generation: u64) -> LocalNetwork {
         LocalNetwork::new(
             "victoria".into(),
             "Victoria".into(),
@@ -2157,11 +2194,16 @@ mod tests {
         .expect("context")
     }
 
-    fn keys() -> Keys {
+    pub(super) fn keys() -> Keys {
         Keys::parse(SECRET).expect("keys")
     }
 
-    fn signed(kind: u32, tags: Vec<Vec<&str>>, content: &str, created_at: u64) -> SignedEvent {
+    pub(super) fn signed(
+        kind: u32,
+        tags: Vec<Vec<&str>>,
+        content: &str,
+        created_at: u64,
+    ) -> SignedEvent {
         signed_owned(
             kind,
             tags.into_iter()
@@ -2257,7 +2299,7 @@ mod tests {
         .expect("codec admission")
     }
 
-    async fn ingest(
+    pub(super) async fn ingest(
         runtime: &TeraRuntime,
         context: &LocalNetwork,
         event: SignedEvent,
@@ -2597,6 +2639,7 @@ mod tests {
             cursor = page.next_cursor;
         }
         ids.sort();
+        assert_eq!(ids.len(), 3, "each frozen item appears exactly once");
         ids.dedup();
         assert_eq!(ids.len(), 3, "frozen snapshot has no loss or duplicates");
 
@@ -3575,6 +3618,7 @@ mod tests {
             2_000_000_200,
             state.store_generation,
             state.content_generation,
+            paging_scope::query_scope(&context, runtime.store_public_key).unwrap(),
         )
         .expect("scope");
 
@@ -3637,7 +3681,8 @@ mod tests {
             Err(TodayError::SnapshotMissing)
         ));
 
-        let snapshot = frozen_snapshot(&state, &context, scope.as_of).expect("snapshot");
+        let snapshot =
+            frozen_snapshot(&state, &context, scope.as_of, scope.query_scope).expect("snapshot");
         assert!(validate_snapshot(&snapshot, &scope).is_ok());
         for invalid in [
             {

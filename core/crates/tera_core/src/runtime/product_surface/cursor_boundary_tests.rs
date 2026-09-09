@@ -1,7 +1,15 @@
 use super::*;
 
 fn scope(context: &str) -> CursorScope {
-    CursorScope::new(context.into(), u64::MAX, u64::MAX, [0xff; 32], u64::MAX).expect("valid scope")
+    CursorScope::new(
+        context.into(),
+        u64::MAX,
+        u64::MAX,
+        [0xff; 32],
+        u64::MAX,
+        [0xff; 32],
+    )
+    .expect("valid scope")
 }
 
 fn position() -> TodayCursorPosition {
@@ -29,8 +37,9 @@ fn rehashed(mut payload: Vec<u8>) -> String {
 
 #[test]
 fn maximum_cursor_round_trips_ascii_and_multibyte_contexts() {
-    assert_eq!(FIXED_PAYLOAD_BYTES, 106);
-    assert_eq!(MAX_CURSOR_BYTES, 794);
+    assert_eq!(FIXED_PAYLOAD_BYTES, 138);
+    assert_eq!(MAX_CURSOR_BYTES, 858);
+    assert_eq!(LEGACY_MAX_CURSOR_BYTES, 794);
     for context in ["x".repeat(256), "é".repeat(128)] {
         let scope = scope(&context);
         let cursor = TodayCursor::encode(&scope, position()).expect("cursor");
@@ -43,6 +52,10 @@ fn maximum_cursor_round_trips_ascii_and_multibyte_contexts() {
 
 #[test]
 fn oversized_hex_is_rejected_before_integrity_decoding() {
+    assert_error(
+        &format!("rrtc1:{}", "0".repeat(LEGACY_MAX_CURSOR_BYTES + 1 - 6)),
+        CursorError::Malformed,
+    );
     let valid = TodayCursor::encode(&scope(&"x".repeat(256)), position()).expect("cursor");
     for suffix in ["0", "00"] {
         assert_error(
@@ -62,7 +75,7 @@ fn oversized_hex_is_rejected_before_integrity_decoding() {
 #[test]
 fn both_cursor_entry_points_reject_malformed_shapes_and_checksums() {
     for malformed in [
-        "", "rrtc1:", "rrtc1:0", "rrtc1:00", "rrtc1:GG", "rrtc1:é", "rrtc2:00",
+        "", "rrtc2:", "rrtc2:0", "rrtc2:00", "rrtc2:GG", "rrtc2:é", "rrtc3:00",
     ] {
         assert_error(malformed, CursorError::Malformed);
     }
@@ -84,7 +97,7 @@ fn integrity_valid_payloads_reject_versions_lengths_and_trailing_bytes() {
     payload.truncate(payload.len() - DIGEST_BYTES);
     for offset in [1, 3, 5] {
         let mut invalid = payload.clone();
-        invalid[offset] = 2;
+        invalid[offset] = 3;
         assert_error(&rehashed(invalid), CursorError::Version);
     }
     for length in [257_u16, u16::MAX] {
@@ -106,7 +119,7 @@ fn scope_construction_and_deserialization_cannot_admit_invalid_contexts() {
         "x\u{7f}".into(),
     ] {
         assert_eq!(
-            CursorScope::new(context.clone(), 0, 0, [0; 32], 0),
+            CursorScope::new(context.clone(), 0, 0, [0; 32], 0, [0; 32]),
             Err(CursorError::InvalidContext)
         );
         let wire = serde_json::to_string(&context).expect("wire");
@@ -120,6 +133,7 @@ fn scope_construction_and_deserialization_cannot_admit_invalid_contexts() {
         as_of: 0,
         store_generation: [0; 32],
         projection_generation: 0,
+        query_scope: [0; 32],
     };
     let cursor = TodayCursor::encode(&scope, position()).expect("cursor");
     assert_eq!(TodayCursor::decode(cursor.as_str(), &scope), Ok(position()));

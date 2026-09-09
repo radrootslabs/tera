@@ -3641,7 +3641,7 @@
       ]
     },
     {
-      "identifier": "radroots.today-cursor.v1",
+      "identifier": "radroots.today-cursor.v2",
       "category": "persisted_data",
       "occurrences": [
         {
@@ -3681,7 +3681,7 @@
       ]
     },
     {
-      "identifier": "radroots.today-snapshot-id.v1",
+      "identifier": "radroots.today-snapshot-id.v2",
       "category": "persisted_data",
       "occurrences": [
         {
@@ -4096,6 +4096,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_paging_scope.rs",
           "count": 1
         },
         {

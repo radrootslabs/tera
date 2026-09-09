@@ -5,13 +5,14 @@ use super::local_network_id::LOCAL_NETWORK_ID_MAX_BYTES;
 use super::{CardId, ContextRank, LocalNetworkId, TODAY_RANK_SCHEMA_VERSION, TodayRank};
 use crate::runtime::product_surface::ranking::TODAY_RANK_ALGORITHM_VERSION;
 
-const CURSOR_PREFIX: &str = "rrtc1:";
-const CURSOR_DOMAIN: &[u8] = b"radroots.today-cursor.v1\0";
-const CURSOR_SCHEMA_VERSION: u16 = 1;
-const FIXED_PAYLOAD_BYTES: usize = 2 + 2 + 2 + 2 + 8 + 8 + 32 + 8 + 1 + 1 + 8 + 32;
+const CURSOR_PREFIX: &str = "rrtc2:";
+const CURSOR_DOMAIN: &[u8] = b"radroots.today-cursor.v2\0";
+const CURSOR_SCHEMA_VERSION: u16 = 2;
+const FIXED_PAYLOAD_BYTES: usize = 2 + 2 + 2 + 2 + 8 + 8 + 32 + 8 + 1 + 1 + 8 + 32 + 32;
 const DIGEST_BYTES: usize = 32;
 const MAX_CURSOR_BYTES: usize =
     CURSOR_PREFIX.len() + 2 * (FIXED_PAYLOAD_BYTES + LOCAL_NETWORK_ID_MAX_BYTES + DIGEST_BYTES);
+const LEGACY_MAX_CURSOR_BYTES: usize = MAX_CURSOR_BYTES - 2 * 32;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CursorScope {
@@ -20,6 +21,7 @@ pub struct CursorScope {
     pub as_of: u64,
     pub store_generation: [u8; 32],
     pub projection_generation: u64,
+    pub query_scope: [u8; 32],
 }
 
 impl CursorScope {
@@ -29,6 +31,7 @@ impl CursorScope {
         as_of: u64,
         store_generation: [u8; 32],
         projection_generation: u64,
+        query_scope: [u8; 32],
     ) -> Result<Self, CursorError> {
         let context_id =
             LocalNetworkId::new(context_id).map_err(|_| CursorError::InvalidContext)?;
@@ -38,6 +41,7 @@ impl CursorScope {
             as_of,
             store_generation,
             projection_generation,
+            query_scope,
         })
     }
 }
@@ -97,6 +101,7 @@ impl TodayCursor {
         payload.push(position.rank.time_relevance_rank);
         payload.extend_from_slice(&position.rank.effective_at.to_be_bytes());
         payload.extend_from_slice(position.rank.card_id.as_bytes());
+        payload.extend_from_slice(&scope.query_scope);
         let digest = cursor_digest(&payload);
         payload.extend_from_slice(&digest);
         Ok(Self(format!("{CURSOR_PREFIX}{}", hex::encode(payload))))
@@ -106,6 +111,7 @@ impl TodayCursor {
         let (scope, position) = decode_unbound(value)?;
         if scope.context_id != expected.context_id
             || scope.context_generation != expected.context_generation
+            || scope.query_scope != expected.query_scope
         {
             return Err(CursorError::ContextMismatch);
         }
@@ -131,9 +137,16 @@ impl TodayCursor {
 }
 
 fn decode_unbound(value: &str) -> Result<(CursorScope, TodayCursorPosition), CursorError> {
-    // The v1 token is bounded before any content scan, hex allocation or hash.
+    // The v2 token is bounded before any content scan, hex allocation or hash.
     if value.len() > MAX_CURSOR_BYTES {
         return Err(CursorError::Malformed);
+    }
+    if value.starts_with("rrtc1:") {
+        return Err(if value.len() > LEGACY_MAX_CURSOR_BYTES {
+            CursorError::Malformed
+        } else {
+            CursorError::Version
+        });
     }
     let encoded = value
         .strip_prefix(CURSOR_PREFIX)
@@ -184,6 +197,7 @@ fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), 
     let effective_at = decoder.u64()?;
     let card_id =
         CardId::parse(&hex::encode(decoder.array_32()?)).map_err(|_| CursorError::Malformed)?;
+    let query_scope = decoder.array_32()?;
     if !decoder.is_finished() {
         return Err(CursorError::Malformed);
     }
@@ -194,6 +208,7 @@ fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), 
             as_of,
             store_generation,
             projection_generation,
+            query_scope,
         },
         TodayCursorPosition {
             rank: TodayRank {
@@ -267,7 +282,7 @@ mod tests {
     use super::*;
 
     fn scope() -> CursorScope {
-        CursorScope::new("nearby".into(), 4, 2_000_000_000, [7; 32], 9).expect("scope")
+        CursorScope::new("nearby".into(), 4, 2_000_000_000, [7; 32], 9, [6; 32]).expect("scope")
     }
 
     fn position() -> TodayCursorPosition {
@@ -299,13 +314,30 @@ mod tests {
         let cursor = TodayCursor::encode(&scope(), position()).expect("cursor");
         assert_eq!(
             cursor.as_str(),
-            "rrtc1:00010001000100066e6561726279000000000000000400000000773594000707070707070707070707070707070707070707070707070707070707070707000000000000000902030000000077359018aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaedf305be41633dfc2f7d621e067c3d33a71c3548c6a1fcf68a6707a1d8664b11"
+            "rrtc2:00020001000100066e6561726279000000000000000400000000773594000707070707070707070707070707070707070707070707070707070707070707000000000000000902030000000077359018aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa06060606060606060606060606060606060606060606060606060606060606062c4a887d72e34c722620c5a685cde8c288bc9b5bad5fd2faa4791ebfa1021b4c"
         );
         assert_eq!(
             TodayCursor::decode(cursor.as_str(), &scope()).expect("decode"),
             position()
         );
         assert_eq!(TodayCursor::scope(cursor.as_str()).expect("scope"), scope());
+    }
+
+    #[test]
+    fn old_unbound_cursor_is_typed_unsupported_and_query_scope_is_checked() {
+        let old = "rrtc1:00010001000100066e6561726279000000000000000400000000773594000707070707070707070707070707070707070707070707070707070707070707000000000000000902030000000077359018aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaedf305be41633dfc2f7d621e067c3d33a71c3548c6a1fcf68a6707a1d8664b11";
+        assert_eq!(TodayCursor::scope(old), Err(CursorError::Version));
+        assert_eq!(
+            TodayCursor::decode(old, &scope()),
+            Err(CursorError::Version)
+        );
+        let cursor = TodayCursor::encode(&scope(), position()).unwrap();
+        let mut changed = scope();
+        changed.query_scope[0] ^= 1;
+        assert_eq!(
+            TodayCursor::decode(cursor.as_str(), &changed),
+            Err(CursorError::ContextMismatch)
+        );
     }
 
     #[test]
@@ -318,30 +350,34 @@ mod tests {
             Err(CursorError::Integrity)
         );
         let other_context =
-            CursorScope::new("other".into(), 4, 2_000_000_000, [7; 32], 9).expect("scope");
+            CursorScope::new("other".into(), 4, 2_000_000_000, [7; 32], 9, [6; 32]).expect("scope");
         assert_eq!(
             TodayCursor::decode(cursor.as_str(), &other_context),
             Err(CursorError::ContextMismatch)
         );
         let other_context_generation =
-            CursorScope::new("nearby".into(), 5, 2_000_000_000, [7; 32], 9).expect("scope");
+            CursorScope::new("nearby".into(), 5, 2_000_000_000, [7; 32], 9, [6; 32])
+                .expect("scope");
         assert_eq!(
             TodayCursor::decode(cursor.as_str(), &other_context_generation),
             Err(CursorError::ContextMismatch)
         );
         let other_snapshot =
-            CursorScope::new("nearby".into(), 4, 2_000_000_001, [7; 32], 9).expect("scope");
+            CursorScope::new("nearby".into(), 4, 2_000_000_001, [7; 32], 9, [6; 32])
+                .expect("scope");
         assert_eq!(
             TodayCursor::decode(cursor.as_str(), &other_snapshot),
             Err(CursorError::SnapshotMismatch)
         );
-        let stale = CursorScope::new("nearby".into(), 4, 2_000_000_000, [8; 32], 9).expect("scope");
+        let stale = CursorScope::new("nearby".into(), 4, 2_000_000_000, [8; 32], 9, [6; 32])
+            .expect("scope");
         assert_eq!(
             TodayCursor::decode(cursor.as_str(), &stale),
             Err(CursorError::Stale)
         );
         let stale_projection =
-            CursorScope::new("nearby".into(), 4, 2_000_000_000, [7; 32], 10).expect("scope");
+            CursorScope::new("nearby".into(), 4, 2_000_000_000, [7; 32], 10, [6; 32])
+                .expect("scope");
         assert_eq!(
             TodayCursor::decode(cursor.as_str(), &stale_projection),
             Err(CursorError::Stale)
@@ -354,7 +390,7 @@ mod tests {
             TodayCursor::decode("nope", &scope()),
             Err(CursorError::Malformed)
         );
-        for malformed in ["rrtc1:0", "rrtc1:GG", "rrtc1:00"] {
+        for malformed in ["rrtc2:0", "rrtc2:GG", "rrtc2:00"] {
             assert_eq!(
                 TodayCursor::decode(malformed, &scope()),
                 Err(CursorError::Malformed)
@@ -370,14 +406,14 @@ mod tests {
             ),
             Err(CursorError::Malformed)
         );
-        assert!(CursorScope::new("".into(), 0, 0, [0; 32], 0).is_err());
-        assert!(CursorScope::new("x".repeat(257), 0, 0, [0; 32], 0).is_err());
-        assert!(CursorScope::new(" nearby ".into(), 0, 0, [0; 32], 0).is_err());
-        assert!(CursorScope::new("near\u{7f}by".into(), 0, 0, [0; 32], 0).is_err());
+        assert!(CursorScope::new("".into(), 0, 0, [0; 32], 0, [6; 32]).is_err());
+        assert!(CursorScope::new("x".repeat(257), 0, 0, [0; 32], 0, [6; 32]).is_err());
+        assert!(CursorScope::new(" nearby ".into(), 0, 0, [0; 32], 0, [6; 32]).is_err());
+        assert!(CursorScope::new("near\u{7f}by".into(), 0, 0, [0; 32], 0, [6; 32]).is_err());
         let cursor = TodayCursor::encode(&scope(), position()).expect("cursor");
         for version_offset in [1, 3, 5] {
             let mut unsupported = payload(&cursor);
-            unsupported[version_offset] = 2;
+            unsupported[version_offset] = 3;
             assert_eq!(
                 TodayCursor::decode(&signed_payload(unsupported), &scope()),
                 Err(CursorError::Version)
@@ -414,7 +450,7 @@ mod tests {
             Err(CursorError::Malformed)
         );
         let mut truncated_field = vec![0; FIXED_PAYLOAD_BYTES];
-        truncated_field[1] = 1;
+        truncated_field[1] = 2;
         truncated_field[3] = 1;
         truncated_field[5] = 1;
         truncated_field[6] = 1;
