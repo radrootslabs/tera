@@ -1755,6 +1755,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraMediaOwnershipFFITests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraRootShellTests.swift",
           "count": 24
         },
@@ -3934,6 +3938,10 @@
         },
         {
           "path": "core/crates/tera_ffi/tests/local_mvp_real_io.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/tests/media_ownership.rs",
           "count": 1
         }
       ]

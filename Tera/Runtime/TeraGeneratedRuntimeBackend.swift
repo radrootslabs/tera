@@ -1190,23 +1190,6 @@ extension TeraAddRuntimeInput {
   }
 }
 
-extension TeraPreparedMediaHandle {
-  fileprivate var generatedValue: FfiPreparedMediaInput {
-    FfiPreparedMediaInput(
-      schemaVersion: 1,
-      opaqueReference: media.opaqueReference,
-      fileDescriptor: fileDescriptor,
-      sha256: media.sha256,
-      mediaType: media.mediaType,
-      byteSize: media.byteSize,
-      width: media.width,
-      height: media.height,
-      alt: media.alt,
-      preparedAtUnixS: media.preparedAtUnixSeconds
-    )
-  }
-}
-
 extension FfiIdentityLockState {
   fileprivate var appValue: TeraSettingsIdentityLockState {
     switch self {

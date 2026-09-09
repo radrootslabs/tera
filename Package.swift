@@ -60,6 +60,7 @@ let package = Package(
         "Runtime/TeraGeneratedRuntimeBackend.swift",
         "Runtime/TeraLifecycleCoordinator.swift",
         "Runtime/TeraLifecycleBridge.swift",
+        "Runtime/TeraPreparedMediaHandle.swift",
         "Runtime/TeraRuntimeBoundedTask.swift",
         "Runtime/TeraRuntimeClient.swift",
         "Runtime/TeraRuntimeModels.swift",

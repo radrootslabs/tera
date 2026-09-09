@@ -1,3 +1,4 @@
+use std::os::fd::AsRawFd;
 use std::sync::Arc;
 
 use tera_ffi::{
@@ -515,14 +516,19 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .expect("cancelled retraction");
     assert_eq!(cancelled_retraction.state, FfiOutboxState::Cancelled);
 
+    let upload_file = tempfile::tempfile().expect("media file");
+    upload_file.set_len(1).expect("bounded media");
     let upload = FfiBlossomUploadIntent {
         schema_version: MOBILE_FFI_SCHEMA_VERSION + 1,
         draft_id,
         expected_revision: cancelled.revision,
         media: FfiPreparedMediaInput {
-            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            schema_version: tera_ffi::PREPARED_MEDIA_FFI_SCHEMA_VERSION,
             opaque_reference: "media:unused".to_owned(),
-            file_descriptor: 0,
+            file: Arc::new(
+                tera_ffi::FfiMediaFile::new(upload_file.as_raw_fd() as u64, 1)
+                    .expect("admitted media"),
+            ),
             sha256: "00".repeat(32),
             media_type: "image/png".to_owned(),
             byte_size: 1,

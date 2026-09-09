@@ -658,9 +658,15 @@ fn prepared_media(
 ) -> FfiPreparedMediaInput {
     let hash = Sha256::digest(bytes).to_string();
     FfiPreparedMediaInput {
-        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        schema_version: tera_ffi::PREPARED_MEDIA_FFI_SCHEMA_VERSION,
         opaque_reference: format!("media:{hash}"),
-        file_descriptor: u64::try_from(file.as_raw_fd()).expect("nonnegative media descriptor"),
+        file: Arc::new(
+            tera_ffi::FfiMediaFile::new(
+                u64::try_from(file.as_raw_fd()).expect("nonnegative media descriptor"),
+                bytes.len() as u64,
+            )
+            .expect("admitted media"),
+        ),
         sha256: hash,
         media_type: "image/png".to_owned(),
         byte_size: u64::try_from(bytes.len()).expect("media size"),

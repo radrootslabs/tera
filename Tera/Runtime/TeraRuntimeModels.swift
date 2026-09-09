@@ -971,11 +971,6 @@ struct TeraPreparedMedia: Sendable, Equatable, Hashable, Identifiable {
   }
 }
 
-struct TeraPreparedMediaHandle: Sendable, Equatable {
-  let media: TeraPreparedMedia
-  let fileDescriptor: UInt64
-}
-
 struct TeraAddForm: Sendable, Equatable, Hashable {
   var commandType: TeraAddCommandType
   var content: String = ""

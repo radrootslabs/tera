@@ -176,7 +176,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
         )
         let file = try FileHandle(forReadingFrom: roots.stagedBlobURL(for: blob))
         files.append(file)
-        handles.append(
+        try handles.append(
           TeraPreparedMediaHandle(
             media: item,
             fileDescriptor: UInt64(file.fileDescriptor)

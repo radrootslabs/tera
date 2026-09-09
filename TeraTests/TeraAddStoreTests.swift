@@ -787,11 +787,8 @@ private actor AddMediaHarness: TeraAddMediaHandling {
     item
   }
 
-  func open(_ media: [TeraPreparedMedia]) -> TeraOpenedMedia {
-    TeraOpenedMedia(
-      handles: media.map { TeraPreparedMediaHandle(media: $0, fileDescriptor: 1) },
-      files: []
-    )
+  func open(_ media: [TeraPreparedMedia]) throws -> TeraOpenedMedia {
+    try TeraMediaFileFixture.open(media, bytes: Data(repeating: 0, count: 4))
   }
 
   func uploadInBackground(

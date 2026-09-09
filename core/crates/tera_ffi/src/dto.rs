@@ -1,9 +1,7 @@
 //! Focused, versioned value types owned by the native boundary.
 
-#[cfg(unix)]
-use std::os::fd::{FromRawFd, OwnedFd, RawFd};
-#[cfg(unix)]
-use std::os::unix::fs::FileExt;
+use crate::FfiMediaFile;
+use crate::media_file::MEDIA_FILE_MAX_BYTES;
 
 use radroots_blossom::{BlobDescriptor, MediaType, Sha256};
 use radroots_event::{
@@ -40,7 +38,7 @@ use tera_core::runtime::{
 use crate::TeraAppError;
 
 pub const MOBILE_FFI_SCHEMA_VERSION: u16 = 1;
-const MEDIA_FILE_MAX_BYTES: u64 = 10 * 1024 * 1024;
+pub const PREPARED_MEDIA_FFI_SCHEMA_VERSION: u16 = 2;
 const MEDIA_REFERENCE_MAX_BYTES: usize = 256;
 
 /// Final four-state trade-evidence coverage vocabulary.
@@ -1079,11 +1077,11 @@ pub enum FfiEventTimingKind {
     Timed,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, uniffi::Record)]
 pub struct FfiPreparedMediaInput {
     pub schema_version: u16,
     pub opaque_reference: String,
-    pub file_descriptor: u64,
+    pub file: std::sync::Arc<FfiMediaFile>,
     pub sha256: String,
     pub media_type: String,
     pub byte_size: u64,
@@ -1093,7 +1091,7 @@ pub struct FfiPreparedMediaInput {
     pub prepared_at_unix_s: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, uniffi::Record)]
 pub struct FfiAddDraftInput {
     pub schema_version: u16,
     pub command_type: FfiAddCommandType,
@@ -1128,7 +1126,7 @@ pub struct FfiRetractionDraftInput {
     pub reason: String,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, uniffi::Record)]
 pub struct FfiBlossomUploadInput {
     pub schema_version: u16,
     pub draft_id: String,
@@ -1146,7 +1144,7 @@ pub struct FfiBlossomUploadInput {
 }
 
 /// Minimal host input for a Rust-planned exact-byte upload attempt.
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, uniffi::Record)]
 pub struct FfiBlossomUploadIntent {
     pub schema_version: u16,
     pub draft_id: String,
@@ -1168,7 +1166,7 @@ pub struct FfiNativeUploadJobRecord {
     pub byte_size: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, uniffi::Record)]
 pub struct FfiNativeUploadCompletionInput {
     pub schema_version: u16,
     pub draft_id: String,
@@ -1334,7 +1332,9 @@ impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
     type Error = TeraAppError;
 
     fn try_from(value: FfiPreparedMediaInput) -> Result<Self, Self::Error> {
-        require_schema(value.schema_version)?;
+        if value.schema_version != PREPARED_MEDIA_FFI_SCHEMA_VERSION {
+            return Err(TeraAppError::invalid_argument("unsupported_schema_version"));
+        }
         if !opaque_media_reference_is_valid(&value.opaque_reference)
             || value.byte_size == 0
             || value.byte_size > MEDIA_FILE_MAX_BYTES
@@ -1346,9 +1346,7 @@ impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
         {
             return Err(TeraAppError::invalid_argument("invalid_media_reference"));
         }
-        let byte_size = usize::try_from(value.byte_size)
-            .map_err(|_| TeraAppError::invalid_argument("media_size_mismatch"))?;
-        let bytes = read_media_file_descriptor(value.file_descriptor, value.byte_size, byte_size)?;
+        let bytes = value.file.read(value.byte_size)?;
         let media_type = MediaType::parse(&value.media_type)
             .map_err(|_| TeraAppError::invalid_argument("invalid_media_type"))?;
         let sha256 = Sha256::from_hex(&value.sha256)
@@ -1382,52 +1380,6 @@ impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
             alt: value.alt,
         })
     }
-}
-
-#[cfg(unix)]
-fn read_media_file_descriptor(
-    file_descriptor: u64,
-    expected_size: u64,
-    byte_size: usize,
-) -> Result<Vec<u8>, TeraAppError> {
-    let raw_file_descriptor = RawFd::try_from(file_descriptor)
-        .map_err(|_| TeraAppError::invalid_argument("media_handle_unavailable"))?;
-    // SAFETY: `fcntl(F_DUPFD_CLOEXEC)` accepts any in-range integer descriptor
-    // and reports EBADF for an unavailable one. No borrowed or owned Rust
-    // descriptor is constructed until the kernel has duplicated it.
-    let duplicated = unsafe { libc::fcntl(raw_file_descriptor, libc::F_DUPFD_CLOEXEC, 0) };
-    if duplicated < 0 {
-        return Err(TeraAppError::invalid_argument("media_handle_unavailable"));
-    }
-    // SAFETY: a nonnegative F_DUPFD_CLOEXEC result is a new descriptor owned by
-    // this call. The host's original descriptor remains independently owned.
-    let owned = unsafe { OwnedFd::from_raw_fd(duplicated) };
-    let file = std::fs::File::from(owned);
-    let metadata = file
-        .metadata()
-        .map_err(|_| TeraAppError::invalid_argument("media_handle_unavailable"))?;
-    if !metadata.is_file() || metadata.len() != expected_size {
-        return Err(TeraAppError::invalid_argument("media_size_mismatch"));
-    }
-    let mut bytes = vec![0; byte_size];
-    file.read_exact_at(&mut bytes, 0)
-        .map_err(|_| TeraAppError::invalid_argument("media_read_failed"))?;
-    Ok(bytes)
-}
-
-#[cfg(not(unix))]
-fn read_media_file_descriptor(
-    _file_descriptor: u64,
-    _expected_size: u64,
-    _byte_size: usize,
-) -> Result<Vec<u8>, TeraAppError> {
-    Err(TeraAppError::failure(
-        "media_handle_unsupported",
-        "capability",
-        false,
-        &[],
-        "Protected media handles are unsupported on this platform.",
-    ))
 }
 
 impl PreparedMedia {
@@ -2532,9 +2484,11 @@ mod tests {
             food_published_at_unix_s: None,
             food_status: None,
             media: vec![FfiPreparedMediaInput {
-                schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                schema_version: PREPARED_MEDIA_FFI_SCHEMA_VERSION,
                 opaque_reference: "media:carrots-01".to_owned(),
-                file_descriptor,
+                file: std::sync::Arc::new(
+                    FfiMediaFile::new(file_descriptor, bytes.len() as u64).expect("admitted file"),
+                ),
                 sha256: digest,
                 media_type: "image/png".to_owned(),
                 byte_size: bytes.len() as u64,
@@ -2701,13 +2655,8 @@ mod tests {
 
     #[test]
     fn prepared_media_rejects_file_descriptors_outside_the_platform_range() {
-        let bytes = png(2, 2);
-        let blossom = blossom_slot();
-        let input = photo_input(u64::MAX, &bytes, Sha256::digest(&bytes).to_hex());
-
         assert_eq!(
-            input
-                .command_and_media(1_800_000_000, Some(&blossom))
+            FfiMediaFile::new(u64::MAX, 1)
                 .expect_err("out-of-range descriptor")
                 .report()
                 .code,
@@ -2718,13 +2667,8 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn prepared_media_rejects_unavailable_in_range_file_descriptors() {
-        let bytes = png(2, 2);
-        let blossom = blossom_slot();
-        let input = photo_input(i32::MAX as u64, &bytes, Sha256::digest(&bytes).to_hex());
-
         assert_eq!(
-            input
-                .command_and_media(1_800_000_000, Some(&blossom))
+            FfiMediaFile::new(i32::MAX as u64, 1)
                 .expect_err("unavailable in-range descriptor")
                 .report()
                 .code,
@@ -2799,6 +2743,17 @@ mod tests {
         file.flush().expect("flush media");
         let digest = Sha256::digest(&bytes).to_hex();
         let valid = photo_input(file.as_file().as_raw_fd() as u64, &bytes, digest).media[0].clone();
+
+        let mut old_schema = valid.clone();
+        old_schema.schema_version = MOBILE_FFI_SCHEMA_VERSION;
+        assert_eq!(
+            PreparedMedia::try_from(old_schema)
+                .err()
+                .expect("borrowed schema rejected")
+                .report()
+                .code,
+            "unsupported_schema_version"
+        );
 
         let mut invalid_values = Vec::new();
         let mut value = valid.clone();
