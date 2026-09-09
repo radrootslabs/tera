@@ -48,28 +48,6 @@ extension TeraAddMediaHandling {
   func reconcileBackgroundUploads(drafts _: [TeraDraftStatus]) async throws {}
 }
 
-final class TeraOpenedMedia: @unchecked Sendable {
-  let handles: [TeraPreparedMediaHandle]
-  private var files: [FileHandle]
-
-  init(handles: [TeraPreparedMediaHandle], files: [FileHandle]) {
-    self.handles = handles
-    self.files = files
-  }
-
-  deinit {
-    close()
-  }
-
-  func close() {
-    let active = files
-    files.removeAll()
-    for file in active {
-      try? file.close()
-    }
-  }
-}
-
 actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   private let roots: RadrootsAppleFileRoots
   private let picker: any RadrootsMediaPicker

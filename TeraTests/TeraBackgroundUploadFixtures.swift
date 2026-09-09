@@ -43,6 +43,10 @@ final class BackgroundUploadFixture: @unchecked Sendable {
     try? FileManager.default.removeItem(at: root)
   }
 
+  var stagedFileURL: URL {
+    roots.stagedBlobsRoot.appendingPathComponent(media.sha256)
+  }
+
   func coordinator(transfer: any RadrootsBackgroundTransfer) -> TeraAddMediaCoordinator {
     TeraAddMediaCoordinator(
       roots: roots,

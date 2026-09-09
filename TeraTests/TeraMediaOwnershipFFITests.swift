@@ -108,7 +108,7 @@ final class TeraMediaOwnershipFFITests: XCTestCase {
     case .cancelled: XCTAssertFalse(timeout)
     case .completed: XCTFail("The foreign work is still paused")
     }
-    opened.close()
+    await TeraOpenedMediaCloseFixture.closeConcurrently(opened)
     XCTAssertNil(task.settlement())
     await pause.resume.open()
     let late = await task.settle()
@@ -117,7 +117,7 @@ final class TeraMediaOwnershipFFITests: XCTestCase {
   }
 }
 
-private struct MediaOwnershipFixture: Sendable {
+struct MediaOwnershipFixture: Sendable {
   let root: URL
   let bytes = Data([137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 2, 0, 0, 0, 2])
   private let publicKey = "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798"
