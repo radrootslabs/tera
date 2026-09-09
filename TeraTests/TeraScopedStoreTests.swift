@@ -97,21 +97,30 @@ final class TeraScopedStoreTests: XCTestCase {
     _ = try await client.stop()
   }
 
-  func testStoppedProductResumeCannotStartAddAfterLateTodayCompletion() async throws {
+  func testStoppedProductResumeCannotInstallLateStartupResults() async throws {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let stores = TeraProductStores(runtimeClient: client)
     stores.configure(snapshot: TeraScopeFixtures.snapshot())
+    let firstObserver = await backend.pause(.subscribe)
+    let secondObserver = await backend.pause(.subscribe)
+    let drafts = await backend.pause(.drafts)
     let pause = await backend.pause(.page)
     let old = Task { await stores.resume() }
     await pause.entered.wait()
+    await drafts.entered.wait()
     stores.stop()
-    await pause.resume.open()
     await old.value
-    XCTAssertEqual(stores.add.state, .idle)
+    XCTAssertFalse(stores.add.isProductReady)
+    XCTAssertTrue(stores.add.schemas.isEmpty)
+    XCTAssertTrue(stores.add.drafts.isEmpty)
     XCTAssertEqual(stores.add.observationState, .stopped)
     let calls = await backend.counts[.drafts, default: 0]
-    XCTAssertEqual(calls, 0)
+    XCTAssertEqual(calls, 1)
+    await pause.resume.open()
+    await drafts.resume.open()
+    await firstObserver.resume.open()
+    await secondObserver.resume.open()
     _ = try await client.stop()
   }
 }

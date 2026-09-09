@@ -2,68 +2,6 @@ import Foundation
 import RadrootsKit
 
 @MainActor
-final class TeraProductStores {
-  let today: TeraTodayStore
-  let add: TeraAddStore
-  let search: TeraSearchStore
-  let me: TeraMeStore
-  let settings: TeraSettingsStore
-  let media: TeraMediaStore
-  private var generation = TeraSessionGeneration.initial
-
-  init(
-    runtimeClient: TeraRuntimeClient,
-    addMedia: (any TeraAddMediaHandling)? = nil
-  ) {
-    today = TeraTodayStore(runtimeClient: runtimeClient)
-    add = TeraAddStore(runtimeClient: runtimeClient, media: addMedia)
-    search = TeraSearchStore(runtimeClient: runtimeClient)
-    me = TeraMeStore(runtimeClient: runtimeClient)
-    settings = TeraSettingsStore(runtimeClient: runtimeClient)
-    media = TeraMediaStore(runtimeClient: runtimeClient)
-  }
-
-  func configure(snapshot: TeraRuntimeSnapshot) {
-    generation = generation.invalidated()
-    today.configure(snapshot: snapshot)
-    add.configure(snapshot: snapshot)
-    search.stop()
-    search.configure(context: today.selectedContext)
-    me.stop()
-    me.configure(context: today.selectedContext)
-    settings.configure(snapshot: snapshot)
-    media.configure(snapshot: snapshot)
-  }
-
-  func resume() async {
-    let requested = generation
-    await today.start()
-    guard generation == requested, generation.isActive, !Task.isCancelled else { return }
-    await add.start()
-  }
-
-  func suspend() {
-    generation = generation.invalidated()
-    today.stop()
-    add.suspend()
-    search.stop()
-    me.stop()
-    settings.stop()
-    media.reset()
-  }
-
-  func stop() {
-    generation = generation.invalidated()
-    today.stop()
-    add.stop()
-    search.stop()
-    me.stop()
-    settings.stop()
-    media.reset()
-  }
-}
-
-@MainActor
 final class TeraAppModel: ObservableObject {
   typealias Phase = TeraSessionPhase
 
@@ -274,6 +212,9 @@ final class TeraAppModel: ObservableObject {
       productStores?.configure(snapshot: snapshot)
     }
     phase = result
+    if case .running = result {
+      productStores?.start()
+    }
     await lifecycleCoordinator.record(
       "ios.lifecycle.operation_completed",
       level: Self.isFailure(result) ? .warning : .info,

@@ -49,6 +49,7 @@ let package = Package(
         "App/AppEntry.swift",
         "App/TeraAppDelegate.swift",
         "App/TeraAppModel.swift",
+        "App/TeraProductStores.swift",
         "App/TeraProvider.swift",
         "App/TeraRemoteQualification.swift",
         "App/TeraRemoteQualificationEvidence.swift",
