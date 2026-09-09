@@ -24,36 +24,6 @@ final class TeraRuntimeClientTests: XCTestCase {
         _ = try await client.stop()
     }
 
-    func testIndependentSubscriptionsUseBoundedNewestBuffers() async throws {
-        let harness = RuntimeHarness()
-        let client = TeraRuntimeClient(factory: harness.start)
-        _ = try await client.start(configuration: makeConfiguration(generation: "02"))
-        let first = try await client.changes(bufferCapacity: 2)
-        let second = try await client.changes(bufferCapacity: 4)
-
-        for generation in 1 ... 10 {
-            await harness.emitRevision(UInt64(generation))
-        }
-
-        var firstIterator = first.makeAsyncIterator()
-        var secondIterator = second.makeAsyncIterator()
-        let firstValues = await [firstIterator.next(), firstIterator.next()].compactMap {
-            $0?.revision.rawValue
-        }
-        let secondValues = await [
-          secondIterator.next(),
-          secondIterator.next(),
-          secondIterator.next(),
-          secondIterator.next(),
-        ].compactMap { $0?.revision.rawValue }
-
-        XCTAssertEqual(firstValues, [9, 10])
-        XCTAssertEqual(secondValues, [7, 8, 9, 10])
-        _ = try await client.stop()
-        let cancelCount = await harness.cancelCount()
-        XCTAssertEqual(cancelCount, 2)
-    }
-
     func testOverlappingStopsAwaitOneTypedShutdownFailure() async throws {
         let failure = TeraRuntimeFailure.local(
           operation: "test.shutdown",

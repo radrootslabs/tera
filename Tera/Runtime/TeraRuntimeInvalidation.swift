@@ -12,6 +12,11 @@ enum TeraRuntimeChangeKind: Sendable, Equatable, Hashable {
   case lifecycle
 }
 
+enum TeraRuntimeChangeDelivery: Sendable, Equatable {
+  case change
+  case resnapshotRequired
+}
+
 struct TeraRuntimeChangeScope: Sendable, Equatable, Hashable {
   let publicKey: String
   let sourceGeneration: String
@@ -25,12 +30,13 @@ struct TeraRuntimeChange: Sendable, Equatable {
   let scope: TeraRuntimeChangeScope
   let epoch: String
   let revision: TeraProjectionRevision
+  let delivery: TeraRuntimeChangeDelivery
   let kind: TeraRuntimeChangeKind
   let entityID: String?
 
   func matches(_ configuration: TeraRuntimeLaunchConfiguration?) -> Bool {
     guard let configuration else { return false }
-    return schemaVersion == 2
+    return schemaVersion == 3
       && Self.isHex(epoch, count: 32)
       && Self.isHex(scope.publicKey, count: 64)
       && Self.isHex(scope.sourceGeneration, count: 64)
@@ -41,6 +47,23 @@ struct TeraRuntimeChange: Sendable, Equatable {
 
   func matches(context: TeraLocalNetwork?) -> Bool {
     scope.context == nil || scope.context == context
+  }
+
+  func requiringResnapshot() -> Self {
+    Self(
+      schemaVersion: schemaVersion,
+      scope: TeraRuntimeChangeScope(publicKey: scope.publicKey, sourceGeneration: scope.sourceGeneration, context: nil),
+      epoch: epoch, revision: TeraProjectionRevision(rawValue: 0),
+      delivery: .resnapshotRequired, kind: .initial, entityID: nil
+    )
+  }
+
+  /// Loss leaves an account-wide gap queued or already delivered, even if this
+  /// is the producer's final event. The existing buffer capacity stays fixed.
+  func yield(to continuation: AsyncStream<Self>.Continuation) {
+    if case .dropped = continuation.yield(self) {
+      continuation.yield(requiringResnapshot())
+    }
   }
 
   private static func isHex(_ value: String, count: Int) -> Bool {
@@ -58,6 +81,9 @@ struct TeraInvalidationAdmission {
   mutating func accept(_ change: TeraRuntimeChange) -> Bool {
     guard epoch == nil || epoch == change.epoch else { return false }
     epoch = change.epoch
+    if change.delivery == .resnapshotRequired {
+      return true
+    }
     if let previous = revisions[change.kind], let next = change.revision.rawValue {
       guard let value = previous.rawValue, next > value else { return false }
     }

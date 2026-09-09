@@ -4,7 +4,15 @@ use tera_core::runtime::invalidation::{InvalidationDomain, RuntimeInvalidation};
 
 use crate::FfiLocalNetworkRecord;
 
-pub const RUNTIME_CHANGE_SCHEMA_VERSION: u16 = 2;
+pub const RUNTIME_CHANGE_SCHEMA_VERSION: u16 = 3;
+
+/// A gap invalidates all query domains in the authenticated runtime scope.
+/// Its revision is not a watermark and must not suppress a final resnapshot.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiRuntimeChangeDelivery {
+    Change,
+    ResnapshotRequired,
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
 pub enum FfiRuntimeChangeKind {
@@ -38,6 +46,7 @@ pub struct FfiRuntimeChangeRecord {
     pub scope: FfiRuntimeChangeScope,
     pub epoch: String,
     pub revision: FfiInvalidationRevision,
+    pub delivery: FfiRuntimeChangeDelivery,
     pub kind: FfiRuntimeChangeKind,
     pub entity_id: Option<String>,
 }
@@ -56,9 +65,21 @@ impl From<RuntimeInvalidation> for FfiRuntimeChangeRecord {
                 Some(value) => FfiInvalidationRevision::Current { value },
                 None => FfiInvalidationRevision::Exhausted,
             },
+            delivery: FfiRuntimeChangeDelivery::Change,
             kind: value.domain.into(),
             entity_id: value.entity_id,
         }
+    }
+}
+
+impl FfiRuntimeChangeRecord {
+    pub(crate) fn requiring_resnapshot(mut self) -> Self {
+        self.scope.context = None;
+        self.kind = FfiRuntimeChangeKind::Initial;
+        self.revision = FfiInvalidationRevision::Current { value: 0 };
+        self.delivery = FfiRuntimeChangeDelivery::ResnapshotRequired;
+        self.entity_id = None;
+        self
     }
 }
 
@@ -134,29 +155,31 @@ mod tests {
                     },
                     epoch: "d".repeat(32),
                     revision,
+                    delivery: FfiRuntimeChangeDelivery::Change,
                     kind,
                     entity_id: Some("draft".into()),
                 };
-                let mut bytes = Vec::new();
-                <FfiRuntimeChangeRecord as uniffi::FfiConverter<crate::UniFfiTag>>::write(
-                    record.clone(),
-                    &mut bytes,
-                );
-                let mut input = bytes.as_slice();
-                let decoded =
-                    <FfiRuntimeChangeRecord as uniffi::FfiConverter<crate::UniFfiTag>>::try_read(
-                        &mut input,
-                    )
+                for record in [record.clone(), record.requiring_resnapshot()] {
+                    let mut bytes = Vec::new();
+                    <FfiRuntimeChangeRecord as uniffi::FfiConverter<crate::UniFfiTag>>::write(
+                        record.clone(),
+                        &mut bytes,
+                    );
+                    let mut input = bytes.as_slice();
+                    let decoded = <FfiRuntimeChangeRecord as uniffi::FfiConverter<
+                        crate::UniFfiTag,
+                    >>::try_read(&mut input)
                     .unwrap();
-                assert_eq!(decoded, record);
-                assert!(input.is_empty());
-                let mut truncated = &bytes[..bytes.len() - 1];
-                assert!(
+                    assert_eq!(decoded, record);
+                    assert!(input.is_empty());
+                    let mut truncated = &bytes[..bytes.len() - 1];
+                    assert!(
                     <FfiRuntimeChangeRecord as uniffi::FfiConverter<crate::UniFfiTag>>::try_read(
                         &mut truncated
                     )
                     .is_err()
                 );
+                }
             }
         }
     }

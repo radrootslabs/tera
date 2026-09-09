@@ -10,7 +10,7 @@ final class TeraRuntimeInvalidationTests: XCTestCase {
     _ = try await client.start(configuration: configuration)
     let stream = try await client.changes(bufferCapacity: 8)
     await harness.emit(change(revision: 2))
-    for schema in [UInt16(1), UInt16(3)] {
+    for schema in [UInt16(1), UInt16(2), UInt16(4)] {
       await harness.emit(change(revision: 9, schema: schema))
     }
     await harness.emit(change(revision: 9, account: "bb"))
@@ -80,7 +80,7 @@ final class TeraRuntimeInvalidationTests: XCTestCase {
   }
 
   private func change(
-    revision: UInt64?, kind: TeraRuntimeChangeKind = .today, schema: UInt16 = 2,
+    revision: UInt64?, kind: TeraRuntimeChangeKind = .today, schema: UInt16 = 3,
     account: String = "66", storage: String = "66", epoch: String = "1"
   ) -> TeraRuntimeChange {
     TeraRuntimeChange(
@@ -90,13 +90,13 @@ final class TeraRuntimeInvalidationTests: XCTestCase {
         sourceGeneration: String(repeating: storage, count: 32), context: nil
       ),
       epoch: String(repeating: epoch, count: 32), revision: TeraProjectionRevision(rawValue: revision),
-      kind: kind, entityID: nil
+      delivery: .change, kind: kind, entityID: nil
     )
   }
 
   private func generated(revision: FfiInvalidationRevision) -> FfiRuntimeChangeRecord {
     FfiRuntimeChangeRecord(
-      schemaVersion: 2,
+      schemaVersion: 3,
       scope: FfiRuntimeChangeScope(
         publicKey: String(repeating: "66", count: 32),
         sourceGeneration: String(repeating: "66", count: 32),
@@ -105,7 +105,7 @@ final class TeraRuntimeInvalidationTests: XCTestCase {
           locality: "Town", followedAuthors: [String(repeating: "c", count: 64)], generation: .max
         )
       ),
-      epoch: String(repeating: "1", count: 32), revision: revision, kind: .today, entityId: "draft"
+      epoch: String(repeating: "1", count: 32), revision: revision, delivery: .change, kind: .today, entityId: "draft"
     )
   }
 }

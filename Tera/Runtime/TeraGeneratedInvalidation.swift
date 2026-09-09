@@ -15,8 +15,34 @@ extension FfiRuntimeChangeRecord {
           )
         }
       ),
-      epoch: epoch, revision: revision.appValue, kind: kind.appValue, entityID: entityId
+      epoch: epoch, revision: revision.appValue, delivery: delivery.appValue, kind: kind.appValue, entityID: entityId
     )
+  }
+}
+
+extension FfiRuntimeChangeDelivery {
+  fileprivate var appValue: TeraRuntimeChangeDelivery {
+    switch self {
+    case .change: .change
+    case .resnapshotRequired: .resnapshotRequired
+    }
+  }
+}
+
+/// The continuation is immutable and synchronizes delivery and termination.
+final class TeraGeneratedRuntimeObserver: TeraRuntimeObserver, Sendable {
+  private let continuation: AsyncStream<TeraRuntimeChange>.Continuation
+
+  init(continuation: AsyncStream<TeraRuntimeChange>.Continuation) {
+    self.continuation = continuation
+  }
+
+  func onChange(change: FfiRuntimeChangeRecord) {
+    change.appValue.yield(to: continuation)
+  }
+
+  func finish() {
+    continuation.finish()
   }
 }
 

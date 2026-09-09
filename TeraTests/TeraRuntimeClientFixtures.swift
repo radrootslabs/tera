@@ -100,11 +100,11 @@ actor RuntimeHarness {
             preconditionFailure("Start the fixture runtime before emitting changes")
         }
         await emit(TeraRuntimeChange(
-          schemaVersion: 2,
+          schemaVersion: 3,
           scope: TeraRuntimeChangeScope(publicKey: configuration.publicKeyHex,
                                         sourceGeneration: configuration.sourceGenerationHex, context: nil),
           epoch: String(repeating: "1", count: 32),
-          revision: TeraProjectionRevision(rawValue: revision), kind: .today, entityID: "card-\(revision)"
+          revision: TeraProjectionRevision(rawValue: revision), delivery: .change, kind: .today, entityID: "card-\(revision)"
         ))
     }
 

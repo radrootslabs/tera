@@ -3,16 +3,15 @@
 use std::collections::BTreeMap;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
-use std::sync::mpsc::{SyncSender, TrySendError, sync_channel};
 use std::sync::{Arc, Mutex, Weak};
 
 use tera_core::runtime::invalidation::{InvalidationDomain, RuntimeInvalidations};
 use tera_core::runtime::product_surface::LocalNetwork;
 
-use crate::{FfiRuntimeChangeKind, FfiRuntimeChangeRecord, TeraAppError};
+use crate::subscription_queue::SubscriptionQueue;
+use crate::{FfiRuntimeChangeDelivery, FfiRuntimeChangeKind, FfiRuntimeChangeRecord, TeraAppError};
 
 const MAX_SUBSCRIPTIONS: usize = 32;
-const CHANGE_BUFFER_CAPACITY: usize = 16;
 
 #[uniffi::export(callback_interface)]
 pub trait TeraRuntimeObserver: Send + Sync {
@@ -24,7 +23,7 @@ pub(crate) struct SubscriptionHub {
     source: RuntimeInvalidations,
     closed: AtomicBool,
     workers: Arc<WorkerState>,
-    subscriptions: Mutex<BTreeMap<u64, SyncSender<FfiRuntimeChangeRecord>>>,
+    subscriptions: Mutex<BTreeMap<u64, Arc<SubscriptionQueue>>>,
 }
 
 impl SubscriptionHub {
@@ -46,7 +45,6 @@ impl SubscriptionHub {
             .next_id
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |id| id.checked_add(1))
             .map_err(|_| subscription_error("subscription_limit_reached", false))?;
-        let (sender, receiver) = sync_channel::<FfiRuntimeChangeRecord>(CHANGE_BUFFER_CAPACITY);
         {
             let mut subscriptions = self
                 .subscriptions
@@ -55,18 +53,19 @@ impl SubscriptionHub {
             if self.closed.load(Ordering::Acquire) {
                 return Err(subscription_error("runtime_closed", false));
             }
-            if subscriptions.len() >= MAX_SUBSCRIPTIONS {
+            if subscriptions.len() >= MAX_SUBSCRIPTIONS
+                || self.workers.active.load(Ordering::Acquire) >= MAX_SUBSCRIPTIONS
+            {
                 return Err(subscription_error("subscription_limit_reached", true));
             }
-            // Enqueue the initial snapshot before exposing this sender to any
+            // Enqueue the initial snapshot before exposing this queue to any
             // publisher. An observer always sees the epoch before later hints.
-            sender
-                .try_send(
-                    self.source
-                        .snapshot(InvalidationDomain::Initial, None)
-                        .into(),
-                )
-                .map_err(|_| subscription_error("subscription_worker_unavailable", true))?;
+            let queue = SubscriptionQueue::new(
+                self.source
+                    .snapshot(InvalidationDomain::Initial, None)
+                    .into(),
+            );
+            let receiver = Arc::clone(&queue);
             self.workers.active.fetch_add(1, Ordering::AcqRel);
             let worker = WorkerLease(Arc::clone(&self.workers));
             let hub = Arc::downgrade(self);
@@ -74,13 +73,16 @@ impl SubscriptionHub {
                 .name(format!("tera-ffi-observer-{id}"))
                 .spawn(move || {
                     let _worker = worker;
-                    while let Ok(change) = receiver.recv() {
+                    while let Some(change) = receiver.receive() {
                         let Some(hub) = hub.upgrade() else {
                             break;
                         };
                         let closed = hub.closed.load(Ordering::Acquire);
                         drop(hub);
-                        if closed && change.kind != FfiRuntimeChangeKind::Lifecycle {
+                        if closed
+                            && change.kind != FfiRuntimeChangeKind::Lifecycle
+                            && change.delivery != FfiRuntimeChangeDelivery::ResnapshotRequired
+                        {
                             continue;
                         }
                         if catch_unwind(AssertUnwindSafe(|| observer.on_change(change))).is_err() {
@@ -92,7 +94,7 @@ impl SubscriptionHub {
                     }
                 })
                 .map_err(|_| subscription_error("subscription_worker_unavailable", true))?;
-            subscriptions.insert(id, sender.clone());
+            subscriptions.insert(id, queue);
         }
 
         Ok(Arc::new(FfiSubscriptionHandle {
@@ -122,10 +124,7 @@ impl SubscriptionHub {
         }
         let change: FfiRuntimeChangeRecord =
             self.source.advance(kind.into(), context, entity_id).into();
-        subscriptions.retain(|_, sender| match sender.try_send(change.clone()) {
-            Ok(()) | Err(TrySendError::Full(_)) => true,
-            Err(TrySendError::Disconnected(_)) => false,
-        });
+        subscriptions.retain(|_, queue| queue.send(change.clone()));
     }
 
     pub(crate) fn close(&self) {
@@ -138,8 +137,8 @@ impl SubscriptionHub {
                 .source
                 .advance(InvalidationDomain::Lifecycle, None, None)
                 .into();
-            for sender in subscriptions.values() {
-                let _ = sender.try_send(change.clone());
+            for queue in subscriptions.values() {
+                queue.close(change.clone());
             }
             subscriptions.clear();
         }
@@ -158,10 +157,20 @@ impl SubscriptionHub {
     }
 
     fn remove(&self, id: u64) {
-        self.subscriptions
+        let removed = self
+            .subscriptions
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .remove(&id);
+        if let Some(queue) = removed {
+            queue.cancel();
+        }
+    }
+}
+
+impl Drop for SubscriptionHub {
+    fn drop(&mut self) {
+        self.close();
     }
 }
 
@@ -248,6 +257,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use super::*;
+    use crate::subscription_queue::CHANGE_BUFFER_CAPACITY;
 
     fn test_hub() -> Arc<SubscriptionHub> {
         let store = tera_core::runtime::store::MobileUserStoreConfig::from_encoded(
@@ -423,6 +433,100 @@ mod tests {
         hub.close();
         hub.drain().await;
         assert_eq!(calls.load(Ordering::Acquire), 2);
+        assert_eq!(hub.workers.active.load(Ordering::Acquire), 0);
+    }
+
+    #[tokio::test]
+    async fn unsubscribe_discards_queued_callbacks_and_drains_the_admitted_callback() {
+        let hub = test_hub();
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let calls = Arc::new(AtomicUsize::new(0));
+        let handle = hub
+            .subscribe(Box::new(PausedObserver {
+                entered: Arc::clone(&entered),
+                gate: Arc::clone(&gate),
+                calls: Arc::clone(&calls),
+            }))
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), entered.notified())
+            .await
+            .unwrap();
+        for _ in 0..=CHANGE_BUFFER_CAPACITY {
+            hub.notify(FfiRuntimeChangeKind::Today, None);
+        }
+        handle.unsubscribe();
+        assert!(!handle.is_active());
+        assert_eq!(hub.workers.active.load(Ordering::Acquire), 1);
+        *gate.0.lock().unwrap() = true;
+        gate.1.notify_all();
+        tokio::time::timeout(Duration::from_secs(5), hub.drain())
+            .await
+            .unwrap();
+        assert_eq!(calls.load(Ordering::Acquire), 1);
+        assert_eq!(hub.workers.active.load(Ordering::Acquire), 0);
+    }
+
+    #[test]
+    fn dropping_the_hub_releases_an_idle_observer_worker() {
+        let hub = test_hub();
+        let workers = Arc::clone(&hub.workers);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let handle = hub.subscribe(Box::new(RecordingObserver(sender))).unwrap();
+        receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        drop(hub);
+        assert!(!handle.is_active());
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while workers.active.load(Ordering::Acquire) != 0 && Instant::now() < deadline {
+            std::thread::yield_now();
+        }
+        assert_eq!(workers.active.load(Ordering::Acquire), 0);
+    }
+
+    #[tokio::test]
+    async fn cancelled_callback_keeps_worker_admission_until_it_actually_returns() {
+        let hub = test_hub();
+        let entered = Arc::new(tokio::sync::Notify::new());
+        let gate = Arc::new((Mutex::new(false), Condvar::new()));
+        let paused = hub
+            .subscribe(Box::new(PausedObserver {
+                entered: Arc::clone(&entered),
+                gate: Arc::clone(&gate),
+                calls: Arc::new(AtomicUsize::new(0)),
+            }))
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), entered.notified())
+            .await
+            .unwrap();
+        let others = (1..MAX_SUBSCRIPTIONS)
+            .map(|_| hub.subscribe(Box::new(NoopObserver)).unwrap())
+            .collect::<Vec<_>>();
+        paused.unsubscribe();
+        let attempted = hub.subscribe(Box::new(NoopObserver));
+        let active = hub.workers.active.load(Ordering::Acquire);
+        // Release even if the assertion rejects an over-admitted mutant.
+        *gate.0.lock().unwrap() = true;
+        gate.1.notify_all();
+        assert_eq!(active, MAX_SUBSCRIPTIONS);
+        let error = attempted
+            .err()
+            .expect("cancelled callback still owns its worker slot");
+        assert_eq!(error.report().code, "subscription_limit_reached");
+        assert!(error.report().retryable);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            while hub.workers.active.load(Ordering::Acquire) == MAX_SUBSCRIPTIONS {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let resumed = hub.subscribe(Box::new(NoopObserver)).unwrap();
+        drop(resumed);
+        drop(others);
+        hub.close();
+        tokio::time::timeout(Duration::from_secs(5), hub.drain())
+            .await
+            .unwrap();
         assert_eq!(hub.workers.active.load(Ordering::Acquire), 0);
     }
 

@@ -13,6 +13,7 @@ mod recovery;
 mod runtime;
 mod signer;
 mod subscription;
+mod subscription_queue;
 
 pub use dto::*;
 pub use error::{TeraAppError, TeraErrorRecord};

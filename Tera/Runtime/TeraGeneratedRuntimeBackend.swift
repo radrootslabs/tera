@@ -81,22 +81,6 @@ final class TeraGeneratedHostSigner: TeraHostSigner, @unchecked Sendable {
   }
 }
 
-private final class TeraGeneratedRuntimeObserver: TeraRuntimeObserver, @unchecked Sendable {
-  private let continuation: AsyncStream<TeraRuntimeChange>.Continuation
-
-  init(continuation: AsyncStream<TeraRuntimeChange>.Continuation) {
-    self.continuation = continuation
-  }
-
-  func onChange(change: FfiRuntimeChangeRecord) {
-    continuation.yield(change.appValue)
-  }
-
-  func finish() {
-    continuation.finish()
-  }
-}
-
 private actor TeraGeneratedSubscriptionToken: TeraRuntimeSubscriptionToken {
   private var handle: FfiSubscriptionHandle?
   private var observer: TeraGeneratedRuntimeObserver?

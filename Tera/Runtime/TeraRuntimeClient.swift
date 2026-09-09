@@ -1039,7 +1039,7 @@ actor TeraRuntimeClient {
       return
     }
     subscriptions[subscriptionID] = subscription
-    subscription.continuation.yield(change)
+    change.yield(to: subscription.continuation)
   }
 
   private func cancelSubscription(id: UUID, generation subscriptionGeneration: TeraSessionGeneration) {
