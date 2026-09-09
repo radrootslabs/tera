@@ -148,7 +148,10 @@ actor ResourceTestBackend: TeraRuntimeBackend {
 
   func emit(_ revision: UInt64) async {
     await receive?(TeraRuntimeChange(
-      schemaVersion: 1, generation: TeraProjectionRevision(rawValue: revision), kind: .today, entityID: nil
+      schemaVersion: 2,
+      scope: TeraRuntimeChangeScope(publicKey: value.identity.publicKeyHex, sourceGeneration: value.identity.publicKeyHex, context: nil),
+      epoch: String(repeating: "1", count: 32),
+      revision: TeraProjectionRevision(rawValue: revision), kind: .today, entityID: nil
     ))
   }
 

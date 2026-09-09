@@ -324,25 +324,6 @@ struct TeraRuntimeSnapshot: Sendable, Equatable {
   let isClosed: Bool
 }
 
-enum TeraRuntimeChangeKind: Sendable, Equatable {
-  case initial
-  case identity
-  case settings
-  case profile
-  case today
-  case drafts
-  case relay
-  case media
-  case lifecycle
-}
-
-struct TeraRuntimeChange: Sendable, Equatable {
-  let schemaVersion: UInt16
-  let generation: TeraProjectionRevision
-  let kind: TeraRuntimeChangeKind
-  let entityID: String?
-}
-
 struct TeraRuntimeShutdownReceipt: Sendable, Equatable {
   let state: String
   let alreadyClosed: Bool

@@ -95,6 +95,19 @@ actor RuntimeHarness {
         }
     }
 
+    func emitRevision(_ revision: UInt64) async {
+        guard let configuration = configurations.last else {
+            preconditionFailure("Start the fixture runtime before emitting changes")
+        }
+        await emit(TeraRuntimeChange(
+          schemaVersion: 2,
+          scope: TeraRuntimeChangeScope(publicKey: configuration.publicKeyHex,
+                                        sourceGeneration: configuration.sourceGenerationHex, context: nil),
+          epoch: String(repeating: "1", count: 32),
+          revision: TeraProjectionRevision(rawValue: revision), kind: .today, entityID: "card-\(revision)"
+        ))
+    }
+
     func recordShutdown() {
         shutdowns += 1
     }

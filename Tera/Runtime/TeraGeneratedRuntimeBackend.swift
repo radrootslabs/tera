@@ -89,14 +89,7 @@ private final class TeraGeneratedRuntimeObserver: TeraRuntimeObserver, @unchecke
   }
 
   func onChange(change: FfiRuntimeChangeRecord) {
-    continuation.yield(
-      TeraRuntimeChange(
-        schemaVersion: change.schemaVersion,
-        generation: TeraProjectionRevision(rawValue: change.generation),
-        kind: change.kind.appValue,
-        entityID: change.entityId
-      )
-    )
+    continuation.yield(change.appValue)
   }
 
   func finish() {
@@ -887,22 +880,6 @@ extension FfiBlossomEvidenceRecord {
       possibleOrphan: possibleOrphan,
       attempts: attempts
     )
-  }
-}
-
-extension FfiRuntimeChangeKind {
-  fileprivate var appValue: TeraRuntimeChangeKind {
-    switch self {
-    case .initial: .initial
-    case .identity: .identity
-    case .settings: .settings
-    case .profile: .profile
-    case .today: .today
-    case .drafts: .drafts
-    case .relay: .relay
-    case .media: .media
-    case .lifecycle: .lifecycle
-    }
   }
 }
 

@@ -6,31 +6,13 @@ use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::mpsc::{SyncSender, TrySendError, sync_channel};
 use std::sync::{Arc, Mutex, Weak};
 
-use crate::{MOBILE_FFI_SCHEMA_VERSION, TeraAppError};
+use tera_core::runtime::invalidation::{InvalidationDomain, RuntimeInvalidations};
+use tera_core::runtime::product_surface::LocalNetwork;
+
+use crate::{FfiRuntimeChangeKind, FfiRuntimeChangeRecord, TeraAppError};
 
 const MAX_SUBSCRIPTIONS: usize = 32;
 const CHANGE_BUFFER_CAPACITY: usize = 16;
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
-pub enum FfiRuntimeChangeKind {
-    Initial,
-    Identity,
-    Settings,
-    Profile,
-    Today,
-    Drafts,
-    Relay,
-    Media,
-    Lifecycle,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
-pub struct FfiRuntimeChangeRecord {
-    pub schema_version: u16,
-    pub generation: u64,
-    pub kind: FfiRuntimeChangeKind,
-    pub entity_id: Option<String>,
-}
 
 #[uniffi::export(callback_interface)]
 pub trait TeraRuntimeObserver: Send + Sync {
@@ -39,17 +21,17 @@ pub trait TeraRuntimeObserver: Send + Sync {
 
 pub(crate) struct SubscriptionHub {
     next_id: AtomicU64,
-    generation: AtomicU64,
+    source: RuntimeInvalidations,
     closed: AtomicBool,
     workers: Arc<WorkerState>,
     subscriptions: Mutex<BTreeMap<u64, SyncSender<FfiRuntimeChangeRecord>>>,
 }
 
 impl SubscriptionHub {
-    pub(crate) fn new() -> Arc<Self> {
+    pub(crate) fn new(source: RuntimeInvalidations) -> Arc<Self> {
         Arc::new(Self {
             next_id: AtomicU64::new(1),
-            generation: AtomicU64::new(1),
+            source,
             closed: AtomicBool::new(false),
             workers: Arc::new(WorkerState::default()),
             subscriptions: Mutex::new(BTreeMap::new()),
@@ -60,7 +42,10 @@ impl SubscriptionHub {
         self: &Arc<Self>,
         observer: Box<dyn TeraRuntimeObserver>,
     ) -> Result<Arc<FfiSubscriptionHandle>, TeraAppError> {
-        let id = self.next_id.fetch_add(1, Ordering::AcqRel);
+        let id = self
+            .next_id
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |id| id.checked_add(1))
+            .map_err(|_| subscription_error("subscription_limit_reached", false))?;
         let (sender, receiver) = sync_channel::<FfiRuntimeChangeRecord>(CHANGE_BUFFER_CAPACITY);
         {
             let mut subscriptions = self
@@ -73,6 +58,15 @@ impl SubscriptionHub {
             if subscriptions.len() >= MAX_SUBSCRIPTIONS {
                 return Err(subscription_error("subscription_limit_reached", true));
             }
+            // Enqueue the initial snapshot before exposing this sender to any
+            // publisher. An observer always sees the epoch before later hints.
+            sender
+                .try_send(
+                    self.source
+                        .snapshot(InvalidationDomain::Initial, None)
+                        .into(),
+                )
+                .map_err(|_| subscription_error("subscription_worker_unavailable", true))?;
             self.workers.active.fetch_add(1, Ordering::AcqRel);
             let worker = WorkerLease(Arc::clone(&self.workers));
             let hub = Arc::downgrade(self);
@@ -101,13 +95,6 @@ impl SubscriptionHub {
             subscriptions.insert(id, sender.clone());
         }
 
-        let initial = FfiRuntimeChangeRecord {
-            schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            generation: self.generation.load(Ordering::Acquire),
-            kind: FfiRuntimeChangeKind::Initial,
-            entity_id: None,
-        };
-        let _ = sender.try_send(initial);
         Ok(Arc::new(FfiSubscriptionHandle {
             hub: Arc::downgrade(self),
             id: Mutex::new(Some(id)),
@@ -115,52 +102,42 @@ impl SubscriptionHub {
     }
 
     pub(crate) fn notify(&self, kind: FfiRuntimeChangeKind, entity_id: Option<String>) {
+        self.notify_context(kind, None, entity_id);
+    }
+
+    pub(crate) fn notify_context(
+        &self,
+        kind: FfiRuntimeChangeKind,
+        context: Option<&LocalNetwork>,
+        entity_id: Option<String>,
+    ) {
+        // Serialize revision assignment with nonblocking enqueue so concurrent
+        // publishers cannot deliver an older domain revision after a newer one.
+        let mut subscriptions = self
+            .subscriptions
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         if self.closed.load(Ordering::Acquire) {
             return;
         }
-        let change = FfiRuntimeChangeRecord {
-            schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            generation: self.generation.fetch_add(1, Ordering::AcqRel) + 1,
-            kind,
-            entity_id,
-        };
-        let senders = self
-            .subscriptions
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .iter()
-            .map(|(id, sender)| (*id, sender.clone()))
-            .collect::<Vec<_>>();
-        let mut disconnected = Vec::new();
-        for (id, sender) in senders {
-            match sender.try_send(change.clone()) {
-                Ok(()) | Err(TrySendError::Full(_)) => {}
-                Err(TrySendError::Disconnected(_)) => disconnected.push(id),
-            }
-        }
-        if !disconnected.is_empty() {
-            let mut subscriptions = self
-                .subscriptions
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for id in disconnected {
-                subscriptions.remove(&id);
-            }
-        }
+        let change: FfiRuntimeChangeRecord =
+            self.source.advance(kind.into(), context, entity_id).into();
+        subscriptions.retain(|_, sender| match sender.try_send(change.clone()) {
+            Ok(()) | Err(TrySendError::Full(_)) => true,
+            Err(TrySendError::Disconnected(_)) => false,
+        });
     }
 
     pub(crate) fn close(&self) {
         if !self.closed.swap(true, Ordering::AcqRel) {
-            let change = FfiRuntimeChangeRecord {
-                schema_version: MOBILE_FFI_SCHEMA_VERSION,
-                generation: self.generation.fetch_add(1, Ordering::AcqRel) + 1,
-                kind: FfiRuntimeChangeKind::Lifecycle,
-                entity_id: None,
-            };
             let mut subscriptions = self
                 .subscriptions
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let change: FfiRuntimeChangeRecord = self
+                .source
+                .advance(InvalidationDomain::Lifecycle, None, None)
+                .into();
             for sender in subscriptions.values() {
                 let _ = sender.try_send(change.clone());
             }
@@ -272,7 +249,88 @@ mod tests {
 
     use super::*;
 
+    fn test_hub() -> Arc<SubscriptionHub> {
+        let store = tera_core::runtime::store::MobileUserStoreConfig::from_encoded(
+            "/tmp/tera-invalidation-fixture",
+            "79be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+            &"04".repeat(32),
+            1,
+            tera_core::runtime::store::ProtectedDataAvailability::Available,
+        )
+        .unwrap();
+        SubscriptionHub::new(RuntimeInvalidations::new(
+            store.public_key(),
+            store.source_generation(),
+            std::num::NonZeroU128::new(1).unwrap(),
+        ))
+    }
+
     struct NoopObserver;
+
+    struct RecordingObserver(std::sync::mpsc::Sender<FfiRuntimeChangeRecord>);
+
+    impl TeraRuntimeObserver for RecordingObserver {
+        fn on_change(&self, change: FfiRuntimeChangeRecord) {
+            self.0.send(change).unwrap();
+        }
+    }
+
+    #[test]
+    fn concurrent_publication_is_ordered_and_subscription_does_not_advance_domains() {
+        let hub = test_hub();
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let first = hub.subscribe(Box::new(RecordingObserver(sender))).unwrap();
+        let initial = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(initial.kind, FfiRuntimeChangeKind::Initial);
+        assert_eq!(initial.schema_version, crate::RUNTIME_CHANGE_SCHEMA_VERSION);
+        let publishers = (0..8)
+            .map(|index| {
+                let hub = Arc::clone(&hub);
+                std::thread::spawn(move || {
+                    hub.notify(FfiRuntimeChangeKind::Drafts, Some(index.to_string()))
+                })
+            })
+            .collect::<Vec<_>>();
+        for publisher in publishers {
+            publisher.join().unwrap();
+        }
+        for expected in 1..=8 {
+            let change = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+            assert_eq!(change.epoch, initial.epoch);
+            assert_eq!(change.scope, initial.scope);
+            assert_eq!(
+                change.revision,
+                crate::FfiInvalidationRevision::Current { value: expected }
+            );
+        }
+        first.unsubscribe();
+        let before = hub.source.snapshot(InvalidationDomain::Drafts, None);
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let second = hub.subscribe(Box::new(RecordingObserver(sender))).unwrap();
+        let resumed = receiver.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(resumed.epoch, initial.epoch);
+        assert_eq!(
+            before,
+            hub.source.snapshot(InvalidationDomain::Drafts, None)
+        );
+        second.unsubscribe();
+    }
+
+    #[test]
+    fn subscription_identity_exhaustion_has_no_worker_or_revision_side_effect() {
+        let hub = test_hub();
+        hub.next_id.store(u64::MAX, Ordering::Release);
+        let before = hub.source.snapshot(InvalidationDomain::Initial, None);
+        let failure = hub.subscribe(Box::new(NoopObserver)).err().unwrap();
+        assert_eq!(failure.report().code, "subscription_limit_reached");
+        assert!(!failure.report().retryable);
+        assert_eq!(hub.next_id.load(Ordering::Acquire), u64::MAX);
+        assert_eq!(hub.workers.active.load(Ordering::Acquire), 0);
+        assert_eq!(
+            before,
+            hub.source.snapshot(InvalidationDomain::Initial, None)
+        );
+    }
 
     impl TeraRuntimeObserver for NoopObserver {
         fn on_change(&self, _change: FfiRuntimeChangeRecord) {}
@@ -326,7 +384,7 @@ mod tests {
             future::Future,
             task::{Context, Poll, Waker},
         };
-        let hub = SubscriptionHub::new();
+        let hub = test_hub();
         let entered = Arc::new(tokio::sync::Notify::new());
         let gate = Arc::new((Mutex::new(false), Condvar::new()));
         let calls = Arc::new(AtomicUsize::new(0));
@@ -370,7 +428,7 @@ mod tests {
 
     #[test]
     fn closed_limit_and_detached_handle_paths_are_typed_and_idempotent() {
-        let closed = SubscriptionHub::new();
+        let closed = test_hub();
         closed.close();
         closed.close();
         closed.notify(FfiRuntimeChangeKind::Today, None);
@@ -381,7 +439,7 @@ mod tests {
         assert_eq!(error.report().code, "runtime_closed");
         assert!(!error.report().retryable);
 
-        let hub = SubscriptionHub::new();
+        let hub = test_hub();
         let handles = (0..MAX_SUBSCRIPTIONS)
             .map(|_| hub.subscribe(Box::new(NoopObserver)).expect("subscription"))
             .collect::<Vec<_>>();
@@ -393,7 +451,7 @@ mod tests {
         assert!(error.report().retryable);
         drop(handles);
 
-        let detached_hub = SubscriptionHub::new();
+        let detached_hub = test_hub();
         let detached = detached_hub
             .subscribe(Box::new(NoopObserver))
             .expect("detached subscription");
@@ -405,7 +463,7 @@ mod tests {
 
     #[test]
     fn callback_panics_and_full_buffers_never_escape_or_block_publishers() {
-        let hub = SubscriptionHub::new();
+        let hub = test_hub();
         let panicking = hub
             .subscribe(Box::new(PanicObserver))
             .expect("panicking subscription");

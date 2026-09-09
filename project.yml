@@ -46,6 +46,7 @@ targets:
     deploymentTarget: "18.0"
     sources:
       - path: TeraTests/TeraRuntimeClientTests.swift
+      - path: TeraTests/TeraRuntimeInvalidationTests.swift
       - path: TeraTests/TeraRuntimeClientFixtures.swift
       - path: TeraTests/TeraSessionGenerationTests.swift
       - path: TeraTests/TeraErrorRecoveryTests.swift

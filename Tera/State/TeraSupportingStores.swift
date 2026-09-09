@@ -175,6 +175,7 @@ final class TeraMeStore: ObservableObject {
           client: runtimeClient, capacity: 8, delay: observationDelay,
           state: { [weak self] in self?.observationState = $0 },
           change: { [weak self] change in
+                guard change.matches(context: self?.context) else { return }
                 switch change.kind {
                 case .today, .identity, .profile, .media, .drafts:
                     await self?.reload()

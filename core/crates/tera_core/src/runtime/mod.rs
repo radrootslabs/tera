@@ -1,6 +1,7 @@
 pub mod app_info;
 pub mod builder;
 pub mod info;
+pub mod invalidation;
 pub mod lifecycle;
 #[cfg(feature = "mobile-social")]
 mod mutation_admission;

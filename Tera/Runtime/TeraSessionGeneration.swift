@@ -53,5 +53,7 @@ struct TeraRuntimeOperationIdentity: Sendable, Equatable, Hashable {
 
 /// Revision carried by a Rust invalidation hint, distinct from host sessions.
 struct TeraProjectionRevision: Sendable, Equatable, Hashable {
-  let rawValue: UInt64
+  let rawValue: UInt64?
+
+  static let exhausted = Self(rawValue: nil)
 }

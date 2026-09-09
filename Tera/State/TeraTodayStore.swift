@@ -238,6 +238,7 @@ final class TeraTodayStore: ObservableObject {
           client: runtimeClient, capacity: 16, delay: observationDelay,
           state: { [weak self] in self?.observationState = $0 },
           change: { [weak self] change in
+                guard change.matches(context: self?.selectedContext) else { return }
                 switch change.kind {
                 case .today, .drafts, .media, .identity, .profile:
                     await self?.reload(refreshProjection: false)

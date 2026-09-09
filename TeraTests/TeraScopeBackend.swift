@@ -140,7 +140,12 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func emit(_ kind: TeraRuntimeChangeKind) async {
     for receive in receivers {
-      await receive(TeraRuntimeChange(schemaVersion: 1, generation: TeraProjectionRevision(rawValue: 1), kind: kind, entityID: nil))
+      await receive(TeraRuntimeChange(
+        schemaVersion: 2,
+        scope: TeraRuntimeChangeScope(publicKey: String(repeating: "a", count: 64), sourceGeneration: String(repeating: "a", count: 64), context: nil),
+        epoch: String(repeating: "1", count: 32),
+        revision: TeraProjectionRevision(rawValue: 1), kind: kind, entityID: nil
+      ))
     }
   }
 

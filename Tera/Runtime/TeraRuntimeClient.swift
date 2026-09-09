@@ -308,12 +308,6 @@ actor TeraRuntimeClient {
     let drain: @Sendable () async throws -> Void
   }
 
-  private struct Subscription {
-    let generation: TeraSessionGeneration
-    let continuation: AsyncStream<TeraRuntimeChange>.Continuation
-    var token: (any TeraRuntimeSubscriptionToken)?
-  }
-
   private let factory: TeraRuntimeBackendFactory
   private let deadlines: TeraRuntimeDeadlinePolicy
   private var generation = TeraSessionGeneration.initial
@@ -326,7 +320,7 @@ actor TeraRuntimeClient {
   private var startupOperation: StartupOperation?
   private var shutdownOperation: ShutdownOperation?
   private var activeOperations: [UInt64: ActiveOperation] = [:]
-  private var subscriptions: [UUID: Subscription] = [:]
+  private var subscriptions: [UUID: TeraRuntimeSubscription] = [:]
 
   init(
     factory: @escaping TeraRuntimeBackendFactory,
@@ -726,7 +720,7 @@ actor TeraRuntimeClient {
         await self?.cancelSubscription(id: id, generation: subscriptionGeneration)
       }
     }
-    subscriptions[id] = Subscription(
+    subscriptions[id] = TeraRuntimeSubscription(
       generation: subscriptionGeneration,
       continuation: pair.continuation,
       token: nil
@@ -1038,11 +1032,13 @@ actor TeraRuntimeClient {
   ) {
     guard generation == subscriptionGeneration,
           case .running = lifecycleState,
-          let subscription = subscriptions[subscriptionID],
-          subscription.generation == subscriptionGeneration
+          var subscription = subscriptions[subscriptionID],
+          subscription.generation == subscriptionGeneration,
+          change.matches(configuration), subscription.admission.accept(change)
     else {
       return
     }
+    subscriptions[subscriptionID] = subscription
     subscription.continuation.yield(change)
   }
 

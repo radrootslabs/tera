@@ -6,6 +6,7 @@
 uniffi::setup_scaffolding!("tera_core");
 
 mod dto;
+mod invalidation;
 pub mod logging;
 mod operations;
 mod recovery;
@@ -15,6 +16,7 @@ mod subscription;
 
 pub use dto::*;
 pub use error::{TeraAppError, TeraErrorRecord};
+pub use invalidation::*;
 pub use operations::*;
 pub use recovery::*;
 pub use runtime::{ProtectedDataAvailability, TeraRuntime};
@@ -22,9 +24,7 @@ pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,
     SignerAvailabilityRecord, SignerStatusRecord, TeraHostSigner,
 };
-pub use subscription::{
-    FfiRuntimeChangeKind, FfiRuntimeChangeRecord, FfiSubscriptionHandle, TeraRuntimeObserver,
-};
+pub use subscription::{FfiSubscriptionHandle, TeraRuntimeObserver};
 
 mod error;
 

@@ -32,20 +32,20 @@ final class TeraRuntimeClientTests: XCTestCase {
         let second = try await client.changes(bufferCapacity: 4)
 
         for generation in 1 ... 10 {
-            await harness.emit(change(generation: UInt64(generation)))
+            await harness.emitRevision(UInt64(generation))
         }
 
         var firstIterator = first.makeAsyncIterator()
         var secondIterator = second.makeAsyncIterator()
         let firstValues = await [firstIterator.next(), firstIterator.next()].compactMap {
-            $0?.generation.rawValue
+            $0?.revision.rawValue
         }
         let secondValues = await [
           secondIterator.next(),
           secondIterator.next(),
           secondIterator.next(),
           secondIterator.next(),
-        ].compactMap { $0?.generation.rawValue }
+        ].compactMap { $0?.revision.rawValue }
 
         XCTAssertEqual(firstValues, [9, 10])
         XCTAssertEqual(secondValues, [7, 8, 9, 10])
@@ -362,15 +362,6 @@ final class TeraRuntimeClientTests: XCTestCase {
           signerGeneration: generation,
           signer: TestRuntimeSigner(),
           adoptBootstrapSettings: false
-        )
-    }
-
-    private func change(generation: UInt64) -> TeraRuntimeChange {
-        TeraRuntimeChange(
-          schemaVersion: 1,
-          generation: TeraProjectionRevision(rawValue: generation),
-          kind: .today,
-          entityID: "card-\(generation)"
         )
     }
 }

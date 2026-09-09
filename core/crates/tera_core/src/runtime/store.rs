@@ -101,6 +101,11 @@ impl MobileUserStoreConfig {
         self.public_key
     }
 
+    /// Returns the exact durable storage generation used by query invalidations.
+    pub const fn source_generation(&self) -> SourceGeneration {
+        self.source_generation
+    }
+
     pub(crate) const fn protected_data(&self) -> ProtectedDataAvailability {
         self.protected_data
     }

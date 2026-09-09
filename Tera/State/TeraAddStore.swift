@@ -705,7 +705,7 @@ final class TeraAddStore: ObservableObject {
       client: runtimeClient, capacity: 16, delay: observationDelay,
       state: { [weak self] in self?.observationState = $0 },
       change: { [weak self] change in
-        guard let self else { return }
+        guard let self, change.matches(context: configuration?.context) else { return }
         let requested = generation
         if change.kind == .drafts || change.kind == .media {
           await reloadDrafts()

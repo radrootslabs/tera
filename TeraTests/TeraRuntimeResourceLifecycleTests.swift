@@ -99,7 +99,7 @@ final class TeraRuntimeResourceLifecycleTests: XCTestCase {
     await backend.emit(1)
     var iterator = stream.makeAsyncIterator()
     let first = await iterator.next()
-    XCTAssertEqual(first?.generation.rawValue, 1)
+    XCTAssertEqual(first?.revision.rawValue, 1)
     _ = try await client.stop()
     _ = try await client.stop()
     await backend.emit(2)

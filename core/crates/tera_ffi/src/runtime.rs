@@ -320,7 +320,8 @@ impl TeraRuntime {
             .phase1_refresh_today(&context, now_unix_s, update.into())
             .await
             .map_err(TeraAppError::from)?;
-        self.subscriptions.notify(FfiRuntimeChangeKind::Today, None);
+        self.subscriptions
+            .notify_context(FfiRuntimeChangeKind::Today, Some(&context), None);
         Ok(receipt.into())
     }
 
@@ -336,7 +337,8 @@ impl TeraRuntime {
             .phase1_sync_today(&context, now_unix_s, update.into())
             .await
             .map_err(TeraAppError::from)?;
-        self.subscriptions.notify(FfiRuntimeChangeKind::Today, None);
+        self.subscriptions
+            .notify_context(FfiRuntimeChangeKind::Today, Some(&context), None);
         Ok(receipt.into())
     }
 
@@ -1015,8 +1017,9 @@ impl TeraRuntime {
             )
             .await
             .map_err(|error| TeraAppError::from(error).with_operation_id(operation_id.clone()))?;
-        self.subscriptions.notify(
+        self.subscriptions.notify_context(
             FfiRuntimeChangeKind::Media,
+            Some(&context),
             Some(artifact.artifact_id().to_hex()),
         );
         Ok(FfiVerifiedMediaArtifactRecord::from_artifact(
@@ -1067,8 +1070,11 @@ impl TeraRuntime {
             .phase1_invalidate_media_artifact(&context, decode_artifact_id(&artifact_id)?)
             .await?;
         if changed {
-            self.subscriptions
-                .notify(FfiRuntimeChangeKind::Media, Some(artifact_id));
+            self.subscriptions.notify_context(
+                FfiRuntimeChangeKind::Media,
+                Some(&context),
+                Some(artifact_id),
+            );
         }
         Ok(changed)
     }
@@ -1086,7 +1092,8 @@ impl TeraRuntime {
                 decode_configuration(&configuration_fingerprint)?,
             )
             .await?;
-        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
+        self.subscriptions
+            .notify_context(FfiRuntimeChangeKind::Media, Some(&context), None);
         Ok(removed.into_iter().map(|value| value.to_hex()).collect())
     }
 }
@@ -1138,6 +1145,11 @@ async fn build_runtime(
         source_generation_created_at_unix_ms,
         protected_data.into(),
     )?;
+    let invalidations = tera_core::runtime::invalidation::RuntimeInvalidations::new(
+        store.public_key(),
+        store.source_generation(),
+        tera_core::runtime::invalidation::new_runtime_epoch(),
+    );
     let has_host_signer = host_signer.is_some();
     let mut builder = tera_core::runtime::builder::RuntimeBuilder::new(store);
     if let Some(host_signer) = host_signer {
@@ -1149,7 +1161,7 @@ async fn build_runtime(
         .map(|inner| TeraRuntime {
             inner,
             has_host_signer,
-            subscriptions: SubscriptionHub::new(),
+            subscriptions: SubscriptionHub::new(invalidations),
         })
         .map_err(Into::into)
 }

@@ -89,7 +89,7 @@ enum TeraScopeFixtures {
 
   @MainActor
   static func client(_ backend: TeraScopeBackend) async throws -> TeraRuntimeClient {
-    let configuration = TeraRuntimeClientTests().makeConfiguration(generation: "51")
+    let configuration = TeraRuntimeClientTests().makeConfiguration(generation: "aa")
     let client = TeraRuntimeClient { _ in
       await TeraRuntimeBackendStart(backend: backend, snapshot: backend.value)
     }
