@@ -1,6 +1,7 @@
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
+use super::local_network_id::LOCAL_NETWORK_ID_MAX_BYTES;
 use super::{CardId, ContextRank, LocalNetworkId, TODAY_RANK_SCHEMA_VERSION, TodayRank};
 use crate::runtime::product_surface::ranking::TODAY_RANK_ALGORITHM_VERSION;
 
@@ -9,6 +10,8 @@ const CURSOR_DOMAIN: &[u8] = b"radroots.today-cursor.v1\0";
 const CURSOR_SCHEMA_VERSION: u16 = 1;
 const FIXED_PAYLOAD_BYTES: usize = 2 + 2 + 2 + 2 + 8 + 8 + 32 + 8 + 1 + 1 + 8 + 32;
 const DIGEST_BYTES: usize = 32;
+const MAX_CURSOR_BYTES: usize =
+    CURSOR_PREFIX.len() + 2 * (FIXED_PAYLOAD_BYTES + LOCAL_NETWORK_ID_MAX_BYTES + DIGEST_BYTES);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CursorScope {
@@ -78,15 +81,13 @@ impl TodayCursor {
             return Err(CursorError::InvalidPosition);
         }
         let context_bytes = scope.context_id.as_bytes();
+        let context_len =
+            u16::try_from(context_bytes.len()).map_err(|_| CursorError::InvalidContext)?;
         let mut payload = Vec::with_capacity(FIXED_PAYLOAD_BYTES + context_bytes.len());
         payload.extend_from_slice(&CURSOR_SCHEMA_VERSION.to_be_bytes());
         payload.extend_from_slice(&TODAY_RANK_SCHEMA_VERSION.to_be_bytes());
         payload.extend_from_slice(&TODAY_RANK_ALGORITHM_VERSION.to_be_bytes());
-        payload.extend_from_slice(
-            &u16::try_from(context_bytes.len())
-                .expect("validated context length fits u16")
-                .to_be_bytes(),
-        );
+        payload.extend_from_slice(&context_len.to_be_bytes());
         payload.extend_from_slice(context_bytes);
         payload.extend_from_slice(&scope.context_generation.to_be_bytes());
         payload.extend_from_slice(&scope.as_of.to_be_bytes());
@@ -130,6 +131,10 @@ impl TodayCursor {
 }
 
 fn decode_unbound(value: &str) -> Result<(CursorScope, TodayCursorPosition), CursorError> {
+    // The v1 token is bounded before any content scan, hex allocation or hash.
+    if value.len() > MAX_CURSOR_BYTES {
+        return Err(CursorError::Malformed);
+    }
     let encoded = value
         .strip_prefix(CURSOR_PREFIX)
         .ok_or(CursorError::Malformed)?;
@@ -252,6 +257,10 @@ impl<'a> Decoder<'a> {
         self.remaining.is_empty()
     }
 }
+
+#[cfg(test)]
+#[path = "cursor_boundary_tests.rs"]
+mod boundary_tests;
 
 #[cfg(test)]
 mod tests {

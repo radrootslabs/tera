@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use super::LocalNetworkError;
 
+pub(super) const LOCAL_NETWORK_ID_MAX_BYTES: usize = 256;
+
 /// Stable local context identity, independent of any presentation session.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 #[serde(try_from = "String", into = "String")]
@@ -10,7 +12,7 @@ pub struct LocalNetworkId(String);
 impl LocalNetworkId {
     pub fn new(value: String) -> Result<Self, LocalNetworkError> {
         if value.is_empty()
-            || value.len() > 256
+            || value.len() > LOCAL_NETWORK_ID_MAX_BYTES
             || value.trim() != value
             || value.chars().any(char::is_control)
         {
