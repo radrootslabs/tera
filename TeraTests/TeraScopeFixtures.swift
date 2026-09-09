@@ -4,12 +4,13 @@ import XCTest
 
 enum TeraScopeFixtures {
   static func snapshot(
-    account: String = "a", relay: String = "first", evidence: TeraBlossomEvidence? = nil
+    account: String = "a", relay: String = "first", evidence: TeraBlossomEvidence? = nil,
+    profile: String = "simulator"
   ) -> TeraRuntimeSnapshot {
     TeraRuntimeSnapshot(
       identity: TeraRuntimeIdentity(publicKeyHex: String(repeating: account, count: 64), hostSignerConfigured: true),
       relay: TeraRelayStatus(
-        profile: "simulator", state: "configured", readAvailability: "unobserved", writeAvailability: "unobserved",
+        profile: profile, state: "configured", readAvailability: "unobserved", writeAvailability: "unobserved",
         relays: [TeraRelayEndpointStatus(
           url: "wss://\(relay).example", access: .readWrite, readState: "unobserved", writeState: "unobserved",
           readLastAttemptUnixMilliseconds: nil, writeLastAttemptUnixMilliseconds: nil,

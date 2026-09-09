@@ -3,11 +3,13 @@ import Foundation
 /// Stable configuration inputs, excluding changing service observation evidence.
 struct TeraPresentationConfiguration: Equatable {
   let publicKey: String
+  let relayProfile: String?
   let context: TeraLocalNetwork
   let blossom: TeraBlossomConfigurationStatus?
 
   init(snapshot: TeraRuntimeSnapshot) {
     publicKey = snapshot.identity.publicKeyHex
+    relayProfile = snapshot.relay?.profile
     context = .defaultContext(snapshot: snapshot)
     blossom = snapshot.blossomConfiguration
   }

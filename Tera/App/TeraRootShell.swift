@@ -43,31 +43,13 @@ struct TeraRootShell: View {
 
   var body: some View {
     TabView(selection: selection) {
-      NavigationStack {
+      Group {
         if let stores {
-          TeraTodayView(
-            snapshot: snapshot,
-            store: stores.today,
-            searchStore: stores.search,
-            meStore: stores.me,
-            addStore: stores.add,
-            settingsStore: stores.settings,
-            mediaStore: stores.media,
-            revise: { card in
-              Task {
-                await stores.add.retractAndRevise(card)
-                storedSelection = TeraRootTab.add.rawValue
-              }
-            },
-            retract: { card in
-              Task {
-                await stores.add.retract(card)
-                storedSelection = TeraRootTab.add.rawValue
-              }
-            }
-          )
+          TeraTodayNavigation(snapshot: snapshot, stores: stores) {
+            storedSelection = TeraRootTab.add.rawValue
+          }
         } else {
-          TeraTodayLanding(snapshot: snapshot)
+          NavigationStack { TeraTodayLanding(snapshot: snapshot) }
         }
       }
       .tabItem { Label("Today", systemImage: "sun.max.fill") }

@@ -8,6 +8,8 @@ final class TeraTodayStore: ObservableObject {
     @Published private(set) var presentation = TeraTodayPresentation()
     @Published private(set) var isLoadingNextPage = false
     @Published private(set) var observationState: TeraRuntimeObservationState = .inactive
+    @Published private(set) var scopeGeneration = TeraSessionGeneration.initial
+    var scopeWillChange: (TeraLocalNetwork?) -> Void = { _ in }
 
     private let runtimeClient: TeraRuntimeClient
     private let pageSize: UInt16
@@ -58,14 +60,14 @@ final class TeraTodayStore: ObservableObject {
     func configure(snapshot: TeraRuntimeSnapshot) {
         let updated = TeraPresentationConfiguration(snapshot: snapshot)
         guard configuration != updated else { return }
-        let previous = configuration
         let reload = observation.isActive
-        invalidatePresentation()
+        invalidatePresentation(for: updated.context)
         configuration = updated
-        if previous != nil || contexts.isEmpty {
-            contexts = [updated.context]
-            selectedContextID = updated.context.id
-        }
+        // The runtime snapshot currently supplies one default local network.
+        // Reconcile even the first configuration; injected choices are not an
+        // authority for a different account or runtime profile.
+        contexts = [updated.context]
+        selectedContextID = updated.context.id
         if reload {
           scheduleReload()
         }
@@ -89,7 +91,7 @@ final class TeraTodayStore: ObservableObject {
         presentation.stop()
     }
 
-    private func invalidatePresentation() {
+    private func invalidatePresentation(for context: TeraLocalNetwork?) {
         requestGeneration = requestGeneration.invalidated()
         reloadTask?.cancel()
         reloadTask = nil
@@ -98,6 +100,8 @@ final class TeraTodayStore: ObservableObject {
         nextCursor = nil
         isLoadingNextPage = false
         presentation = TeraTodayPresentation()
+        scopeWillChange(context)
+        scopeGeneration = scopeGeneration.invalidated()
         if observation.isActive {
             observation.stop()
             startObservation()
@@ -106,23 +110,24 @@ final class TeraTodayStore: ObservableObject {
 
     func selectContext(id: String) {
         guard id != selectedContextID,
-              contexts.contains(where: { $0.id == id })
+              let context = contexts.first(where: { $0.id == id })
         else {
             return
         }
-        invalidatePresentation()
+        invalidatePresentation(for: context)
         selectedContextID = id
         scheduleReload()
     }
 
     func replaceContexts(_ updatedContexts: [TeraLocalNetwork], selectedID: String?) {
         let updatedContexts = Self.unique(updatedContexts)
-        invalidatePresentation()
+        let selected = [selectedID, selectedContextID].compactMap(\.self).first { requested in
+            updatedContexts.contains(where: { $0.id == requested })
+        } ?? updatedContexts.first?.id
+        guard contexts != updatedContexts || selectedContextID != selected else { return }
+        invalidatePresentation(for: updatedContexts.first(where: { $0.id == selected }))
         contexts = updatedContexts
-        selectedContextID =
-            selectedID.flatMap { requested in
-                updatedContexts.contains(where: { $0.id == requested }) ? requested : nil
-            } ?? updatedContexts.first?.id
+        selectedContextID = selected
         scheduleReload()
     }
 

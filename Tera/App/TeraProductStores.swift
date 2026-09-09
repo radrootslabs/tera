@@ -21,6 +21,13 @@ final class TeraProductStores {
     me = TeraMeStore(runtimeClient: runtimeClient)
     settings = TeraSettingsStore(runtimeClient: runtimeClient)
     media = TeraMediaStore(runtimeClient: runtimeClient)
+    today.scopeWillChange = { [search, me, media] context in
+      search.stop()
+      search.configure(context: context)
+      me.stop()
+      me.configure(context: context)
+      media.reset()
+    }
   }
 
   deinit {

@@ -54,6 +54,7 @@ let package = Package(
         "App/TeraRemoteQualification.swift",
         "App/TeraRemoteQualificationEvidence.swift",
         "App/TeraRootShell.swift",
+        "App/TeraTodayNavigation.swift",
         "Runtime/TeraAddMediaCoordinator.swift",
         "Runtime/TeraBackgroundUploadRequest.swift",
         "Runtime/TeraCheckedTime.swift",
