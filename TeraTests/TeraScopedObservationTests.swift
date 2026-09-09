@@ -36,16 +36,16 @@ final class TeraScopedObservationTests: XCTestCase {
     var state = TeraRuntimeObservationState.inactive
     let pause = await backend.pause(.subscribe, fails: true)
     observation.start(
-      client: client, capacity: 8, delay: { _ in throw CancellationError() },
-      state: { state = $0 }, change: { _ in }
+      client: client, buffer: (capacity: 8, delay: { _ in throw CancellationError() }),
+      state: { state = $0 }, accepts: { _ in true }, refresh: { _ in }
     )
     await pause.entered.wait()
     await pause.resume.open()
     await TeraScopeFixtures.eventually { !observation.isActive }
     guard case .retrying = state else { return XCTFail("The failed retry remains visible") }
     observation.start(
-      client: client, capacity: 8, delay: { _ in throw CancellationError() },
-      state: { state = $0 }, change: { _ in }
+      client: client, buffer: (capacity: 8, delay: { _ in throw CancellationError() }),
+      state: { state = $0 }, accepts: { _ in true }, refresh: { _ in }
     )
     await TeraScopeFixtures.eventually { state == .active }
     let count = await backend.counts[.subscribe]

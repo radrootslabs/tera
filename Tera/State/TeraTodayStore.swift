@@ -83,7 +83,9 @@ final class TeraTodayStore: ObservableObject {
     func start() async {
         guard !observation.isActive, !Task.isCancelled else { return }
         startObservation()
-        await reload()
+        scheduleReload()
+        let task = reloadTask
+        await withTaskCancellationHandler { await task?.value } onCancel: { task?.cancel() }
     }
 
     func stop() {
@@ -235,16 +237,16 @@ final class TeraTodayStore: ObservableObject {
 
     private func startObservation() {
         observation.start(
-          client: runtimeClient, capacity: 16, delay: observationDelay,
+          client: runtimeClient, buffer: (capacity: 16, delay: observationDelay),
           state: { [weak self] in self?.observationState = $0 },
-          change: { [weak self] change in
-                guard change.matches(context: self?.selectedContext) else { return }
-                switch change.kind {
-                case .today, .drafts, .media, .identity, .profile:
-                    await self?.reload(refreshProjection: false)
-                case .initial, .settings, .relay, .lifecycle:
-                    break
-                }
+          accepts: { [weak self] in $0.matches(context: self?.selectedContext) },
+          refresh: { [weak self] batch in
+                // Ordinary media progress belongs to the media presentation;
+                // it must not reset the feed's loaded pages and cursor.
+                guard batch.contains(anyOf: [.today, .drafts, .identity, .profile]) else { return }
+                await self?.reloadTask?.value
+                guard !Task.isCancelled else { return }
+                await self?.reload(refreshProjection: false)
             }
         )
     }

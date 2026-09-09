@@ -16,6 +16,9 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   private(set) var lastMeContext: TeraLocalNetwork?
   private var drafts: [TeraDraftStatus] = [TeraScopeFixtures.draft("old")]
   private var media: TeraVerifiedMediaArtifact
+  private var pages: [String: TeraTodayPage] = [:]
+  private var meCards = [TeraScopeFixtures.card("old")]
+  private var revision: UInt64 = 0
 
   init() throws {
     media = try TeraScopeFixtures.artifact("a")
@@ -37,6 +40,14 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func setMedia(_ value: TeraVerifiedMediaArtifact) {
     media = value
+  }
+
+  func setPage(_ value: TeraTodayPage, cursor: String = "first") {
+    pages[cursor] = value
+  }
+
+  func setMeCards(_ values: [TeraTodayCard]) {
+    meCards = values
   }
 
   private func wait(_ call: Call) async throws {
@@ -87,7 +98,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   }
 
   func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage {
-    let result = TeraTodayPage(
+    let result = pages[request.cursor ?? "first"] ?? TeraTodayPage(
       asOfUnixSeconds: 1, items: [TeraScopeFixtures.card(request.context.relayURLs.first ?? "none")], nextCursor: nil
     )
     try await wait(.page)
@@ -112,7 +123,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func me(context: TeraLocalNetwork, asOfUnixSeconds _: UInt64) async throws -> TeraMeSnapshot {
     lastMeContext = context
-    let result = TeraMeSnapshot(publicKey: value.identity.publicKeyHex, profile: nil, cards: [TeraScopeFixtures.card("old")])
+    let result = TeraMeSnapshot(publicKey: value.identity.publicKeyHex, profile: nil, cards: meCards)
     try await wait(.me)
     return result
   }
@@ -138,13 +149,21 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     return token
   }
 
-  func emit(_ kind: TeraRuntimeChangeKind) async {
+  func emit(
+    _ kind: TeraRuntimeChangeKind,
+    delivery: TeraRuntimeChangeDelivery = .change,
+    context: TeraLocalNetwork? = nil,
+    exhausted: Bool = false
+  ) async {
+    revision += 1
+    let emittedRevision = revision
     for receive in receivers {
       await receive(TeraRuntimeChange(
         schemaVersion: 3,
-        scope: TeraRuntimeChangeScope(publicKey: String(repeating: "a", count: 64), sourceGeneration: String(repeating: "a", count: 64), context: nil),
+        scope: TeraRuntimeChangeScope(publicKey: String(repeating: "a", count: 64), sourceGeneration: String(repeating: "a", count: 64), context: context),
         epoch: String(repeating: "1", count: 32),
-        revision: TeraProjectionRevision(rawValue: 1), delivery: .change, kind: kind, entityID: nil
+        revision: TeraProjectionRevision(rawValue: exhausted ? nil : emittedRevision),
+        delivery: delivery, kind: kind, entityID: nil
       ))
     }
   }

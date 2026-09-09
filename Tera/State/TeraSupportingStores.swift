@@ -108,6 +108,9 @@ final class TeraMeStore: ObservableObject {
     private var context: TeraLocalNetwork?
     private var generation = TeraSessionGeneration.initial
     private let observation = TeraStoreObservation()
+    private var reloadTask: Task<Void, Never>?
+
+    deinit { reloadTask?.cancel() }
 
     init(
       runtimeClient: TeraRuntimeClient,
@@ -123,6 +126,8 @@ final class TeraMeStore: ObservableObject {
     func configure(context: TeraLocalNetwork?) {
         guard self.context != context else { return }
         generation = generation.invalidated()
+        reloadTask?.cancel()
+        reloadTask = nil
         self.context = context
         snapshot = nil
         state = .idle
@@ -134,7 +139,10 @@ final class TeraMeStore: ObservableObject {
 
     func start() async {
         startObservation()
-        await reload()
+        reloadTask?.cancel()
+        reloadTask = Task { [weak self] in await self?.reload() }
+        let task = reloadTask
+        await withTaskCancellationHandler { await task?.value } onCancel: { task?.cancel() }
     }
 
     func reload() async {
@@ -165,6 +173,8 @@ final class TeraMeStore: ObservableObject {
     func stop() {
         generation = generation.invalidated()
         observation.stop()
+        reloadTask?.cancel()
+        reloadTask = nil
         observationState = .stopped
         snapshot = nil
         state = .idle
@@ -172,16 +182,14 @@ final class TeraMeStore: ObservableObject {
 
     private func startObservation() {
         observation.start(
-          client: runtimeClient, capacity: 8, delay: observationDelay,
+          client: runtimeClient, buffer: (capacity: 8, delay: observationDelay),
           state: { [weak self] in self?.observationState = $0 },
-          change: { [weak self] change in
-                guard change.matches(context: self?.context) else { return }
-                switch change.kind {
-                case .today, .identity, .profile, .media, .drafts:
-                    await self?.reload()
-                case .initial, .settings, .relay, .lifecycle:
-                    break
-                }
+          accepts: { [weak self] in $0.matches(context: self?.context) },
+          refresh: { [weak self] batch in
+                guard batch.contains(anyOf: [.today, .identity, .profile, .media, .drafts]) else { return }
+                await self?.reloadTask?.value
+                guard !Task.isCancelled else { return }
+                await self?.reload()
             }
         )
     }

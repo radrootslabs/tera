@@ -34,6 +34,7 @@ final class TeraAddStore: ObservableObject {
   private let observation = TeraStoreObservation()
   private var configuration: TeraPresentationConfiguration?
   private var draftsGeneration = TeraSessionGeneration.initial
+  private var appliedDraftsGeneration = TeraSessionGeneration.initial
   private var probeGeneration = TeraSessionGeneration.initial
   private var blossomGeneration = TeraSessionGeneration.initial
   private var revisionTarget: TeraRevisionTarget?
@@ -133,28 +134,21 @@ final class TeraAddStore: ObservableObject {
     generation = generation.invalidated()
     let requestedGeneration = generation
     draftsGeneration = draftsGeneration.invalidated()
-    let draftRequest = draftsGeneration
-    let serviceRequest = blossomGeneration
+    let draftRequest = appliedDraftsGeneration
+    let serviceConfiguration = configuration
     do {
-      async let schemaResult = runtimeClient.addSchemas()
-      async let draftResult = runtimeClient.draftHeads(limit: 100)
-      async let supportResult = loadMediaSupport()
-      let (loadedSchemas, loadedDrafts, loadedSupport) = try await (
-        schemaResult,
-        draftResult,
-        supportResult
-      )
+      let loaded = try await TeraAddStartupSnapshot.load(client: runtimeClient, support: loadMediaSupport)
       guard isCurrent(requestedGeneration) else { return }
-      if draftRequest == draftsGeneration {
-        try await media?.reconcileBackgroundUploads(drafts: loadedDrafts)
-      }
+      let inventory = draftRequest == appliedDraftsGeneration ? loaded.drafts : drafts
+      try await media?.reconcileBackgroundUploads(drafts: inventory)
       try ensureCurrent(requestedGeneration)
-      schemas = try TeraProductSurfaceContract.validate(schemas: loadedSchemas)
-      if draftRequest == draftsGeneration {
-        drafts = TeraAddPresentation.sorted(loadedDrafts)
+      schemas = loaded.schemas
+      if draftRequest == appliedDraftsGeneration {
+        appliedDraftsGeneration = try appliedDraftsGeneration.next()
+        drafts = TeraAddPresentation.sorted(loaded.drafts)
       }
-      if serviceRequest == blossomGeneration {
-        mediaSupport = loadedSupport
+      if serviceConfiguration == configuration {
+        mediaSupport = loaded.support
       }
       state = .ready
     } catch {
@@ -669,6 +663,7 @@ final class TeraAddStore: ObservableObject {
     do {
       let loaded = try await runtimeClient.draftHeads(limit: 100)
       guard isCurrent(requestedGeneration), request == draftsGeneration else { return }
+      appliedDraftsGeneration = try appliedDraftsGeneration.next()
       drafts = TeraAddPresentation.sorted(loaded)
       if let activeDraft, let current = loaded.first(where: { $0.id == activeDraft.id }),
          current.revision >= activeDraft.revision
@@ -702,16 +697,17 @@ final class TeraAddStore: ObservableObject {
 
   private func startObservation() {
     observation.start(
-      client: runtimeClient, capacity: 16, delay: observationDelay,
+      client: runtimeClient, buffer: (capacity: 16, delay: observationDelay),
       state: { [weak self] in self?.observationState = $0 },
-      change: { [weak self] change in
-        guard let self, change.matches(context: configuration?.context) else { return }
+      accepts: { [weak self] in $0.matches(context: self?.configuration?.context) },
+      refresh: { [weak self] batch in
+        guard let self else { return }
         let requested = generation
-        if change.kind == .drafts || change.kind == .media {
+        if batch.contains(anyOf: [.drafts, .media]) {
           await reloadDrafts()
         }
         guard isCurrent(requested) else { return }
-        if change.kind == .media || change.kind == .settings {
+        if batch.contains(anyOf: [.media, .settings]) {
           await refreshBlossomSnapshot()
         }
       }
@@ -731,6 +727,7 @@ final class TeraAddStore: ObservableObject {
   ) throws {
     try ensureCurrent(requested)
     draftsGeneration = draftsGeneration.invalidated()
+    appliedDraftsGeneration = try appliedDraftsGeneration.next()
     activeDraft = status
     if let form = status.form {
       self.form = form
