@@ -50,12 +50,14 @@ TEXT_SUFFIXES = {
     ".json",
     ".yml",
     ".md",
+    ".kt",
+    ".kts",
 }
 IDENTIFIER = re.compile(r"(?i)\b[a-z0-9_]*radroots[a-z0-9_]*(?:[.-][a-z0-9_-]+)*")
 DECLARATION = re.compile(
     r"(?m)^\s*(?:(?:public|private|internal|fileprivate|final|open|indirect|"
     r"nonisolated|static|async|unsafe|pub(?:\([^\n)]*\))?)\s+)*"
-    r"(?:class|struct|enum|actor|protocol|typealias|trait|type|fn|func|static\s+(?:var|let))\s+"
+    r"(?:class|struct|enum|actor|protocol|typealias|trait|type|fn|fun|func|static\s+(?:var|let))\s+"
     r"(?i:radroots)[a-zA-Z0-9_]*\b"
 )
 CATEGORY_FIELDS = {"owner", "reason", "reader", "removal_condition"}
@@ -236,7 +238,7 @@ def policy_index(policy: Any) -> dict[tuple[str, str], int]:
 def inspect_sources(sources: dict[str, str]) -> collections.Counter:
     observed = collections.Counter()
     for path, text in sources.items():
-        if Path(path).suffix in {".swift", ".rs"}:
+        if Path(path).suffix in {".swift", ".rs", ".kt", ".kts"}:
             require(
                 not Path(path).name.lower().startswith("radroots"),
                 "app-owned source filename uses the legacy brand",

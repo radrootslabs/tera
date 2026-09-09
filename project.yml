@@ -74,6 +74,7 @@ targets:
       - path: TeraTests/TeraMediaStoreTests.swift
       - path: TeraTests/TeraMediaFileFixture.swift
       - path: TeraTests/TeraMediaOwnershipFFITests.swift
+      - path: TeraTests/TeraBindingPortabilityTests.swift
       - path: TeraTests/TeraOpenedMediaCloseFixture.swift
       - path: TeraTests/TeraOpenedMediaTests.swift
       - path: TeraTests/TeraAddStoreTests.swift

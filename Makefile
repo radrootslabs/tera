@@ -12,7 +12,7 @@ SIMULATOR_DESTINATION := platform=iOS Simulator,name=$(SIMULATOR_NAME)
 	ffi-source-write ffi-source-check \
 	ffi-candidate-build ffi-candidate-check \
 	swift-quality maintainability-check \
-	linux-shared-rust \
+	linux-shared-rust kotlin-smoke kotlin-smoke-bootstrap \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-write \
 	api-snapshot-check release-evidence-write release-preflight verify clean distclean
@@ -56,6 +56,12 @@ maintainability-check: doctor
 linux-shared-rust: doctor
 	cargo extbuild run -- scripts/linux-shared-rust.sh
 
+kotlin-smoke: doctor
+	cargo extbuild run -- scripts/kotlin-smoke.sh verify
+
+kotlin-smoke-bootstrap: doctor
+	cargo extbuild run -- scripts/kotlin-smoke.sh bootstrap
+
 package-resolve: artifact-check package-contract-check
 	cargo extbuild run -- scripts/swift-package.sh resolve
 
@@ -65,7 +71,7 @@ project xcodegen: doctor
 xcode-resolve: artifact-check project
 	cargo extbuild run -- scripts/xcode.sh resolve
 
-bootstrap: persona-verifier-bootstrap ffi-bootstrap package-resolve xcode-resolve
+bootstrap: persona-verifier-bootstrap ffi-bootstrap kotlin-smoke-bootstrap package-resolve xcode-resolve
 
 package-build: artifact-check package-contract-check
 	cargo extbuild run -- scripts/xcode.sh package-build
@@ -97,7 +103,7 @@ release-evidence-write: doctor
 release-preflight: artifact-check package-contract-check
 	cargo extbuild run -- scripts/release-preflight.sh
 
-verify: swift-quality linux-shared-rust artifact-check package-contract-check package-build package-test \
+verify: swift-quality linux-shared-rust kotlin-smoke artifact-check package-contract-check package-build package-test \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-check
 
 clean: doctor

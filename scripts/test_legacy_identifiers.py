@@ -46,6 +46,18 @@ class LegacyIdentifierTests(unittest.TestCase):
     def test_shared_and_persisted_names_are_exact_exceptions(self) -> None:
         self.assertEqual(legacy.validate(self.policy, self.sources)["identifiers"], 2)
 
+    def test_kotlin_binding_harness_keeps_exact_naming_boundaries(self) -> None:
+        for extension in ("kt", "kts"):
+            path = f"scripts/kotlin_smoke/source.{extension}"
+            self.assertTrue(legacy.selected(path))
+            policy = copy.deepcopy(self.policy)
+            entry = next(
+                e for e in policy["entries"] if e["identifier"] == "RadrootsKit"
+            )
+            entry["occurrences"].append({"path": path, "count": 1})
+            with self.assertRaisesRegex(legacy.LegacyIdentifierError, "declaration"):
+                legacy.validate(policy, {**self.sources, path: "fun RadrootsKit() {}"})
+
     def test_unknown_identifier_is_rejected_even_in_an_allowed_file(self) -> None:
         sources = {
             self.path: self.sources[self.path] + 'let old = "radroots.unapproved.v1"\n'

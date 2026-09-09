@@ -37,6 +37,7 @@ extbuild output; this command does not install them into the native app.
 - XcodeGen
 - Rust `1.97.1-aarch64-apple-darwin` with `llvm-tools` and the iOS device and simulator targets
 - SwiftFormat and the locked Python verifier installed by bootstrap
+- JDK 21 on Apple silicon for the generated Kotlin binding smoke
 - `cargo-extbuild` configured for the checkout
 
 Physical-device development additionally requires one exact paired, connected,
@@ -61,8 +62,8 @@ certificate material are never checked into this public repository.
 
 The first bootstrap requires network access. It resolves exact foundation
 dependencies, builds the owned UniFFI XCFramework and Swift
-bindings, resolves exact Swift package revisions, and generates the Xcode
-project:
+bindings, bootstraps the pinned Kotlin smoke dependencies, resolves exact Swift
+package revisions, and generates the Xcode project:
 
 ```sh
 cargo extbuild doctor
@@ -80,6 +81,15 @@ The complete lane includes the repository-owned Swift formatting and lint
 policy and the pinned Linux x86_64 shared-Rust runner. Run those focused checks
 independently with `make swift-quality` and `make linux-shared-rust`; both keep
 their build output under extbuild.
+
+`make kotlin-smoke` generates Kotlin from the exact installed producer's native
+host library and executes its scope, error, cancellation, subscription, shutdown,
+and media-ownership tests through JNA. The pinned Gradle wrapper, dependency locks
+and checksum verification are owned by this repository; generated Kotlin, native
+test results and Gradle output remain under extbuild. Verification uses offline
+dependency resolution after `make kotlin-smoke-bootstrap` or `make bootstrap`.
+This test-only JVM harness is part of `make verify` and does not qualify Android
+UI or a published release.
 
 `make swift-quality` also applies the exact checked SwiftLint complexity
 baseline and the repository-owned Swift/Python maintainability ratchet. New
