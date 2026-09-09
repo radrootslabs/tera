@@ -35,7 +35,7 @@ final class TeraTodayStoreTests: XCTestCase {
         await store.loadNextPage()
 
         XCTAssertEqual(store.cards.map(\.id), ["a", "b"])
-        XCTAssertEqual(store.state, .loaded)
+        XCTAssertEqual(store.presentation.content, .available)
         XCTAssertFalse(store.canLoadNextPage)
         _ = try await client.stop()
     }
@@ -151,7 +151,7 @@ final class TeraTodayStoreTests: XCTestCase {
     }
 
     @MainActor
-    private func assertCachedRefreshFailure(code: String, expected: TeraTodayLoadState) async throws {
+    private func assertCachedRefreshFailure(code: String, expected: TeraTodayFailure) async throws {
         let context = makeContext(id: "offline", label: "Offline")
         let cached = makeCard(id: "cached", type: .update)
         let failure = TeraRuntimeFailure(
@@ -189,10 +189,12 @@ final class TeraTodayStoreTests: XCTestCase {
         await store.reload()
 
         XCTAssertEqual(store.cards.map(\.id), ["cached"])
-        XCTAssertEqual(store.state, expected)
+        XCTAssertEqual(store.presentation.content, .available)
+        XCTAssertEqual(store.presentation.refresh, .failed(expected))
         await store.loadNextPage()
         XCTAssertEqual(store.cards.map(\.id), ["cached", "cached-next"])
-        XCTAssertEqual(store.state, expected)
+        XCTAssertEqual(store.presentation.content, .available)
+        XCTAssertEqual(store.presentation.refresh, .failed(expected))
         _ = try await client.stop()
     }
 

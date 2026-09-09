@@ -85,9 +85,11 @@ let package = Package(
         "State/TeraSupportingStores.swift",
         "State/TeraSettingsStore.swift",
         "State/TeraTodayStore.swift",
+        "State/TeraTodayPresentation.swift",
         "Views/TeraAddView.swift",
         "Views/TeraSupportingViews.swift",
         "Views/TeraTodayView.swift",
+        "Views/TeraTodayStatusView.swift",
         "Views/RuntimeStatusView.swift",
       ],
       resources: [

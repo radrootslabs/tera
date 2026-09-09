@@ -28,14 +28,14 @@ final class TeraErrorRecoveryTests: XCTestCase {
       let wrapped = TeraRuntimeClientError.today(failure)
       XCTAssertEqual(TeraUserMessages.key(for: wrapped, fallback: .todayUnavailable), key, code)
       XCTAssertEqual(
-        TeraTodayStore.failureState(wrapped),
+        TeraTodayFailure(wrapped),
         .failed(message: TeraUserMessages.text(key)), code
       )
       XCTAssertEqual(TeraMediaStore.failureState(wrapped), .failed, code)
     }
     let offline = makeFailure(code: "today_relay_offline")
     XCTAssertEqual(
-      TeraTodayStore.failureState(offline),
+      TeraTodayFailure(offline),
       .offline(message: TeraUserMessages.text(.networkUnavailable))
     )
     XCTAssertEqual(

@@ -94,17 +94,17 @@
       {
         "bytes": 61732,
         "path": "source/aarch64-apple-darwin.json",
-        "sha256": "84ee6f7e6a892b2118be20f451a2bbb6b90e92a48a2e676127f8e75380761600"
+        "sha256": "60f5dd2de192cae21c908a57bab5f020b07303bfd967a7862fdd94bb3356237d"
       },
       {
         "bytes": 61576,
         "path": "source/aarch64-apple-ios-sim.json",
-        "sha256": "3d5fac7931493190aaf9d8c6fac27e0b23ba3a90cabc70b62fc492f80d21fe5e"
+        "sha256": "3f1f0c4b9cd588994ff448ccf2d9114e026328ac16f0662972fcb09859a1896d"
       },
       {
         "bytes": 61572,
         "path": "source/aarch64-apple-ios.json",
-        "sha256": "01120be5946961acb0184a1c643b1a3f28a49d358188781633271ed29381d4b1"
+        "sha256": "57bbefdc3a973e442f50b7c17269e9ab789a4e76e531dcc22ca7ea930b2b3ccc"
       }
     ],
     "language": "swift",
@@ -112,7 +112,7 @@
     "schema": "radroots.artifact-manifest.v2",
     "source": {
       "repository": "https://github.com/radrootslabs/tera",
-      "tree": "6f16b615f8c48f08138dba1fc369d91cc9fa9c54"
+      "tree": "783f5e1a06525924cc58ddb9f5e577f586703553"
     },
     "source_records": {
       "aarch64-apple-darwin": "source/aarch64-apple-darwin.json",
@@ -176,17 +176,17 @@
     {
       "bytes": 61732,
       "path": "TeraFFI/source/aarch64-apple-darwin.json",
-      "sha256": "84ee6f7e6a892b2118be20f451a2bbb6b90e92a48a2e676127f8e75380761600"
+      "sha256": "60f5dd2de192cae21c908a57bab5f020b07303bfd967a7862fdd94bb3356237d"
     },
     {
       "bytes": 61576,
       "path": "TeraFFI/source/aarch64-apple-ios-sim.json",
-      "sha256": "3d5fac7931493190aaf9d8c6fac27e0b23ba3a90cabc70b62fc492f80d21fe5e"
+      "sha256": "3f1f0c4b9cd588994ff448ccf2d9114e026328ac16f0662972fcb09859a1896d"
     },
     {
       "bytes": 61572,
       "path": "TeraFFI/source/aarch64-apple-ios.json",
-      "sha256": "01120be5946961acb0184a1c643b1a3f28a49d358188781633271ed29381d4b1"
+      "sha256": "57bbefdc3a973e442f50b7c17269e9ab789a4e76e531dcc22ca7ea930b2b3ccc"
     }
   ],
   "schema": "tera.installed-native-artifacts.v1"

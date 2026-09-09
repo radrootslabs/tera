@@ -83,7 +83,7 @@ final class TeraStoreRecoveryTests: XCTestCase {
     XCTAssertEqual(paused, before, "Only one observer query may execute at a time")
     await first.resume.open()
     await TeraScopeFixtures.eventually { store.cards.first?.id == "revision-256" }
-    XCTAssertEqual(store.state, .loaded)
+    XCTAssertEqual(store.presentation.content, .available)
     store.stop()
     _ = try await client.stop()
   }

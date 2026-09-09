@@ -17,28 +17,12 @@ struct TeraTodayView: View {
 
   var body: some View {
     Group {
-      switch store.state {
-      case .idle where store.cards.isEmpty,
-        .loading where store.cards.isEmpty:
-        ProgressView("Loading Today…")
-          .accessibilityIdentifier("radroots.today.loading")
+      switch store.presentation.content {
+      case .notLoaded:
+        initialContent
       case .empty:
         emptyView
-      case let .failed(message) where store.cards.isEmpty:
-        unavailableView(
-          title: "Today is unavailable",
-          message: message,
-          systemImage: "exclamationmark.triangle"
-        )
-        .accessibilityIdentifier("radroots.today.error")
-      case let .offline(message) where store.cards.isEmpty:
-        unavailableView(
-          title: "Network unavailable",
-          message: message,
-          systemImage: "wifi.slash"
-        )
-        .accessibilityIdentifier("radroots.today.offline")
-      default:
+      case .available:
         feed
       }
     }
@@ -73,9 +57,21 @@ struct TeraTodayView: View {
     .task { await store.start() }
   }
 
+  @ViewBuilder
+  private var initialContent: some View {
+    if let failure = store.presentation.readFailure {
+      unavailableView(failure)
+        .accessibilityIdentifier("radroots.today.error")
+    } else {
+      TeraTodayStatusView(presentation: store.presentation)
+        .accessibilityIdentifier("radroots.today.loading")
+    }
+  }
+
   private var emptyView: some View {
     ScrollView {
       VStack(spacing: 16) {
+        TeraTodayStatusView(presentation: store.presentation)
         Image(systemName: "leaf")
           .font(.largeTitle)
           .foregroundStyle(.secondary)
@@ -99,11 +95,7 @@ struct TeraTodayView: View {
 
   private var feed: some View {
     List {
-      if case let .offline(message) = store.state {
-        statusBanner(message: message, systemImage: "wifi.slash")
-      } else if case let .failed(message) = store.state {
-        statusBanner(message: message, systemImage: "exclamationmark.triangle")
-      }
+      TeraTodayStatusView(presentation: store.presentation)
 
       ForEach(store.cards) { card in
         NavigationLink(value: card) {
@@ -184,25 +176,14 @@ struct TeraTodayView: View {
     }
   }
 
-  private func unavailableView(
-    title: String,
-    message: String,
-    systemImage: String
-  ) -> some View {
+  private func unavailableView(_ failure: TeraTodayFailure) -> some View {
     ContentUnavailableView {
-      Label(title, systemImage: systemImage)
+      Label("Today is unavailable", systemImage: failure.systemImage)
     } description: {
-      Text(message)
+      TeraTodayStatusView(presentation: store.presentation)
     } actions: {
       Button("Try again") { Task { await store.reload() } }
     }
-  }
-
-  private func statusBanner(message: String, systemImage: String) -> some View {
-    Label(message, systemImage: systemImage)
-      .font(.footnote)
-      .foregroundStyle(.secondary)
-      .accessibilityIdentifier("radroots.today.status")
   }
 }
 

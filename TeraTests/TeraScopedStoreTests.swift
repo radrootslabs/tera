@@ -20,7 +20,7 @@ final class TeraScopedStoreTests: XCTestCase {
     await pause.resume.open()
     await old.value
     XCTAssertEqual(store.cards.map(\.id), ["wss://second.example"])
-    XCTAssertEqual(store.state, .loaded)
+    XCTAssertEqual(store.presentation.content, .available)
     store.stop()
     _ = try await client.stop()
   }
@@ -41,7 +41,7 @@ final class TeraScopedStoreTests: XCTestCase {
     let after = await backend.counts[.page]
     XCTAssertEqual(after, count)
     XCTAssertEqual(store.cards.map(\.id), ["wss://second.example"])
-    XCTAssertEqual(store.state, .loaded)
+    XCTAssertEqual(store.presentation.content, .available)
     store.stop()
     _ = try await client.stop()
   }

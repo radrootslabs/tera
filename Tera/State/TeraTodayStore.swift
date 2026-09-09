@@ -1,20 +1,11 @@
 import Foundation
 
-enum TeraTodayLoadState: Sendable, Equatable {
-    case idle
-    case loading
-    case loaded
-    case empty
-    case offline(message: String)
-    case failed(message: String)
-}
-
 @MainActor
 final class TeraTodayStore: ObservableObject {
     @Published private(set) var contexts: [TeraLocalNetwork]
     @Published private(set) var selectedContextID: String?
     @Published private(set) var cards: [TeraTodayCard] = []
-    @Published private(set) var state: TeraTodayLoadState = .idle
+    @Published private(set) var presentation = TeraTodayPresentation()
     @Published private(set) var isLoadingNextPage = false
     @Published private(set) var observationState: TeraRuntimeObservationState = .inactive
 
@@ -95,6 +86,7 @@ final class TeraTodayStore: ObservableObject {
         reloadTask?.cancel()
         reloadTask = nil
         isLoadingNextPage = false
+        presentation.stop()
     }
 
     private func invalidatePresentation() {
@@ -105,7 +97,7 @@ final class TeraTodayStore: ObservableObject {
         frozenAsOfUnixSeconds = nil
         nextCursor = nil
         isLoadingNextPage = false
-        state = .idle
+        presentation = TeraTodayPresentation()
         if observation.isActive {
             observation.stop()
             startObservation()
@@ -144,33 +136,56 @@ final class TeraTodayStore: ObservableObject {
     ) async {
         guard let context = selectedContext else {
             cards = []
-            state = .failed(message: "Choose a local network to load Today.")
+            presentation = TeraTodayPresentation()
+            presentation.failRead(.failed(message: "Choose a local network to load Today."))
             return
         }
 
         requestGeneration = requestGeneration.invalidated()
         let generation = requestGeneration
+        defer {
+            if generation == requestGeneration {
+              presentation.stop()
+            }
+        }
         frozenAsOfUnixSeconds = nil
         nextCursor = nil
         isLoadingNextPage = false
-        if cards.isEmpty {
-            state = .loading
-        }
-
-        var refreshFailure: Error?
+        presentation.beginReload(refreshProjection: refreshProjection)
+        var receipt: TeraTodayRefreshReceipt?
         if refreshProjection {
-            do {
-                _ = try await runtimeClient.refreshToday(
-                  context: context,
-                  nowUnixSeconds: clock.unixSeconds(),
-                  update: update
-                )
-            } catch {
-                refreshFailure = error
+            receipt = await refresh(context: context, update: update, generation: generation)
+        }
+        guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
+        await readFirstPage(context: context, generation: generation, receipt: receipt)
+    }
+
+    private func refresh(
+      context: TeraLocalNetwork, update: TeraTodayProjectionUpdate, generation: TeraSessionGeneration
+    ) async -> TeraTodayRefreshReceipt? {
+        do {
+            let receipt = try await runtimeClient.refreshToday(
+              context: context, nowUnixSeconds: clock.unixSeconds(), update: update
+            )
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return nil }
+            presentation.refreshCompleted()
+            return receipt
+        } catch {
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return nil }
+            presentation.refreshFailed(error)
+            return nil
+        }
+    }
+
+    private func readFirstPage(
+      context: TeraLocalNetwork, generation: TeraSessionGeneration, receipt: TeraTodayRefreshReceipt?
+    ) async {
+        presentation.beginRead()
+        defer {
+            if generation == requestGeneration {
+              presentation.finishReading()
             }
         }
-
-        guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
         do {
             let asOf = try clock.unixSeconds()
             let page = try await runtimeClient.todayPage(
@@ -184,10 +199,10 @@ final class TeraTodayStore: ObservableObject {
             frozenAsOfUnixSeconds = page.asOfUnixSeconds
             nextCursor = page.nextCursor
             cards = Self.unique(page.items)
-            state = refreshFailure.map(Self.failureState) ?? (cards.isEmpty ? .empty : .loaded)
+            presentation.acceptPage(count: cards.count, receipt: receipt)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
-            state = Self.failureState(error)
+            presentation.failRead(TeraTodayFailure(error))
         }
     }
 
@@ -212,21 +227,16 @@ final class TeraTodayStore: ObservableObject {
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             guard frozenAsOfUnixSeconds == nil || frozenAsOfUnixSeconds == page.asOfUnixSeconds else {
-                state = .failed(message: "Today changed while loading. Refresh to continue.")
+                presentation.failRead(.failed(message: "Today changed while loading. Refresh to continue."))
                 return
             }
             frozenAsOfUnixSeconds = page.asOfUnixSeconds
             nextCursor = page.nextCursor
             cards = Self.unique(cards + page.items)
-            switch state {
-            case .offline, .failed:
-                break
-            default:
-                state = cards.isEmpty ? .empty : .loaded
-            }
+            presentation.acceptPage(count: cards.count)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
-            state = Self.failureState(error)
+            presentation.failRead(TeraTodayFailure(error))
         }
     }
 
@@ -254,13 +264,5 @@ final class TeraTodayStore: ObservableObject {
     private static func unique(_ cards: [TeraTodayCard]) -> [TeraTodayCard] {
         var identifiers = Set<String>()
         return cards.filter { identifiers.insert($0.id).inserted }
-    }
-
-    static func failureState(_ error: Error) -> TeraTodayLoadState {
-        let message = TeraUserMessages.text(for: error, fallback: .todayUnavailable)
-        if TeraRuntimeFailure.from(error)?.recovery.disposition == .networkUnavailable {
-            return .offline(message: message)
-        }
-        return .failed(message: message)
     }
 }

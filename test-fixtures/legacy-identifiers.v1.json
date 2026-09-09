@@ -3765,16 +3765,6 @@
       ]
     },
     {
-      "identifier": "radroots.today.offline",
-      "category": "native_ui_contract",
-      "occurrences": [
-        {
-          "path": "Tera/Views/TeraTodayView.swift",
-          "count": 1
-        }
-      ]
-    },
-    {
       "identifier": "radroots.today.refresh",
       "category": "native_ui_contract",
       "occurrences": [
@@ -3837,7 +3827,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraTodayView.swift",
+          "path": "Tera/Views/TeraTodayStatusView.swift",
           "count": 1
         }
       ]
