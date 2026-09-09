@@ -4161,6 +4161,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/error/recovery.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 1
         }

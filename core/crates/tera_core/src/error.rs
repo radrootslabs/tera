@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+pub mod recovery;
+
 /// Versioned, secret-safe SDK failure exposed to mobile hosts.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SdkErrorRecord {

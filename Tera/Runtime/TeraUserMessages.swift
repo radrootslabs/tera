@@ -14,9 +14,15 @@ enum TeraUserMessageKey: String, CaseIterable, Sendable {
   case identityOperationFailed = "error.identity.operation_failed"
   case invalidRequest = "error.request.invalid"
   case locationUnavailable = "error.location.unavailable"
+  case networkUnavailable = "error.network.unavailable"
+  case networkPolicy = "error.network.policy"
   case operationCancelled = "error.operation.cancelled"
+  case operationConflict = "error.operation.conflict"
+  case operationOutcomeUnknown = "error.operation.outcome_unknown"
   case permissionDenied = "error.permission.denied"
+  case partialResult = "error.result.partial"
   case profileUnavailable = "error.profile.unavailable"
+  case protectedDataUnavailable = "error.protected_data.unavailable"
   case runtimeObservationUnavailable = "error.runtime.observation_unavailable"
   case runtimeOperationFailed = "error.runtime.operation_failed"
   case runtimeUnavailable = "error.runtime.unavailable"
@@ -25,11 +31,14 @@ enum TeraUserMessageKey: String, CaseIterable, Sendable {
   case settingsOperationFailed = "error.settings.operation_failed"
   case shutdownFailed = "error.shutdown.failed"
   case startupFailed = "error.startup.failed"
+  case stateChanged = "error.state.changed"
+  case storageFull = "error.storage.full"
   case todayChanged = "error.today.changed"
   case todaySelectNetwork = "error.today.select_network"
   case todayUnavailable = "error.today.unavailable"
   case tryAgain = "error.operation.try_again"
   case userPresenceUnavailable = "error.user_presence.unavailable"
+  case versionUnsupported = "error.version.unsupported"
 
   var defaultValue: String {
     switch self {
@@ -59,6 +68,24 @@ enum TeraUserMessageKey: String, CaseIterable, Sendable {
       "Location is unavailable."
     case .operationCancelled:
       "The operation was cancelled."
+    case .networkUnavailable:
+      "The service could not be reached. Check your connection."
+    case .networkPolicy:
+      "The service requires attention. Review its settings before trying again."
+    case .partialResult:
+      "Some results are unavailable. Refresh to check again."
+    case .operationConflict:
+      "This request conflicts with saved work. Review the existing operation."
+    case .operationOutcomeUnknown:
+      "The result is not yet known. Check the existing operation before trying again."
+    case .protectedDataUnavailable:
+      "Unlock your device to access saved work."
+    case .stateChanged:
+      "Saved state changed. Reload it before continuing."
+    case .storageFull:
+      "Storage is full. Free space before trying again."
+    case .versionUnsupported:
+      "This version cannot safely use the saved state or request. Check for an update."
     case .permissionDenied:
       "Permission was denied."
     case .profileUnavailable:

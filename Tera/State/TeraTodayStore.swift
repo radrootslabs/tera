@@ -272,19 +272,9 @@ final class TeraTodayStore: ObservableObject {
         return cards.filter { identifiers.insert($0.id).inserted }
     }
 
-    private static func failureState(_ error: Error) -> TeraTodayLoadState {
-        let failure: TeraRuntimeFailure? =
-            if case let TeraRuntimeClientError.today(value) = error {
-                value
-            } else if case let TeraRuntimeClientError.status(value) = error {
-                value
-            } else {
-                error as? TeraRuntimeFailure
-            }
+    static func failureState(_ error: Error) -> TeraTodayLoadState {
         let message = TeraUserMessages.text(for: error, fallback: .todayUnavailable)
-        guard let failure else { return .failed(message: message) }
-        let category = failure.category.lowercased()
-        if failure.retryable || category.contains("network") || category.contains("relay") {
+        if TeraRuntimeFailure.from(error)?.recovery.disposition == .networkUnavailable {
             return .offline(message: message)
         }
         return .failed(message: message)

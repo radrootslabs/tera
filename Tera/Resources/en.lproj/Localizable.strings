@@ -8,6 +8,15 @@
 "error.file.operation_failed" = "The file operation could not be completed.";
 "error.identity.operation_failed" = "The local identity operation could not be completed.";
 "error.location.unavailable" = "Location is unavailable.";
+"error.network.unavailable" = "The service could not be reached. Check your connection.";
+"error.network.policy" = "The service requires attention. Review its settings before trying again.";
+"error.result.partial" = "Some results are unavailable. Refresh to check again.";
+"error.operation.conflict" = "This request conflicts with saved work. Review the existing operation.";
+"error.operation.outcome_unknown" = "The result is not yet known. Check the existing operation before trying again.";
+"error.protected_data.unavailable" = "Unlock your device to access saved work.";
+"error.state.changed" = "Saved state changed. Reload it before continuing.";
+"error.storage.full" = "Storage is full. Free space before trying again.";
+"error.version.unsupported" = "This version cannot safely use the saved state or request. Check for an update.";
 "error.operation.cancelled" = "The operation was cancelled.";
 "error.operation.try_again" = "The operation could not be completed temporarily.";
 "error.permission.denied" = "Permission was denied.";

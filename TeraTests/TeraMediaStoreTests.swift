@@ -41,11 +41,11 @@ final class TeraMediaStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testRetryableRetrievalFailurePresentsOfflineState() async throws {
+    func testTransportFailurePresentsServiceUnavailableState() async throws {
         let backend = MediaBackend(
             retrievalFailure: TeraRuntimeFailure(
               schemaVersion: 1,
-              code: "media_network_offline",
+              code: "blossom_transport_failed",
               category: "network",
               retryable: true,
               recoveryActions: ["retry"],
@@ -61,7 +61,7 @@ final class TeraMediaStoreTests: XCTestCase {
         store.load(media: reference, context: makeContext())
 
         await waitUntil {
-            store.state(for: reference, context: makeContext()) == .offline
+            store.state(for: reference, context: makeContext()) == .networkUnavailable
         }
         _ = try await client.stop()
     }

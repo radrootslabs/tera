@@ -135,12 +135,28 @@ final class TeraTodayStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testStorageRefreshFailureKeepsCachedFeedWithoutClaimingOffline() async throws {
+        try await assertCachedRefreshFailure(
+          code: "today_storage_failed",
+          expected: .failed(message: TeraUserMessages.text(.secureStateUnavailable))
+        )
+    }
+
+    @MainActor
     func testOfflineRefreshStillLoadsTheDurableCachedFeed() async throws {
+        try await assertCachedRefreshFailure(
+          code: "today_relay_offline",
+          expected: .offline(message: TeraUserMessages.text(.networkUnavailable))
+        )
+    }
+
+    @MainActor
+    private func assertCachedRefreshFailure(code: String, expected: TeraTodayLoadState) async throws {
         let context = makeContext(id: "offline", label: "Offline")
         let cached = makeCard(id: "cached", type: .update)
         let failure = TeraRuntimeFailure(
           schemaVersion: 1,
-          code: "today_relay_offline",
+          code: code,
           category: "relay",
           retryable: true,
           recoveryActions: ["retry"],
@@ -173,10 +189,10 @@ final class TeraTodayStoreTests: XCTestCase {
         await store.reload()
 
         XCTAssertEqual(store.cards.map(\.id), ["cached"])
-        XCTAssertEqual(store.state, .offline(message: TeraUserMessages.text(.todayUnavailable)))
+        XCTAssertEqual(store.state, expected)
         await store.loadNextPage()
         XCTAssertEqual(store.cards.map(\.id), ["cached", "cached-next"])
-        XCTAssertEqual(store.state, .offline(message: TeraUserMessages.text(.todayUnavailable)))
+        XCTAssertEqual(store.state, expected)
         _ = try await client.stop()
     }
 

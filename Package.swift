@@ -55,6 +55,7 @@ let package = Package(
         "App/TeraRootShell.swift",
         "Runtime/TeraAddMediaCoordinator.swift",
         "Runtime/TeraCheckedTime.swift",
+        "Runtime/TeraErrorRecovery.swift",
         "Runtime/TeraGeneratedRuntimeBackend.swift",
         "Runtime/TeraLifecycleCoordinator.swift",
         "Runtime/TeraRuntimeClient.swift",

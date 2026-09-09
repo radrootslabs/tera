@@ -93,7 +93,7 @@ impl From<tera_core::TeraAppError> for TeraAppError {
         match error {
             tera_core::TeraAppError::Sdk { report } => Self::Failure {
                 report: TeraErrorRecord {
-                    schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                    schema_version: report.schema_version,
                     code: report.code,
                     category: report.class,
                     retryable: report.retryable,
@@ -105,7 +105,7 @@ impl From<tera_core::TeraAppError> for TeraAppError {
             },
             tera_core::TeraAppError::Store { report } => Self::Failure {
                 report: TeraErrorRecord {
-                    schema_version: MOBILE_FFI_SCHEMA_VERSION,
+                    schema_version: report.schema_version,
                     code: report.code,
                     category: report.class,
                     retryable: report.retryable,
@@ -154,15 +154,20 @@ impl From<TodayError> for TeraAppError {
                 ("today_cursor_invalid", true, &["restart_pagination"][..])
             }
             TodayError::RuntimeUnavailable => ("today_runtime_unavailable", true, &["retry"][..]),
-            TodayError::InboundMedia(_) => ("today_media_invalid", false, &["retry_media"][..]),
+            TodayError::InboundMedia(error) => (
+                tera_core::error::recovery::inbound_media_code(&error),
+                false,
+                &["review_media"][..],
+            ),
             TodayError::InboundRetrieval(error) => {
                 if error.retryable() {
-                    ("today_media_retrieval_failed", true, &["retry_media"][..])
+                    (error.code(), true, &["retry_media"][..])
                 } else {
-                    ("today_media_retrieval_failed", false, &["review_media"][..])
+                    (error.code(), false, &["review_media"][..])
                 }
             }
-            TodayError::CorruptProjection | TodayError::Serialization | TodayError::Storage(_) => {
+            TodayError::Storage(_) => ("today_storage_failed", true, &["inspect_local_stores"][..]),
+            TodayError::CorruptProjection | TodayError::Serialization => {
                 ("today_state_failed", true, &["rebuild", "retry"][..])
             }
         };
@@ -202,7 +207,13 @@ impl From<Phase1DraftError> for TeraAppError {
             Phase1DraftError::OperationUnavailable => {
                 ("authoring_unavailable", true, &["retry"][..])
             }
-            Phase1DraftError::Operation | Phase1DraftError::Storage | Phase1DraftError::Overlay => {
+            Phase1DraftError::Storage => (
+                "authoring_storage_failed",
+                true,
+                &["inspect_local_stores"][..],
+            ),
+            Phase1DraftError::Overlay => ("authoring_overlay_failed", true, &["refresh"][..]),
+            Phase1DraftError::Operation => {
                 ("authoring_failed", true, &["retry", "inspect_outbox"][..])
             }
             Phase1DraftError::Corrupt => ("draft_corrupt", false, &["recover_draft"][..]),
@@ -233,9 +244,7 @@ impl From<SettingsError> for TeraAppError {
     fn from(error: SettingsError) -> Self {
         let retryable = matches!(
             error,
-            SettingsError::RevisionConflict
-                | SettingsError::RevisionExhausted
-                | SettingsError::Storage
+            SettingsError::RevisionConflict | SettingsError::Storage
         );
         let actions = if matches!(error, SettingsError::RevisionConflict) {
             &["refresh"] as &[&str]
@@ -428,8 +437,9 @@ mod tests {
             Phase1InboundMediaError::CacheIo,
             Phase1InboundMediaError::CorruptArtifact,
         ] {
+            let expected = tera_core::error::recovery::inbound_media_code(&media);
             let error = TeraAppError::from(TodayError::InboundMedia(media));
-            assert_eq!(error.report().code, "today_media_invalid");
+            assert_eq!(error.report().code, expected);
         }
         for settings in [
             SettingsError::UnknownRelayAccess,
@@ -450,9 +460,7 @@ mod tests {
         ] {
             let expected_retryable = matches!(
                 settings,
-                SettingsError::RevisionConflict
-                    | SettingsError::RevisionExhausted
-                    | SettingsError::Storage
+                SettingsError::RevisionConflict | SettingsError::Storage
             );
             let error = TeraAppError::from(settings);
             assert_eq!(error.report().retryable, expected_retryable);

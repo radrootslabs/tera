@@ -33,7 +33,7 @@ struct TeraTodayView: View {
         .accessibilityIdentifier("radroots.today.error")
       case let .offline(message) where store.cards.isEmpty:
         unavailableView(
-          title: "You’re offline",
+          title: "Network unavailable",
           message: message,
           systemImage: "wifi.slash"
         )
@@ -389,8 +389,8 @@ struct TeraLocalMediaContent: View {
         ProgressView("Loading verified photo…")
       case .unavailable:
         mediaState("Photo is not available locally", systemImage: "photo", retries: true)
-      case .offline:
-        mediaState("Photo unavailable offline", systemImage: "wifi.slash", retries: true)
+      case .networkUnavailable:
+        mediaState("Photo service unavailable", systemImage: "wifi.slash", retries: true)
       case .corrupt:
         mediaState("Saved photo failed verification", systemImage: "shield.slash", retries: true)
       case .failed:

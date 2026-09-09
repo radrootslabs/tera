@@ -8,6 +8,7 @@ uniffi::setup_scaffolding!("tera_core");
 mod dto;
 pub mod logging;
 mod operations;
+mod recovery;
 mod runtime;
 mod signer;
 mod subscription;
@@ -15,6 +16,7 @@ mod subscription;
 pub use dto::*;
 pub use error::{TeraAppError, TeraErrorRecord};
 pub use operations::*;
+pub use recovery::*;
 pub use runtime::{ProtectedDataAvailability, TeraRuntime};
 pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,

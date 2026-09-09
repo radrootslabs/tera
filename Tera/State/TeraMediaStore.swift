@@ -6,7 +6,7 @@ enum TeraMediaPresentationState: Equatable {
   case loading
   case ready(TeraVerifiedMediaArtifact)
   case unavailable
-  case offline
+  case networkUnavailable
   case corrupt
   case failed
 
@@ -16,7 +16,7 @@ enum TeraMediaPresentationState: Equatable {
     case .loading: "Loading verified photo"
     case .ready: "Verified photo"
     case .unavailable: "Photo is not available locally"
-    case .offline: "Photo is unavailable while offline"
+    case .networkUnavailable: "The photo service could not be reached"
     case .corrupt: "The saved photo failed verification"
     case .failed: "Photo could not be loaded"
     }
@@ -151,22 +151,13 @@ final class TeraMediaStore: ObservableObject {
     "\(context.id)\u{0}\(context.generation)\u{0}\(media.referenceFingerprint)"
   }
 
-  private static func failureState(_ error: Error) -> TeraMediaPresentationState {
-    let failure: TeraRuntimeFailure? =
-      if case let TeraRuntimeClientError.support(value) = error {
-        value
-      } else {
-        error as? TeraRuntimeFailure
-      }
-    guard let failure else { return .failed }
-    if failure.code.contains("corrupt") || failure.code.contains("verification") {
+  static func failureState(_ error: Error) -> TeraMediaPresentationState {
+    guard let failure = TeraRuntimeFailure.from(error) else { return .failed }
+    if failure.recovery.disposition == .mediaCorrupt {
       return .corrupt
     }
-    if failure.retryable
-      || failure.category.localizedCaseInsensitiveContains("network")
-      || failure.category.localizedCaseInsensitiveContains("relay")
-    {
-      return .offline
+    if failure.recovery.disposition == .networkUnavailable {
+      return .networkUnavailable
     }
     return .failed
   }

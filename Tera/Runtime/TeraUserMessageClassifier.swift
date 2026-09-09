@@ -17,13 +17,13 @@ enum TeraUserMessageClassifier {
     fallback: TeraUserMessageKey
   ) -> TeraUserMessageKey? {
     if error is CancellationError {
-      return .operationCancelled
+      return .operationOutcomeUnknown
     }
     if let error = error as? TeraRuntimeClientError {
       return runtimeClientKey(error, fallback: fallback)
     }
-    if error is TeraRuntimeFailure {
-      return fallback
+    if let failure = error as? TeraRuntimeFailure {
+      return failure.messageKey(fallback: fallback)
     }
     if error is TeraConfigurationError {
       return .configurationInvalid
@@ -103,11 +103,12 @@ enum TeraUserMessageClassifier {
     switch error {
     case .invalidBufferCapacity: .invalidRequest
     case .notRunning: .runtimeUnavailable
-    case .superseded: .operationCancelled
-    case .startup: .startupFailed
-    case .subscription: .runtimeObservationUnavailable
-    case .shutdown: .shutdownFailed
-    case .status, .today, .add, .support: fallback
+    case .superseded: .operationOutcomeUnknown
+    case let .startup(failure): failure.messageKey(fallback: .startupFailed)
+    case let .subscription(failure): failure.messageKey(fallback: .runtimeObservationUnavailable)
+    case let .shutdown(failure): failure.messageKey(fallback: .shutdownFailed)
+    case let .status(failure), let .today(failure), let .add(failure), let .support(failure):
+      failure.messageKey(fallback: fallback)
     }
   }
 
