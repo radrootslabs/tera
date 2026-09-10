@@ -99,6 +99,7 @@ targets:
       - path: TeraTests/TeraClockTests.swift
       - path: TeraTests/TeraCalendarFFICompatibilityTests.swift
       - path: TeraTests/TeraCalendarTimingTests.swift
+      - path: TeraTests/TeraCalendarPresentationTests.swift
       - path: TeraTests/TeraRemoteQualificationTests.swift
       - path: TeraTests/TeraUserMessagesTests.swift
     settings:

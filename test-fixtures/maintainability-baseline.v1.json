@@ -10,7 +10,7 @@
   "swift_file_exception": [
     {"path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift", "maximum_lines": 1531},
     {"path": "Tera/Runtime/TeraRuntimeClient.swift", "maximum_lines": 835},
-    {"path": "Tera/Runtime/TeraRuntimeModels.swift", "maximum_lines": 1175},
+    {"path": "Tera/Runtime/TeraRuntimeModels.swift", "maximum_lines": 1154},
     {"path": "Tera/State/TeraAddStore.swift", "maximum_lines": 810},
     {"path": "Tera/State/TeraConfigurationStore.swift", "maximum_lines": 759},
     {"path": "Tera/Views/TeraSupportingViews.swift", "maximum_lines": 629},

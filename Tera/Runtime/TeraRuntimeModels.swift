@@ -646,26 +646,6 @@ struct TeraTodayCard: Sendable, Equatable, Hashable, Identifiable {
     return "\(priceAmount) \(priceCurrency)/\(priceUnit)"
   }
 
-  var accessibilitySummary: String {
-    var parts = [type.label, "by \(authorName)"]
-    if let title {
-      parts.append(title)
-    }
-    if !content.isEmpty {
-      parts.append(content)
-    }
-    if let priceSummary {
-      parts.append(priceSummary)
-    }
-    if lifecycle != .active {
-      parts.append(lifecycle.rawValue)
-    }
-    if let localOperationState {
-      parts.append(localOperationState)
-    }
-    return parts.joined(separator: ", ")
-  }
-
   var retractionTargetKind: UInt32? {
     switch type {
     case .update, .photoUpdate, .ask:

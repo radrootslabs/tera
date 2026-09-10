@@ -22,15 +22,18 @@ enum TeraTodayCardPresentation {
     self == .detail ? values : Array(values.prefix(Self.thumbnails))
   }
 
-  func accessibility(_ card: TeraTodayCard) -> String {
+  func accessibility(_ card: TeraTodayCard, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
     if self == .detail {
-      return card.accessibilitySummary
+      return card.accessibilitySummary(locale: locale, timeZone: timeZone)
     }
     var parts = [card.type.label, "by \(label(card.authorName))"]
     if let title = card.title {
       parts.append(label(title))
     }
     parts.append(content(card.content))
+    if let timing = card.calendarTiming {
+      parts.append(TeraCalendarPresentation(locale: locale, timeZone: timeZone).summary(timing))
+    }
     if let price = card.priceSummary {
       parts.append(label(price))
     }

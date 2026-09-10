@@ -51,14 +51,6 @@ enum TeraCalendarTiming: Sendable, Equatable, Hashable {
     guard seconds <= 253_402_300_799 else { return nil }
     return Date(timeIntervalSince1970: TimeInterval(seconds))
   }
-
-  var summary: String {
-    switch self {
-    case let .dateBased(start, _): start.canonical
-    case let .timeBased(start, _, _, _):
-      Self.presentationInstant(start)?.formatted(date: .abbreviated, time: .shortened) ?? "Date unavailable"
-    }
-  }
 }
 
 extension FfiCivilDate {

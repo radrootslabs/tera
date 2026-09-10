@@ -190,6 +190,8 @@ struct TeraTodayView: View {
 }
 
 struct TeraTodayCardView: View {
+  @Environment(\.locale) private var locale
+  @Environment(\.timeZone) private var timeZone
   let card: TeraTodayCard
   let context: TeraLocalNetwork?
   @ObservedObject var mediaStore: TeraMediaStore
@@ -219,7 +221,7 @@ struct TeraTodayCardView: View {
       }
 
       if card.type == .event {
-        eventMetadata
+        TeraCalendarMetadata(card: card, presentation: presentation)
       }
       if card.type == .foodAvailability {
         foodMetadata
@@ -248,19 +250,7 @@ struct TeraTodayCardView: View {
     }
     .padding(.vertical, 8)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel(presentation.accessibility(card))
-  }
-
-  private var eventMetadata: some View {
-    VStack(alignment: .leading, spacing: 4) {
-      if let timing = card.calendarTiming {
-        Label(timing.summary, systemImage: "calendar")
-      }
-      if let location = card.location {
-        Label(presentation.label(location), systemImage: "mappin.and.ellipse")
-      }
-    }
-    .font(.subheadline)
+    .accessibilityLabel(presentation.accessibility(card, locale: locale, timeZone: timeZone))
   }
 
   private var foodMetadata: some View {
