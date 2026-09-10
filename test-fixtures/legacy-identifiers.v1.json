@@ -2891,6 +2891,10 @@
         {
           "path": "scripts/test_ffi_artifacts.py",
           "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_provenance.py",
+          "count": 1
         }
       ]
     },
@@ -4301,6 +4305,10 @@
           "count": 4
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_sync_tests.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/sdk.rs",
           "count": 70
         },
@@ -4449,6 +4457,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",
+          "count": 1
         }
       ]
     },
@@ -4465,11 +4477,27 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/context.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_sync_caps_tests.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_sync_tests.rs",
           "count": 5
         },
         {
@@ -4492,6 +4520,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/context.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_sync_live_tests.rs",
           "count": 1
         }
       ]

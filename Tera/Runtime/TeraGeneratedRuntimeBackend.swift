@@ -176,39 +176,14 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     context: TeraLocalNetwork,
     nowUnixSeconds: UInt64,
     update: TeraTodayProjectionUpdate
-  ) async throws -> TeraTodayRefreshReceipt {
+  ) async throws -> TeraTodaySyncReceipt {
     do {
       let receipt = try await runtime.phase1SyncToday(
         context: context.generatedValue,
         nowUnixS: nowUnixSeconds,
         update: update.generatedValue
       )
-      switch receipt.relayState {
-      case .complete:
-        return receipt.projection.appValue
-      case .partial:
-        throw TeraRuntimeFailure(
-          schemaVersion: 1,
-          code: "today_relay_partial",
-          category: "relay",
-          retryable: true,
-          recoveryActions: ["retry"],
-          operationID: "runtime.today.refresh",
-          capabilityID: "nostr_source",
-          safeMessage: "Today refreshed from only part of the local network."
-        )
-      case .offline:
-        throw TeraRuntimeFailure(
-          schemaVersion: 1,
-          code: "today_relay_offline",
-          category: "relay",
-          retryable: true,
-          recoveryActions: ["retry"],
-          operationID: "runtime.today.refresh",
-          capabilityID: "nostr_source",
-          safeMessage: "Today is showing saved posts because the local network is offline."
-        )
-      }
+      return receipt.appValue
     } catch {
       throw Self.failure(from: error)
     }
@@ -883,29 +858,6 @@ extension TeraLocalNetwork {
 
 extension TeraTodayProjectionUpdate {
   fileprivate var generatedValue: FfiTodayProjectionUpdate {
-    switch self {
-    case .incremental: .incremental
-    case .rebuild: .rebuild
-    }
-  }
-}
-
-extension FfiTodayRefreshRecord {
-  fileprivate var appValue: TeraTodayRefreshReceipt {
-    TeraTodayRefreshReceipt(
-      update: update.appValue,
-      sourceEvents: sourceEvents,
-      visibleCards: visibleCards,
-      profiles: profiles,
-      threadEntries: threadEntries,
-      contentGeneration: contentGeneration,
-      changed: changed
-    )
-  }
-}
-
-extension FfiTodayProjectionUpdate {
-  fileprivate var appValue: TeraTodayProjectionUpdate {
     switch self {
     case .incremental: .incremental
     case .rebuild: .rebuild

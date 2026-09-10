@@ -33,5 +33,7 @@ docker run --rm --init --platform linux/amd64 \
     [[ "$(uname -m)" == "x86_64" ]]
     packages=(-p tera_core -p tera_ffi -p tera_bindgen)
     cargo check "${packages[@]}" --all-targets --locked
-    cargo test "${packages[@]}" --all-targets --locked
+    # Isolate test cases so emulated CPU work in other cases cannot consume
+    # real relay deadlines. Concurrency exercised inside each case is retained.
+    cargo test "${packages[@]}" --all-targets --locked -- --test-threads=1
   '

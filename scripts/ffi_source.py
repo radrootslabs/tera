@@ -107,6 +107,11 @@ def producer_contract(root: Path) -> dict[str, Any]:
     cargo = contract._read_toml(root / "Cargo.toml")
     lock = contract._read_toml(root / value["foundation_lock"])
     validate_foundation(cargo, lock)
+    contract._exact(
+        lock["lockfile_sha256"],
+        hashlib.sha256(read_source(root, "Cargo.lock")).hexdigest(),
+        "foundation consumer Cargo lock digest",
+    )
     toolchain = contract._read_toml(root / "rust-toolchain.toml")
     contract._exact(
         toolchain,

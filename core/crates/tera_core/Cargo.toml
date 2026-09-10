@@ -74,8 +74,10 @@ uuid = { workspace = true, features = ["v4"] }
 url = { workspace = true }
 
 [dev-dependencies]
+futures-util = { workspace = true }
 nostr = { workspace = true, features = ["std"] }
 radroots_nostr = { workspace = true, features = ["blossom", "signing"] }
 radroots_sdk = { workspace = true, features = ["memory", "sqlite"] }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt"] }
+tokio-tungstenite = { workspace = true }

@@ -231,7 +231,7 @@ private actor MediaBackend: TeraRuntimeBackend {
       context _: TeraLocalNetwork,
       nowUnixSeconds _: UInt64,
       update _: TeraTodayProjectionUpdate
-    ) throws -> TeraTodayRefreshReceipt {
+    ) throws -> TeraTodaySyncReceipt {
         throw testFailure(operation: "test.media.refresh")
     }
 

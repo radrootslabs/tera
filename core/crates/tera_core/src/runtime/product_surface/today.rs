@@ -28,15 +28,7 @@ use radroots_sdk::transport::{
     BlossomCancellation, BlossomError, BlossomImageDimensions, BlossomInboundRequest,
 };
 #[cfg(feature = "mobile-social")]
-use radroots_sync::{
-    PullRequest,
-    ingest::{AdmissionDecision, AdmissionPolicy},
-    pull::PullTermination,
-};
-#[cfg(feature = "mobile-social")]
-use radroots_transport::{
-    Target, outcome::FetchTargetState, source::FetchSelector, target::TargetSet,
-};
+use radroots_sync::ingest::{AdmissionDecision, AdmissionPolicy};
 
 #[cfg(feature = "mobile-social")]
 use super::Phase1LocalMediaArtifact;
@@ -77,6 +69,18 @@ mod paging_scope;
 #[path = "today_scope_tests.rs"]
 mod scope_tests;
 
+#[cfg(all(test, feature = "mobile-social"))]
+#[path = "today_sync_tests.rs"]
+mod sync_tests;
+
+#[cfg(all(test, feature = "mobile-social"))]
+#[path = "today_sync_live_tests.rs"]
+mod sync_live_tests;
+
+#[cfg(all(test, feature = "mobile-social"))]
+#[path = "today_sync_caps_tests.rs"]
+mod sync_caps_tests;
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum TodayProjectionUpdate {
@@ -106,25 +110,13 @@ pub struct TodayIngestReceipt {
 }
 
 #[cfg(feature = "mobile-social")]
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "PascalCase")]
-pub enum TodayRelaySyncState {
-    Complete,
-    Partial,
-    Offline,
-}
-
+#[path = "today_sync.rs"]
+mod relay_sync;
 #[cfg(feature = "mobile-social")]
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TodaySyncReceipt {
-    pub relay_state: TodayRelaySyncState,
-    pub pages_fetched: u16,
-    pub events_observed: u64,
-    pub events_admitted: u64,
-    pub events_rejected: u64,
-    pub projection: TodayRefreshReceipt,
-}
+pub use relay_sync::{
+    TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination, TodayTargetPageSummary,
+    TodayTargetSyncReceipt, TodayTargetSyncState,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TodayPageRequest {
@@ -231,73 +223,6 @@ struct FrozenTodaySnapshot {
 }
 
 impl TeraRuntime {
-    /// Pulls bounded Today-relevant relay pages, canonically admits valid
-    /// observations, and materializes the selected LocalNetwork projection.
-    #[cfg(feature = "mobile-social")]
-    pub async fn phase1_sync_today(
-        &self,
-        context: &LocalNetwork,
-        now_unix_seconds: u64,
-        update: TodayProjectionUpdate,
-    ) -> Result<TodaySyncReceipt, TodayError> {
-        let _command = self.lifecycle.enter()?;
-        if now_unix_seconds == 0 {
-            return Err(TodayError::InvalidRequest);
-        }
-        let targets = context
-            .relay_urls
-            .iter()
-            .map(Target::nostr_relay)
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(|_| TodayError::InvalidRequest)?;
-        let targets = TargetSet::new(targets).map_err(|_| TodayError::InvalidRequest)?;
-        let selector = FetchSelector::all()
-            .with_kinds(TODAY_SYNC_KINDS.to_vec())
-            .map_err(|_| TodayError::InvalidRequest)?;
-        let request = PullRequest::new(targets, TODAY_SYNC_PAGE_LIMIT, TODAY_SYNC_MAX_PAGES)
-            .map_err(|_| TodayError::RuntimeUnavailable)?
-            .with_selector(selector);
-        let sync = self
-            .client
-            .sync()
-            .map_err(|_| TodayError::RuntimeUnavailable)?
-            .ok_or(TodayError::RuntimeUnavailable)?;
-        let pull = sync
-            .pull(request, &TodayAdmissionPolicy)
-            .await
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let projection = self
-            .phase1_refresh_today(context, now_unix_seconds, update)
-            .await?;
-        let events_admitted = pull
-            .ingest_outcomes()
-            .iter()
-            .filter(|outcome| outcome.is_ok())
-            .count() as u64;
-        let events_observed = u64::try_from(pull.events_observed()).unwrap_or(u64::MAX);
-        let events_rejected = events_observed.saturating_sub(events_admitted);
-        let target_complete = !pull.target_outcomes().is_empty()
-            && pull
-                .target_outcomes()
-                .iter()
-                .all(|outcome| outcome.state() == FetchTargetState::Complete);
-        let relay_state = match pull.termination() {
-            PullTermination::Complete if target_complete => TodayRelaySyncState::Complete,
-            PullTermination::SourceFailed if pull.pages_fetched() == 0 => {
-                TodayRelaySyncState::Offline
-            }
-            _ => TodayRelaySyncState::Partial,
-        };
-        Ok(TodaySyncReceipt {
-            relay_state,
-            pages_fetched: pull.pages_fetched(),
-            events_observed,
-            events_admitted,
-            events_rejected,
-            projection,
-        })
-    }
-
     /// Durably admits one already verified and visibility-authorized relay observation,
     /// then advances the selected LocalNetwork projection.
     pub async fn phase1_ingest_visible(

@@ -923,7 +923,7 @@ private actor AddBackend: TeraRuntimeBackend {
     context _: TeraLocalNetwork,
     nowUnixSeconds _: UInt64,
     update _: TeraTodayProjectionUpdate
-  ) throws -> TeraTodayRefreshReceipt {
+  ) throws -> TeraTodaySyncReceipt {
     throw unsupported()
   }
 

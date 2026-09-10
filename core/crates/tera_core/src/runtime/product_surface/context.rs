@@ -85,6 +85,9 @@ impl LocalNetwork {
         if relay_urls.is_empty() {
             return Err(LocalNetworkError::MissingRelay);
         }
+        if relay_urls.len() > radroots_transport::target::TARGET_SET_MAX_ITEMS {
+            return Err(LocalNetworkError::InvalidRelay);
+        }
         let mut relays = BTreeSet::new();
         let mut canonical_relay_urls = Vec::with_capacity(relay_urls.len());
         for relay in relay_urls {

@@ -19,6 +19,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   private var pages: [String: TeraTodayPage] = [:]
   private var meCards = [TeraScopeFixtures.card("old")]
   private var revision: UInt64 = 0
+  private var syncReceipt: TeraTodaySyncReceipt?
 
   init() throws {
     media = try TeraScopeFixtures.artifact("a")
@@ -32,6 +33,10 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func configure(_ value: TeraRuntimeSnapshot) {
     self.value = value
+  }
+
+  func setSyncReceipt(_ receipt: TeraTodaySyncReceipt) {
+    syncReceipt = receipt
   }
 
   func setDrafts(_ values: [TeraDraftStatus]) {
@@ -107,11 +112,10 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func refreshToday(
     context _: TeraLocalNetwork, nowUnixSeconds _: UInt64, update: TeraTodayProjectionUpdate
-  ) async throws -> TeraTodayRefreshReceipt {
+  ) async throws -> TeraTodaySyncReceipt {
+    let result = syncReceipt ?? TeraTodaySyncFixtures.receipt(update: update)
     try await wait(.refresh)
-    return TeraTodayRefreshReceipt(
-      update: update, sourceEvents: 0, visibleCards: 0, profiles: 0, threadEntries: 0, contentGeneration: 1, changed: false
-    )
+    return result
   }
 
   func search(

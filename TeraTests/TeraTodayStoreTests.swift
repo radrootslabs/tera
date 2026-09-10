@@ -360,19 +360,11 @@ private actor TodayBackend: TeraRuntimeBackend {
       context _: TeraLocalNetwork,
       nowUnixSeconds _: UInt64,
       update: TeraTodayProjectionUpdate
-    ) throws -> TeraTodayRefreshReceipt {
+    ) throws -> TeraTodaySyncReceipt {
         if let refreshFailure {
             throw refreshFailure
         }
-        return TeraTodayRefreshReceipt(
-          update: update,
-          sourceEvents: 0,
-          visibleCards: 0,
-          profiles: 0,
-          threadEntries: 0,
-          contentGeneration: 1,
-          changed: false
-        )
+        return TeraTodaySyncFixtures.receipt(update: update)
     }
 
     func subscribe(

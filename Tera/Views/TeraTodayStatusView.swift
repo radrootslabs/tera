@@ -14,6 +14,9 @@ struct TeraTodayStatusView: View {
       if case let .failed(failure) = presentation.refresh {
         Label("Refresh failed. \(failure.message)", systemImage: failure.systemImage)
       }
+      ForEach(Array(presentation.relayMessages.enumerated()), id: \.offset) { _, message in
+        Text(message)
+      }
       if let failure = presentation.readFailure {
         Label(failure.readStatus, systemImage: failure.systemImage)
       }

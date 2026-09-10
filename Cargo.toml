@@ -26,26 +26,28 @@ unimplemented = "deny"
 
 [workspace.dependencies]
 chrono = { version = "0.4" }
+futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hex = { version = "0.4" }
 nostr = { version = "0.44.7", default-features = false }
-radroots_blossom = { package = "radroots_blossom", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_event = { package = "radroots_event", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_event_codec = { package = "radroots_event_codec", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_identity = { package = "radroots_identity", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_nostr = { package = "radroots_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_protocol = { package = "radroots_protocol", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_sdk = { version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_signing = { package = "radroots_signing", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_storage = { package = "radroots_storage", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_sync = { package = "radroots_sync", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_transport = { package = "radroots_transport", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
-radroots_transport_nostr = { package = "radroots_transport_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ad17b7d3455a7147cfa303d976fc5c70c3a4c0cb" }
+radroots_blossom = { package = "radroots_blossom", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_event = { package = "radroots_event", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_event_codec = { package = "radroots_event_codec", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_identity = { package = "radroots_identity", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_nostr = { package = "radroots_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_protocol = { package = "radroots_protocol", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_sdk = { version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_signing = { package = "radroots_signing", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_storage = { package = "radroots_storage", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_sync = { package = "radroots_sync", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_transport = { package = "radroots_transport", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
+radroots_transport_nostr = { package = "radroots_transport_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "ab084e6943b24e24cb7408f05fbb6241ae8f8c83" }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 sha2 = { version = "0.10", default-features = false }
 tempfile = { version = "3" }
 thiserror = { version = "1" }
 tokio = { version = "1" }
+tokio-tungstenite = { version = "0.26.2", default-features = false, features = ["handshake"] }
 url = { version = "2" }
 uuid = { version = "1.22.0", features = ["v4", "v7"] }
 async-trait = { version = "0.1.89" }

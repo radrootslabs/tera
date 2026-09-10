@@ -71,7 +71,10 @@ pub use today::{
     TodayError, TodayIngestReceipt, TodayPageRequest, TodayProjectionUpdate, TodayRefreshReceipt,
 };
 #[cfg(feature = "mobile-social")]
-pub use today::{TodayRelaySyncState, TodaySyncReceipt};
+pub use today::{
+    TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination, TodayTargetPageSummary,
+    TodayTargetSyncReceipt, TodayTargetSyncState,
+};
 
 use super::TeraRuntime;
 

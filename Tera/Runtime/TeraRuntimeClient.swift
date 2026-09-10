@@ -11,7 +11,7 @@ protocol TeraRuntimeBackend: Sendable {
     context: TeraLocalNetwork,
     nowUnixSeconds: UInt64,
     update: TeraTodayProjectionUpdate
-  ) async throws -> TeraTodayRefreshReceipt
+  ) async throws -> TeraTodaySyncReceipt
   func search(
     context: TeraLocalNetwork,
     query: String,
@@ -433,7 +433,7 @@ actor TeraRuntimeClient {
     context: TeraLocalNetwork,
     nowUnixSeconds: UInt64,
     update: TeraTodayProjectionUpdate = .incremental
-  ) async throws -> TeraTodayRefreshReceipt {
+  ) async throws -> TeraTodaySyncReceipt {
     do {
       return try await runtimeOperation("runtime.today.refresh") { backend in
         try await backend.refreshToday(

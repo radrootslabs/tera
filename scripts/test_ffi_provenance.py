@@ -179,6 +179,23 @@ class ProducerSourceTests(unittest.TestCase):
         ):
             source.validate_foundation(changed, lock)
 
+    def test_mismatched_foundation_consumer_lock_fails_before_source_capture(
+        self,
+    ) -> None:
+        read_toml = contract._read_toml
+
+        def mismatched(path: Path) -> dict:
+            value = read_toml(path)
+            if path.name == "radroots.lib.source-lock.v1.toml":
+                value["lockfile_sha256"] = "0" * 64
+            return value
+
+        with patch.object(contract, "_read_toml", side_effect=mismatched):
+            with self.assertRaisesRegex(
+                contract.PackageContractError, "foundation consumer Cargo lock digest"
+            ):
+                source.producer_contract(SCRIPTS.parent)
+
     def test_host_install_name_is_fixed_and_scoped_to_the_ffi_library(self) -> None:
         config = source.producer_contract(SCRIPTS.parent)
         build = config["build"]

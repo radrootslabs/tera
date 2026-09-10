@@ -25,8 +25,7 @@ use tera_core::runtime::{
         Phase1InboundMediaState, Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState,
         Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1UploadIntent, ProfileSummary,
         SearchResult, SearchResultType, SupportingProfile, ThreadEntry, TodayCard, TodayCardType,
-        TodayPage, TodayProjectionUpdate, TodayRefreshReceipt, TodayRelaySyncState,
-        TodaySyncReceipt,
+        TodayPage, TodayProjectionUpdate, TodayRefreshReceipt,
     },
     sdk::{
         SdkBlossomConfigurationRecord, SdkBlossomEvidenceRecord, SdkCapabilityRecord,
@@ -36,6 +35,12 @@ use tera_core::runtime::{
 };
 
 use crate::TeraAppError;
+
+mod today_sync;
+pub use today_sync::{
+    FfiTodayRelaySyncState, FfiTodaySyncRecord, FfiTodaySyncTermination, FfiTodayTargetPageSummary,
+    FfiTodayTargetSyncRecord, FfiTodayTargetSyncState,
+};
 
 pub const MOBILE_FFI_SCHEMA_VERSION: u16 = 1;
 pub const PREPARED_MEDIA_FFI_SCHEMA_VERSION: u16 = 2;
@@ -768,43 +773,6 @@ pub struct FfiTodayRefreshRecord {
     pub thread_entries: u64,
     pub content_generation: u64,
     pub changed: bool,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
-pub enum FfiTodayRelaySyncState {
-    Complete,
-    Partial,
-    Offline,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
-pub struct FfiTodaySyncRecord {
-    pub schema_version: u16,
-    pub relay_state: FfiTodayRelaySyncState,
-    pub pages_fetched: u16,
-    pub events_observed: u64,
-    pub events_admitted: u64,
-    pub events_rejected: u64,
-    pub projection: FfiTodayRefreshRecord,
-}
-
-#[cfg_attr(coverage_nightly, coverage(off))]
-impl From<TodaySyncReceipt> for FfiTodaySyncRecord {
-    fn from(value: TodaySyncReceipt) -> Self {
-        Self {
-            schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            relay_state: match value.relay_state {
-                TodayRelaySyncState::Complete => FfiTodayRelaySyncState::Complete,
-                TodayRelaySyncState::Partial => FfiTodayRelaySyncState::Partial,
-                TodayRelaySyncState::Offline => FfiTodayRelaySyncState::Offline,
-            },
-            pages_fetched: value.pages_fetched,
-            events_observed: value.events_observed,
-            events_admitted: value.events_admitted,
-            events_rejected: value.events_rejected,
-            projection: value.projection.into(),
-        }
-    }
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]

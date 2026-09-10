@@ -722,16 +722,6 @@ enum TeraTodayProjectionUpdate: Sendable, Equatable {
   case rebuild
 }
 
-struct TeraTodayRefreshReceipt: Sendable, Equatable {
-  let update: TeraTodayProjectionUpdate
-  let sourceEvents: UInt64
-  let visibleCards: UInt64
-  let profiles: UInt64
-  let threadEntries: UInt64
-  let contentGeneration: UInt64
-  let changed: Bool
-}
-
 enum TeraSearchResultType: Sendable, Equatable, Hashable {
   case card
   case profile

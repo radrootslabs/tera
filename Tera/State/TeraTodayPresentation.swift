@@ -66,10 +66,12 @@ struct TeraTodayPresentation: Sendable, Equatable {
   private(set) var content: TeraTodayContentAvailability = .notLoaded
   private(set) var refresh: TeraTodayRefreshState = .idle
   private(set) var freshness: TeraTodayFreshness = .unconfirmed
+  private(set) var relayReceipt: TeraTodaySyncReceipt?
   private(set) var readFailure: TeraTodayFailure?
   private(set) var isReading = false
 
   mutating func beginReload() {
+    relayReceipt = nil
     readFailure = nil
     isReading = false
     freshness = .unconfirmed
@@ -82,7 +84,8 @@ struct TeraTodayPresentation: Sendable, Equatable {
     refresh = .refreshing
   }
 
-  mutating func refreshCompleted() {
+  mutating func refreshCompleted(_ receipt: TeraTodaySyncReceipt) {
+    relayReceipt = receipt
     refresh = .completed
   }
 
@@ -139,6 +142,7 @@ struct TeraTodayPresentation: Sendable, Equatable {
     if case let .failed(failure) = refresh {
       messages.append("Refresh failed. \(failure.message)")
     }
+    messages.append(contentsOf: relayMessages)
     if let readFailure {
       messages.append(readFailure.readStatus)
     }

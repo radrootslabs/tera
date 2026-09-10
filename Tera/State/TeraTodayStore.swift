@@ -183,8 +183,8 @@ final class TeraTodayStore: ObservableObject {
               context: context, nowUnixSeconds: clock.unixSeconds(), update: update
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return nil }
-            presentation.refreshCompleted()
-            return receipt
+            presentation.refreshCompleted(receipt)
+            return receipt.projection
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return nil }
             presentation.refreshFailed(error)
