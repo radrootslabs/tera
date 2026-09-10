@@ -13,7 +13,8 @@ enum TeraAddPresentation {
   static func newForm(
     type: TeraAddCommandType,
     identifier: @Sendable () -> String,
-    clock: TeraClock
+    clock: TeraClock,
+    timeZone: TimeZone = .current
   ) -> TeraAddForm {
     var form = TeraAddForm.empty(type)
     if type == .createEvent || type == .createFoodAvailability {
@@ -26,16 +27,7 @@ enum TeraAddPresentation {
       guard let now = try? clock.unixSeconds() else {
         return form
       }
-      let start = now.addingReportingOverflow(3600).overflow ? now : now + 3600
-      let end = start.addingReportingOverflow(3600).overflow ? start : start + 3600
-      form.eventStartUnixSeconds = start
-      form.eventEndUnixSeconds = end
-      form.eventStartDate = eventDateFormatter.string(
-        from: Date(timeIntervalSince1970: TimeInterval(start))
-      )
-      form.eventEndDate = eventDateFormatter.string(
-        from: Date(timeIntervalSince1970: TimeInterval(end))
-      )
+      TeraCalendarEditing.initialize(&form, now: now, timeZone: timeZone)
     }
     return form
   }
@@ -46,15 +38,6 @@ enum TeraAddPresentation {
         (byte >= 0x30 && byte <= 0x39) || (byte >= 0x61 && byte <= 0x66)
       }
   }
-
-  static let eventDateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.calendar = Calendar(identifier: .gregorian)
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    formatter.dateFormat = "yyyy-MM-dd"
-    return formatter
-  }()
 
   static func message(for error: Error) -> String {
     TeraUserMessages.text(for: error, fallback: .addOperationFailed)

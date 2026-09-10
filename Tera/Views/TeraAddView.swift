@@ -174,27 +174,7 @@ struct TeraAddView: View {
         label: "Location (optional)", text: optional(\.location), focus: .location,
         identifier: "radroots.add.location"
       )
-      Picker("When", selection: optionalTiming) {
-        ForEach(TeraEventTiming.allCases) { timing in
-          Text(timing.label).tag(Optional(timing))
-        }
-      }
-      .accessibilityIdentifier("radroots.add.event_timing")
-      if store.form.eventTiming == .allDay {
-        DatePicker("Starts", selection: allDayStart, displayedComponents: .date)
-          .accessibilityLabel("Starts")
-          .accessibilityIdentifier("radroots.add.event.start")
-        DatePicker("Ends", selection: allDayEnd, displayedComponents: .date)
-          .accessibilityLabel("Ends")
-          .accessibilityIdentifier("radroots.add.event.end")
-      } else {
-        DatePicker("Starts", selection: timedStart)
-          .accessibilityLabel("Starts")
-          .accessibilityIdentifier("radroots.add.event.start")
-        DatePicker("Ends", selection: timedEnd)
-          .accessibilityLabel("Ends")
-          .accessibilityIdentifier("radroots.add.event.end")
-      }
+      TeraCalendarComposerFields(store: store)
     }
   }
 
@@ -397,10 +377,6 @@ struct TeraAddView: View {
     Binding(get: { store.form.commandType }, set: { store.selectType($0) })
   }
 
-  private var optionalTiming: Binding<TeraEventTiming?> {
-    Binding(get: { store.form.eventTiming }, set: { store.updateForm(\.eventTiming, $0) })
-  }
-
   private func optional(_ keyPath: WritableKeyPath<TeraAddForm, String?>) -> Binding<String> {
     Binding(
       get: { store.form[keyPath: keyPath] ?? "" },
@@ -412,54 +388,6 @@ struct TeraAddView: View {
     Binding(
       get: { store.form[keyPath: keyPath] },
       set: { store.updateForm(keyPath, $0) }
-    )
-  }
-
-  private var timedStart: Binding<Date> {
-    secondsBinding(\.eventStartUnixSeconds, defaultOffset: 3600)
-  }
-
-  private var timedEnd: Binding<Date> {
-    secondsBinding(\.eventEndUnixSeconds, defaultOffset: 7200)
-  }
-
-  private func secondsBinding(
-    _ keyPath: WritableKeyPath<TeraAddForm, UInt64?>,
-    defaultOffset: TimeInterval
-  ) -> Binding<Date> {
-    Binding(
-      get: {
-        store.form[keyPath: keyPath]
-          .map { Date(timeIntervalSince1970: TimeInterval($0)) }
-          ?? Date().addingTimeInterval(defaultOffset)
-      },
-      set: {
-        guard let value = try? TeraClock.unixSeconds(from: $0, requirePositive: true) else {
-          return
-        }
-        store.updateForm(keyPath, value)
-      }
-    )
-  }
-
-  private var allDayStart: Binding<Date> {
-    dateBinding(\.eventStartDate, defaultOffset: 86400)
-  }
-
-  private var allDayEnd: Binding<Date> {
-    dateBinding(\.eventEndDate, defaultOffset: 172_800)
-  }
-
-  private func dateBinding(
-    _ keyPath: WritableKeyPath<TeraAddForm, String?>,
-    defaultOffset: TimeInterval
-  ) -> Binding<Date> {
-    Binding(
-      get: {
-        store.form[keyPath: keyPath].flatMap(Self.dateFormatter.date(from:))
-          ?? Calendar.current.startOfDay(for: Date().addingTimeInterval(defaultOffset))
-      },
-      set: { store.updateForm(keyPath, Self.dateFormatter.string(from: $0)) }
     )
   }
 
@@ -482,15 +410,6 @@ struct TeraAddView: View {
     default: "info.circle"
     }
   }
-
-  private static let dateFormatter: DateFormatter = {
-    let formatter = DateFormatter()
-    formatter.calendar = Calendar(identifier: .gregorian)
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    formatter.timeZone = TimeZone(secondsFromGMT: 0)
-    formatter.dateFormat = "yyyy-MM-dd"
-    return formatter
-  }()
 }
 
 struct TeraDraftsSheet: View {

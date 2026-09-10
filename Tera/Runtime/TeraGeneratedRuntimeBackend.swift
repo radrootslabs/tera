@@ -1018,7 +1018,7 @@ extension TeraEventTiming {
 }
 
 extension TeraAddRuntimeInput {
-  fileprivate var generatedValue: FfiAddDraftInput {
+  var generatedValue: FfiAddDraftInput {
     FfiAddDraftInput(
       schemaVersion: 1,
       commandType: form.commandType.generatedValue,
@@ -1028,8 +1028,8 @@ extension TeraAddRuntimeInput {
       summary: form.summary,
       location: form.location,
       eventTiming: form.eventTiming?.generatedValue,
-      eventStartDate: form.eventStartDate,
-      eventEndDate: form.eventEndDate,
+      eventStartDate: TeraCivilDateInput(raw: form.eventStartDate).canonicalOrRaw,
+      eventEndDate: TeraCivilDateInput(raw: form.eventEndDate).canonicalOrRaw,
       eventStartUnixS: form.eventStartUnixSeconds,
       eventEndUnixS: form.eventEndUnixSeconds,
       eventTimezone: form.eventTimezone,

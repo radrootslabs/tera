@@ -21,6 +21,7 @@
 		31CBA09815D972CCE187009F /* TeraSessionResourceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4383B870D20178E633610113 /* TeraSessionResourceTests.swift */; };
 		38EF7FA8874E82B28110A232 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 6967B3EAC4CF1A410B26DD1A /* PrivacyInfo.xcprivacy */; };
 		39B47EE698E9D7CC716A372F /* TeraRuntimeShutdownTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91E82E561F73A1BE6BBF09B7 /* TeraRuntimeShutdownTests.swift */; };
+		3D219E759CFB685936EB7068 /* TeraCalendarEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C48B4B5442B1A404C1A328 /* TeraCalendarEditingTests.swift */; };
 		4734A842C366608EC1BD31C5 /* TeraUserMessagesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46DDEE781FDD92A292FD847B /* TeraUserMessagesTests.swift */; };
 		53651EBAF42E8698717CE936 /* TeraScopedStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF28A9D711806A07A4A65EA8 /* TeraScopedStoreTests.swift */; };
 		5F252ABA8CA48D5E3A7A0157 /* TeraMediaVisibilityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27E1E87F9A11E85700F38635 /* TeraMediaVisibilityTests.swift */; };
@@ -29,6 +30,7 @@
 		64D49ADFD3FDD54CBA509DC5 /* TeraTodayStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 794D475C70BA8ED994D1CA66 /* TeraTodayStoreTests.swift */; };
 		671EF50DB4EFBC25AABF26DC /* TeraLifecycleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C890BDE885536BC2AB215393 /* TeraLifecycleTests.swift */; };
 		6B0BE8E92892EF60B8E996A5 /* TeraRuntimeResourceFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0A51F9AF2E0803264E07FBB /* TeraRuntimeResourceFixtures.swift */; };
+		6DB9A1B2B9ABD39613561459 /* TeraCalendarComposerFFITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA1A8EA600F6BDC45333520C /* TeraCalendarComposerFFITests.swift */; };
 		6F53FF88A29F8DF93F074EB4 /* TeraBackgroundUploadFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61D8C0835D5A1D5C36D80020 /* TeraBackgroundUploadFixtures.swift */; };
 		6FED2D2255CC702B33CDC760 /* TeraOpenedMediaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B10B1F3C7FCD9A72F04FC00 /* TeraOpenedMediaTests.swift */; };
 		7035433B676A50A4801A8DFC /* TeraRuntimeInvalidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73EBD10E201ECA26DCED523F /* TeraRuntimeInvalidationTests.swift */; };
@@ -100,6 +102,7 @@
 		21DD785439F415278214D746 /* TeraObservationCoalescingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraObservationCoalescingTests.swift; sourceTree = "<group>"; };
 		226F5C2370522AAFAD9D1C3D /* TeraRuntimeResourceLifecycleTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRuntimeResourceLifecycleTests.swift; sourceTree = "<group>"; };
 		2521493B0CD2B82445974E81 /* TeraMediaOwnershipFFITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraMediaOwnershipFFITests.swift; sourceTree = "<group>"; };
+		27C48B4B5442B1A404C1A328 /* TeraCalendarEditingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraCalendarEditingTests.swift; sourceTree = "<group>"; };
 		27D9D40699A01FFB02F30B11 /* local-social-personas.v1.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = "local-social-personas.v1.json"; sourceTree = "<group>"; };
 		27E1E87F9A11E85700F38635 /* TeraMediaVisibilityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraMediaVisibilityTests.swift; sourceTree = "<group>"; };
 		2A4FFC0023C620B68D0EC0ED /* TeraRuntimeBoundedTaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRuntimeBoundedTaskTests.swift; sourceTree = "<group>"; };
@@ -163,6 +166,7 @@
 		F0A51F9AF2E0803264E07FBB /* TeraRuntimeResourceFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRuntimeResourceFixtures.swift; sourceTree = "<group>"; };
 		F596D3A9B9E236963DCE15D7 /* TeraMediaBudgetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraMediaBudgetTests.swift; sourceTree = "<group>"; };
 		F65B01F6F5F7E125148EC4FD /* TeraTodayReconciliationFFITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraTodayReconciliationFFITests.swift; sourceTree = "<group>"; };
+		FA1A8EA600F6BDC45333520C /* TeraCalendarComposerFFITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraCalendarComposerFFITests.swift; sourceTree = "<group>"; };
 		FB77C087F15C2F42CD959607 /* TeraRuntimeClientTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRuntimeClientTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -231,6 +235,8 @@
 				9F22CFABCF27A28408F68D25 /* TeraAddStoreTests.swift */,
 				61D8C0835D5A1D5C36D80020 /* TeraBackgroundUploadFixtures.swift */,
 				58E711687008866790042792 /* TeraBindingPortabilityTests.swift */,
+				FA1A8EA600F6BDC45333520C /* TeraCalendarComposerFFITests.swift */,
+				27C48B4B5442B1A404C1A328 /* TeraCalendarEditingTests.swift */,
 				3B808E67E85CD36E49C38B6F /* TeraCalendarFFICompatibilityTests.swift */,
 				5CFC5639BDCD2A5C1C27FE38 /* TeraCalendarPresentationTests.swift */,
 				36AF0D194520F0F02EAD6B50 /* TeraCalendarTimingTests.swift */,
@@ -495,6 +501,8 @@
 				A1AD2A380F09994786889AF1 /* TeraAddStoreTests.swift in Sources */,
 				6F53FF88A29F8DF93F074EB4 /* TeraBackgroundUploadFixtures.swift in Sources */,
 				FB585785DC906CB2AE4AE535 /* TeraBindingPortabilityTests.swift in Sources */,
+				6DB9A1B2B9ABD39613561459 /* TeraCalendarComposerFFITests.swift in Sources */,
+				3D219E759CFB685936EB7068 /* TeraCalendarEditingTests.swift in Sources */,
 				772A9B1AD8DE1D2E0969F285 /* TeraCalendarFFICompatibilityTests.swift in Sources */,
 				BF0BF2D7F46217C4EBCA570C /* TeraCalendarPresentationTests.swift in Sources */,
 				9309D7175535546A0C878F75 /* TeraCalendarTimingTests.swift in Sources */,
