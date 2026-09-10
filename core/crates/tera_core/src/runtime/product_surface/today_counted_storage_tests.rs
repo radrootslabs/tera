@@ -2,7 +2,8 @@
 // store. Counts describe SPI calls and returned rows, not disabled SQL telemetry.
 use radroots_storage::{
     Error, atomic::*, authored::*, authored_atomic::*, authored_delivery::*, authored_draft::*,
-    backup::*, event::*, journal::*, outbox::*, private_artifact::*, projection::*, status::*,
+    authored_draft_query::*, backup::*, event::*, journal::*, outbox::*, private_artifact::*,
+    projection::*, status::*,
 };
 use std::sync::{Arc, Mutex};
 
@@ -470,6 +471,12 @@ impl AuthoredAtomicStorage for CountedStorage {
 }
 
 impl AuthoredDraftStore for CountedStorage {
+    fn query_authored_drafts(
+        &self,
+        query: AuthoredDraftQuery,
+    ) -> BoxFuture<'_, Result<AuthoredDraftPage, Error>> {
+        AuthoredDraftStore::query_authored_drafts(self.storage(), query)
+    }
     fn append_authored_draft(
         &self,
         draft: AuthoredDraft,

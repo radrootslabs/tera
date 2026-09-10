@@ -91,6 +91,10 @@ impl RuntimeBuilder {
 }
 
 #[cfg(test)]
+#[path = "builder_draft_tests.rs"]
+mod draft_tests;
+
+#[cfg(test)]
 mod tests {
     use super::RuntimeBuilder;
     #[cfg(feature = "mobile-social")]
