@@ -271,14 +271,28 @@ async fn malformed_known_profiles_and_bad_signatures_do_not_displace_valid_batch
             receipt.events_admitted,
             receipt.events_rejected
         ),
-        (7, 1, 6)
+        (7, 5, 2)
     );
     assert_eq!(
         (
             receipt.projection.source_events,
             receipt.projection.visible_cards
         ),
-        (1, 1)
+        (5, 1)
+    );
+    let raw = EventStore::query_raw(
+        runtime.client.storage().unwrap(),
+        EventQuery::all(EventQueryBounds::first(10).unwrap()),
+    )
+    .await
+    .unwrap();
+    assert_eq!(
+        raw.items()
+            .iter()
+            .filter(|row| row.stage() == radroots_storage::event::AdmissionStage::Verified)
+            .count(),
+        4,
+        "malformed signed heads are retained as evidence, never visible content"
     );
     let page = runtime
         .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_100))

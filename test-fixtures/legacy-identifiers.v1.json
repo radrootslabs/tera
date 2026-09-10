@@ -1783,6 +1783,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/store.rs",
           "count": 2
         },
@@ -4014,7 +4018,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
-          "count": 5
+          "count": 6
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",
@@ -4022,6 +4026,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
           "count": 1
         },
         {
@@ -4073,6 +4081,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",
           "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
+          "count": 2
         }
       ]
     },
@@ -4441,6 +4453,10 @@
           "count": 11
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
           "count": 1
         },
@@ -4539,6 +4555,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_sync_tests.rs",
           "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
+          "count": 3
         },
         {
           "path": "core/crates/tera_core/src/runtime/sdk.rs",

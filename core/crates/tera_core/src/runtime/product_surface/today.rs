@@ -28,7 +28,7 @@ use radroots_sdk::transport::{
     BlossomCancellation, BlossomError, BlossomImageDimensions, BlossomInboundRequest,
 };
 #[cfg(feature = "mobile-social")]
-use radroots_sync::ingest::{AdmissionDecision, AdmissionPolicy};
+use radroots_sync::ingest::{AdmissionDecision, AdmissionPolicy, ContractFailureDecision};
 
 #[cfg(feature = "mobile-social")]
 use super::Phase1LocalMediaArtifact;
@@ -84,6 +84,10 @@ mod sync_caps_tests;
 #[cfg(all(test, feature = "mobile-social"))]
 #[path = "today_admission_tests.rs"]
 mod admission_tests;
+
+#[cfg(all(test, feature = "mobile-social"))]
+#[path = "today_visibility_tests.rs"]
+mod visibility_tests;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -211,6 +215,8 @@ struct TodayProjectionState {
     // next scoped read rebuilds it from source while retaining overlays/cache.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     query_scope: Option<[u8; 32]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    visibility_digest: Option<[u8; 32]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -278,9 +284,10 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
-        if update == TodayProjectionUpdate::Rebuild {
-            EventStore::rebuild_visibility(storage).await?;
-        }
+        let visibility_digest = *EventStore::rebuild_visibility(storage)
+            .await?
+            .digest()
+            .as_bytes();
         let event_status = EventStore::status(storage).await?;
         let generation = projection_generation()?;
         let projection_id = projection_id()?;
@@ -292,6 +299,7 @@ impl TeraRuntime {
             && prior.as_ref().is_some_and(|state| {
                 state.source_events == event_status.raw_events()
                     && state.query_scope == Some(query_scope)
+                    && state.visibility_digest == Some(visibility_digest)
             })
         {
             let state = prior.expect("checked present");
@@ -313,6 +321,7 @@ impl TeraRuntime {
             overlays,
         )?;
         state.query_scope = Some(query_scope);
+        state.visibility_digest = Some(visibility_digest);
         state.media_cache = media_cache;
         apply_local_media_evidence(&mut state, &local_media);
         state.content_generation = content_generation(&state)?;
@@ -406,6 +415,7 @@ impl TeraRuntime {
                 .ok_or(CursorError::Stale)?;
             if current.store_generation != scope.store_generation
                 || current.query_scope != Some(scope.query_scope)
+                || current.visibility_digest.is_none()
                 || current.content_generation != scope.projection_generation
             {
                 return Err(CursorError::Stale.into());
@@ -418,7 +428,12 @@ impl TeraRuntime {
                 .filter(|value| *value != 0)
                 .ok_or(TodayError::InvalidRequest)?;
             let state = match load_state(storage, context, algorithm_generation).await? {
-                Some(state) if state.query_scope == Some(query_scope) => state,
+                Some(state)
+                    if state.query_scope == Some(query_scope)
+                        && state.visibility_digest.is_some() =>
+                {
+                    state
+                }
                 _ => {
                     // A first local read must not need a prior relay refresh.
                     // Materialize only already admitted local events; errors
@@ -1102,16 +1117,34 @@ impl AdmissionPolicy for TodayAdmissionPolicy {
             .map(|event| event.contract().id)
     }
 
+    fn contract_failure(
+        &self,
+        event: &radroots_event::admission::SignatureVerifiedEvent,
+    ) -> ContractFailureDecision {
+        if is_today_head_kind(event.event().kind_u32()) {
+            ContractFailureDecision::Verified
+        } else {
+            ContractFailureDecision::Reject
+        }
+    }
+
     fn decide(&self, event: &ContractValidatedEvent) -> AdmissionDecision {
         let admitted = verify_nip01_event(event.event().clone())
             .ok()
             .and_then(|event| admit_verified_event(event).ok());
         if admitted.is_some() {
             AdmissionDecision::Visible
+        } else if is_today_head_kind(event.event().kind_u32()) {
+            AdmissionDecision::Verified
         } else {
             AdmissionDecision::Reject
         }
     }
+}
+
+#[cfg(feature = "mobile-social")]
+fn is_today_head_kind(kind: u32) -> bool {
+    matches!(kind, 0 | 30_402 | 31_922 | 31_923)
 }
 
 fn ingest_receipt(
@@ -1362,6 +1395,7 @@ fn project_state(
         overlays,
         media_cache: Phase1MediaCacheIndex::default(),
         query_scope: None,
+        visibility_digest: None,
     })
 }
 
