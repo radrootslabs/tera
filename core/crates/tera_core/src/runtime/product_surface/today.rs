@@ -81,6 +81,10 @@ mod sync_live_tests;
 #[path = "today_sync_caps_tests.rs"]
 mod sync_caps_tests;
 
+#[cfg(all(test, feature = "mobile-social"))]
+#[path = "today_admission_tests.rs"]
+mod admission_tests;
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum TodayProjectionUpdate {
@@ -223,8 +227,8 @@ struct FrozenTodaySnapshot {
 }
 
 impl TeraRuntime {
-    /// Durably admits one already verified and visibility-authorized relay observation,
-    /// then advances the selected LocalNetwork projection.
+    /// Rechecks the application's cryptographic/profile boundary before durably
+    /// admitting a visibility-authorized observation and advancing its projection.
     pub async fn phase1_ingest_visible(
         &self,
         admission: EventAdmission,
@@ -235,6 +239,12 @@ impl TeraRuntime {
         if admission.visible_event().is_none() {
             return Err(TodayError::EventNotVisible);
         }
+        // Shared typestates can carry a different host's verifier or policy.
+        // Apply our real signature and typed profile checks before storage,
+        // not only while rebuilding a projection after the durable write.
+        let verified = verify_nip01_event(admission.event().envelope().clone())
+            .map_err(|_| TodayError::EventNotVisible)?;
+        admit_verified_event(verified).map_err(|_| TodayError::EventNotVisible)?;
         let storage = self
             .client
             .storage()
