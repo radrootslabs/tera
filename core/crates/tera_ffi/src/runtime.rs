@@ -1,5 +1,8 @@
 use std::sync::Arc;
 
+#[path = "composer/runtime.rs"]
+mod composer;
+
 use tera_core::runtime::product_surface::{
     LocalNetworkRelayPolicy, Phase1AddIntent, Phase1ExistingDraft, Phase1MediaCachePolicy,
     Phase1QueueIntent, Phase1ReviseIntent, ReplaceMobileSettings, TodayPageRequest,

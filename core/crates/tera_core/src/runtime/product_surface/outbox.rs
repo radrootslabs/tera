@@ -27,6 +27,7 @@ use radroots_storage::{
         AuthoredDraft, AuthoredDraftId, AuthoredDraftRevision, AuthoredDraftStage,
         AuthoredDraftStore,
     },
+    authored_draft_query::{AuthoredDraftQuery, AuthoredDraftQueryRecord},
     journal::{IdempotencyKey, OperationInstanceId},
 };
 use radroots_sync::{PushRequest, PushStatus, policy::SyncId};
@@ -2802,19 +2803,28 @@ impl TeraRuntime {
         self.draft_status_from(head).await
     }
 
-    /// Lists the newest immutable revision of each draft for the active author.
+    /// Returns the first bounded legacy head page in stable ID order for the active author.
+    /// The owner filters the strict schema and unscoped legacy records before limiting.
+    /// This compatibility surface does not promise a complete inventory or an updated-time window.
     pub async fn phase1_draft_heads(
         &self,
         limit: u16,
     ) -> Result<Vec<Phase1DraftStatus>, Phase1DraftError> {
         let _command = self.lifecycle.enter()?;
-        let drafts = self
+        let query =
+            AuthoredDraftQuery::new(self.draft_author()?, DRAFT_PAYLOAD_SCHEMA, None, limit)
+                .map_err(map_draft_storage_error)?;
+        let page = self
             .storage()?
-            .authored_draft_heads(self.draft_author()?, limit)
+            .query_authored_drafts(query)
             .await
             .map_err(map_draft_storage_error)?;
-        let mut statuses = Vec::with_capacity(drafts.len());
-        for draft in drafts {
+        let mut statuses = Vec::with_capacity(page.records().len());
+        for record in page.into_records() {
+            let draft = match record {
+                AuthoredDraftQueryRecord::Draft(draft) => draft,
+                AuthoredDraftQueryRecord::Corrupt { .. } => return Err(Phase1DraftError::Corrupt),
+            };
             statuses.push(self.draft_status_from(draft).await?);
         }
         Ok(statuses)

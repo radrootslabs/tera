@@ -671,21 +671,6 @@ actor TeraRuntimeClient {
     }
   }
 
-  private func addOperation<T: Sendable>(
-    _ operation: String,
-    _ body: @escaping @Sendable (any TeraRuntimeBackend) async throws -> T
-  ) async throws -> T {
-    do {
-      return try await runtimeOperation(operation, body)
-    } catch let error as TeraRuntimeClientError {
-      throw error
-    } catch {
-      throw TeraRuntimeClientError.add(
-        Self.failure(from: error, operation: operation)
-      )
-    }
-  }
-
   private func supportOperation<T: Sendable>(
     _ operation: String,
     _ body: @escaping @Sendable (any TeraRuntimeBackend) async throws -> T

@@ -10,7 +10,10 @@ pub use form::{
     COMPOSER_TEXT_MAX_BYTES, ComposerFormInput, ComposerMediaInput, ComposerPartialForm,
 };
 pub use identity::{ComposerEditSequence, ComposerId, ComposerRevision, ComposerScope};
-pub use repository::{ComposerPersistenceError, ComposerSaveReceipt};
+pub use repository::{
+    COMPOSER_PAGE_LIMIT_MAX, ComposerListEntry, ComposerPage, ComposerPersistenceError,
+    ComposerRepairReason, ComposerSaveReceipt, ComposerSummary,
+};
 pub use storage::{
     COMPOSER_PAYLOAD_SCHEMA, COMPOSER_SCHEMA_SHA256, COMPOSER_SCHEMA_VERSION, ComposerStorageError,
     ComposerStorageRecord,

@@ -10,6 +10,12 @@ use radroots_storage::{
     authored_draft::{AuthoredDraftId, AuthoredDraftStore, DraftAppendDisposition},
 };
 
+#[path = "inventory.rs"]
+mod inventory;
+pub use inventory::{
+    COMPOSER_PAGE_LIMIT_MAX, ComposerListEntry, ComposerPage, ComposerRepairReason, ComposerSummary,
+};
+
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ComposerPersistenceError {
     #[error(transparent)]
@@ -28,6 +34,10 @@ pub enum ComposerPersistenceError {
     RevisionOverflow,
     #[error("composer save receipt does not match the requested revision")]
     InvalidReceipt,
+    #[error("composer list request is invalid")]
+    InvalidListRequest,
+    #[error("composer list cursor is invalid or unsupported")]
+    InvalidCursor,
     #[error(transparent)]
     Record(ComposerStorageError),
     #[error("composer storage failed: {0}")]

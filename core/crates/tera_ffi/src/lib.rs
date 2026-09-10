@@ -5,6 +5,7 @@
 
 uniffi::setup_scaffolding!("tera_core");
 
+mod composer;
 mod dto;
 mod invalidation;
 pub mod logging;
@@ -16,6 +17,7 @@ mod signer;
 mod subscription;
 mod subscription_queue;
 
+pub use composer::*;
 pub use dto::*;
 pub use error::{TeraAppError, TeraErrorRecord};
 pub use invalidation::*;

@@ -5,6 +5,10 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 }
 
 protocol TeraRuntimeBackend: Sendable {
+  func reserveComposerID() async throws -> String
+  func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt
+  func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft
+  func listComposers(scope: TeraComposerScope, limit: UInt16, cursor: String?) async throws -> TeraComposerPage
   func snapshot() async throws -> TeraRuntimeSnapshot
   func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage
   func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage
@@ -97,6 +101,22 @@ protocol TeraRuntimeBackend: Sendable {
 }
 
 extension TeraRuntimeBackend {
+  func reserveComposerID() async throws -> String {
+    throw addUnsupported()
+  }
+
+  func saveComposer(request _: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt {
+    throw addUnsupported()
+  }
+
+  func loadComposer(scope _: TeraComposerScope, id _: String) async throws -> TeraComposerDraft {
+    throw addUnsupported()
+  }
+
+  func listComposers(scope _: TeraComposerScope, limit _: UInt16, cursor _: String?) async throws -> TeraComposerPage {
+    throw addUnsupported()
+  }
+
   func reconcileToday(request _: TeraTodayReconcileRequest) async throws -> TeraTodayPage {
     throw supportUnsupported()
   }

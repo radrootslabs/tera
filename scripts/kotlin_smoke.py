@@ -40,6 +40,8 @@ EXPECTED_CASES = {
     "tera.smoke.CalendarTimingTests/generatedPageBufferRetainsFrozenViewerCalendarContext",
     "tera.smoke.CalendarTimingTests/generatedNativeBuffersPreserveEveryUnsignedInstantBitAndSourceZone",
     "tera.smoke.CalendarTimingTests/unknownVariantsAndTruncatedGeneratedValuesFailWithoutFabricatingDates",
+    "tera.smoke.ComposerPersistenceTests/actualNativeComposerPreservesPartialFormsExactUnsignedReceiptsAndRestart",
+    "tera.smoke.ComposerPersistenceTests/unsupportedNestedVersionsAndMalformedVariantsFailClosed",
 }
 
 

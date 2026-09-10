@@ -4243,6 +4243,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/composer/inventory_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/composer/repository_sqlite_tests.rs",
           "count": 1
         },
@@ -4598,6 +4602,14 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/composer/identity.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/composer/inventory.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/composer/inventory_tests.rs",
           "count": 1
         },
         {

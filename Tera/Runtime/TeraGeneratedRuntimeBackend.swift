@@ -154,7 +154,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         isClosed: info.sdkClosed
       )
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -172,7 +172,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         asOfUnixS: asOfUnixSeconds, viewerTimeZone: TimeZone.current.identifier
       ).map { try $0.appValue() }
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -186,7 +186,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         asOfUnixS: asOfUnixSeconds, viewerTimeZone: TimeZone.current.identifier
       ).appValue()
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -211,7 +211,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         requiresOperationID: true
       )
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -230,7 +230,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         requiresOperationID: false
       )
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -244,8 +244,24 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         artifactId: artifactID
       )
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
+  }
+
+  func reserveComposerID() async throws -> String {
+    do { return try TeraGeneratedComposer.reserveID() } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+
+  func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt {
+    do { return try await TeraGeneratedComposer.save(runtime: runtime, request: request) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+
+  func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft {
+    do { return try await TeraGeneratedComposer.load(runtime: runtime, scope: scope, id: id) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+
+  func listComposers(scope: TeraComposerScope, limit: UInt16, cursor: String?) async throws -> TeraComposerPage {
+    do { return try await TeraGeneratedComposer.list(runtime: runtime, scope: scope, limit: limit, cursor: cursor) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
   }
 
   func addSchemas() async throws -> [TeraAddSchema] {
@@ -264,7 +280,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         expectedRevision: expectedRevision
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -282,7 +298,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         persistedAtUnixMs: persistedAtUnixMilliseconds
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -302,7 +318,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         )
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -310,7 +326,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1RevisionStatus(operationId: operationID).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -318,7 +334,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1AdvanceRevision(operationId: operationID).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -326,7 +342,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1CancelRevision(operationId: operationID).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -334,7 +350,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1DraftStatus(draftId: id).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -342,7 +358,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1DraftHeads(limit: limit).map(\.appValue)
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -356,7 +372,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         expectedRevision: expectedRevision
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -364,7 +380,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1RecoverAddIntent(draftId: id).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -372,7 +388,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1UploadAddMediaIntent(input: input.generatedValue).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -384,7 +400,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         input: input.generatedValue
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -396,7 +412,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         input: input.generatedValue
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -404,7 +420,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.probeBlossom().appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -412,7 +428,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1Settings().appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -422,7 +438,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1ReplaceSettings(input: input.generatedValue).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -436,7 +452,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         command: command.generatedValue
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -446,7 +462,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1SaveProfileMetadata(input: input.generatedValue).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -454,7 +470,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1ProfileStatus(operationId: operationID).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -462,7 +478,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1AdvanceProfile(operationId: operationID).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -476,7 +492,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         expectedRevision: expectedRevision
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -487,7 +503,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         expectedRevision: expectedRevision
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -501,7 +517,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         expectedRevision: expectedRevision
       ).appValue
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -529,7 +545,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
       )
     } catch {
       pair.continuation.finish()
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -541,7 +557,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         alreadyClosed: receipt.alreadyClosed
       )
     } catch {
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
   }
 
@@ -585,31 +601,8 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
       if let createdRuntime {
         _ = try? await createdRuntime.shutdown()
       }
-      throw Self.failure(from: error)
+      throw TeraGeneratedRuntimeFailure.from(error)
     }
-  }
-
-  private static func failure(from error: Error) -> TeraRuntimeFailure {
-    if case let TeraAppError.Failure(report) = error {
-      return TeraRuntimeFailure(
-        schemaVersion: report.schemaVersion,
-        code: report.code,
-        category: report.category,
-        retryable: report.retryable,
-        recoveryActions: report.recoveryActions,
-        operationID: report.operationId,
-        capabilityID: report.capabilityId,
-        safeMessage: report.safeMessage
-      )
-    }
-    if let failure = error as? TeraRuntimeFailure {
-      return failure
-    }
-    return .local(
-      operation: "generated.runtime",
-      code: "ios.generated_runtime.unexpected",
-      safeMessage: "The Tera runtime could not complete the operation."
-    )
   }
 
   private static func verifiedMediaArtifact(
@@ -1495,11 +1488,11 @@ extension TeraNativeUploadCompletion {
 
 private extension TeraGeneratedRuntimeBackend {
   func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage {
-    do { return try await TeraGeneratedTodayReads.reconcile(runtime: runtime, request: request) } catch { throw Self.failure(from: error) }
+    do { return try await TeraGeneratedTodayReads.reconcile(runtime: runtime, request: request) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
   }
 
   func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage {
-    do { return try await TeraGeneratedTodayReads.page(runtime: runtime, request: request) } catch { throw Self.failure(from: error) }
+    do { return try await TeraGeneratedTodayReads.page(runtime: runtime, request: request) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
   }
 
   func refreshToday(
@@ -1511,6 +1504,6 @@ private extension TeraGeneratedRuntimeBackend {
         runtime: runtime, context: context.generatedValue, nowUnixSeconds: nowUnixSeconds,
         update: update.generatedValue, backfillCursor: backfillCursor
       ).appValue
-    } catch { throw Self.failure(from: error) }
+    } catch { throw TeraGeneratedRuntimeFailure.from(error) }
   }
 }

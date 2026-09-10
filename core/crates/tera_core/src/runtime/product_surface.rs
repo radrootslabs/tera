@@ -34,11 +34,12 @@ pub use calendar_timing::{CalendarTiming, CalendarTimingError, DateBasedTiming, 
 #[cfg(feature = "mobile-social")]
 pub use composer::{
     COMPOSER_CONTENT_MAX_BYTES, COMPOSER_FORM_MAX_BYTES, COMPOSER_MEDIA_MAX,
-    COMPOSER_PAYLOAD_SCHEMA, COMPOSER_SCHEMA_SHA256, COMPOSER_SCHEMA_VERSION,
-    COMPOSER_TEXT_MAX_BYTES, ComposerDraft, ComposerEditSequence, ComposerError, ComposerFormInput,
-    ComposerId, ComposerMediaInput, ComposerPartialForm, ComposerPersistenceError,
+    COMPOSER_PAGE_LIMIT_MAX, COMPOSER_PAYLOAD_SCHEMA, COMPOSER_SCHEMA_SHA256,
+    COMPOSER_SCHEMA_VERSION, COMPOSER_TEXT_MAX_BYTES, ComposerDraft, ComposerEditSequence,
+    ComposerError, ComposerFormInput, ComposerId, ComposerListEntry, ComposerMediaInput,
+    ComposerPage, ComposerPartialForm, ComposerPersistenceError, ComposerRepairReason,
     ComposerRevision, ComposerSaveReceipt, ComposerScope, ComposerStorageError,
-    ComposerStorageRecord,
+    ComposerStorageRecord, ComposerSummary,
 };
 pub use context::{
     ContextAdmission, ContextRank, LocalNetwork, LocalNetworkAdmission, LocalNetworkError,

@@ -4,6 +4,21 @@ use crate::runtime::product_surface::Phase1InboundMediaError;
 pub(super) fn classify(code: &str) -> RecoveryDisposition {
     use RecoveryDisposition as Recovery;
     match code {
+        "composer_owner_unavailable" | "composer_scope_mismatch" => Recovery::IdentityUnavailable,
+        "composer_storage_failed" | "composer_record_corrupt" => Recovery::StorageFailure,
+        "composer_schema_unsupported" | "composer_revision_exhausted" => {
+            Recovery::UnsupportedVersion
+        }
+        "composer_revision_conflict" | "composer_edit_sequence_conflict" => Recovery::StaleRevision,
+        "composer_cursor_invalid" => Recovery::StaleCursor,
+        "composer_receipt_mismatch" => Recovery::OutcomeUnknown,
+        "composer_id_invalid"
+        | "composer_revision_invalid"
+        | "composer_edit_sequence_invalid"
+        | "composer_form_invalid"
+        | "composer_scope_invalid"
+        | "composer_not_found"
+        | "composer_list_invalid" => Recovery::InvalidInput,
         "protected_data_unavailable" => Recovery::ProtectedDataUnavailable,
         "identity_unavailable" | "no_active_identity" | "unknown_identity" => {
             Recovery::IdentityUnavailable
