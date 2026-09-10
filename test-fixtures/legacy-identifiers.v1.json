@@ -1807,6 +1807,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/composer/storage_sqlite_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
           "count": 7
         },
@@ -4239,6 +4243,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/composer/storage_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/composer/tests.rs",
           "count": 1
         },
@@ -4578,6 +4586,14 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/composer/identity.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/composer/storage.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/composer/storage_sqlite_tests.rs",
           "count": 1
         },
         {

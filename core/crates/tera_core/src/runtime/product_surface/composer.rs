@@ -2,12 +2,17 @@
 
 mod form;
 mod identity;
+mod storage;
 
 pub use form::{
     COMPOSER_CONTENT_MAX_BYTES, COMPOSER_FORM_MAX_BYTES, COMPOSER_MEDIA_MAX,
     COMPOSER_TEXT_MAX_BYTES, ComposerFormInput, ComposerMediaInput, ComposerPartialForm,
 };
 pub use identity::{ComposerEditSequence, ComposerId, ComposerRevision, ComposerScope};
+pub use storage::{
+    COMPOSER_PAYLOAD_SCHEMA, COMPOSER_SCHEMA_SHA256, COMPOSER_SCHEMA_VERSION, ComposerStorageError,
+    ComposerStorageRecord,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum ComposerError {

@@ -1,0 +1,55 @@
+{
+  "schema": "tera.composer.schema-descriptor.v1",
+  "payload_schema": "tera.composer.v1",
+  "schema_version": 1,
+  "encoding": "utf8_json",
+  "unknown_fields": "reject",
+  "payload_fields": ["schema_version", "schema_sha256", "scope", "edit_sequence", "form"],
+  "scope_fields": ["author", "local_network"],
+  "form_fields": [
+    "command_type", "content", "identifier", "title", "summary", "location",
+    "event_timing", "event_start_date", "event_end_date", "event_start_unix_s",
+    "event_end_unix_s", "event_timezone", "price_amount", "currency", "unit",
+    "quantity", "food_published_at_unix_s", "food_status", "media"
+  ],
+  "media_fields": [
+    "opaque_reference", "sha256", "media_type", "byte_size", "width", "height",
+    "alt", "prepared_at_unix_s"
+  ],
+  "creation_families": [
+    "CreateUpdate", "CreatePhotoUpdate", "CreateAsk", "CreateEvent", "CreateFoodAvailability"
+  ],
+  "event_timing": ["all_day", "timed"],
+  "bounds": {
+    "payload_bytes": 1048576,
+    "content_utf8_bytes": 65535,
+    "partial_text_utf8_bytes": 1024,
+    "media_count": 20,
+    "media_reference_bytes": 256,
+    "media_type_utf8_bytes": 128,
+    "media_alt_utf8_bytes": 1024,
+    "media_file_bytes": 10485760,
+    "local_network_utf8_bytes": 256,
+    "revision_max": 9223372036854775807,
+    "edit_sequence_max": 18446744073709551615,
+    "timestamp_ms_max": 9223372036854775807
+  },
+  "envelope": {
+    "owner": "AuthoredDraft",
+    "draft_id": "nonzero_16_bytes",
+    "author": "validated_x_only_public_key",
+    "scope": "required_stable_scope_digest",
+    "stage": "draft",
+    "operation_id": null,
+    "revision": "positive_checked_shared_revision",
+    "timestamps": "positive_created_and_nondecreasing_updated"
+  },
+  "scope_hash": {
+    "algorithm": "sha256",
+    "domain": "tera.composer-scope.v1",
+    "zero_terminator": true,
+    "parts": ["author_32_bytes", "local_network_length_u32_be", "local_network_utf8"]
+  },
+  "partial_fields": "preserve_exact_utf8_without_publication_validation",
+  "media_metadata": "not_evidence_of_byte_ownership_or_upload_readiness"
+}
