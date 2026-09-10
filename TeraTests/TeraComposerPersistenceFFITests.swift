@@ -90,6 +90,44 @@ final class TeraComposerPersistenceFFITests: XCTestCase {
     _ = try await runtime.shutdown()
   }
 
+  @MainActor
+  func testAddSavePersistsIncompleteEditingWithoutPreparingOrSigningAnOperation() async throws {
+    let fixture = try MediaOwnershipFixture()
+    defer { fixture.remove() }
+    let signer = ComposerForbiddenSigner()
+    let configuration = configuration(fixture, signer: signer)
+    let client = TeraRuntimeClient.production()
+    let snapshot = try await client.start(configuration: configuration)
+    let store = TeraAddStore(runtimeClient: client)
+    store.configure(snapshot: snapshot)
+    await store.start()
+    store.selectType(.createEvent)
+    store.updateForm(\.eventStartDate, "2026-09-")
+    store.updateForm(\.eventEndDate, "")
+    store.updateForm(\.title, "")
+    store.updateForm(\.content, "  unfinished event  ")
+    await store.save()
+    let saved = try XCTUnwrap(store.savedComposer)
+    XCTAssertEqual(saved.form.eventStartDate, "2026-09-")
+    XCTAssertEqual(saved.form.content, "  unfinished event  ")
+    XCTAssertEqual(store.composerState, .saved)
+    XCTAssertEqual(saved.scope.localNetworkID, "default")
+    XCTAssertNil(store.activeDraft)
+    let operations = try await client.draftHeads()
+    XCTAssertTrue(operations.isEmpty)
+    store.updateForm(\.content, "new unsaved edit")
+    XCTAssertNil(store.message)
+    XCTAssertEqual(store.composerState, .unsaved)
+    store.stop()
+    _ = try await client.stop()
+    _ = try await client.start(configuration: configuration)
+    let recovered = try await client.loadComposer(scope: saved.scope, id: saved.id)
+    XCTAssertEqual(recovered, saved)
+    let signingRequests = await signer.requests
+    XCTAssertEqual(signingRequests, 0)
+    _ = try await client.stop()
+  }
+
   private func partialForm(_ fixture: MediaOwnershipFixture) -> TeraComposerForm {
     var editing = TeraAddForm(commandType: .createEvent)
     editing.content = "  private incomplete\n\u{0}é  "

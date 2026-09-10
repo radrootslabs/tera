@@ -50,7 +50,7 @@ final class TeraScopedAddTests: XCTestCase {
     _ = try await client.stop()
   }
 
-  func testFormEditDuringSaveKeepsTheNewFormAndRetainsDurableOldReceipt() async throws {
+  func testFormEditDuringSubmitKeepsTheNewFormAndRetainsDurableOldReceipt() async throws {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let store = TeraAddStore(runtimeClient: client)
@@ -58,7 +58,7 @@ final class TeraScopedAddTests: XCTestCase {
     await store.start()
     store.updateForm(\.content, "saved version")
     let pause = await backend.pause(.save)
-    let old = Task { await store.save() }
+    let old = Task { await store.submit() }
     await pause.entered.wait()
     store.updateForm(\.content, "new edit")
     await pause.resume.open()
@@ -69,7 +69,7 @@ final class TeraScopedAddTests: XCTestCase {
     XCTAssertFalse(store.isWorking)
     let durable = try await client.draftHeads(limit: 100)
     XCTAssertEqual(durable.first?.form?.content, "saved version")
-    await store.save()
+    await store.submit()
     XCTAssertEqual(store.activeDraft?.form?.content, "new edit")
     store.stop()
     _ = try await client.stop()
@@ -82,7 +82,7 @@ final class TeraScopedAddTests: XCTestCase {
     store.configure(snapshot: TeraScopeFixtures.snapshot())
     await store.start()
     let save = await backend.pause(.save, fails: true)
-    let old = Task { await store.save() }
+    let old = Task { await store.submit() }
     await save.entered.wait()
     let snapshot = await backend.pause(.snapshot)
     await save.resume.open()
@@ -93,7 +93,7 @@ final class TeraScopedAddTests: XCTestCase {
     await store.start()
     store.updateForm(\.content, "new account")
     let next = await backend.pause(.save)
-    let current = Task { await store.save() }
+    let current = Task { await store.submit() }
     await next.entered.wait()
     await snapshot.resume.open()
     await old.value
@@ -181,7 +181,7 @@ final class TeraScopedAddTests: XCTestCase {
     store.configure(snapshot: TeraScopeFixtures.snapshot())
     await store.start()
     let save = await backend.pause(.save, fails: true)
-    let old = Task { await store.save() }
+    let old = Task { await store.submit() }
     await save.entered.wait()
     let snapshot = await backend.pause(.snapshot)
     await save.resume.open()

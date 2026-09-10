@@ -2047,7 +2047,7 @@
           "count": 1
         },
         {
-          "path": "TeraTests/TeraAddStoreTests.swift",
+          "path": "TeraTests/TeraAddMediaHarness.swift",
           "count": 1
         },
         {
@@ -2399,7 +2399,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraAddView.swift",
+          "path": "Tera/Views/TeraAddSaveStatus.swift",
           "count": 1
         },
         {

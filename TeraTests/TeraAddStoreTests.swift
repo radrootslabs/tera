@@ -348,7 +348,7 @@ final class TeraAddStoreTests: XCTestCase {
     await store.start()
     store.selectType(.createFoodAvailability)
     configure(store, type: .createFoodAvailability)
-    await store.save()
+    await store.submit()
     let source = try XCTUnwrap(store.activeDraft)
 
     await store.retractAndRevise(Self.card(localOperationID: source.id))
@@ -570,7 +570,7 @@ final class TeraAddStoreTests: XCTestCase {
     await store.start()
     await save.value
 
-    XCTAssertEqual(store.activeDraft?.form?.content, "Background draft")
+    XCTAssertEqual(store.savedComposer?.form.content, "Background draft")
     XCTAssertEqual(store.message, "Draft saved on this device.")
     XCTAssertFalse(store.isWorking)
     _ = try await client.stop()
@@ -750,90 +750,6 @@ private struct AddSigner: TeraRuntimeSigner {
   }
 }
 
-private actor AddMediaHarness: TeraAddMediaHandling {
-  private let delayFirstUpload: Bool
-  private let delaySettlement: Bool
-  private var uploadAttempts = 0
-  private var settlementStarted = false
-  private var settlements: [Bool] = []
-  private var reconciliations = 0
-  private let item = TeraPreparedMedia(
-    opaqueReference: "media:\(String(repeating: "0", count: 64))",
-    remoteURL: nil,
-    sha256: String(repeating: "0", count: 64),
-    mediaType: "image/png",
-    byteSize: 4,
-    width: 2,
-    height: 2,
-    alt: "Carrots",
-    preparedAtUnixSeconds: 1_800_000_000
-  )
-
-  init(delayFirstUpload: Bool = false, delaySettlement: Bool = false) {
-    self.delayFirstUpload = delayFirstUpload
-    self.delaySettlement = delaySettlement
-  }
-
-  func support() -> TeraAddMediaSupport {
-    .init(library: true, camera: true)
-  }
-
-  func importImages(limit _: Int) -> [TeraPreparedMedia] {
-    [item]
-  }
-
-  func captureImage() -> TeraPreparedMedia {
-    item
-  }
-
-  func open(_ media: [TeraPreparedMedia]) throws -> TeraOpenedMedia {
-    try TeraMediaFileFixture.open(media, bytes: Data(repeating: 0, count: 4))
-  }
-
-  func uploadInBackground(
-    job: TeraNativeUploadJob,
-    media _: TeraPreparedMedia
-  ) async throws -> TeraAddBackgroundUploadReceipt {
-    uploadAttempts += 1
-    if delayFirstUpload, uploadAttempts == 1 {
-      try await Task.sleep(nanoseconds: 50_000_000)
-    }
-    return TeraAddBackgroundUploadReceipt(
-      identifier: "radroots.add.\(job.draft.id).\(job.draft.revision).\(job.operationID)",
-      draftID: job.draft.id,
-      expectedRevision: job.draft.revision,
-      statusCode: 200,
-      mediaType: "application/json",
-      contentEncoding: nil,
-      body: Data("{}".utf8)
-    )
-  }
-
-  func settleBackgroundUpload(identifier _: String, accepted: Bool) async throws {
-    settlementStarted = true
-    if delaySettlement {
-      try await Task.sleep(nanoseconds: 50_000_000)
-    }
-    settlements.append(accepted)
-  }
-
-  func reconcileBackgroundUploads(drafts _: [TeraDraftStatus]) {
-    reconciliations += 1
-  }
-
-  func didBeginSettlement() -> Bool {
-    settlementStarted
-  }
-
-  func settlementValues() -> [Bool] {
-    settlements
-  }
-
-  func reconciliationCount() -> Int {
-    reconciliations
-  }
-}
-
 private enum AddDelayPhase: String, CaseIterable {
   case save
   case queue
@@ -841,6 +757,7 @@ private enum AddDelayPhase: String, CaseIterable {
 }
 
 private actor AddBackend: TeraRuntimeBackend {
+  private let composerStorage = ComposerTestStorage()
   private let savePause: ResourceTestPause?
   private let advanceOffline: Bool
   private let saveFailure: TeraRuntimeFailure?
@@ -1356,11 +1273,6 @@ private actor AddBackend: TeraRuntimeBackend {
     try await Task.sleep(nanoseconds: 50_000_000)
   }
 
-  private func storedDraft(id: String) throws -> TeraDraftStatus {
-    guard let value = values[id] else { throw unsupported() }
-    return value
-  }
-
   private func unsupported() -> TeraRuntimeFailure {
     .local(
       operation: "test.add", code: "test.unsupported", safeMessage: "Unsupported test operation."
@@ -1391,9 +1303,9 @@ extension TeraAddStoreTests {
     XCTAssertNil(store.activeDraft)
     await pause.resume.open()
     await owner.value
-    XCTAssertEqual(store.drafts.count, 1)
-    XCTAssertEqual(store.activeDraft?.revision, 1)
-    XCTAssertEqual(store.activeDraft?.state, .draft)
+    XCTAssertTrue(store.drafts.isEmpty)
+    XCTAssertEqual(store.savedComposer?.revision, 1)
+    XCTAssertEqual(store.savedComposer?.form.content, "One admitted draft")
     XCTAssertFalse(store.isWorking)
     _ = try await client.stop()
   }
@@ -1415,7 +1327,7 @@ extension TeraAddStoreTests {
     XCTAssertTrue(store.drafts.isEmpty)
     XCTAssertFalse(store.isWorking)
     await store.save()
-    XCTAssertEqual(store.drafts.count, 1)
+    XCTAssertEqual(store.savedComposer?.form.content, "Only save after explicit admission")
     _ = try await client.stop()
   }
 
@@ -1426,5 +1338,29 @@ extension TeraAddStoreTests {
     await fulfillment(of: [entered], timeout: 2)
     await pause.entered.open()
     await observer.value
+  }
+}
+
+private extension AddBackend {
+  func reserveComposerID() async -> String {
+    await composerStorage.reserve()
+  }
+
+  func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt {
+    await savePause?.wait()
+    if let saveFailure {
+      throw saveFailure
+    }
+    try await delayOnce(at: .save)
+    return try await composerStorage.save(request)
+  }
+
+  func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft {
+    try await composerStorage.load(scope, id: id)
+  }
+
+  private func storedDraft(id: String) throws -> TeraDraftStatus {
+    guard let value = values[id] else { throw unsupported() }
+    return value
   }
 }

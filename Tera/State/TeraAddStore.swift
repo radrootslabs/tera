@@ -1,18 +1,20 @@
 import Foundation
 
-enum TeraAddLoadState: Sendable, Equatable {
-  case idle
-  case loading
-  case ready
-  case failed(String)
-}
-
 @MainActor
 final class TeraAddStore: ObservableObject {
   @Published private(set) var schemas: [TeraAddSchema] = []
   @Published private(set) var drafts: [TeraDraftStatus] = []
   @Published private(set) var activeDraft: TeraDraftStatus?
-  @Published private(set) var form: TeraAddForm
+  @Published private(set) var form: TeraAddForm {
+    didSet {
+      if form != oldValue {
+        message = nil
+        composerFormChanged()
+      }
+    }
+  }
+
+  @Published private(set) var composerState: TeraComposerSaveState = .idle
   @Published private(set) var state: TeraAddLoadState = .idle
   @Published private(set) var mediaSupport: TeraAddMediaSupport = .unavailable
   @Published private(set) var blossomConfiguration: TeraBlossomConfigurationStatus?
@@ -24,6 +26,7 @@ final class TeraAddStore: ObservableObject {
   @Published private(set) var observationState: TeraRuntimeObservationState = .inactive
 
   private let runtimeClient: TeraRuntimeClient
+  private let composer: TeraComposerAutosave
   private let media: (any TeraAddMediaHandling)?
   private let observationDelay: @Sendable (UInt32) async throws -> Void
   private let identifier: @Sendable () -> String
@@ -53,6 +56,7 @@ final class TeraAddStore: ObservableObject {
       TeraRuntimeObservationBackoff.sleep
   ) {
     self.runtimeClient = runtimeClient
+    composer = TeraComposerAutosave(persistence: TeraComposerPersistence(client: runtimeClient))
     self.media = media
     self.identifier = identifier
     self.clock = clock
@@ -62,57 +66,39 @@ final class TeraAddStore: ObservableObject {
       identifier: identifier,
       clock: clock
     )
+    composer.stateChanged = { [weak self] in self?.composerState = $0 }
   }
 
-  var selectedSchema: TeraAddSchema? {
-    schemas.first(where: { $0.commandType == form.commandType })
+  var savedComposer: TeraComposerDraft? {
+    composer.acknowledged
   }
 
-  var isFormEditable: Bool {
-    guard activeDraft?.isRevision != true, activeDraft?.kind != .retraction else { return false }
-    return activeDraft?.state.isEditable ?? true
-  }
-
-  var isProductReady: Bool {
-    state == .ready && selectedSchema != nil
-  }
-
-  var canSave: Bool {
-    isProductReady && isFormEditable && !isWorking
-  }
-
-  var canSubmit: Bool {
-    isProductReady && !isWorking
-      && (activeDraft?.isRevision == true || activeDraft?.state.canAdvance == true
-        || isFormEditable)
-  }
-
-  var acceptsMedia: Bool {
-    mediaLimit > 0
-  }
-
-  var canAddMedia: Bool {
-    isFormEditable && acceptsMedia && form.media.count < mediaLimit
-  }
-
-  private var mediaLimit: Int {
-    guard
-      let maximum = selectedSchema?.fields
-        .first(where: { $0.kind == .media })?.maxItems
-    else { return 0 }
-    return Int(maximum)
+  private func composerFormChanged() {
+    guard revisionTarget == nil, isFormEditable else {
+      composer.stop()
+      composerState = revisionTarget == nil ? .idle : .revision
+      return
+    }
+    composer.change(TeraComposerForm(editing: form))
   }
 
   func configure(snapshot: TeraRuntimeSnapshot) {
     let updated = TeraPresentationConfiguration(snapshot: snapshot)
+    let scope = TeraComposerScope(authorPublicKey: updated.publicKey, localNetworkID: updated.context.id)
+    let scopeChanged = composer.scope != scope
+    if scopeChanged {
+      composer.reset(scope: scope)
+    }
     if let configuration, configuration != updated {
       stop()
       schemas = []
       drafts = []
-      activeDraft = nil
-      revisionTarget = nil
-      revisionOperationID = nil
-      form = TeraAddPresentation.newForm(type: form.commandType, identifier: identifier, clock: clock)
+      if scopeChanged {
+        activeDraft = nil
+        revisionTarget = nil
+        revisionOperationID = nil
+        form = TeraAddPresentation.newForm(type: form.commandType, identifier: identifier, clock: clock)
+      }
       state = .idle
       mediaSupport = .unavailable
       message = nil
@@ -127,6 +113,7 @@ final class TeraAddStore: ObservableObject {
 
   func start() async {
     guard !observation.isActive, !Task.isCancelled else { return }
+    composer.resume()
     startObservation()
     guard operationGeneration == nil else { return }
     message = nil
@@ -158,6 +145,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   func stop() {
+    composer.stop()
     generation = generation.invalidated()
     operationGeneration = nil
     probeGeneration = probeGeneration.invalidated()
@@ -176,16 +164,7 @@ final class TeraAddStore: ObservableObject {
 
   func selectType(_ type: TeraAddCommandType) {
     guard !isWorking, isFormEditable, form.commandType != type else { return }
-    generation = generation.invalidated()
-    activeDraft = nil
-    revisionTarget = nil
-    revisionOperationID = nil
-    form = TeraAddPresentation.newForm(
-      type: type,
-      identifier: identifier,
-      clock: clock
-    )
-    message = nil
+    newDraft(type: type)
   }
 
   func updateForm<Value>(_ keyPath: WritableKeyPath<TeraAddForm, Value>, _ value: Value) {
@@ -196,6 +175,7 @@ final class TeraAddStore: ObservableObject {
 
   func newDraft(type: TeraAddCommandType? = nil) {
     guard !isWorking else { return }
+    composer.reset(scope: composer.scope)
     generation = generation.invalidated()
     activeDraft = nil
     revisionTarget = nil
@@ -216,6 +196,7 @@ final class TeraAddStore: ObservableObject {
     }
     generation = generation.invalidated()
     activeDraft = draft
+    composer.reset(scope: composer.scope)
     revisionTarget = nil
     revisionOperationID = draft.isRevision ? draft.id : nil
     form = snapshot
@@ -304,7 +285,12 @@ final class TeraAddStore: ObservableObject {
 
   func save() async {
     await perform { requestedGeneration in
-      _ = try await self.saveCurrentForm(generation: requestedGeneration)
+      if self.revisionTarget != nil {
+        _ = try await self.saveCurrentForm(generation: requestedGeneration)
+      } else {
+        guard self.isFormEditable else { throw TeraComposerAcknowledgment.unconfirmed }
+        _ = try await self.composer.save(TeraComposerForm(editing: self.form))
+      }
       try self.ensureCurrent(requestedGeneration)
       self.message = "Draft saved on this device."
     }
@@ -449,6 +435,7 @@ final class TeraAddStore: ObservableObject {
         sourceAddress: card.sourceAddress,
         authorPublicKey: card.authorPublicKey
       )
+      self.composer.reset(scope: self.composer.scope)
       self.revisionOperationID = nil
       self.activeDraft = nil
       self.form = sourceForm
@@ -600,45 +587,13 @@ final class TeraAddStore: ObservableObject {
       try accept(job.draft, generation: requestedGeneration)
       let receipt = try await media.uploadInBackground(job: job, media: persisted)
       try ensureCurrent(requestedGeneration)
-      status = try await completeBackgroundUpload(receipt, handle: handle, media: media)
+      status = try await TeraAddUploadCompletion.complete(receipt, handle: handle, media: media, runtimeClient: runtimeClient)
       try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
       try accept(status, generation: requestedGeneration)
       await refreshBlossomSnapshot()
       try ensureCurrent(requestedGeneration)
     }
     return status
-  }
-
-  private func completeBackgroundUpload(
-    _ receipt: TeraAddBackgroundUploadReceipt,
-    handle: TeraPreparedMediaHandle,
-    media: any TeraAddMediaHandling
-  ) async throws -> TeraDraftStatus {
-    do {
-      return try await runtimeClient.completeAddMediaBackground(
-        input: TeraNativeUploadCompletion(
-          draftID: receipt.draftID,
-          expectedRevision: receipt.expectedRevision,
-          media: handle,
-          statusCode: receipt.statusCode,
-          responseMediaType: receipt.mediaType,
-          responseContentEncoding: receipt.contentEncoding,
-          responseBody: receipt.body
-        )
-      )
-    } catch is CancellationError {
-      // Rust completion may already be durable. Leave the receipt awaiting
-      // verification so relaunch can reconcile the unknown outcome.
-      throw CancellationError()
-    } catch {
-      if TeraAddPresentation.failure(for: error)?.code == "ios.runtime.cancelled" {
-        // The bounded runtime client cannot prove whether a cancelled FFI
-        // completion became durable. Preserve the receipt for reconciliation.
-        throw CancellationError()
-      }
-      try? await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: false)
-      throw error
-    }
   }
 
   private func openedMedia(_ values: [TeraPreparedMedia]? = nil) async throws
@@ -792,5 +747,46 @@ final class TeraAddStore: ObservableObject {
         lastFailureCode = TeraAddPresentation.failure(for: error)?.code
       }
     }
+  }
+}
+
+extension TeraAddStore {
+  var selectedSchema: TeraAddSchema? {
+    schemas.first(where: { $0.commandType == form.commandType })
+  }
+
+  var isFormEditable: Bool {
+    guard activeDraft?.isRevision != true, activeDraft?.kind != .retraction else { return false }
+    return activeDraft?.state.isEditable ?? true
+  }
+
+  var isProductReady: Bool {
+    state == .ready && selectedSchema != nil
+  }
+
+  var canSave: Bool {
+    isProductReady && isFormEditable && !isWorking
+  }
+
+  var canSubmit: Bool {
+    isProductReady && !isWorking
+      && (activeDraft?.isRevision == true || activeDraft?.state.canAdvance == true
+        || isFormEditable)
+  }
+
+  var acceptsMedia: Bool {
+    mediaLimit > 0
+  }
+
+  var canAddMedia: Bool {
+    isFormEditable && acceptsMedia && form.media.count < mediaLimit
+  }
+
+  private var mediaLimit: Int {
+    guard
+      let maximum = selectedSchema?.fields
+        .first(where: { $0.kind == .media })?.maxItems
+    else { return 0 }
+    return Int(maximum)
   }
 }

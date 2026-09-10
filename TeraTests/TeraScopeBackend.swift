@@ -2,13 +2,14 @@ import Foundation
 @testable import TeraApp
 
 actor TeraScopeBackend: TeraRuntimeBackend {
-  enum Call: Hashable { case snapshot, drafts, save, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate }
+  enum Call: Hashable { case snapshot, drafts, save, composer, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate }
   struct Pending {
     let pause: ResourceTestPause
     let failure: TeraRuntimeFailure?
   }
 
   private(set) var value = TeraScopeFixtures.snapshot()
+  private let composerStorage = ComposerTestStorage()
   private var pending: [Call: [Pending]] = [:]
   private(set) var counts: [Call: Int] = [:]
   private var receivers: [@Sendable (TeraRuntimeChange) async -> Void] = []
@@ -112,6 +113,19 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     try await wait(.save)
     drafts = [result]
     return result
+  }
+
+  func reserveComposerID() async -> String {
+    await composerStorage.reserve()
+  }
+
+  func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt {
+    try await wait(.composer)
+    return try await composerStorage.save(request)
+  }
+
+  func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft {
+    try await composerStorage.load(scope, id: id)
   }
 
   func probeBlossom() async throws -> TeraBlossomEvidence {

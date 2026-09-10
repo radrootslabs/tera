@@ -36,13 +36,7 @@ struct TeraAddView: View {
         EmptyView()
       }
 
-      if let message = store.message {
-        Section {
-          Label(message, systemImage: statusSymbol)
-            .foregroundStyle(.secondary)
-            .accessibilityIdentifier("radroots.add.status")
-        }
-      }
+      TeraAddSaveStatus(message: store.message, symbol: statusSymbol, state: store.composerState)
 
       if store.activeDraft?.kind == .retraction {
         Section("Retraction") {
