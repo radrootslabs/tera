@@ -129,6 +129,10 @@
       "category": "shared_foundation_api",
       "occurrences": [
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_timing.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
           "count": 14
         },
@@ -1731,6 +1735,26 @@
       ]
     },
     {
+      "identifier": "admit_radroots_calendar_date_event",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_timing.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "admit_radroots_calendar_time_event",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_timing.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
       "identifier": "radroots",
       "category": "public_namespace",
       "occurrences": [
@@ -2497,6 +2521,10 @@
       "category": "shared_foundation_api",
       "occurrences": [
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_timing.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
           "count": 1
         }
@@ -2506,6 +2534,10 @@
       "identifier": "radroots.calendar.time_event.v1",
       "category": "shared_foundation_api",
       "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_timing.rs",
+          "count": 2
+        },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
           "count": 1
@@ -4001,6 +4033,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_timing.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/identity.rs",
           "count": 1
         },
@@ -4013,12 +4049,16 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/ranking.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
           "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
-          "count": 6
+          "count": 7
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",
@@ -4027,6 +4067,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_tests.rs",
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
@@ -4067,6 +4111,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_timing.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 2
         },
@@ -4081,6 +4129,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",
           "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_tests.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
@@ -4458,7 +4510,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
-          "count": 11
+          "count": 12
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",

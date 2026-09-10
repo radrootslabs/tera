@@ -5,9 +5,9 @@ use radroots_event_codec::{
 use serde::{Deserialize, Serialize};
 
 use super::{
-    CardId, CardLifecycleState, CardSourceIdentity, ClassifiedCard, ContextAdmission,
-    LocalNetworkAdmission, MediaReference, Phase1StructuralMediaReference, SupportingProfile,
-    TodayCardType,
+    CalendarTiming, CardId, CardLifecycleState, CardSourceIdentity, ClassifiedCard,
+    ContextAdmission, LocalNetworkAdmission, MediaReference, Phase1StructuralMediaReference,
+    SupportingProfile, TodayCardType,
 };
 
 const CLASSIFIED_CARD_SCHEMA_VERSION: u16 = 1;
@@ -174,19 +174,21 @@ fn card(
     let food_status = matches!(card_type, TodayCardType::FoodAvailability)
         .then(|| tag_value(&tags, &["status"]))
         .flatten();
-    let (effective_at, event_start, event_end) = match card_type {
-        TodayCardType::Event => {
-            let start = tag_time(&tags, "start").unwrap_or_else(|| event.created_at_u64());
-            (start, Some(start), tag_time(&tags, "end"))
+    let calendar_timing = match CalendarTiming::from_admitted(admitted) {
+        Ok(value) => value,
+        Err(_) => {
+            return ProductEventClassification::Excluded(ProductEventExclusion::UnsupportedProfile);
         }
-        TodayCardType::FoodAvailability => (
-            tag_time(&tags, "published_at").unwrap_or_else(|| event.created_at_u64()),
-            None,
-            None,
-        ),
-        TodayCardType::Update | TodayCardType::PhotoUpdate | TodayCardType::Ask => {
-            (event.created_at_u64(), None, None)
+    };
+    let effective_at = match &calendar_timing {
+        Some(CalendarTiming::TimeBased(timing)) => timing.start(),
+        // A civil date has no instant. Preserve its source publication instant
+        // for the secondary order; date relevance is compared as civil dates.
+        Some(CalendarTiming::DateBased(_)) => event.created_at_u64(),
+        None if card_type == TodayCardType::FoodAvailability => {
+            tag_time(&tags, "published_at").unwrap_or_else(|| event.created_at_u64())
         }
+        None => event.created_at_u64(),
     };
     ProductEventClassification::Card(Box::new(ClassifiedCard {
         schema_version: CLASSIFIED_CARD_SCHEMA_VERSION,
@@ -200,8 +202,9 @@ fn card(
         content: event.content().to_owned(),
         authored_at: event.created_at_u64(),
         effective_at,
-        event_start,
-        event_end,
+        legacy_event_start: None,
+        legacy_event_end: None,
+        calendar_timing,
         location,
         price_amount,
         price_currency,
@@ -234,16 +237,7 @@ fn tag_values(tags: &[Vec<String>], name: &str) -> Option<Vec<String>> {
 }
 
 fn tag_time(tags: &[Vec<String>], name: &str) -> Option<u64> {
-    let value = tag_value(tags, &[name])?;
-    value.parse().ok().or_else(|| {
-        chrono::NaiveDate::parse_from_str(&value, "%Y-%m-%d")
-            .ok()?
-            .and_hms_opt(0, 0, 0)?
-            .and_utc()
-            .timestamp()
-            .try_into()
-            .ok()
-    })
+    tag_value(tags, &[name])?.parse().ok()
 }
 
 fn post_media(
@@ -531,7 +525,7 @@ mod tests {
                 &[vec!["start".to_owned(), "2026-08-13".to_owned()]],
                 "start"
             )
-            .is_some()
+            .is_none()
         );
 
         assert_eq!(blossom_digest("not-a-url"), None);

@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use thiserror::Error;
 
-use super::{CardId, ContextRank, TodayCardType};
+use super::{CardId, ContextRank, DateBasedTiming, TodayCardType};
+use radroots_event::calendar::CalendarDate;
 
 pub const TODAY_RANK_SCHEMA_VERSION: u16 = 1;
 pub const TODAY_RANK_ALGORITHM_VERSION: u16 = 1;
@@ -12,14 +13,23 @@ const RANK_DIGEST_DOMAIN: &[u8] = b"radroots.today-rank.v1\0";
 const UPCOMING_EVENT_WINDOW_SECONDS: u64 = 7 * 24 * 60 * 60;
 
 /// Exact time inputs used by the deliberately small Phase 1 ranking function.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TimeRelevance {
     Published,
-    Event { start: u64, end: Option<u64> },
-    FoodAvailability { active: bool },
+    TimeBased {
+        start: u64,
+        end: Option<u64>,
+    },
+    DateBased {
+        event: DateBasedTiming,
+        as_of_date: CalendarDate,
+    },
+    FoodAvailability {
+        active: bool,
+    },
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TodayRankInput {
     pub card_type: TodayCardType,
     pub context_rank: ContextRank,
@@ -35,6 +45,8 @@ pub enum RankError {
     MismatchedTimeProfile,
     #[error("event end must be later than its start")]
     InvalidEventRange,
+    #[error("calendar relevance requires a supported civil date")]
+    InvalidDateContext,
 }
 
 /// Lexicographic Today order key.
@@ -54,7 +66,7 @@ pub struct TodayRank {
 
 impl TodayRank {
     pub fn derive(input: TodayRankInput) -> Result<Self, RankError> {
-        let time_relevance_rank = time_relevance_rank(input)?;
+        let time_relevance_rank = time_relevance_rank(&input)?;
         Ok(Self {
             schema_version: TODAY_RANK_SCHEMA_VERSION,
             algorithm_version: TODAY_RANK_ALGORITHM_VERSION,
@@ -101,23 +113,41 @@ impl PartialOrd for TodayRank {
     }
 }
 
-fn time_relevance_rank(input: TodayRankInput) -> Result<u8, RankError> {
-    match (input.card_type, input.time) {
+fn time_relevance_rank(input: &TodayRankInput) -> Result<u8, RankError> {
+    match (input.card_type, &input.time) {
         (
             TodayCardType::Update | TodayCardType::PhotoUpdate | TodayCardType::Ask,
             TimeRelevance::Published,
         ) => Ok(1),
         (TodayCardType::FoodAvailability, TimeRelevance::FoodAvailability { active }) => {
-            Ok(if active { 3 } else { 0 })
+            Ok(if *active { 3 } else { 0 })
         }
-        (TodayCardType::Event, TimeRelevance::Event { start, end }) => {
-            if end.is_some_and(|end| end <= start) {
+        (TodayCardType::Event, TimeRelevance::DateBased { event, as_of_date }) => {
+            if event.end_exclusive().is_some_and(|end| as_of_date >= end)
+                || (event.end_exclusive().is_none() && as_of_date > event.start())
+            {
+                return Ok(0);
+            }
+            if as_of_date >= event.start() {
+                return Ok(4);
+            }
+            let parse = |date: &CalendarDate| {
+                chrono::NaiveDate::parse_from_str(date.as_str(), "%Y-%m-%d")
+                    .map_err(|_| RankError::InvalidDateContext)
+            };
+            let distance = parse(event.start())?
+                .signed_duration_since(parse(as_of_date)?)
+                .num_days();
+            Ok(if distance <= 7 { 3 } else { 2 })
+        }
+        (TodayCardType::Event, TimeRelevance::TimeBased { start, end }) => {
+            if end.is_some_and(|end| end <= *start) {
                 return Err(RankError::InvalidEventRange);
             }
             if end.is_some_and(|end| input.as_of >= end) {
                 return Ok(0);
             }
-            if input.as_of >= start {
+            if input.as_of >= *start {
                 return Ok(4);
             }
             if start.saturating_sub(input.as_of) <= UPCOMING_EVENT_WINDOW_SECONDS {
@@ -185,7 +215,7 @@ mod tests {
             assert_eq!(
                 TodayRank::derive(input(
                     TodayCardType::Event,
-                    TimeRelevance::Event { start, end }
+                    TimeRelevance::TimeBased { start, end }
                 ))
                 .expect("event")
                 .time_relevance_rank,
@@ -264,7 +294,7 @@ mod tests {
         assert_eq!(
             TodayRank::derive(input(
                 TodayCardType::Event,
-                TimeRelevance::Event {
+                TimeRelevance::TimeBased {
                     start: 10,
                     end: Some(10),
                 }

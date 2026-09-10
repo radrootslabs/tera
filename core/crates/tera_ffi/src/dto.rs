@@ -18,14 +18,15 @@ use tera_core::runtime::{
     app_info::AppInfoPlatform,
     info::{AppInfo, RuntimeBuildInfo, RuntimeInfo},
     product_surface::{
-        AddCommandType, CardLifecycleState, CreateAsk, CreateEvent, CreateFoodAvailability,
-        CreatePhotoUpdate, CreateUpdate, LocalNetwork, LocalNetworkRelayPolicy, MeSnapshot,
-        MediaReference, Phase1AddCommand, Phase1CancellationPolicy, Phase1DraftEventTiming,
-        Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot, Phase1DraftStatus,
-        Phase1InboundMediaState, Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState,
-        Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1UploadIntent, ProfileSummary,
-        SearchResult, SearchResultType, SupportingProfile, ThreadEntry, TodayCard, TodayCardType,
-        TodayPage, TodayProjectionUpdate, TodayRefreshReceipt,
+        AddCommandType, CalendarTiming, CardLifecycleState, CreateAsk, CreateEvent,
+        CreateFoodAvailability, CreatePhotoUpdate, CreateUpdate, LocalNetwork,
+        LocalNetworkRelayPolicy, MeSnapshot, MediaReference, Phase1AddCommand,
+        Phase1CancellationPolicy, Phase1DraftEventTiming, Phase1DraftFormSnapshot, Phase1DraftKind,
+        Phase1DraftMediaSnapshot, Phase1DraftStatus, Phase1InboundMediaState,
+        Phase1MediaPrerequisite, Phase1MediaStage, Phase1OutboxState, Phase1QueuePolicy,
+        Phase1RelaySatisfaction, Phase1UploadIntent, ProfileSummary, SearchResult,
+        SearchResultType, SupportingProfile, ThreadEntry, TodayCard, TodayCardType, TodayPage,
+        TodayProjectionUpdate, TodayRefreshReceipt,
     },
     sdk::{
         SdkBlossomConfigurationRecord, SdkBlossomEvidenceRecord, SdkCapabilityRecord,
@@ -701,6 +702,14 @@ pub struct FfiTodayCardRecord {
 impl From<TodayCard> for FfiTodayCardRecord {
     fn from(value: TodayCard) -> Self {
         let card = value.card;
+        // Temporary instant-only generated boundary, replaced in C049. Civil
+        // dates are never represented as midnight-UTC timestamps here.
+        let (event_start, event_end) = match &card.calendar_timing {
+            Some(CalendarTiming::TimeBased(timing)) => {
+                (Some(timing.start()), timing.end_exclusive())
+            }
+            Some(CalendarTiming::DateBased(_)) | None => (None, None),
+        };
         Self {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
             card_id: card.card_id.to_hex(),
@@ -713,8 +722,8 @@ impl From<TodayCard> for FfiTodayCardRecord {
             content: card.content,
             authored_at_unix_s: card.authored_at,
             effective_at_unix_s: card.effective_at,
-            event_start_unix_s: card.event_start,
-            event_end_unix_s: card.event_end,
+            event_start_unix_s: event_start,
+            event_end_unix_s: event_end,
             location: card.location,
             price_amount: card.price_amount,
             price_currency: card.price_currency,

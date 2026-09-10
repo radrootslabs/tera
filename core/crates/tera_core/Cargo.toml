@@ -39,6 +39,7 @@ radroots_blossom = { workspace = true, default-features = false, features = [
 radroots_sdk = { workspace = true, features = ["sqlite"] }
 radroots_event = { workspace = true, default-features = false, features = [
   "std",
+  "serde",
 ] }
 radroots_event_codec = { workspace = true, default-features = false, features = [
   "json",

@@ -35,7 +35,8 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let state = load_state(storage, context, projection_generation()?)
+        let state = self
+            .calendar_state_for_read(storage, context, as_of)
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
         if state.query_scope != Some(query_scope)

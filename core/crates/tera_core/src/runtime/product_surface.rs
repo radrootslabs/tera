@@ -5,6 +5,7 @@
 //! composition remain in the runtime slices that consume these types.
 
 mod authoring;
+mod calendar_timing;
 mod context;
 mod cursor;
 mod identity;
@@ -23,6 +24,7 @@ pub use authoring::{
     CreateAsk, CreateEvent, CreateFoodAvailability, CreatePhotoUpdate, CreateUpdate,
     Phase1AddCommand, Phase1ReplacementPolicy, phase1_retraction_plan,
 };
+pub use calendar_timing::{CalendarTiming, CalendarTimingError, DateBasedTiming, TimeBasedTiming};
 pub use context::{
     ContextAdmission, ContextRank, LocalNetwork, LocalNetworkAdmission, LocalNetworkError,
     LocalNetworkRelayPolicy, LocalityEvidence,

@@ -33,10 +33,10 @@ use radroots_sync::ingest::{AdmissionDecision, AdmissionPolicy, ContractFailureD
 #[cfg(feature = "mobile-social")]
 use super::Phase1LocalMediaArtifact;
 use super::{
-    CardId, CardLifecycleState, ClassifiedCard, CursorError, CursorScope, LocalAuthorOverlay,
-    LocalNetwork, LocalityEvidence, MeSnapshot, MediaReference, Phase1InboundMediaError,
-    Phase1InboundMediaFailure, Phase1InboundMediaPending, Phase1InboundMediaState,
-    Phase1MediaArtifactId, Phase1MediaCacheIndex, Phase1MediaCacheStatus,
+    CalendarTiming, CardId, CardLifecycleState, ClassifiedCard, CursorError, CursorScope,
+    LocalAuthorOverlay, LocalNetwork, LocalityEvidence, MeSnapshot, MediaReference,
+    Phase1InboundMediaError, Phase1InboundMediaFailure, Phase1InboundMediaPending,
+    Phase1InboundMediaState, Phase1MediaArtifactId, Phase1MediaCacheIndex, Phase1MediaCacheStatus,
     Phase1MediaConfigurationFingerprint, Phase1StructuralMediaReference,
     ProductEventClassification, ProfileSummary, SearchResult, SearchResultType, SupportingProfile,
     ThreadEntry, ThreadReference, TimeRelevance, TodayCard, TodayCardType, TodayCursor,
@@ -76,6 +76,10 @@ mod reconciliation_tests;
 #[cfg(test)]
 #[path = "today_performance_tests.rs"]
 mod performance_tests;
+
+#[cfg(test)]
+#[path = "today_calendar_tests.rs"]
+mod calendar_tests;
 
 #[cfg(test)]
 #[path = "today_scope_tests.rs"]
@@ -312,6 +316,7 @@ impl TeraRuntime {
                 state.source_events == event_status.raw_events()
                     && state.query_scope == Some(query_scope)
                     && state.visibility_digest == Some(visibility_digest)
+                    && calendar_projection_ready(state)
             })
         {
             let state = prior.expect("checked present");
@@ -437,6 +442,7 @@ impl TeraRuntime {
             if current.store_generation != scope.store_generation
                 || current.query_scope != Some(scope.query_scope)
                 || current.visibility_digest.is_none()
+                || !calendar_projection_ready(&current)
                 || current.content_generation != scope.projection_generation
             {
                 return Err(CursorError::Stale.into());
@@ -451,7 +457,8 @@ impl TeraRuntime {
             let state = match load_state(storage, context, algorithm_generation).await? {
                 Some(state)
                     if state.query_scope == Some(query_scope)
-                        && state.visibility_digest.is_some() =>
+                        && state.visibility_digest.is_some()
+                        && calendar_projection_ready(&state) =>
                 {
                     state
                 }
@@ -486,6 +493,25 @@ impl TeraRuntime {
         page_from_snapshot(snapshot, scope, after, request.limit)
     }
 
+    async fn calendar_state_for_read(
+        &self,
+        storage: &dyn radroots_storage::Storage,
+        context: &LocalNetwork,
+        as_of: u64,
+    ) -> Result<Option<TodayProjectionState>, TodayError> {
+        let state = load_state(storage, context, projection_generation()?).await?;
+        if state
+            .as_ref()
+            .is_some_and(|value| !calendar_projection_ready(value))
+        {
+            self.phase1_refresh_today(context, as_of, TodayProjectionUpdate::Rebuild)
+                .await?;
+            load_state(storage, context, projection_generation()?).await
+        } else {
+            Ok(state)
+        }
+    }
+
     /// Searches the current local projection using Today visibility and context rules.
     pub async fn phase1_search(
         &self,
@@ -506,7 +532,8 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let state = load_state(storage, context, projection_generation()?)
+        let state = self
+            .calendar_state_for_read(storage, context, as_of)
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
         let cards = ranked_cards(&state, context, as_of)?;
@@ -581,7 +608,8 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let state = load_state(storage, context, projection_generation()?)
+        let state = self
+            .calendar_state_for_read(storage, context, as_of)
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
         let cards = ranked_cards(&state, context, as_of)?
@@ -1555,6 +1583,12 @@ fn locality_evidence(selected: Option<&str>, locality: &[LocalityTag]) -> Locali
     }
 }
 
+fn calendar_projection_ready(state: &TodayProjectionState) -> bool {
+    state.cards.iter().all(|entry| {
+        entry.card.card_type != TodayCardType::Event || entry.card.calendar_timing.is_some()
+    })
+}
+
 fn ranked_cards(
     state: &TodayProjectionState,
     context: &LocalNetwork,
@@ -1589,9 +1623,32 @@ fn selected_ranked_cards(
             TodayCardType::FoodAvailability => TimeRelevance::FoodAvailability {
                 active: card.lifecycle == CardLifecycleState::Active,
             },
-            TodayCardType::Event => TimeRelevance::Event {
-                start: card.event_start.unwrap_or(card.effective_at),
-                end: card.event_end,
+            TodayCardType::Event => match card
+                .calendar_timing
+                .as_ref()
+                .ok_or(TodayError::CorruptProjection)?
+            {
+                CalendarTiming::TimeBased(timing) => TimeRelevance::TimeBased {
+                    start: timing.start(),
+                    end: timing.end_exclusive(),
+                },
+                CalendarTiming::DateBased(event) => {
+                    // The existing instant-only request has an explicit UTC
+                    // relevance context. C052 replaces this bridge with the
+                    // frozen viewer IANA context; no event date becomes an epoch.
+                    let instant = i64::try_from(as_of)
+                        .ok()
+                        .and_then(|value| chrono::DateTime::from_timestamp(value, 0))
+                        .ok_or(TodayError::InvalidRequest)?;
+                    let as_of_date = radroots_event::calendar::CalendarDate::parse(
+                        &instant.date_naive().to_string(),
+                    )
+                    .map_err(|_| TodayError::InvalidRequest)?;
+                    TimeRelevance::DateBased {
+                        event: event.clone(),
+                        as_of_date,
+                    }
+                }
             },
         };
         let rank = TodayRank::derive(TodayRankInput {
@@ -2233,7 +2290,7 @@ mod tests {
         )
     }
 
-    fn signed_owned(
+    pub(super) fn signed_owned(
         kind: u32,
         tags: Vec<Vec<String>>,
         content: &str,
@@ -3865,8 +3922,9 @@ mod tests {
 
         let mut event_state = state.clone();
         event_state.cards[0].card.card_type = TodayCardType::Event;
-        event_state.cards[0].card.event_start = Some(100);
-        event_state.cards[0].card.event_end = Some(200);
+        event_state.cards[0].card.calendar_timing = Some(CalendarTiming::TimeBased(
+            super::super::TimeBasedTiming::new(100, Some(200), None, None).unwrap(),
+        ));
         event_state.cards[0].card.effective_at = 100;
         assert_eq!(
             ranked_cards(&event_state, &context, 150).expect("live event")[0]
