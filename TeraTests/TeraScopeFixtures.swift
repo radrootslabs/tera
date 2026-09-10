@@ -39,7 +39,7 @@ enum TeraScopeFixtures {
       id: id, type: .update, sourceEventID: id, sourceAddress: nil,
       authorPublicKey: String(repeating: "a", count: 64), contractID: "test.update",
       title: nil, content: id, authoredAtUnixSeconds: 1, effectiveAtUnixSeconds: 1,
-      eventStartUnixSeconds: nil, eventEndUnixSeconds: nil, location: nil,
+      calendarTiming: nil, location: nil,
       priceAmount: nil, priceCurrency: nil, priceUnit: nil, quantity: nil, foodSummary: nil,
       foodPublishedAtUnixSeconds: nil, foodStatus: nil, contextRank: 1, inclusionReason: "local",
       media: [], lifecycle: .active, rankDigest: nil, authorProfile: nil, thread: [],

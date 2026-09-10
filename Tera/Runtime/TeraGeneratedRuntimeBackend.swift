@@ -170,7 +170,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         query: query,
         limit: limit,
         asOfUnixS: asOfUnixSeconds
-      ).map(\.appValue)
+      ).map { try $0.appValue() }
     } catch {
       throw Self.failure(from: error)
     }
@@ -184,7 +184,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
       return try await runtime.phase1Me(
         context: context.generatedValue,
         asOfUnixS: asOfUnixSeconds
-      ).appValue
+      ).appValue()
     } catch {
       throw Self.failure(from: error)
     }
@@ -834,44 +834,8 @@ extension TeraTodayProjectionUpdate {
   }
 }
 
-extension FfiTodayCardRecord {
-  var appValue: TeraTodayCard {
-    TeraTodayCard(
-      id: cardId,
-      type: cardType.appValue,
-      sourceEventID: sourceEventId,
-      sourceAddress: sourceAddress,
-      authorPublicKey: authorPublicKey,
-      contractID: contractId,
-      title: title,
-      content: content,
-      authoredAtUnixSeconds: authoredAtUnixS,
-      effectiveAtUnixSeconds: effectiveAtUnixS,
-      eventStartUnixSeconds: eventStartUnixS,
-      eventEndUnixSeconds: eventEndUnixS,
-      location: location,
-      priceAmount: priceAmount,
-      priceCurrency: priceCurrency,
-      priceUnit: priceUnit,
-      quantity: quantity,
-      foodSummary: foodSummary,
-      foodPublishedAtUnixSeconds: foodPublishedAtUnixS,
-      foodStatus: foodStatus,
-      contextRank: contextRank,
-      inclusionReason: inclusionReason,
-      media: media.map(\.appValue),
-      lifecycle: lifecycle.appValue,
-      rankDigest: rankDigest,
-      authorProfile: authorProfile?.appValue,
-      thread: thread.map(\.appValue),
-      localOperationID: localOperationId,
-      localOperationState: localOperationState
-    )
-  }
-}
-
 extension FfiMediaReferenceRecord {
-  fileprivate var appValue: TeraMediaReference {
+  var appValue: TeraMediaReference {
     TeraMediaReference(
       referenceFingerprint: referenceFingerprint,
       url: url,
@@ -898,7 +862,7 @@ extension FfiMediaVerificationState {
 }
 
 extension FfiProfileRecord {
-  fileprivate var appValue: TeraProfileSummary {
+  var appValue: TeraProfileSummary {
     TeraProfileSummary(
       authorPublicKey: authorPublicKey,
       name: name,
@@ -914,13 +878,8 @@ extension FfiProfileRecord {
 }
 
 extension FfiSearchResultRecord {
-  fileprivate var appValue: TeraSearchResult {
-    TeraSearchResult(
-      type: resultType.appValue,
-      id: stableId,
-      card: card?.appValue,
-      profile: profile?.appValue
-    )
+  fileprivate func appValue() throws -> TeraSearchResult {
+    try TeraSearchResult(type: resultType.appValue, id: stableId, card: card?.appValue(), profile: profile?.appValue)
   }
 }
 
@@ -934,17 +893,13 @@ extension FfiSearchResultType {
 }
 
 extension FfiMeRecord {
-  fileprivate var appValue: TeraMeSnapshot {
-    TeraMeSnapshot(
-      publicKey: publicKey,
-      profile: profile?.appValue,
-      cards: cards.map(\.appValue)
-    )
+  fileprivate func appValue() throws -> TeraMeSnapshot {
+    try TeraMeSnapshot(publicKey: publicKey, profile: profile?.appValue, cards: cards.map { try $0.appValue() })
   }
 }
 
 extension FfiThreadEntryRecord {
-  fileprivate var appValue: TeraThreadEntry {
+  var appValue: TeraThreadEntry {
     TeraThreadEntry(
       id: eventId,
       authorPublicKey: authorPublicKey,
@@ -970,7 +925,7 @@ extension FfiThreadProfile {
 }
 
 extension FfiCardLifecycleState {
-  fileprivate var appValue: TeraCardLifecycleState {
+  var appValue: TeraCardLifecycleState {
     switch self {
     case .active: .active
     case .sold: .sold
@@ -1544,7 +1499,7 @@ private extension TeraGeneratedRuntimeBackend {
       return try await runtime.phase1TodayReconcile(
         context: request.context.generatedValue, asOfUnixS: request.asOfUnixSeconds,
         cardIds: request.cardIDs, expectedGeneration: request.expectedGeneration
-      ).appValue
+      ).appValue()
     } catch { throw Self.failure(from: error) }
   }
 
@@ -1556,7 +1511,7 @@ private extension TeraGeneratedRuntimeBackend {
         asOfUnixS: request.asOfUnixSeconds,
         cursor: request.cursor
       )
-      return page.appValue
+      return try page.appValue()
     } catch {
       throw Self.failure(from: error)
     }

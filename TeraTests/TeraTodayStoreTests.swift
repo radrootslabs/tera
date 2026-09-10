@@ -278,8 +278,10 @@ private func makeCard(
       content: type == .ask ? "Who has seedlings?" : "Fresh from the field",
       authoredAtUnixSeconds: authoredAt,
       effectiveAtUnixSeconds: authoredAt,
-      eventStartUnixSeconds: type == .event ? authoredAt + 3600 : nil,
-      eventEndUnixSeconds: nil,
+      calendarTiming: type == .event ? .timeBased(
+        startUnixSeconds: authoredAt + 3600, endExclusiveUnixSeconds: nil,
+        startTimezoneID: nil, endTimezoneID: nil
+      ) : nil,
       location: type == .event || type == .foodAvailability ? "Town square" : nil,
       priceAmount: type == .foodAvailability ? "3" : nil,
       priceCurrency: type == .foodAvailability ? "CAD" : nil,

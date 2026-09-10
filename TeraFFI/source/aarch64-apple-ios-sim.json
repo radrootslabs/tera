@@ -885,10 +885,22 @@
         "sha256": "f96248270139fbd131bf5290bf97560b7e12140d76e4fe77a071f92d6e76e451"
       },
       "core/crates/tera_ffi/src/dto.rs": {
-        "bytes": 107758,
-        "git_blob": "f8c746adf993d7d8fa675332bf34fd261a165f47",
+        "bytes": 107355,
+        "git_blob": "79ea5a880020f2cf0f972c6bb957a3b4943ae1a4",
         "mode": "100644",
-        "sha256": "e2168374d97811d33b1df0f8410126eefdd3fa161b26342702062c6edde0d167"
+        "sha256": "cd3e6f40241be45c63e75297168f1f71ef2162f9f3d10754b7c8f9bc6f468340"
+      },
+      "core/crates/tera_ffi/src/dto/calendar.rs": {
+        "bytes": 2040,
+        "git_blob": "086e66a07bece38dca70a23a2c24341c3f9a93ba",
+        "mode": "100644",
+        "sha256": "b39ce0b5626149d76405cc4d8221b903cc9ba739cb945664d582b20ae9ff2b01"
+      },
+      "core/crates/tera_ffi/src/dto/calendar_tests.rs": {
+        "bytes": 2241,
+        "git_blob": "fc6e1d1fd9fdcec26fcd5527a738a5dd0c920b00",
+        "mode": "100644",
+        "sha256": "54b6200c83b7b3681bf0167ee9098511f285aa3b70562f7ceb8275833748e6d4"
       },
       "core/crates/tera_ffi/src/dto/today_sync.rs": {
         "bytes": 4837,
@@ -993,10 +1005,10 @@
         "sha256": "4cb6aa1ff8b006d8a8710e807c9965d47fdd3e72eca67b28a5d909696574f161"
       },
       "core/crates/tera_ffi/tests/local_mvp_real_io.rs": {
-        "bytes": 34357,
-        "git_blob": "a0d0ccf4f4a5b9d13466020f0c88288180dd6a8a",
+        "bytes": 34914,
+        "git_blob": "0d4750c9c726884aef38174a052d96aae1790f7d",
         "mode": "100644",
-        "sha256": "978c97c66914ef8c2211fe369259d668e0cba967e2c1c6125d7a096fc8aff7a0"
+        "sha256": "f224f3489cc688626b15d9ce3a30d24555b55fcf8f6237420c5b0c932082ed4b"
       },
       "core/crates/tera_ffi/tests/logging_error.rs": {
         "bytes": 357,
@@ -1257,10 +1269,10 @@
         "sha256": "26046966bece8c811a5b3edef191e2ea5b5c4be3187cf65a29f7edbe93cbb487"
       },
       "scripts/kotlin_smoke.py": {
-        "bytes": 9757,
-        "git_blob": "23187666607c144aaf64dd595bec860fa32bc9b3",
+        "bytes": 10065,
+        "git_blob": "8f3bf79aa04accbd6d36c5faabe17bd7add44e6a",
         "mode": "100644",
-        "sha256": "f5f8664e7b2d9186d250e936e09627daa638ab4391f264859f34463f62a03c02"
+        "sha256": "409dc7357f6dd9b48024e14095cf51bcd81382e393d867cb5ba373e8ef048374"
       },
       "scripts/kotlin_smoke/build.gradle.kts": {
         "bytes": 1479,
@@ -1309,6 +1321,12 @@
         "git_blob": "fd265d2d0ef24cc60c9743ecc6970e1aecedfab1",
         "mode": "100644",
         "sha256": "c79c68bfc632c9b55e7b2da5c39131e62e3530ce414baa5a4f7b589cbca40169"
+      },
+      "scripts/kotlin_smoke/src/test/kotlin/tera/smoke/CalendarTimingTests.kt": {
+        "bytes": 1898,
+        "git_blob": "2d76ef9fe76e334f0a13b6da3df3b39207530831",
+        "mode": "100644",
+        "sha256": "a797505861711522c9e039c39ea9f2720a1f966ca33e432c508be5e90ea160d9"
       },
       "scripts/kotlin_smoke/src/test/kotlin/tera/smoke/MediaOwnershipTests.kt": {
         "bytes": 4638,
@@ -1431,10 +1449,10 @@
         "sha256": "cda3773df7ec0ed0c6bc508167f65f9f0a9a2f81ca461078c0313dbd57785584"
       },
       "scripts/test_kotlin_smoke.py": {
-        "bytes": 3606,
-        "git_blob": "75abd331ecc203890a9359220827ed26b2c48664",
+        "bytes": 3609,
+        "git_blob": "b64f8bd8651b3891559b4c6a2defd3e1484ab507",
         "mode": "100644",
-        "sha256": "8fca7a493b74bc85324fad6acc913f63cd40a427444493e626d2c7b162a15310"
+        "sha256": "fa309ce68f10b5337b46bb8e5f2f7225c65487ee1735659099f1036f4dc1a1fb"
       },
       "scripts/test_legacy_identifiers.py": {
         "bytes": 6406,
@@ -1473,13 +1491,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 120097,
-        "git_blob": "cd3274ed9dace12bc2a0c065630e0a5210a2e24a",
+        "bytes": 120311,
+        "git_blob": "6459327c030fefd58023e9748a4b63cda70e41f2",
         "mode": "100644",
-        "sha256": "9f45f1964b2c53cf60fd3b536cadd628b6e67e7ab56c9edebbda917402e1507f"
+        "sha256": "01b849b783353d4a93d420aa674004f61352595972e24163de4af0ffeaa01d13"
       }
     },
     "policy": "staged_inputs",
-    "tree": "a2debc6a4ad04ea84e3d93b10649c3e9562de36a"
+    "tree": "a304a7b5ce6f52f7f3b4a13a59baed9571879bed"
   }
 }

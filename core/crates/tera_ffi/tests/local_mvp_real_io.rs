@@ -290,6 +290,26 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
 
     let cards = collect_pages(&reader, &context, 2, AS_OF).await;
     assert_eq!(cards.len(), 5, "all equal-time cards survive frozen paging");
+    assert!(
+        cards
+            .iter()
+            .all(|card| card.schema_version == tera_ffi::TODAY_CARD_FFI_SCHEMA_VERSION)
+    );
+    let calendar = cards
+        .iter()
+        .find(|card| card.card_type == FfiTodayCardType::Event)
+        .unwrap();
+    assert_eq!(
+        calendar.calendar_timing,
+        Some(tera_ffi::FfiCalendarTiming::DateBased {
+            start: tera_ffi::FfiCivilDate {
+                year: 2026,
+                month: 8,
+                day: 9
+            },
+            end_exclusive: None,
+        })
+    );
     let mut card_types = cards.iter().map(|card| card.card_type).collect::<Vec<_>>();
     card_types.sort_by_key(|card_type| match card_type {
         FfiTodayCardType::Update => 0,

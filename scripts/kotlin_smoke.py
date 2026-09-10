@@ -36,6 +36,9 @@ EXPECTED_CASES = {
     "tera.smoke.MediaOwnershipTests/recycledCallerSlotAndDisposedSourceWrapperCannotSubstituteBytes",
     "tera.smoke.MediaOwnershipTests/admissionRejectsInvalidDescriptorsAndWrongTypesSynchronously",
     "tera.smoke.TodayReceiptTests/generatedNativeBufferRoundTripPreservesIncompleteAndUnknownTargetEvidence",
+    "tera.smoke.CalendarTimingTests/generatedNativeBuffersPreserveCivilDatesAndExclusiveEnds",
+    "tera.smoke.CalendarTimingTests/generatedNativeBuffersPreserveEveryUnsignedInstantBitAndSourceZone",
+    "tera.smoke.CalendarTimingTests/unknownVariantsAndTruncatedGeneratedValuesFailWithoutFabricatingDates",
 }
 
 

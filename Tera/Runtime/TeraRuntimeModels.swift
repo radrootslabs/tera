@@ -607,8 +607,7 @@ struct TeraTodayCard: Sendable, Equatable, Hashable, Identifiable {
   let content: String
   let authoredAtUnixSeconds: UInt64
   let effectiveAtUnixSeconds: UInt64
-  let eventStartUnixSeconds: UInt64?
-  let eventEndUnixSeconds: UInt64?
+  let calendarTiming: TeraCalendarTiming?
   let location: String?
   let priceAmount: String?
   let priceCurrency: String?

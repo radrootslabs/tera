@@ -253,13 +253,8 @@ struct TeraTodayCardView: View {
 
   private var eventMetadata: some View {
     VStack(alignment: .leading, spacing: 4) {
-      if let start = card.eventStartUnixSeconds {
-        Label(
-          Date(timeIntervalSince1970: TimeInterval(start)).formatted(
-            date: .abbreviated, time: .shortened
-          ),
-          systemImage: "calendar"
-        )
+      if let timing = card.calendarTiming {
+        Label(timing.summary, systemImage: "calendar")
       }
       if let location = card.location {
         Label(presentation.label(location), systemImage: "mappin.and.ellipse")

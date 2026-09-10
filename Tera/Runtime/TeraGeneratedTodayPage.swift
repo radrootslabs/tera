@@ -2,12 +2,10 @@ import Foundation
 import TeraKitBindings
 
 extension FfiTodayPageRecord {
-  var appValue: TeraTodayPage {
-    TeraTodayPage(
-      asOfUnixSeconds: asOfUnixS,
-      items: items.map(\.appValue),
-      nextCursor: nextCursor,
-      projectionGeneration: projectionGeneration
+  func appValue() throws -> TeraTodayPage {
+    try TeraTodayPage(
+      asOfUnixSeconds: asOfUnixS, items: items.map { try $0.appValue() },
+      nextCursor: nextCursor, projectionGeneration: projectionGeneration
     )
   }
 }
