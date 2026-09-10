@@ -200,6 +200,7 @@ pub struct TodayCard {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TodayPage {
+    pub calendar: super::ViewerCalendarContext,
     pub projection_generation: u64,
     pub as_of: u64,
     pub items: Vec<TodayCard>,

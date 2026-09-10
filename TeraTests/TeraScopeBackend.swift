@@ -23,6 +23,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   private var reconciliationCards: [TeraTodayCard]?
   private var reconciliationGeneration: UInt64 = 1
   private(set) var reconciliationRequests: [TeraTodayReconcileRequest] = []
+  private(set) var pageRequests: [TeraTodayPageRequest] = []
 
   init() throws {
     media = try TeraScopeFixtures.artifact("a")
@@ -74,10 +75,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     if let expected = request.expectedGeneration, expected != generation {
       throw TeraRuntimeFailure.local(operation: "test", code: "today_cursor_invalid", safeMessage: "Changed")
     }
-    return TeraTodayPage(
-      asOfUnixSeconds: request.asOfUnixSeconds, items: items, nextCursor: nil,
-      projectionGeneration: generation
-    )
+    return TeraTodayPage(asOfUnixSeconds: request.asOfUnixSeconds, items: items, nextCursor: nil, projectionGeneration: generation, calendar: request.calendar)
   }
 
   private func wait(_ call: Call) async throws {
@@ -128,9 +126,8 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   }
 
   func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage {
-    let result = pages[request.cursor ?? "first"] ?? TeraTodayPage(
-      asOfUnixSeconds: 1, items: [TeraScopeFixtures.card(request.context.relayURLs.first ?? "none")], nextCursor: nil
-    )
+    pageRequests.append(request)
+    let result = pages[request.cursor ?? "first"] ?? TeraTodayPage(asOfUnixSeconds: 1, items: [TeraScopeFixtures.card(request.context.relayURLs.first ?? "none")], nextCursor: nil, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1))
     try await wait(.page)
     return result
   }

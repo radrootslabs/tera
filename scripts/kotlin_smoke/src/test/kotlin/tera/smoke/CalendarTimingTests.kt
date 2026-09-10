@@ -7,8 +7,24 @@ import kotlin.test.assertFailsWith
 import uniffi.tera_core.FfiCalendarTiming
 import uniffi.tera_core.FfiCivilDate
 import uniffi.tera_core.FfiConverterTypeFfiCalendarTiming
+import uniffi.tera_core.FfiConverterTypeFfiTodayPageRecord
+import uniffi.tera_core.FfiTodayPageRecord
+import uniffi.tera_core.FfiViewerCalendarContext
 
 class CalendarTimingTests {
+    @Test
+    fun generatedPageBufferRetainsFrozenViewerCalendarContext() {
+        val value = FfiTodayPageRecord(
+            calendar = FfiViewerCalendarContext(
+                schemaVersion = 1u, asOfUnixS = 1788569400uL,
+                timeZone = "America/Vancouver", civilDate = FfiCivilDate(2026u, 9u, 4u),
+            ),
+            projectionGeneration = 9uL, schemaVersion = 2u,
+            asOfUnixS = 1788569400uL, items = emptyList(), nextCursor = "opaque",
+        )
+        assertEquals(value, FfiConverterTypeFfiTodayPageRecord.lift(FfiConverterTypeFfiTodayPageRecord.lower(value)))
+    }
+
     @Test
     fun generatedNativeBuffersPreserveCivilDatesAndExclusiveEnds() {
         for (value in listOf(

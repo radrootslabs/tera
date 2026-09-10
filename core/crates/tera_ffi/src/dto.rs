@@ -36,6 +36,8 @@ use tera_core::runtime::{
 
 use crate::TeraAppError;
 
+mod viewer_calendar;
+pub use viewer_calendar::{FfiViewerCalendarContext, TODAY_PAGE_FFI_SCHEMA_VERSION};
 mod calendar;
 pub use calendar::{FfiCalendarTiming, FfiCivilDate, TODAY_CARD_FFI_SCHEMA_VERSION};
 
@@ -742,6 +744,7 @@ impl From<TodayCard> for FfiTodayCardRecord {
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiTodayPageRecord {
+    pub calendar: FfiViewerCalendarContext,
     pub projection_generation: u64,
     pub schema_version: u16,
     pub as_of_unix_s: u64,
@@ -800,7 +803,8 @@ impl From<TodayRefreshReceipt> for FfiTodayRefreshRecord {
 impl From<TodayPage> for FfiTodayPageRecord {
     fn from(value: TodayPage) -> Self {
         Self {
-            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            calendar: value.calendar.into(),
+            schema_version: TODAY_PAGE_FFI_SCHEMA_VERSION,
             projection_generation: value.projection_generation,
             as_of_unix_s: value.as_of,
             items: value.items.into_iter().map(Into::into).collect(),

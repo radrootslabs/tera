@@ -3,16 +3,22 @@ use thiserror::Error;
 
 use super::local_network_id::LOCAL_NETWORK_ID_MAX_BYTES;
 use super::{CardId, ContextRank, LocalNetworkId, TODAY_RANK_SCHEMA_VERSION, TodayRank};
+use super::{VIEWER_CALENDAR_VERSION, VIEWER_TIME_ZONE_MAX_BYTES, ViewerCalendarContext};
 use crate::runtime::product_surface::ranking::TODAY_RANK_ALGORITHM_VERSION;
 
-const CURSOR_PREFIX: &str = "rrtc2:";
-const CURSOR_DOMAIN: &[u8] = b"radroots.today-cursor.v2\0";
-const CURSOR_SCHEMA_VERSION: u16 = 2;
-const FIXED_PAYLOAD_BYTES: usize = 2 + 2 + 2 + 2 + 8 + 8 + 32 + 8 + 1 + 1 + 8 + 32 + 32;
+const CURSOR_PREFIX: &str = "rrtc3:";
+const CURSOR_DOMAIN: &[u8] = b"tera.today-cursor.v3\0";
+const CURSOR_SCHEMA_VERSION: u16 = 3;
+const FIXED_PAYLOAD_BYTES: usize =
+    2 + 2 + 2 + 2 + 8 + 8 + 32 + 8 + 1 + 1 + 8 + 32 + 32 + 2 + 2 + 2 + 1 + 1;
 const DIGEST_BYTES: usize = 32;
-const MAX_CURSOR_BYTES: usize =
-    CURSOR_PREFIX.len() + 2 * (FIXED_PAYLOAD_BYTES + LOCAL_NETWORK_ID_MAX_BYTES + DIGEST_BYTES);
-const LEGACY_MAX_CURSOR_BYTES: usize = MAX_CURSOR_BYTES - 2 * 32;
+const MAX_CURSOR_BYTES: usize = CURSOR_PREFIX.len()
+    + 2 * (FIXED_PAYLOAD_BYTES
+        + LOCAL_NETWORK_ID_MAX_BYTES
+        + VIEWER_TIME_ZONE_MAX_BYTES
+        + DIGEST_BYTES);
+const LEGACY_MAX_CURSOR_BYTES: usize = 6 + 2 * (106 + LOCAL_NETWORK_ID_MAX_BYTES + DIGEST_BYTES);
+const V2_MAX_CURSOR_BYTES: usize = 6 + 2 * (138 + LOCAL_NETWORK_ID_MAX_BYTES + DIGEST_BYTES);
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CursorScope {
@@ -22,6 +28,7 @@ pub struct CursorScope {
     pub store_generation: [u8; 32],
     pub projection_generation: u64,
     pub query_scope: [u8; 32],
+    pub calendar: ViewerCalendarContext,
 }
 
 impl CursorScope {
@@ -32,9 +39,13 @@ impl CursorScope {
         store_generation: [u8; 32],
         projection_generation: u64,
         query_scope: [u8; 32],
+        calendar: ViewerCalendarContext,
     ) -> Result<Self, CursorError> {
         let context_id =
             LocalNetworkId::new(context_id).map_err(|_| CursorError::InvalidContext)?;
+        if calendar.as_of() != as_of {
+            return Err(CursorError::SnapshotMismatch);
+        }
         Ok(Self {
             context_id,
             context_generation,
@@ -42,6 +53,7 @@ impl CursorScope {
             store_generation,
             projection_generation,
             query_scope,
+            calendar,
         })
     }
 }
@@ -76,6 +88,9 @@ pub enum CursorError {
 
 impl TodayCursor {
     pub fn encode(scope: &CursorScope, position: TodayCursorPosition) -> Result<Self, CursorError> {
+        if scope.calendar.as_of() != scope.as_of {
+            return Err(CursorError::SnapshotMismatch);
+        }
         if position.rank.schema_version != TODAY_RANK_SCHEMA_VERSION
             || position.rank.algorithm_version != TODAY_RANK_ALGORITHM_VERSION
         {
@@ -87,7 +102,9 @@ impl TodayCursor {
         let context_bytes = scope.context_id.as_bytes();
         let context_len =
             u16::try_from(context_bytes.len()).map_err(|_| CursorError::InvalidContext)?;
-        let mut payload = Vec::with_capacity(FIXED_PAYLOAD_BYTES + context_bytes.len());
+        let mut payload = Vec::with_capacity(
+            FIXED_PAYLOAD_BYTES + context_bytes.len() + scope.calendar.time_zone().len(),
+        );
         payload.extend_from_slice(&CURSOR_SCHEMA_VERSION.to_be_bytes());
         payload.extend_from_slice(&TODAY_RANK_SCHEMA_VERSION.to_be_bytes());
         payload.extend_from_slice(&TODAY_RANK_ALGORITHM_VERSION.to_be_bytes());
@@ -102,6 +119,20 @@ impl TodayCursor {
         payload.extend_from_slice(&position.rank.effective_at.to_be_bytes());
         payload.extend_from_slice(position.rank.card_id.as_bytes());
         payload.extend_from_slice(&scope.query_scope);
+        payload.extend_from_slice(&scope.calendar.version().to_be_bytes());
+        let zone = scope.calendar.time_zone().as_bytes();
+        payload.extend_from_slice(&(zone.len() as u16).to_be_bytes());
+        payload.extend_from_slice(zone);
+        let date = scope.calendar.civil_date().as_str();
+        // CalendarDate guarantees the canonical ten-byte Gregorian layout.
+        payload.extend_from_slice(
+            &date[..4]
+                .parse::<u16>()
+                .expect("validated year")
+                .to_be_bytes(),
+        );
+        payload.push(date[5..7].parse().expect("validated month"));
+        payload.push(date[8..].parse().expect("validated day"));
         let digest = cursor_digest(&payload);
         payload.extend_from_slice(&digest);
         Ok(Self(format!("{CURSOR_PREFIX}{}", hex::encode(payload))))
@@ -115,7 +146,7 @@ impl TodayCursor {
         {
             return Err(CursorError::ContextMismatch);
         }
-        if scope.as_of != expected.as_of {
+        if scope.as_of != expected.as_of || scope.calendar != expected.calendar {
             return Err(CursorError::SnapshotMismatch);
         }
         if scope.store_generation != expected.store_generation
@@ -137,12 +168,19 @@ impl TodayCursor {
 }
 
 fn decode_unbound(value: &str) -> Result<(CursorScope, TodayCursorPosition), CursorError> {
-    // The v2 token is bounded before any content scan, hex allocation or hash.
+    // The v3 token is bounded before any content scan, hex allocation or hash.
     if value.len() > MAX_CURSOR_BYTES {
         return Err(CursorError::Malformed);
     }
     if value.starts_with("rrtc1:") {
         return Err(if value.len() > LEGACY_MAX_CURSOR_BYTES {
+            CursorError::Malformed
+        } else {
+            CursorError::Version
+        });
+    }
+    if value.starts_with("rrtc2:") {
+        return Err(if value.len() > V2_MAX_CURSOR_BYTES {
             CursorError::Malformed
         } else {
             CursorError::Version
@@ -198,6 +236,25 @@ fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), 
     let card_id =
         CardId::parse(&hex::encode(decoder.array_32()?)).map_err(|_| CursorError::Malformed)?;
     let query_scope = decoder.array_32()?;
+    if decoder.u16()? != VIEWER_CALENDAR_VERSION {
+        return Err(CursorError::Version);
+    }
+    let zone_len = usize::from(decoder.u16()?);
+    if zone_len > VIEWER_TIME_ZONE_MAX_BYTES {
+        return Err(CursorError::Malformed);
+    }
+    let zone =
+        core::str::from_utf8(decoder.bytes(zone_len)?).map_err(|_| CursorError::Malformed)?;
+    let calendar = ViewerCalendarContext::new(as_of, zone).map_err(|_| CursorError::Malformed)?;
+    let date = format!(
+        "{:04}-{:02}-{:02}",
+        decoder.u16()?,
+        decoder.u8()?,
+        decoder.u8()?
+    );
+    if calendar.civil_date().as_str() != date {
+        return Err(CursorError::SnapshotMismatch);
+    }
     if !decoder.is_finished() {
         return Err(CursorError::Malformed);
     }
@@ -209,6 +266,7 @@ fn decode_payload(payload: &[u8]) -> Result<(CursorScope, TodayCursorPosition), 
             store_generation,
             projection_generation,
             query_scope,
+            calendar,
         },
         TodayCursorPosition {
             rank: TodayRank {
@@ -278,215 +336,5 @@ impl<'a> Decoder<'a> {
 mod boundary_tests;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn scope() -> CursorScope {
-        CursorScope::new("nearby".into(), 4, 2_000_000_000, [7; 32], 9, [6; 32]).expect("scope")
-    }
-
-    fn position() -> TodayCursorPosition {
-        TodayCursorPosition {
-            rank: TodayRank {
-                schema_version: TODAY_RANK_SCHEMA_VERSION,
-                algorithm_version: TODAY_RANK_ALGORITHM_VERSION,
-                context_rank: ContextRank::LocalityMatch,
-                time_relevance_rank: 3,
-                effective_at: 1_999_999_000,
-                card_id: CardId::parse(&"a".repeat(64)).expect("card"),
-            },
-        }
-    }
-
-    fn payload(cursor: &TodayCursor) -> Vec<u8> {
-        let bytes =
-            hex::decode(cursor.as_str().strip_prefix(CURSOR_PREFIX).expect("prefix")).expect("hex");
-        bytes[..bytes.len() - DIGEST_BYTES].to_vec()
-    }
-
-    fn signed_payload(mut payload: Vec<u8>) -> String {
-        payload.extend_from_slice(&cursor_digest(&payload));
-        format!("{CURSOR_PREFIX}{}", hex::encode(payload))
-    }
-
-    #[test]
-    fn cursor_vector_round_trips_and_is_fixed() {
-        let cursor = TodayCursor::encode(&scope(), position()).expect("cursor");
-        assert_eq!(
-            cursor.as_str(),
-            "rrtc2:00020001000100066e6561726279000000000000000400000000773594000707070707070707070707070707070707070707070707070707070707070707000000000000000902030000000077359018aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa06060606060606060606060606060606060606060606060606060606060606062c4a887d72e34c722620c5a685cde8c288bc9b5bad5fd2faa4791ebfa1021b4c"
-        );
-        assert_eq!(
-            TodayCursor::decode(cursor.as_str(), &scope()).expect("decode"),
-            position()
-        );
-        assert_eq!(TodayCursor::scope(cursor.as_str()).expect("scope"), scope());
-    }
-
-    #[test]
-    fn old_unbound_cursor_is_typed_unsupported_and_query_scope_is_checked() {
-        let old = "rrtc1:00010001000100066e6561726279000000000000000400000000773594000707070707070707070707070707070707070707070707070707070707070707000000000000000902030000000077359018aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaedf305be41633dfc2f7d621e067c3d33a71c3548c6a1fcf68a6707a1d8664b11";
-        assert_eq!(TodayCursor::scope(old), Err(CursorError::Version));
-        assert_eq!(
-            TodayCursor::decode(old, &scope()),
-            Err(CursorError::Version)
-        );
-        let cursor = TodayCursor::encode(&scope(), position()).unwrap();
-        let mut changed = scope();
-        changed.query_scope[0] ^= 1;
-        assert_eq!(
-            TodayCursor::decode(cursor.as_str(), &changed),
-            Err(CursorError::ContextMismatch)
-        );
-    }
-
-    #[test]
-    fn cursor_rejects_tamper_context_snapshot_and_stale_generations() {
-        let cursor = TodayCursor::encode(&scope(), position()).expect("cursor");
-        let mut tampered = cursor.as_str().as_bytes().to_vec();
-        *tampered.last_mut().expect("byte") = b'0';
-        assert_eq!(
-            TodayCursor::decode(core::str::from_utf8(&tampered).expect("utf8"), &scope()),
-            Err(CursorError::Integrity)
-        );
-        let other_context =
-            CursorScope::new("other".into(), 4, 2_000_000_000, [7; 32], 9, [6; 32]).expect("scope");
-        assert_eq!(
-            TodayCursor::decode(cursor.as_str(), &other_context),
-            Err(CursorError::ContextMismatch)
-        );
-        let other_context_generation =
-            CursorScope::new("nearby".into(), 5, 2_000_000_000, [7; 32], 9, [6; 32])
-                .expect("scope");
-        assert_eq!(
-            TodayCursor::decode(cursor.as_str(), &other_context_generation),
-            Err(CursorError::ContextMismatch)
-        );
-        let other_snapshot =
-            CursorScope::new("nearby".into(), 4, 2_000_000_001, [7; 32], 9, [6; 32])
-                .expect("scope");
-        assert_eq!(
-            TodayCursor::decode(cursor.as_str(), &other_snapshot),
-            Err(CursorError::SnapshotMismatch)
-        );
-        let stale = CursorScope::new("nearby".into(), 4, 2_000_000_000, [8; 32], 9, [6; 32])
-            .expect("scope");
-        assert_eq!(
-            TodayCursor::decode(cursor.as_str(), &stale),
-            Err(CursorError::Stale)
-        );
-        let stale_projection =
-            CursorScope::new("nearby".into(), 4, 2_000_000_000, [7; 32], 10, [6; 32])
-                .expect("scope");
-        assert_eq!(
-            TodayCursor::decode(cursor.as_str(), &stale_projection),
-            Err(CursorError::Stale)
-        );
-    }
-
-    #[test]
-    fn malformed_and_versioned_cursor_inputs_fail_closed() {
-        assert_eq!(
-            TodayCursor::decode("nope", &scope()),
-            Err(CursorError::Malformed)
-        );
-        for malformed in ["rrtc2:0", "rrtc2:GG", "rrtc2:00"] {
-            assert_eq!(
-                TodayCursor::decode(malformed, &scope()),
-                Err(CursorError::Malformed)
-            );
-        }
-        assert_eq!(
-            TodayCursor::decode(
-                &TodayCursor::encode(&scope(), position())
-                    .expect("cursor")
-                    .as_str()
-                    .to_uppercase(),
-                &scope()
-            ),
-            Err(CursorError::Malformed)
-        );
-        assert!(CursorScope::new("".into(), 0, 0, [0; 32], 0, [6; 32]).is_err());
-        assert!(CursorScope::new("x".repeat(257), 0, 0, [0; 32], 0, [6; 32]).is_err());
-        assert!(CursorScope::new(" nearby ".into(), 0, 0, [0; 32], 0, [6; 32]).is_err());
-        assert!(CursorScope::new("near\u{7f}by".into(), 0, 0, [0; 32], 0, [6; 32]).is_err());
-        let cursor = TodayCursor::encode(&scope(), position()).expect("cursor");
-        for version_offset in [1, 3, 5] {
-            let mut unsupported = payload(&cursor);
-            unsupported[version_offset] = 3;
-            assert_eq!(
-                TodayCursor::decode(&signed_payload(unsupported), &scope()),
-                Err(CursorError::Version)
-            );
-        }
-        let mut invalid_utf8 = payload(&cursor);
-        invalid_utf8[8] = 0xff;
-        assert_eq!(
-            TodayCursor::decode(&signed_payload(invalid_utf8), &scope()),
-            Err(CursorError::Malformed)
-        );
-        let mut invalid_context = payload(&cursor);
-        invalid_context[8] = b' ';
-        assert_eq!(
-            TodayCursor::decode(&signed_payload(invalid_context), &scope()),
-            Err(CursorError::InvalidContext)
-        );
-        let mut trailing = payload(&cursor);
-        trailing.push(0);
-        assert_eq!(
-            TodayCursor::decode(&signed_payload(trailing), &scope()),
-            Err(CursorError::Malformed)
-        );
-        let mut invalid_context_rank = payload(&cursor);
-        invalid_context_rank[70] = 3;
-        assert_eq!(
-            TodayCursor::decode(&signed_payload(invalid_context_rank), &scope()),
-            Err(CursorError::Malformed)
-        );
-        let mut invalid_time_rank = payload(&cursor);
-        invalid_time_rank[71] = 5;
-        assert_eq!(
-            TodayCursor::decode(&signed_payload(invalid_time_rank), &scope()),
-            Err(CursorError::Malformed)
-        );
-        let mut truncated_field = vec![0; FIXED_PAYLOAD_BYTES];
-        truncated_field[1] = 2;
-        truncated_field[3] = 1;
-        truncated_field[5] = 1;
-        truncated_field[6] = 1;
-        assert_eq!(
-            TodayCursor::decode(&signed_payload(truncated_field), &scope()),
-            Err(CursorError::Malformed)
-        );
-        let invalid_version = TodayCursorPosition {
-            rank: TodayRank {
-                schema_version: 2,
-                ..position().rank
-            },
-        };
-        assert_eq!(
-            TodayCursor::encode(&scope(), invalid_version),
-            Err(CursorError::Version)
-        );
-        let invalid_algorithm = TodayCursorPosition {
-            rank: TodayRank {
-                algorithm_version: 2,
-                ..position().rank
-            },
-        };
-        assert_eq!(
-            TodayCursor::encode(&scope(), invalid_algorithm),
-            Err(CursorError::Version)
-        );
-        let invalid_rank = TodayCursorPosition {
-            rank: TodayRank {
-                time_relevance_rank: 5,
-                ..position().rank
-            },
-        };
-        assert_eq!(
-            TodayCursor::encode(&scope(), invalid_rank),
-            Err(CursorError::InvalidPosition)
-        );
-    }
-}
+#[path = "cursor_tests.rs"]
+mod tests;

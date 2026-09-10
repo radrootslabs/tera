@@ -26,6 +26,8 @@ unimplemented = "deny"
 
 [workspace.dependencies]
 chrono = { version = "0.4" }
+jiff = { version = "=0.2.35", default-features = false, features = ["std"] }
+jiff_tzdb = { package = "jiff-tzdb", version = "=0.1.8", default-features = false }
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hex = { version = "0.4" }
 nostr = { version = "0.44.7", default-features = false }

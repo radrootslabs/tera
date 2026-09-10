@@ -288,8 +288,11 @@ impl TeraRuntime {
         limit: u16,
         as_of_unix_s: Option<u64>,
         cursor: Option<String>,
+        viewer_time_zone: Option<String>,
     ) -> Result<FfiTodayPageRecord, TeraAppError> {
-        if as_of_unix_s.is_some() == cursor.is_some() {
+        if as_of_unix_s.is_some() == cursor.is_some()
+            || viewer_time_zone.is_some() != as_of_unix_s.is_some()
+        {
             return Err(TeraAppError::invalid_argument("invalid_today_page_request"));
         }
         let context = self.local_network(context)?;
@@ -299,6 +302,9 @@ impl TeraRuntime {
                 limit,
                 as_of_unix_s
                     .ok_or_else(|| TeraAppError::invalid_argument("today_as_of_required"))?,
+                viewer_time_zone
+                    .as_deref()
+                    .ok_or_else(|| TeraAppError::invalid_argument("today_viewer_zone_required"))?,
             ),
         };
         self.inner
@@ -315,14 +321,22 @@ impl TeraRuntime {
         as_of_unix_s: u64,
         card_ids: Vec<String>,
         expected_generation: Option<u64>,
+        viewer_time_zone: String,
     ) -> Result<FfiTodayPageRecord, TeraAppError> {
         let context = self.local_network(context)?;
         let current = self
             .inner
-            .phase1_today_reconcile(&context, as_of_unix_s, &card_ids, expected_generation)
+            .phase1_today_reconcile(
+                &context,
+                as_of_unix_s,
+                &card_ids,
+                expected_generation,
+                &viewer_time_zone,
+            )
             .await?;
         Ok(FfiTodayPageRecord {
-            schema_version: crate::MOBILE_FFI_SCHEMA_VERSION,
+            calendar: current.calendar.into(),
+            schema_version: crate::TODAY_PAGE_FFI_SCHEMA_VERSION,
             projection_generation: current.projection_generation,
             as_of_unix_s,
             items: current.items.into_iter().map(Into::into).collect(),
@@ -387,10 +401,11 @@ impl TeraRuntime {
         query: String,
         limit: u16,
         as_of_unix_s: u64,
+        viewer_time_zone: String,
     ) -> Result<Vec<FfiSearchResultRecord>, TeraAppError> {
         let context = self.local_network(context)?;
         self.inner
-            .phase1_search(&context, &query, limit, as_of_unix_s)
+            .phase1_search(&context, &query, limit, as_of_unix_s, &viewer_time_zone)
             .await
             .map(|results| results.into_iter().map(Into::into).collect())
             .map_err(Into::into)
@@ -400,6 +415,7 @@ impl TeraRuntime {
         &self,
         context: FfiLocalNetworkRecord,
         as_of_unix_s: u64,
+        viewer_time_zone: String,
     ) -> Result<FfiMeRecord, TeraAppError> {
         let context = self.local_network(context)?;
         let public_key = self
@@ -415,7 +431,7 @@ impl TeraRuntime {
                 )
             })?;
         self.inner
-            .phase1_me(&context, &public_key, as_of_unix_s)
+            .phase1_me(&context, &public_key, as_of_unix_s, &viewer_time_zone)
             .await
             .map(Into::into)
             .map_err(Into::into)

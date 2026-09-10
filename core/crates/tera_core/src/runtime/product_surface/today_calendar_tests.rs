@@ -49,7 +49,7 @@ async fn actual_admitted_calendar_projection_keeps_dates_instants_and_zones_dist
     );
     ingest(&runtime, &context, timed_event.clone(), NOW).await;
     let page = runtime
-        .phase1_today_page(&context, TodayPageRequest::first(20, NOW))
+        .phase1_today_page(&context, TodayPageRequest::first(20, NOW, "UTC"))
         .await
         .unwrap();
     assert_eq!(page.items.len(), 2);

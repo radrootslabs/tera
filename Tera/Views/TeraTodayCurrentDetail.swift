@@ -18,6 +18,7 @@ struct TeraTodayCurrentDetail: View {
         canRevise: canRevise && card.localOperationID != nil, canRetract: canRetract,
         revise: revise, retract: retract
       )
+      .environment(\.timeZone, store.viewerCalendar?.timeZone ?? .current)
     } else {
       ContentUnavailableView(
         "Post unavailable", systemImage: "eye.slash",

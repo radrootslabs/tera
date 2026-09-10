@@ -142,7 +142,7 @@ final class TeraStoreRecoveryTests: XCTestCase {
   }
 
   private func page(_ id: String, next: String? = nil) -> TeraTodayPage {
-    TeraTodayPage(asOfUnixSeconds: 1, items: [TeraScopeFixtures.card(id)], nextCursor: next, projectionGeneration: 1)
+    TeraTodayPage(asOfUnixSeconds: 1, items: [TeraScopeFixtures.card(id)], nextCursor: next, projectionGeneration: 1, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1))
   }
 
   private func isRetrying(_ value: TeraRuntimeObservationState) -> Bool {

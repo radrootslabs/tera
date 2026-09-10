@@ -1,12 +1,12 @@
 {
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
-    "ffi_api_sha256": "1a5ada68d14cac611670683cb74c8779c341dabaf205445b2e608aef5a5ce12d",
-    "ffi_provenance_sha256": "f2423a84ad3adf11a7e35c4ed7b7ab3f3c5951815857bd771dd55b07683b0bed",
+    "ffi_api_sha256": "e2e025ee9a29182970f52f53593796afd154cdfb09aba197474577103dcb4ad6",
+    "ffi_provenance_sha256": "33eda17ee164b8ec3d38df3586d4336249ad1ed13a65a88467e75888bb7347be",
     "info_plist_sha256": "15ef08b1cdd1096cfb9eeaf5be5bf8f814807a7ca9350bbbb47860fa72ec13ef",
     "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
-    "sbom_sha256": "bea2d48c06e5f7e84cdad085d81290712674b74664456f2030064d9cf94c4b33",
-    "xcode_project_sha256": "dca902077d2a625788b396b990647432af03f6c2f64eef6d2b48cdb64b5aa8fb"
+    "sbom_sha256": "236eea371d7a6f95e2c632fe1832abe0cd8f08c4c9b43fcf840accc3e5b674d0",
+    "xcode_project_sha256": "10bc6ec60bd420949eb46a13a93293c26514b513d11a56548105215a5ecdd7b9"
   },
   "disposition": "unsigned",
   "platforms": [
@@ -17,12 +17,12 @@
   "repository": "https://github.com/radrootslabs/tera",
   "schema": "tera.release-provenance.v1",
   "source": {
-    "cargo_lock_sha256": "95b8d9afe7f5790016b776ec501e6f38ef46def32c5e62be9b091603dce9cea9",
-    "consumer_source_lock_sha256": "baedc597cf15675f33449649fdc67941cbff9d0afe3a24f38f5d07174f151894",
+    "cargo_lock_sha256": "d95ec60d14bd435e25865ebd0f66f5b9c1810e4a83b6de48f90159f62472b5a4",
+    "consumer_source_lock_sha256": "b6dfb7a4c4084316c352b7069a5c625e770d012969f46cf73d3e695708607840",
     "lib_revision": "13ac1f2135199702a07ba6aa14ab22101f17fcb0",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "94ae067a374726cdaf6b4ca0a5e44663c57fcdc5334060c5ffef5e79cfbf04c0",
-    "tera_ffi_source_tree": "114cb7bc9ce1f3ac0808c7d6a6dd4887298bceec",
+    "tera_ffi_source_tree": "d66c73094f8b59dc2e016029720be10ebc5ada91",
     "xcode_package_lock_sha256": "c7f41934ea25f7a287bdc4f3a6ecabbf09a3a0bdd0f5a3e58183f355ca814096"
   },
   "version": "0.1.0-alpha"

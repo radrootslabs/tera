@@ -3,9 +3,13 @@ import TeraKitBindings
 
 extension FfiTodayPageRecord {
   func appValue() throws -> TeraTodayPage {
-    try TeraTodayPage(
+    let viewer = try calendar.appValue()
+    guard schemaVersion == 2, viewer.asOfUnixSeconds == asOfUnixS else {
+      throw TeraCalendarTiming.unsupported
+    }
+    return try TeraTodayPage(
       asOfUnixSeconds: asOfUnixS, items: items.map { try $0.appValue() },
-      nextCursor: nextCursor, projectionGeneration: projectionGeneration
+      nextCursor: nextCursor, projectionGeneration: projectionGeneration, calendar: viewer
     )
   }
 }

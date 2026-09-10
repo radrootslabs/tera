@@ -48,7 +48,7 @@ use crate::runtime::TeraRuntime;
 
 const TODAY_PROJECTION_ID: &str = "radroots.today.v1";
 const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 2;
-const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 3;
+const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 4;
 const TODAY_PAGE_LIMIT_MAX: u16 = 100;
 const TODAY_SEARCH_LIMIT_MAX: u16 = 100;
 #[cfg(feature = "mobile-social")]
@@ -60,7 +60,7 @@ const TODAY_SYNC_KINDS: [u32; 7] = [0, 1, 5, 1111, 30_402, 31_922, 31_923];
 const PROJECTION_GENERATION_DOMAIN: &[u8] = b"radroots.today-projection.v2\0";
 const PROJECTION_CONTENT_DOMAIN: &[u8] = b"radroots.today-content-generation.v2\0";
 const PROJECTION_DOCUMENT_KEY_DOMAIN: &[u8] = b"radroots.today-document-key.v1\0";
-const SNAPSHOT_ID_DOMAIN: &[u8] = b"radroots.today-snapshot-id.v2\0";
+const SNAPSHOT_ID_DOMAIN: &[u8] = b"tera.today-snapshot-id.v3\0";
 
 #[path = "today_calendar_migration.rs"]
 mod calendar_migration;
@@ -69,8 +69,11 @@ mod calendar_migration;
 #[path = "today_calendar_migration_tests.rs"]
 mod calendar_migration_tests;
 
+#[path = "today_paging.rs"]
+mod paging;
 #[path = "today_paging_scope.rs"]
 mod paging_scope;
+pub use paging::TodayPageRequest;
 
 #[path = "today_reconciliation.rs"]
 mod reconciliation;
@@ -87,6 +90,10 @@ mod performance_tests;
 #[cfg(test)]
 #[path = "today_calendar_tests.rs"]
 mod calendar_tests;
+
+#[cfg(test)]
+#[path = "today_viewer_calendar_tests.rs"]
+mod viewer_calendar_tests;
 
 #[cfg(test)]
 #[path = "today_scope_tests.rs"]
@@ -148,31 +155,6 @@ pub use relay_sync::{
     TodayDiscoveryReceipt, TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination,
     TodayTargetPageSummary, TodayTargetSyncReceipt, TodayTargetSyncState,
 };
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TodayPageRequest {
-    pub limit: u16,
-    pub as_of: Option<u64>,
-    pub cursor: Option<String>,
-}
-
-impl TodayPageRequest {
-    pub const fn first(limit: u16, as_of: u64) -> Self {
-        Self {
-            limit,
-            as_of: Some(as_of),
-            cursor: None,
-        }
-    }
-
-    pub fn after(limit: u16, cursor: String) -> Self {
-        Self {
-            limit,
-            as_of: None,
-            cursor: Some(cursor),
-        }
-    }
-}
 
 #[derive(Debug, Error)]
 pub enum TodayError {
@@ -256,6 +238,7 @@ struct FrozenTodaySnapshot {
     store_generation: [u8; 32],
     projection_generation: u64,
     query_scope: [u8; 32],
+    calendar: super::ViewerCalendarContext,
     items: Vec<TodayCard>,
 }
 
@@ -411,109 +394,6 @@ impl TeraRuntime {
         Ok(refresh_receipt(update, &state, changed))
     }
 
-    /// Returns one page from a durable frozen Today snapshot.
-    pub async fn phase1_today_page(
-        &self,
-        context: &LocalNetwork,
-        request: TodayPageRequest,
-    ) -> Result<TodayPage, TodayError> {
-        let _command = self.lifecycle.enter()?;
-        if request.limit == 0 || request.limit > TODAY_PAGE_LIMIT_MAX {
-            return Err(TodayError::InvalidRequest);
-        }
-        // Decode and validate all caller-owned scope before any storage I/O.
-        let decoded_scope = request
-            .cursor
-            .as_deref()
-            .map(TodayCursor::scope)
-            .transpose()?;
-        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
-        if let Some(scope) = &decoded_scope {
-            if scope.context_id != context.id
-                || scope.context_generation != context.generation
-                || scope.query_scope != query_scope
-            {
-                return Err(CursorError::ContextMismatch.into());
-            }
-            if request.as_of.is_some_and(|as_of| as_of != scope.as_of) {
-                return Err(CursorError::SnapshotMismatch.into());
-            }
-        } else if request.as_of.is_none_or(|value| value == 0) {
-            return Err(TodayError::InvalidRequest);
-        }
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let store_generation = current_store_generation(storage).await?;
-        let algorithm_generation = projection_generation()?;
-        let projection_id = projection_id()?;
-        let (scope, snapshot, after) = if let Some(cursor) = request.cursor.as_deref() {
-            let scope = decoded_scope.expect("cursor presence was decoded above");
-            if scope.store_generation != store_generation {
-                return Err(CursorError::Stale.into());
-            }
-            let position = TodayCursor::decode(cursor, &scope)?;
-            let mut snapshot = load_snapshot(storage, projection_id, algorithm_generation, &scope)
-                .await?
-                .ok_or(CursorError::Stale)?;
-            let current = load_state(storage, context, algorithm_generation)
-                .await?
-                .ok_or(CursorError::Stale)?;
-            if current.store_generation != scope.store_generation
-                || current.query_scope != Some(scope.query_scope)
-                || current.visibility_digest.is_none()
-                || !calendar_projection_ready(&current)
-                || current.content_generation != scope.projection_generation
-            {
-                return Err(CursorError::Stale.into());
-            }
-            sanitize_snapshot_media(&mut snapshot, &current.media_cache);
-            (scope, snapshot, Some(position.rank))
-        } else {
-            let as_of = request
-                .as_of
-                .filter(|value| *value != 0)
-                .ok_or(TodayError::InvalidRequest)?;
-            let state = match load_state(storage, context, algorithm_generation).await? {
-                Some(state)
-                    if state.query_scope == Some(query_scope)
-                        && state.visibility_digest.is_some()
-                        && calendar_projection_ready(&state) =>
-                {
-                    state
-                }
-                _ => {
-                    // A first local read must not need a prior relay refresh.
-                    // Materialize only already admitted local events; errors
-                    // remain errors rather than becoming an empty feed.
-                    self.phase1_refresh_today(context, as_of, TodayProjectionUpdate::Incremental)
-                        .await?;
-                    load_state(storage, context, algorithm_generation)
-                        .await?
-                        .ok_or(TodayError::ProjectionMissing)?
-                }
-            };
-            if state.store_generation != store_generation || state.query_scope != Some(query_scope)
-            {
-                return Err(CursorError::Stale.into());
-            }
-            let scope = CursorScope::new(
-                context.id.clone().into(),
-                context.generation,
-                as_of,
-                state.store_generation,
-                state.content_generation,
-                query_scope,
-            )?;
-            let snapshot = frozen_snapshot(&state, context, as_of, query_scope)?;
-            persist_snapshot(storage, algorithm_generation, &scope, &snapshot).await?;
-            (scope, snapshot, None)
-        };
-
-        page_from_snapshot(snapshot, scope, after, request.limit)
-    }
-
     async fn calendar_state_for_read(
         &self,
         storage: &dyn radroots_storage::Storage,
@@ -545,11 +425,13 @@ impl TeraRuntime {
         query: &str,
         limit: u16,
         as_of: u64,
+        viewer_time_zone: &str,
     ) -> Result<Vec<SearchResult>, TodayError> {
         let _command = self.lifecycle.enter()?;
         if limit == 0 || limit > TODAY_SEARCH_LIMIT_MAX || as_of == 0 {
             return Err(TodayError::InvalidRequest);
         }
+        let calendar = super::ViewerCalendarContext::new(as_of, viewer_time_zone)?;
         let needle = query.trim().to_lowercase();
         if needle.is_empty() || needle.len() > 256 || query.chars().any(char::is_control) {
             return Err(TodayError::InvalidRequest);
@@ -562,7 +444,7 @@ impl TeraRuntime {
             .calendar_state_for_read(storage, context, as_of)
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
-        let cards = ranked_cards(&state, context, as_of)?;
+        let cards = ranked_cards(&state, context, &calendar)?;
         let mut results = Vec::new();
         for card in cards {
             let searchable = format!(
@@ -619,8 +501,10 @@ impl TeraRuntime {
         context: &LocalNetwork,
         public_key: &str,
         as_of: u64,
+        viewer_time_zone: &str,
     ) -> Result<MeSnapshot, TodayError> {
         let _command = self.lifecycle.enter()?;
+        let calendar = super::ViewerCalendarContext::new(as_of, viewer_time_zone)?;
         if !valid_public_key(public_key) || as_of == 0 {
             return Err(TodayError::InvalidRequest);
         }
@@ -638,7 +522,7 @@ impl TeraRuntime {
             .calendar_state_for_read(storage, context, as_of)
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
-        let cards = ranked_cards(&state, context, as_of)?
+        let cards = ranked_cards(&state, context, &calendar)?
             .into_iter()
             .filter(|card| card.card.author_pubkey == public_key)
             .collect();
@@ -1624,17 +1508,18 @@ fn calendar_projection_ready(state: &TodayProjectionState) -> bool {
 fn ranked_cards(
     state: &TodayProjectionState,
     context: &LocalNetwork,
-    as_of: u64,
+    calendar: &super::ViewerCalendarContext,
 ) -> Result<Vec<TodayCard>, TodayError> {
-    selected_ranked_cards(state, context, as_of, None)
+    selected_ranked_cards(state, context, calendar, None)
 }
 
 fn selected_ranked_cards(
     state: &TodayProjectionState,
     context: &LocalNetwork,
-    as_of: u64,
+    calendar: &super::ViewerCalendarContext,
     selected: Option<&std::collections::BTreeSet<CardId>>,
 ) -> Result<Vec<TodayCard>, TodayError> {
+    let as_of = calendar.as_of();
     let mut cards = Vec::new();
     for projected in &state.cards {
         if selected.is_some_and(|ids| !ids.contains(&projected.card.card_id)) {
@@ -1665,17 +1550,7 @@ fn selected_ranked_cards(
                     end: timing.end_exclusive(),
                 },
                 CalendarTiming::DateBased(event) => {
-                    // The existing instant-only request has an explicit UTC
-                    // relevance context. C052 replaces this bridge with the
-                    // frozen viewer IANA context; no event date becomes an epoch.
-                    let instant = i64::try_from(as_of)
-                        .ok()
-                        .and_then(|value| chrono::DateTime::from_timestamp(value, 0))
-                        .ok_or(TodayError::InvalidRequest)?;
-                    let as_of_date = radroots_event::calendar::CalendarDate::parse(
-                        &instant.date_naive().to_string(),
-                    )
-                    .map_err(|_| TodayError::InvalidRequest)?;
+                    let as_of_date = calendar.civil_date().clone();
                     TimeRelevance::DateBased {
                         event: event.clone(),
                         as_of_date,
@@ -1720,18 +1595,19 @@ fn selected_ranked_cards(
 fn frozen_snapshot(
     state: &TodayProjectionState,
     context: &LocalNetwork,
-    as_of: u64,
+    calendar: &super::ViewerCalendarContext,
     query_scope: [u8; 32],
 ) -> Result<FrozenTodaySnapshot, TodayError> {
     Ok(FrozenTodaySnapshot {
         schema_version: TODAY_SNAPSHOT_SCHEMA_VERSION,
         context_id: context.id.clone().into(),
         context_generation: context.generation,
-        as_of,
+        as_of: calendar.as_of(),
+        calendar: calendar.clone(),
         store_generation: state.store_generation,
         projection_generation: state.content_generation,
         query_scope,
-        items: ranked_cards(state, context, as_of)?,
+        items: ranked_cards(state, context, calendar)?,
     })
 }
 
@@ -1770,6 +1646,7 @@ fn page_from_snapshot(
     Ok(TodayPage {
         projection_generation: snapshot.projection_generation,
         as_of: snapshot.as_of,
+        calendar: snapshot.calendar,
         items,
         next_cursor,
     })
@@ -1783,6 +1660,7 @@ fn validate_snapshot(
         || snapshot.context_id != scope.context_id.as_str()
         || snapshot.context_generation != scope.context_generation
         || snapshot.as_of != scope.as_of
+        || snapshot.calendar != scope.calendar
         || snapshot.store_generation != scope.store_generation
         || snapshot.projection_generation != scope.projection_generation
         || snapshot.query_scope != scope.query_scope
@@ -2156,6 +2034,10 @@ fn snapshot_id(scope: &CursorScope) -> [u8; 32] {
     digest.update(scope.store_generation);
     digest.update(scope.projection_generation.to_be_bytes());
     digest.update(scope.query_scope);
+    digest.update(scope.calendar.version().to_be_bytes());
+    digest.update((scope.calendar.time_zone().len() as u16).to_be_bytes());
+    digest.update(scope.calendar.time_zone().as_bytes());
+    digest.update(scope.calendar.civil_date().as_str().as_bytes());
     digest.finalize().into()
 }
 
@@ -2624,7 +2506,7 @@ mod tests {
             &[TODAY_SYNC_KINDS.to_vec()]
         );
         let page = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200, "UTC"))
             .await
             .expect("Today page");
         assert_eq!(page.items.len(), 1);
@@ -2637,7 +2519,7 @@ mod tests {
         let runtime = TeraRuntime::test_memory().expect("runtime");
         let context = context(None, 1);
         let page = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200, "UTC"))
             .await
             .expect("local empty page");
         assert!(page.items.is_empty());
@@ -2676,7 +2558,7 @@ mod tests {
                 .is_none()
         );
         let page = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200, "UTC"))
             .await
             .expect("local page");
         assert_eq!(page.items.len(), 1);
@@ -2700,7 +2582,7 @@ mod tests {
         .unwrap();
         assert!(matches!(
             runtime
-                .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200))
+                .phase1_today_page(&context, TodayPageRequest::first(20, 2_000_000_200, "UTC"))
                 .await,
             Err(TodayError::CorruptProjection)
         ));
@@ -2730,7 +2612,7 @@ mod tests {
             .await;
         }
         let first = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(1, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(1, 2_000_000_200, "UTC"))
             .await
             .expect("first page");
         assert_eq!(first.items.len(), 1);
@@ -2754,7 +2636,7 @@ mod tests {
         }
 
         let current = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_200, "UTC"))
             .await
             .expect("current page");
         assert_eq!(current.items.len(), 4);
@@ -2907,7 +2789,7 @@ mod tests {
         )
         .await;
         let live = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_200, "UTC"))
             .await
             .expect("page");
         assert_eq!(live.items.len(), 2, "known locality nonmatch is excluded");
@@ -2969,23 +2851,23 @@ mod tests {
         ));
 
         let search = runtime
-            .phase1_search(&context, "moss farm", 10, 2_000_000_200)
+            .phase1_search(&context, "moss farm", 10, 2_000_000_200, "UTC")
             .await
             .expect("search");
         assert!(search.iter().any(|result| result.profile.is_some()));
         let card_search = runtime
-            .phase1_search(&context, "fresh field photo", 10, 2_000_000_200)
+            .phase1_search(&context, "fresh field photo", 10, 2_000_000_200, "UTC")
             .await
             .expect("card search");
         assert!(card_search.iter().any(|result| result.card.is_some()));
         let profile_limited = runtime
-            .phase1_search(&context, "moss@example.com", 1, 2_000_000_200)
+            .phase1_search(&context, "moss@example.com", 1, 2_000_000_200, "UTC")
             .await
             .expect("profile-limited search");
         assert_eq!(profile_limited.len(), 1);
         assert!(profile_limited[0].profile.is_some());
         let me = runtime
-            .phase1_me(&context, &author, 2_000_000_200)
+            .phase1_me(&context, &author, 2_000_000_200, "UTC")
             .await
             .expect("me");
         assert_eq!(me.cards.len(), 2);
@@ -3000,7 +2882,7 @@ mod tests {
             .expect("rebuild");
         assert!(!rebuilt.changed, "rebuild is byte-equivalent to live state");
         let after = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_202))
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_202, "UTC"))
             .await
             .expect("rebuilt page");
         let rebuilt_photo = after
@@ -3113,7 +2995,7 @@ mod tests {
             .expect("quota commit");
         assert_eq!(evicted, vec![profile_artifact]);
         let quota_page = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_203))
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_203, "UTC"))
             .await
             .expect("quota page");
         let quota_photo = quota_page
@@ -3163,7 +3045,7 @@ mod tests {
                 .expect("missing artifact invalidation")
         );
         let invalidated = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_203))
+            .phase1_today_page(&context, TodayPageRequest::first(100, 2_000_000_203, "UTC"))
             .await
             .expect("page after configuration change");
         let invalidated_photo = invalidated
@@ -3300,7 +3182,7 @@ mod tests {
         let sold_id = sold.id().to_hex();
         ingest(&runtime, &context, sold, 2_000_000_101).await;
         let current = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(10, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(10, 2_000_000_200, "UTC"))
             .await
             .expect("current");
         assert_eq!(current.items.len(), 1);
@@ -3310,7 +3192,7 @@ mod tests {
         let deletion = signed_owned(5, vec![vec!["e".into(), sold_id]], "", 2_000_000_002);
         ingest(&runtime, &context, deletion, 2_000_000_102).await;
         let deleted = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(10, 2_000_000_201))
+            .phase1_today_page(&context, TodayPageRequest::first(10, 2_000_000_201, "UTC"))
             .await
             .expect("deleted");
         assert!(deleted.items.is_empty());
@@ -3353,7 +3235,7 @@ mod tests {
         )
         .await;
         let first = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(1, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(1, 2_000_000_200, "UTC"))
             .await
             .expect("first page");
         let cursor = first.next_cursor.expect("frozen cursor");
@@ -3368,7 +3250,7 @@ mod tests {
         assert_ne!(first.items[0].card.card_id, second.items[0].card.card_id);
         assert!(second.next_cursor.is_none());
         let search = reopened
-            .phase1_search(&context, "persisted", 10, 2_000_000_200)
+            .phase1_search(&context, "persisted", 10, 2_000_000_200, "UTC")
             .await
             .expect("search after reopen");
         assert_eq!(search.len(), 2);
@@ -3436,7 +3318,7 @@ mod tests {
 
         let reopened = RuntimeBuilder::new(store).build().await.expect("reopen");
         let profile = reopened
-            .phase1_me(&context, &public_key, 2_000_000_200)
+            .phase1_me(&context, &public_key, 2_000_000_200, "UTC")
             .await
             .unwrap()
             .profile
@@ -3461,7 +3343,7 @@ mod tests {
             0
         );
         let profile = reopened
-            .phase1_me(&context, &public_key, 2_000_000_201)
+            .phase1_me(&context, &public_key, 2_000_000_201, "UTC")
             .await
             .unwrap()
             .profile
@@ -3538,7 +3420,7 @@ mod tests {
         )
         .await;
         let picture = runtime
-            .phase1_me(&context, &public_key, 2_000_000_200)
+            .phase1_me(&context, &public_key, 2_000_000_200, "UTC")
             .await
             .expect("me")
             .profile
@@ -3571,7 +3453,7 @@ mod tests {
                 .is_symlink()
         );
         let verified = runtime
-            .phase1_me(&context, &public_key, 2_000_000_201)
+            .phase1_me(&context, &public_key, 2_000_000_201, "UTC")
             .await
             .expect("verified me")
             .profile
@@ -3619,7 +3501,7 @@ mod tests {
             .await
             .expect("invalidate configuration");
         let unavailable = runtime
-            .phase1_me(&context, &public_key, 2_000_000_202)
+            .phase1_me(&context, &public_key, 2_000_000_202, "UTC")
             .await
             .expect("unavailable me")
             .profile
@@ -3671,14 +3553,15 @@ mod tests {
         );
 
         for request in [
-            TodayPageRequest::first(0, 1),
-            TodayPageRequest::first(TODAY_PAGE_LIMIT_MAX + 1, 1),
+            TodayPageRequest::first(0, 1, "UTC"),
+            TodayPageRequest::first(TODAY_PAGE_LIMIT_MAX + 1, 1, "UTC"),
             TodayPageRequest {
                 limit: 1,
                 as_of: None,
                 cursor: None,
+                viewer_time_zone: None,
             },
-            TodayPageRequest::first(1, 0),
+            TodayPageRequest::first(1, 0, "UTC"),
         ] {
             assert!(matches!(
                 runtime.phase1_today_page(&context, request).await,
@@ -3694,17 +3577,19 @@ mod tests {
             ("bad\nquery", 1, 1),
         ] {
             assert!(matches!(
-                runtime.phase1_search(&context, query, limit, as_of).await,
+                runtime
+                    .phase1_search(&context, query, limit, as_of, "UTC")
+                    .await,
                 Err(TodayError::InvalidRequest)
             ));
         }
         assert!(matches!(
-            runtime.phase1_me(&context, "bad", 1).await,
+            runtime.phase1_me(&context, "bad", 1, "UTC").await,
             Err(TodayError::InvalidRequest)
         ));
         assert!(matches!(
             runtime
-                .phase1_me(&context, &keys().public_key().to_string(), 0)
+                .phase1_me(&context, &keys().public_key().to_string(), 0, "UTC")
                 .await,
             Err(TodayError::InvalidRequest)
         ));
@@ -3726,7 +3611,7 @@ mod tests {
 
         ingest(&runtime, &context, note.clone(), 2_000_000_100).await;
         let page = runtime
-            .phase1_today_page(&context, TodayPageRequest::first(1, 2_000_000_200))
+            .phase1_today_page(&context, TodayPageRequest::first(1, 2_000_000_200, "UTC"))
             .await
             .expect("page");
         let card_id = page.items[0].card.card_id;
@@ -3744,6 +3629,8 @@ mod tests {
             state.store_generation,
             state.content_generation,
             paging_scope::query_scope(&context, runtime.store_public_key).unwrap(),
+            crate::runtime::product_surface::ViewerCalendarContext::new(2_000_000_200, "UTC")
+                .expect("calendar"),
         )
         .expect("scope");
 
@@ -3784,10 +3671,11 @@ mod tests {
                         limit: 1,
                         as_of: Some(scope.as_of + 1),
                         cursor: Some(cursor_for(scope.clone())),
+                        viewer_time_zone: None,
                     },
                 )
                 .await,
-            Err(TodayError::Cursor(CursorError::SnapshotMismatch))
+            Err(TodayError::InvalidRequest)
         ));
         let mut stale = scope.clone();
         stale.store_generation = [9; 32];
@@ -3806,8 +3694,8 @@ mod tests {
             Err(TodayError::Cursor(CursorError::Stale))
         ));
 
-        let snapshot =
-            frozen_snapshot(&state, &context, scope.as_of, scope.query_scope).expect("snapshot");
+        let snapshot = frozen_snapshot(&state, &context, &scope.calendar, scope.query_scope)
+            .expect("snapshot");
         assert!(validate_snapshot(&snapshot, &scope).is_ok());
         for invalid in [
             {
@@ -3922,7 +3810,7 @@ mod tests {
         );
         assert!(matches!(
             runtime
-                .phase1_me(&context, &keys().public_key().to_string(), 1)
+                .phase1_me(&context, &keys().public_key().to_string(), 1, "UTC")
                 .await,
             Err(TodayError::InvalidRequest)
         ));
@@ -3957,7 +3845,7 @@ mod tests {
             .expect("remove overlay");
         assert_eq!(
             runtime
-                .phase1_search(&context, "guarded", 1, 2_000_000_200)
+                .phase1_search(&context, "guarded", 1, 2_000_000_200, "UTC")
                 .await
                 .expect("card-limited search")
                 .len(),
@@ -3971,13 +3859,23 @@ mod tests {
         ));
         event_state.cards[0].card.effective_at = 100;
         assert_eq!(
-            ranked_cards(&event_state, &context, 150).expect("live event")[0]
+            ranked_cards(
+                &event_state,
+                &context,
+                &crate::runtime::product_surface::ViewerCalendarContext::new(150, "UTC").unwrap()
+            )
+            .expect("live event")[0]
                 .card
                 .lifecycle,
             CardLifecycleState::Active
         );
         assert_eq!(
-            ranked_cards(&event_state, &context, 200).expect("past event")[0]
+            ranked_cards(
+                &event_state,
+                &context,
+                &crate::runtime::product_surface::ViewerCalendarContext::new(200, "UTC").unwrap()
+            )
+            .expect("past event")[0]
                 .card
                 .lifecycle,
             CardLifecycleState::Past

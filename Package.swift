@@ -67,6 +67,8 @@ let package = Package(
         "Runtime/TeraGeneratedCalendarCards.swift",
         "Runtime/TeraGeneratedRuntimeBackend.swift",
         "Runtime/TeraGeneratedTodayPage.swift",
+        "Runtime/TeraGeneratedTodayReads.swift",
+        "Runtime/TeraViewerCalendarContext.swift",
         "Runtime/TeraGeneratedTodaySync.swift",
         "Runtime/TeraLifecycleCoordinator.swift",
         "Runtime/TeraLifecycleBridge.swift",

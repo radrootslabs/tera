@@ -121,7 +121,7 @@ async fn malformed_newer_signed_head_never_revives_an_old_card_or_profile() {
         assert!(snapshot.visible_event_ids().is_empty());
         assert!(
             runtime
-                .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102))
+                .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102, "UTC"))
                 .await
                 .unwrap()
                 .items
@@ -157,7 +157,7 @@ async fn same_raw_count_visibility_advancement_rebuilds_the_cached_projection() 
     .unwrap();
     ingest(&runtime, &selected, event.clone(), 2_000_000_101).await;
     let page = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102))
+        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102, "UTC"))
         .await
         .unwrap();
     assert_eq!(
@@ -191,7 +191,7 @@ async fn invalid_signature_cannot_gain_replacement_authority() {
     assert_eq!((receipt.events_admitted, receipt.events_rejected), (0, 1));
     assert_eq!(receipt.projection.source_events, 1);
     let page = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102))
+        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102, "UTC"))
         .await
         .unwrap();
     assert_eq!(page.items[0].card.source_event_id, old.id().to_hex());
@@ -229,7 +229,7 @@ async fn forged_author_deletion_is_ineffective_and_valid_deletion_before_target_
         .unwrap();
     assert_eq!(
         runtime
-            .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102))
+            .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102, "UTC"))
             .await
             .unwrap()
             .items
@@ -241,7 +241,7 @@ async fn forged_author_deletion_is_ineffective_and_valid_deletion_before_target_
     ingest(&prior, &selected, target, 2_000_000_101).await;
     assert!(
         prior
-            .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102))
+            .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102, "UTC"))
             .await
             .unwrap()
             .items
@@ -269,7 +269,7 @@ async fn same_count_deletion_admission_removes_current_cached_content() {
     assert_eq!(EventStore::status(storage).await.unwrap().raw_events(), 2);
     assert!(
         runtime
-            .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_103))
+            .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_103, "UTC"))
             .await
             .unwrap()
             .items
@@ -314,7 +314,7 @@ async fn missing_visibility_metadata_is_readable_and_rebuilt_from_current_truth(
     .await
     .unwrap();
     let page = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_101))
+        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_101, "UTC"))
         .await
         .unwrap();
     assert_eq!(page.items.len(), 1);

@@ -137,6 +137,7 @@ struct TeraTodayView: View {
         retract: retract
       )
     }
+    .environment(\.timeZone, store.viewerCalendar?.timeZone ?? .current)
     .accessibilityIdentifier("radroots.today.feed")
   }
 

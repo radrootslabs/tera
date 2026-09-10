@@ -112,7 +112,7 @@ final class TeraTodayReconciliationTests: XCTestCase {
     let read = Task {
       try await TeraTodayReconciler.read(
         client: client, context: TeraLocalNetwork.defaultContext(snapshot: TeraScopeFixtures.snapshot()),
-        asOf: 1, cards: cards
+        calendar: TeraScopeFixtures.viewerCalendar(asOf: 1), cards: cards
       )
     }
     await pause.entered.wait()
@@ -145,9 +145,6 @@ final class TeraTodayReconciliationTests: XCTestCase {
   }
 
   private func page(_ ids: [String], next: String? = nil, generation: UInt64 = 1) -> TeraTodayPage {
-    TeraTodayPage(
-      asOfUnixSeconds: 1, items: ids.map(TeraScopeFixtures.card), nextCursor: next,
-      projectionGeneration: generation
-    )
+    TeraTodayPage(asOfUnixSeconds: 1, items: ids.map(TeraScopeFixtures.card), nextCursor: next, projectionGeneration: generation, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1))
   }
 }

@@ -34,7 +34,7 @@ final class TeraTodayPagingTests: XCTestCase {
   func testMismatchedAsOfRefusesAppendAndStopsTheOldCursor() async throws {
     let backend = try TeraScopeBackend()
     let (client, store) = try await makeStore(backend)
-    await backend.setPage(TeraTodayPage(asOfUnixSeconds: 2, items: [TeraScopeFixtures.card("wrong")], nextCursor: "wrong"), cursor: "next")
+    await backend.setPage(TeraTodayPage(asOfUnixSeconds: 2, items: [TeraScopeFixtures.card("wrong")], nextCursor: "wrong", calendar: TeraScopeFixtures.viewerCalendar(asOf: 2)), cursor: "next")
     let cards = store.cards
     let generation = store.scopeGeneration
     await store.loadNextPage()
@@ -104,7 +104,7 @@ final class TeraTodayPagingTests: XCTestCase {
   }
 
   private func page(_ ids: [String], next: String? = nil) -> TeraTodayPage {
-    TeraTodayPage(asOfUnixSeconds: 1, items: ids.map(TeraScopeFixtures.card), nextCursor: next)
+    TeraTodayPage(asOfUnixSeconds: 1, items: ids.map(TeraScopeFixtures.card), nextCursor: next, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1))
   }
 
   private func stale() -> TeraRuntimeFailure {

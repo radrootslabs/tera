@@ -38,7 +38,7 @@ async fn cached_sqlite_pages_do_not_decode_ten_thousand_source_events() {
             counts.take();
             let start = Instant::now();
             let first = runtime
-                .phase1_today_page(&selected, TodayPageRequest::first(20, NOW))
+                .phase1_today_page(&selected, TodayPageRequest::first(20, NOW, "UTC"))
                 .await
                 .unwrap();
             assert_eq!(first.items.len(), 20);
@@ -92,16 +92,7 @@ async fn cached_sqlite_pages_do_not_decode_ten_thousand_source_events() {
 
 async fn counted_sqlite() -> (tempfile::TempDir, TeraRuntime, Arc<QueryCounts>) {
     let root = tempfile::tempdir().unwrap();
-    let store = MobileUserStoreConfig::from_encoded(
-        root.path(),
-        &keys().public_key().to_string(),
-        &"03".repeat(32),
-        1_800_000_000_000,
-        ProtectedDataAvailability::Available,
-    )
-    .unwrap();
-    std::fs::create_dir_all(store.owner_directory()).unwrap();
-    let mut runtime = RuntimeBuilder::new(store).build().await.unwrap();
+    let mut runtime = reopen_counted_sqlite(&root).await;
     let counts = Arc::new(QueryCounts::default());
     runtime.client = radroots_sdk::ClientBuilder::new()
         .storage(Arc::new(CountedStorage {
@@ -111,6 +102,19 @@ async fn counted_sqlite() -> (tempfile::TempDir, TeraRuntime, Arc<QueryCounts>) 
         .build()
         .unwrap();
     (root, runtime, counts)
+}
+
+pub(super) async fn reopen_counted_sqlite(root: &tempfile::TempDir) -> TeraRuntime {
+    let store = MobileUserStoreConfig::from_encoded(
+        root.path(),
+        &keys().public_key().to_string(),
+        &"03".repeat(32),
+        1_800_000_000_000,
+        ProtectedDataAvailability::Available,
+    )
+    .unwrap();
+    std::fs::create_dir_all(store.owner_directory()).unwrap();
+    RuntimeBuilder::new(store).build().await.unwrap()
 }
 
 #[tokio::test]
@@ -126,6 +130,7 @@ async fn invalid_page_boundaries_reject_before_any_storage_query() {
         [3; 32],
         1,
         paging_scope::query_scope(&wrong, runtime.store_public_key).unwrap(),
+        crate::runtime::product_surface::ViewerCalendarContext::new(NOW, "UTC").expect("calendar"),
     )
     .unwrap();
     // Malformed and oversized opaque inputs, invalid limit/as-of, and a valid
@@ -148,8 +153,14 @@ async fn invalid_page_boundaries_reject_before_any_storage_query() {
     for request in [
         TodayPageRequest::after(20, "bad".into()),
         TodayPageRequest::after(20, "x".repeat(100_000)),
-        TodayPageRequest::first(0, NOW),
-        TodayPageRequest::first(20, 0),
+        TodayPageRequest::first(0, NOW, "UTC"),
+        TodayPageRequest::first(20, 0, "UTC"),
+        TodayPageRequest::first(20, u64::MAX, "UTC"),
+        TodayPageRequest::first(20, NOW, "Invalid/Zone"),
+        TodayPageRequest::first(20, NOW, &"x".repeat(256)),
+        TodayPageRequest::after(20, format!("rrtc3:{}", "0".repeat(1384 - 6))),
+        TodayPageRequest::after(20, format!("rrtc3:{}", "0".repeat(1385 - 6))),
+        TodayPageRequest::after(20, format!("rrtc2:{}", "0".repeat(858 - 6))),
         TodayPageRequest::after(20, wrong_cursor),
     ] {
         counts.take();
@@ -157,6 +168,31 @@ async fn invalid_page_boundaries_reject_before_any_storage_query() {
         assert!(
             counts.take().is_empty(),
             "Invalid scope must not touch the store"
+        );
+    }
+    for (as_of, zone) in [(u64::MAX, "UTC"), (NOW, "Invalid/Zone")] {
+        counts.take();
+        assert!(
+            runtime
+                .phase1_today_reconcile(&selected, as_of, &[], None, zone)
+                .await
+                .is_err()
+        );
+        assert!(
+            runtime
+                .phase1_search(&selected, "Harvest", 20, as_of, zone)
+                .await
+                .is_err()
+        );
+        assert!(
+            runtime
+                .phase1_me(&selected, &keys().public_key().to_string(), as_of, zone)
+                .await
+                .is_err()
+        );
+        assert!(
+            counts.take().is_empty(),
+            "Invalid calendar context must precede every ranked storage reader"
         );
     }
     runtime.shutdown().await.unwrap();

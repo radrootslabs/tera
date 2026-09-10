@@ -590,6 +590,27 @@
       "version": "0.14.101"
     },
     {
+      "bom-ref": "cargo:bitflags@1.3.2?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "MIT/Apache-2.0"
+        }
+      ],
+      "name": "bitflags",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "1.3.2"
+    },
+    {
       "bom-ref": "cargo:bitflags@2.13.1?source=registry+https://github.com/rust-lang/crates.io-index",
       "licenses": [
         {
@@ -1281,6 +1302,69 @@
       ],
       "type": "library",
       "version": "2.11.1"
+    },
+    {
+      "bom-ref": "cargo:defmt-macros@1.1.1?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "defmt-macros",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "1.1.1"
+    },
+    {
+      "bom-ref": "cargo:defmt-parser@1.0.0?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "defmt-parser",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "1.0.0"
+    },
+    {
+      "bom-ref": "cargo:defmt@1.1.1?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "MIT OR Apache-2.0"
+        }
+      ],
+      "name": "defmt",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "1.1.1"
     },
     {
       "bom-ref": "cargo:der@0.7.10?source=registry+https://github.com/rust-lang/crates.io-index",
@@ -2711,6 +2795,48 @@
       "version": "1.0.18"
     },
     {
+      "bom-ref": "cargo:jiff-core@0.1.0?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "Unlicense OR MIT"
+        }
+      ],
+      "name": "jiff-core",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "0.1.0"
+    },
+    {
+      "bom-ref": "cargo:jiff-static@0.2.35?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "Unlicense OR MIT"
+        }
+      ],
+      "name": "jiff-static",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "0.2.35"
+    },
+    {
       "bom-ref": "cargo:jiff-tzdb@0.1.8?source=registry+https://github.com/rust-lang/crates.io-index",
       "licenses": [
         {
@@ -2730,6 +2856,27 @@
       ],
       "type": "library",
       "version": "0.1.8"
+    },
+    {
+      "bom-ref": "cargo:jiff@0.2.35?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "Unlicense OR MIT"
+        }
+      ],
+      "name": "jiff",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "0.2.35"
     },
     {
       "bom-ref": "cargo:js-sys@0.3.103?source=registry+https://github.com/rust-lang/crates.io-index",
@@ -3633,6 +3780,48 @@
       ],
       "type": "library",
       "version": "0.8.0"
+    },
+    {
+      "bom-ref": "cargo:portable-atomic-util@0.2.8?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "portable-atomic-util",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "0.2.8"
+    },
+    {
+      "bom-ref": "cargo:portable-atomic@1.15.0?source=registry+https://github.com/rust-lang/crates.io-index",
+      "licenses": [
+        {
+          "expression": "Apache-2.0 OR MIT"
+        }
+      ],
+      "name": "portable-atomic",
+      "properties": [
+        {
+          "name": "radroots.package.manager",
+          "value": "cargo"
+        },
+        {
+          "name": "radroots.package.source",
+          "value": "registry+https://github.com/rust-lang/crates.io-index"
+        }
+      ],
+      "type": "library",
+      "version": "1.15.0"
     },
     {
       "bom-ref": "cargo:potential_utf@0.1.5?source=registry+https://github.com/rust-lang/crates.io-index",
@@ -7897,6 +8086,10 @@
     },
     {
       "dependsOn": [],
+      "ref": "cargo:bitflags@1.3.2?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [],
       "ref": "cargo:bitflags@2.13.1?source=registry+https://github.com/rust-lang/crates.io-index"
     },
     {
@@ -8101,6 +8294,28 @@
     {
       "dependsOn": [],
       "ref": "cargo:data-encoding@2.11.1?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [
+        "cargo:defmt-parser@1.0.0?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:proc-macro2@1.0.107?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:quote@1.0.47?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:syn@2.0.119?source=registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "ref": "cargo:defmt-macros@1.1.1?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [
+        "cargo:thiserror@2.0.19?source=registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "ref": "cargo:defmt-parser@1.0.0?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [
+        "cargo:bitflags@1.3.2?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:defmt-macros@1.1.1?source=registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "ref": "cargo:defmt@1.1.1?source=registry+https://github.com/rust-lang/crates.io-index"
     },
     {
       "dependsOn": [
@@ -8614,8 +8829,35 @@
       "ref": "cargo:itoa@1.0.18?source=registry+https://github.com/rust-lang/crates.io-index"
     },
     {
+      "dependsOn": [
+        "cargo:defmt@1.1.1?source=registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "ref": "cargo:jiff-core@0.1.0?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [
+        "cargo:jiff-core@0.1.0?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:proc-macro2@1.0.107?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:quote@1.0.47?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:syn@2.0.119?source=registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "ref": "cargo:jiff-static@0.2.35?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
       "dependsOn": [],
       "ref": "cargo:jiff-tzdb@0.1.8?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [
+        "cargo:defmt@1.1.1?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:jiff-core@0.1.0?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:jiff-static@0.2.35?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:log@0.4.33?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:portable-atomic-util@0.2.8?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:portable-atomic@1.15.0?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:serde_core@1.0.229?source=registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "ref": "cargo:jiff@0.2.35?source=registry+https://github.com/rust-lang/crates.io-index"
     },
     {
       "dependsOn": [
@@ -8929,6 +9171,16 @@
         "cargo:universal-hash@0.5.1?source=registry+https://github.com/rust-lang/crates.io-index"
       ],
       "ref": "cargo:poly1305@0.8.0?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [
+        "cargo:portable-atomic@1.15.0?source=registry+https://github.com/rust-lang/crates.io-index"
+      ],
+      "ref": "cargo:portable-atomic-util@0.2.8?source=registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "dependsOn": [],
+      "ref": "cargo:portable-atomic@1.15.0?source=registry+https://github.com/rust-lang/crates.io-index"
     },
     {
       "dependsOn": [
@@ -9704,6 +9956,8 @@
         "cargo:chrono@0.4.45?source=registry+https://github.com/rust-lang/crates.io-index",
         "cargo:futures-util@0.3.33?source=registry+https://github.com/rust-lang/crates.io-index",
         "cargo:hex@0.4.3?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:jiff-tzdb@0.1.8?source=registry+https://github.com/rust-lang/crates.io-index",
+        "cargo:jiff@0.2.35?source=registry+https://github.com/rust-lang/crates.io-index",
         "cargo:nostr@0.44.8?source=registry+https://github.com/rust-lang/crates.io-index",
         "cargo:radroots_blossom@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=13ac1f2135199702a07ba6aa14ab22101f17fcb0#13ac1f2135199702a07ba6aa14ab22101f17fcb0",
         "cargo:radroots_event@0.1.0-alpha?source=git+https://github.com/radrootslabs/lib?rev=13ac1f2135199702a07ba6aa14ab22101f17fcb0#13ac1f2135199702a07ba6aa14ab22101f17fcb0",

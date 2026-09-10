@@ -202,6 +202,6 @@ final class TeraTodayContextTests: XCTestCase {
   }
 
   private func page(_ ids: [String], cursor: String? = nil) -> TeraTodayPage {
-    TeraTodayPage(asOfUnixSeconds: 1, items: ids.map(TeraScopeFixtures.card), nextCursor: cursor)
+    TeraTodayPage(asOfUnixSeconds: 1, items: ids.map(TeraScopeFixtures.card), nextCursor: cursor, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1))
   }
 }

@@ -68,6 +68,8 @@ targets:
       - path: TeraTests/TeraTodayCacheFirstTests.swift
       - path: TeraTests/TeraTodayContextTests.swift
       - path: TeraTests/TeraTodayPagingTests.swift
+      - path: TeraTests/TeraViewerCalendarTests.swift
+      - path: TeraTests/TeraTodayCalendarScopeTests.swift
       - path: TeraTests/TeraTodayReconciliationTests.swift
       - path: TeraTests/TeraTodayReconciliationTaskTests.swift
       - path: TeraTests/TeraTodayReconciliationFFITests.swift

@@ -12,7 +12,7 @@ async fn reconciliation_retains_loaded_identity_and_removes_author_deleted_conte
     ingest(&runtime, &context, first, NOW).await;
     ingest(&runtime, &context, removed.clone(), NOW).await;
     let original = runtime
-        .phase1_today_page(&context, TodayPageRequest::first(100, NOW))
+        .phase1_today_page(&context, TodayPageRequest::first(100, NOW, "UTC"))
         .await
         .unwrap();
     let ids = original
@@ -21,7 +21,13 @@ async fn reconciliation_retains_loaded_identity_and_removes_author_deleted_conte
         .map(|c| c.card.card_id.to_hex())
         .collect::<Vec<_>>();
     let unchanged = runtime
-        .phase1_today_reconcile(&context, NOW, &ids, Some(original.projection_generation))
+        .phase1_today_reconcile(
+            &context,
+            NOW,
+            &ids,
+            Some(original.projection_generation),
+            "UTC",
+        )
         .await
         .unwrap();
     assert_eq!(unchanged.items, original.items);
@@ -46,12 +52,18 @@ async fn reconciliation_retains_loaded_identity_and_removes_author_deleted_conte
     .await;
     assert!(matches!(
         runtime
-            .phase1_today_reconcile(&context, NOW, &ids, Some(original.projection_generation))
+            .phase1_today_reconcile(
+                &context,
+                NOW,
+                &ids,
+                Some(original.projection_generation),
+                "UTC"
+            )
             .await,
         Err(TodayError::Cursor(CursorError::Stale))
     ));
     let current = runtime
-        .phase1_today_reconcile(&context, NOW, &ids, None)
+        .phase1_today_reconcile(&context, NOW, &ids, None, "UTC")
         .await
         .unwrap();
     assert_ne!(
@@ -74,7 +86,7 @@ async fn reconciliation_applies_full_context_and_rejects_unbounded_or_invalid_id
     let context = context(None, 1);
     ingest(&runtime, &context, signed(1, vec![], "visible", NOW), NOW).await;
     let page = runtime
-        .phase1_today_page(&context, TodayPageRequest::first(1, NOW))
+        .phase1_today_page(&context, TodayPageRequest::first(1, NOW, "UTC"))
         .await
         .unwrap();
     let id = page.items[0].card.card_id.to_hex();
@@ -86,17 +98,19 @@ async fn reconciliation_applies_full_context_and_rejects_unbounded_or_invalid_id
     ] {
         assert!(matches!(
             runtime
-                .phase1_today_reconcile(&context, NOW, &ids, None)
+                .phase1_today_reconcile(&context, NOW, &ids, None, "UTC")
                 .await,
             Err(TodayError::InvalidRequest)
         ));
     }
     assert!(matches!(
-        runtime.phase1_today_reconcile(&context, 0, &[], None).await,
+        runtime
+            .phase1_today_reconcile(&context, 0, &[], None, "UTC")
+            .await,
         Err(TodayError::InvalidRequest)
     ));
     let empty = runtime
-        .phase1_today_reconcile(&context, NOW, &[], None)
+        .phase1_today_reconcile(&context, NOW, &[], None, "UTC")
         .await
         .unwrap();
     assert!(empty.items.is_empty());
@@ -105,7 +119,7 @@ async fn reconciliation_applies_full_context_and_rejects_unbounded_or_invalid_id
     changed.locality = Some("changed".into());
     assert!(matches!(
         runtime
-            .phase1_today_reconcile(&changed, NOW, &[id], None)
+            .phase1_today_reconcile(&changed, NOW, &[id], None, "UTC")
             .await,
         Err(TodayError::Cursor(CursorError::Stale))
     ));

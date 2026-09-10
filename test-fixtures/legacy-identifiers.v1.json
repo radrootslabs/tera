@@ -3707,16 +3707,6 @@
       ]
     },
     {
-      "identifier": "radroots.today-cursor.v2",
-      "category": "persisted_data",
-      "occurrences": [
-        {
-          "path": "core/crates/tera_core/src/runtime/product_surface/cursor.rs",
-          "count": 1
-        }
-      ]
-    },
-    {
       "identifier": "radroots.today-document-key.v1",
       "category": "persisted_data",
       "occurrences": [
@@ -3752,16 +3742,6 @@
       "occurrences": [
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/ranking.rs",
-          "count": 1
-        }
-      ]
-    },
-    {
-      "identifier": "radroots.today-snapshot-id.v2",
-      "category": "persisted_data",
-      "occurrences": [
-        {
-          "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 1
         }
       ]
@@ -4086,7 +4066,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
-          "count": 7
+          "count": 6
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",
@@ -4105,7 +4085,15 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_viewer_calendar_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/viewer_calendar.rs",
           "count": 1
         },
         {
@@ -4172,6 +4160,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_viewer_calendar_tests.rs",
           "count": 1
         },
         {

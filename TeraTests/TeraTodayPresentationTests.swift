@@ -193,6 +193,6 @@ final class TeraTodayPresentationTests: XCTestCase {
   }
 
   private func page(_ cards: [TeraTodayCard], next: String? = nil) -> TeraTodayPage {
-    TeraTodayPage(asOfUnixSeconds: 1, items: cards, nextCursor: next)
+    TeraTodayPage(asOfUnixSeconds: 1, items: cards, nextCursor: next, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1))
   }
 }

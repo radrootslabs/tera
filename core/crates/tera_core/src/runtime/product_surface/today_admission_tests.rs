@@ -138,7 +138,7 @@ async fn direct_visible_ingest_cannot_poison_storage_with_permissive_signature_e
     assert!(matches!(result, Err(TodayError::EventNotVisible)));
     super::tests::ingest(&runtime, &selected, valid, 2_000_000_101).await;
     let page = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102))
+        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_102, "UTC"))
         .await
         .unwrap();
     assert_eq!(
@@ -295,7 +295,7 @@ async fn malformed_known_profiles_and_bad_signatures_do_not_displace_valid_batch
         "malformed signed heads are retained as evidence, never visible content"
     );
     let page = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_100))
+        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_100, "UTC"))
         .await
         .unwrap();
     assert_eq!(page.items[0].card.source_event_id, valid_id);
@@ -451,7 +451,7 @@ async fn all_current_card_families_survive_shared_ingest_while_supporting_record
         (6, 1, 1)
     );
     let page = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_100))
+        .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_100, "UTC"))
         .await
         .unwrap();
     assert_eq!(page.items.len(), 6);

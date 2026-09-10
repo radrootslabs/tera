@@ -60,6 +60,8 @@ radroots_transport = { workspace = true, default-features = false, features = [
 ] }
 radroots_transport_nostr = { workspace = true }
 chrono = { workspace = true }
+jiff = { workspace = true }
+jiff_tzdb = { workspace = true }
 hex = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }

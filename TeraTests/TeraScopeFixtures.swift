@@ -3,6 +3,15 @@ import Foundation
 import XCTest
 
 enum TeraScopeFixtures {
+  static func viewerCalendar(asOf: UInt64, timeZone: TimeZone = .gmt) -> TeraViewerCalendarContext {
+    guard let date = TeraCalendarEditing.civilDate(at: asOf, timeZone: timeZone) else {
+      preconditionFailure("Test fixture requires a supported calendar instant")
+    }
+    return TeraViewerCalendarContext(
+      asOfUnixSeconds: asOf, timeZoneID: timeZone.identifier, timeZone: timeZone, civilDate: date
+    )
+  }
+
   static func snapshot(
     account: String = "a", relay: String = "first", evidence: TeraBlossomEvidence? = nil,
     profile: String = "simulator"

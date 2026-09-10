@@ -14,7 +14,7 @@ async fn arrivals_and_authorized_deletion_produce_complete_new_keysets() {
         ingest(&runtime, &selected, signed(1, vec![], body, NOW), NOW).await;
     }
     let first = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(1, NOW + 10))
+        .phase1_today_page(&selected, TodayPageRequest::first(1, NOW + 10, "UTC"))
         .await
         .unwrap();
     ingest(
@@ -32,7 +32,7 @@ async fn arrivals_and_authorized_deletion_produce_complete_new_keysets() {
     )
     .await;
     let fresh = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(1, NOW + 10))
+        .phase1_today_page(&selected, TodayPageRequest::first(1, NOW + 10, "UTC"))
         .await
         .unwrap();
     assert_ne!(fresh.next_cursor, first.next_cursor);
@@ -85,7 +85,7 @@ async fn same_identity_and_generation_do_not_authorize_another_query() {
         }
     }
     let page = runtime
-        .phase1_today_page(&first, TodayPageRequest::first(1, NOW))
+        .phase1_today_page(&first, TodayPageRequest::first(1, NOW, "UTC"))
         .await
         .unwrap();
     let cursor = page.next_cursor.expect("second matching item");
@@ -104,7 +104,7 @@ async fn same_identity_and_generation_do_not_authorize_another_query() {
         .await
         .unwrap();
     let other = runtime
-        .phase1_today_page(&second, TodayPageRequest::first(1, NOW))
+        .phase1_today_page(&second, TodayPageRequest::first(1, NOW, "UTC"))
         .await
         .unwrap();
     assert_eq!(other.items.len(), 1);
@@ -208,7 +208,7 @@ async fn tied_keysets_are_exact_repeatable_and_independent_of_ingest_order() {
             ingest(&runtime, &selected, event, NOW).await;
         }
         let all = runtime
-            .phase1_today_page(&selected, TodayPageRequest::first(100, NOW))
+            .phase1_today_page(&selected, TodayPageRequest::first(100, NOW, "UTC"))
             .await
             .unwrap();
         let ids = all
@@ -232,7 +232,7 @@ async fn tied_keysets_are_exact_repeatable_and_independent_of_ingest_order() {
             expected = Some(ids.clone());
         }
         for limit in [1, 2, 4, 8, 9, 100] {
-            let mut request = TodayPageRequest::first(limit, NOW);
+            let mut request = TodayPageRequest::first(limit, NOW, "UTC");
             let mut observed = Vec::new();
             loop {
                 let page = runtime
@@ -292,7 +292,7 @@ async fn authenticated_accounts_and_retired_stores_cannot_share_cursor_authority
             ingest(&runtime, &selected, signed(1, vec![], body, NOW), NOW).await;
         }
         let page = runtime
-            .phase1_today_page(&selected, TodayPageRequest::first(1, NOW))
+            .phase1_today_page(&selected, TodayPageRequest::first(1, NOW, "UTC"))
             .await
             .unwrap();
         let own_cursor = page.next_cursor.unwrap();
@@ -339,7 +339,7 @@ async fn corrupt_snapshot_order_and_legacy_unbound_cache_fail_closed() {
     let snapshot = frozen_snapshot(
         &state,
         &selected,
-        NOW,
+        &crate::runtime::product_surface::ViewerCalendarContext::new(NOW, "UTC").unwrap(),
         paging_scope::query_scope(&selected, None).unwrap(),
     )
     .unwrap();
@@ -372,7 +372,7 @@ async fn corrupt_snapshot_order_and_legacy_unbound_cache_fail_closed() {
         legacy
     );
     let page = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(100, NOW))
+        .phase1_today_page(&selected, TodayPageRequest::first(100, NOW, "UTC"))
         .await
         .unwrap();
     assert_eq!(page.items, snapshot.items);
@@ -406,7 +406,7 @@ async fn corrupt_snapshot_order_and_legacy_unbound_cache_fail_closed() {
     .await
     .unwrap();
     let repaired = runtime
-        .phase1_today_page(&selected, TodayPageRequest::first(100, NOW))
+        .phase1_today_page(&selected, TodayPageRequest::first(100, NOW, "UTC"))
         .await
         .unwrap();
     assert_eq!(repaired.items.len(), snapshot.items.len());

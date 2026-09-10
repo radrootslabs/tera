@@ -412,7 +412,13 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
         .await
         .expect("sync profile and thread events");
     let enriched = reader
-        .phase1_today_page(context.clone(), 20, Some(AS_OF), None)
+        .phase1_today_page(
+            context.clone(),
+            20,
+            Some(AS_OF),
+            None,
+            Some("UTC".to_owned()),
+        )
         .await
         .expect("enriched Today");
     assert_eq!(
@@ -487,7 +493,13 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
         .await
         .expect("sync replacement");
     let replaced = reader
-        .phase1_today_page(context.clone(), 20, Some(AS_OF), None)
+        .phase1_today_page(
+            context.clone(),
+            20,
+            Some(AS_OF),
+            None,
+            Some("UTC".to_owned()),
+        )
         .await
         .expect("replacement projection");
     let current_food = replaced
@@ -535,7 +547,13 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
         .await
         .expect("sync deletion");
     let after_deletion = reader
-        .phase1_today_page(context.clone(), 20, Some(AS_OF), None)
+        .phase1_today_page(
+            context.clone(),
+            20,
+            Some(AS_OF),
+            None,
+            Some("UTC".to_owned()),
+        )
         .await
         .expect("projection after deletion");
     assert_eq!(after_deletion.items.len(), 4);
@@ -547,7 +565,13 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     );
 
     let search = reader
-        .phase1_search(context.clone(), "moss farm".to_owned(), 20, AS_OF)
+        .phase1_search(
+            context.clone(),
+            "moss farm".to_owned(),
+            20,
+            AS_OF,
+            "UTC".to_owned(),
+        )
         .await
         .expect("search current projection");
     assert!(search.iter().any(|result| result.profile.is_some()));
@@ -558,7 +582,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
             .is_some_and(|card| card.content == "Corrected carrots from Moss Farm")
     }));
     let me = reader
-        .phase1_me(context.clone(), AS_OF)
+        .phase1_me(context.clone(), AS_OF, "UTC".to_owned())
         .await
         .expect("Me projection");
     assert_eq!(
@@ -754,14 +778,20 @@ async fn collect_pages(
     as_of: u64,
 ) -> Vec<tera_ffi::FfiTodayCardRecord> {
     let first = runtime
-        .phase1_today_page(context.clone(), limit, Some(as_of), None)
+        .phase1_today_page(
+            context.clone(),
+            limit,
+            Some(as_of),
+            None,
+            Some("UTC".to_owned()),
+        )
         .await
         .expect("first Today page");
     let mut items = first.items;
     let mut cursor = first.next_cursor;
     while let Some(next) = cursor {
         let page = runtime
-            .phase1_today_page(context.clone(), limit, None, Some(next))
+            .phase1_today_page(context.clone(), limit, None, Some(next), None)
             .await
             .expect("continued Today page");
         items.extend(page.items);

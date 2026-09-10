@@ -7,6 +7,7 @@ use super::*;
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TodayReconciliation {
+    pub calendar: super::super::ViewerCalendarContext,
     pub projection_generation: u64,
     pub items: Vec<TodayCard>,
 }
@@ -18,11 +19,13 @@ impl TeraRuntime {
         as_of: u64,
         card_ids: &[String],
         expected_generation: Option<u64>,
+        viewer_time_zone: &str,
     ) -> Result<TodayReconciliation, TodayError> {
         let _command = self.lifecycle.enter()?;
         if as_of == 0 || card_ids.len() > usize::from(TODAY_PAGE_LIMIT_MAX) {
             return Err(TodayError::InvalidRequest);
         }
+        let calendar = super::super::ViewerCalendarContext::new(as_of, viewer_time_zone)?;
         let selected = card_ids
             .iter()
             .map(|id| CardId::parse(id).map_err(|_| TodayError::InvalidRequest))
@@ -48,7 +51,8 @@ impl TeraRuntime {
         }
         Ok(TodayReconciliation {
             projection_generation: state.content_generation,
-            items: selected_ranked_cards(&state, context, as_of, Some(&selected))?,
+            items: selected_ranked_cards(&state, context, &calendar, Some(&selected))?,
+            calendar,
         })
     }
 }

@@ -9,16 +9,8 @@ final class TeraTodayStoreTests: XCTestCase {
         let second = makeCard(id: "b", type: .ask, authoredAt: 1_800_000_000)
         let backend = TodayBackend(
             pages: [
-              "one:first": TeraTodayPage(
-                asOfUnixSeconds: 1_800_000_100,
-                items: [first],
-                nextCursor: "same-time"
-              ),
-              "one:same-time": TeraTodayPage(
-                asOfUnixSeconds: 1_800_000_100,
-                items: [first, second],
-                nextCursor: nil
-              ),
+              "one:first": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: [first], nextCursor: "same-time", calendar: TeraScopeFixtures.viewerCalendar(asOf: 1_800_000_100)),
+              "one:same-time": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: [first, second], nextCursor: nil, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1_800_000_100)),
             ]
         )
         let client = try await startedClient(backend: backend)
@@ -48,16 +40,8 @@ final class TeraTodayStoreTests: XCTestCase {
         let current = makeCard(id: "current", type: .photoUpdate)
         let backend = TodayBackend(
           pages: [
-            "slow:first": TeraTodayPage(
-              asOfUnixSeconds: 1_800_000_100,
-              items: [stale],
-              nextCursor: nil
-            ),
-            "current:first": TeraTodayPage(
-              asOfUnixSeconds: 1_800_000_100,
-              items: [current],
-              nextCursor: nil
-            ),
+            "slow:first": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: [stale], nextCursor: nil, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1_800_000_100)),
+            "current:first": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: [current], nextCursor: nil, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1_800_000_100)),
           ],
           delays: ["slow": 80_000_000]
         )
@@ -177,16 +161,8 @@ final class TeraTodayStoreTests: XCTestCase {
         )
         let backend = TodayBackend(
           pages: [
-            "offline:first": TeraTodayPage(
-              asOfUnixSeconds: 1_800_000_100,
-              items: hasCachedCards ? [cached] : [],
-              nextCursor: hasCachedCards ? "cached-next" : nil
-            ),
-            "offline:cached-next": TeraTodayPage(
-              asOfUnixSeconds: 1_800_000_100,
-              items: [makeCard(id: "cached-next", type: .ask)],
-              nextCursor: nil
-            ),
+            "offline:first": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: hasCachedCards ? [cached] : [], nextCursor: hasCachedCards ? "cached-next" : nil, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1_800_000_100)),
+            "offline:cached-next": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: [makeCard(id: "cached-next", type: .ask)], nextCursor: nil, calendar: TeraScopeFixtures.viewerCalendar(asOf: 1_800_000_100)),
           ],
           refreshFailure: failure
         )

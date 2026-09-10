@@ -169,7 +169,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
         context: context.generatedValue,
         query: query,
         limit: limit,
-        asOfUnixS: asOfUnixSeconds
+        asOfUnixS: asOfUnixSeconds, viewerTimeZone: TimeZone.current.identifier
       ).map { try $0.appValue() }
     } catch {
       throw Self.failure(from: error)
@@ -183,7 +183,7 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     do {
       return try await runtime.phase1Me(
         context: context.generatedValue,
-        asOfUnixS: asOfUnixSeconds
+        asOfUnixS: asOfUnixSeconds, viewerTimeZone: TimeZone.current.identifier
       ).appValue()
     } catch {
       throw Self.failure(from: error)
@@ -812,7 +812,7 @@ extension FfiBlossomEvidenceRecord {
 }
 
 extension TeraLocalNetwork {
-  fileprivate var generatedValue: FfiLocalNetworkRecord {
+  var generatedValue: FfiLocalNetworkRecord {
     FfiLocalNetworkRecord(
       schemaVersion: schemaVersion,
       id: id,
@@ -1495,26 +1495,11 @@ extension TeraNativeUploadCompletion {
 
 private extension TeraGeneratedRuntimeBackend {
   func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage {
-    do {
-      return try await runtime.phase1TodayReconcile(
-        context: request.context.generatedValue, asOfUnixS: request.asOfUnixSeconds,
-        cardIds: request.cardIDs, expectedGeneration: request.expectedGeneration
-      ).appValue()
-    } catch { throw Self.failure(from: error) }
+    do { return try await TeraGeneratedTodayReads.reconcile(runtime: runtime, request: request) } catch { throw Self.failure(from: error) }
   }
 
   func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage {
-    do {
-      let page = try await runtime.phase1TodayPage(
-        context: request.context.generatedValue,
-        limit: request.limit,
-        asOfUnixS: request.asOfUnixSeconds,
-        cursor: request.cursor
-      )
-      return try page.appValue()
-    } catch {
-      throw Self.failure(from: error)
-    }
+    do { return try await TeraGeneratedTodayReads.page(runtime: runtime, request: request) } catch { throw Self.failure(from: error) }
   }
 
   func refreshToday(

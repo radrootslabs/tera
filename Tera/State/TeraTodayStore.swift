@@ -20,7 +20,8 @@ final class TeraTodayStore: ObservableObject {
     private let pageSize: UInt16
     private let clock: TeraClock
     private let observationDelay: @Sendable (UInt32) async throws -> Void
-    private var frozenAsOfUnixSeconds: UInt64?
+    @Published private(set) var viewerCalendar: TeraViewerCalendarContext?
+    private let viewerTimeZone: @MainActor () -> TimeZone
     private var nextCursor: String?
     private var requestGeneration = TeraSessionGeneration.initial
     private let observation = TeraStoreObservation()
@@ -34,6 +35,7 @@ final class TeraTodayStore: ObservableObject {
       selectedContextID: String? = nil,
       pageSize: UInt16 = 20,
       clock: TeraClock = .system,
+      viewerTimeZone: @escaping @MainActor () -> TimeZone = { .current },
       observationDelay: @escaping @Sendable (UInt32) async throws -> Void =
             TeraRuntimeObservationBackoff.sleep
     ) {
@@ -41,6 +43,7 @@ final class TeraTodayStore: ObservableObject {
         self.contexts = TeraTodayReconciler.unique(contexts)
         self.pageSize = min(max(pageSize, 1), 100)
         self.clock = clock
+        self.viewerTimeZone = viewerTimeZone
         self.observationDelay = observationDelay
         if let selectedContextID,
            self.contexts.contains(where: { $0.id == selectedContextID })
@@ -101,7 +104,7 @@ final class TeraTodayStore: ObservableObject {
         reloadTask?.cancel()
         reloadTask = nil
         cards = []
-        frozenAsOfUnixSeconds = nil
+        viewerCalendar = nil
         nextCursor = nil
         isLoadingNextPage = false
         presentation = TeraTodayPresentation()
@@ -162,7 +165,7 @@ final class TeraTodayStore: ObservableObject {
               presentation.stop()
             }
         }
-        frozenAsOfUnixSeconds = nil
+        viewerCalendar = nil
         nextCursor = nil
         isLoadingNextPage = false
         hasPendingContent = false
@@ -176,7 +179,7 @@ final class TeraTodayStore: ObservableObject {
         // projection, even when the new page has the same as-of timestamp.
         requestGeneration = requestGeneration.invalidated()
         generation = requestGeneration
-        frozenAsOfUnixSeconds = nil
+        viewerCalendar = nil
         nextCursor = nil
         isLoadingNextPage = false
         guard generation.isActive else { return }
@@ -217,11 +220,11 @@ final class TeraTodayStore: ObservableObject {
                 request: .first(
                   context: context,
                   limit: pageSize,
-                  asOfUnixSeconds: asOf
+                  asOfUnixSeconds: asOf, timeZone: viewerTimeZone()
                 )
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
-            frozenAsOfUnixSeconds = page.asOfUnixSeconds
+            viewerCalendar = page.calendar
             nextCursor = page.nextCursor
             projectionGeneration = page.projectionGeneration
             replaceCards(TeraTodayReconciler.unique(page.items))
@@ -256,12 +259,12 @@ final class TeraTodayStore: ObservableObject {
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             guard projectionGeneration == nil || projectionGeneration == page.projectionGeneration,
-              frozenAsOfUnixSeconds == nil || frozenAsOfUnixSeconds == page.asOfUnixSeconds
+              viewerCalendar == page.calendar, page.calendar.asOfUnixSeconds == page.asOfUnixSeconds
             else {
                 failPagination(.staleCursor(message: "Today changed while loading. Refresh to continue."))
                 return
             }
-            frozenAsOfUnixSeconds = page.asOfUnixSeconds
+            viewerCalendar = page.calendar
             nextCursor = page.nextCursor
             replaceCards(TeraTodayReconciler.unique(cards + page.items))
             presentation.acceptPage(count: cards.count)
@@ -295,14 +298,14 @@ private extension TeraTodayStore {
     }
 
     func reconcileLoadedCards() async {
-        guard let context = selectedContext, let asOf = frozenAsOfUnixSeconds else { return }
+        guard let context = selectedContext, let calendar = viewerCalendar else { return }
         requestGeneration = requestGeneration.invalidated()
         let generation = requestGeneration
         isLoadingNextPage = false
         presentation.beginRead()
         do {
             let page = try await TeraTodayReconciler.read(
-              client: runtimeClient, context: context, asOf: asOf, cards: cards
+              client: runtimeClient, context: context, calendar: calendar, cards: cards
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             if projectionGeneration != page.projectionGeneration {

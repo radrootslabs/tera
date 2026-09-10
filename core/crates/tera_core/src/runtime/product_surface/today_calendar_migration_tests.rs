@@ -177,18 +177,18 @@ async fn old_sqlite_calendar_migrates_on_all_readers_without_changing_pending_id
         let selected = context(None, 1);
         let count = match reader {
             "page" => runtime
-                .phase1_today_page(&selected, TodayPageRequest::first(20, NOW))
+                .phase1_today_page(&selected, TodayPageRequest::first(20, NOW, "UTC"))
                 .await
                 .unwrap()
                 .items
                 .len(),
             "search" => runtime
-                .phase1_search(&selected, "Harvest", 20, NOW)
+                .phase1_search(&selected, "Harvest", 20, NOW, "UTC")
                 .await
                 .unwrap()
                 .len(),
             "me" => runtime
-                .phase1_me(&selected, &keys().public_key().to_string(), NOW)
+                .phase1_me(&selected, &keys().public_key().to_string(), NOW, "UTC")
                 .await
                 .unwrap()
                 .cards
@@ -199,6 +199,7 @@ async fn old_sqlite_calendar_migrates_on_all_readers_without_changing_pending_id
                     NOW,
                     &[fixture()["cardId"].as_str().unwrap().into()],
                     None,
+                    "UTC",
                 )
                 .await
                 .unwrap()
@@ -296,7 +297,7 @@ async fn every_durable_rebuild_boundary_resumes_after_sqlite_reopen() {
         drop(runtime);
         let runtime = open(root.path()).await;
         runtime
-            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW))
+            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
             .await
             .unwrap();
         assert_current(&runtime).await;
@@ -352,7 +353,7 @@ async fn changed_source_is_never_promoted_and_retries_from_current_history() {
             .unwrap();
         let signed_before = raw(&runtime).await;
         let rejected = runtime
-            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW))
+            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
             .await;
         assert!(matches!(
             rejected,
@@ -374,7 +375,7 @@ async fn changed_source_is_never_promoted_and_retries_from_current_history() {
             calendar_migration::legacy_generation().unwrap()
         );
         let page = runtime
-            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW))
+            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
             .await
             .unwrap();
         assert_eq!(page.items.len(), 2);
@@ -405,6 +406,7 @@ async fn obsolete_snapshots_and_unknown_generations_fail_without_rewriting_histo
         old.store_generation,
         old.content_generation,
         paging_scope::query_scope(&selected, runtime.store_public_key).unwrap(),
+        crate::runtime::product_surface::ViewerCalendarContext::new(NOW, "UTC").expect("calendar"),
     )
     .unwrap();
     ProjectionStore::put_projection_snapshot(
@@ -455,7 +457,7 @@ async fn obsolete_snapshots_and_unknown_generations_fail_without_rewriting_histo
     let original = ProjectionStore::checkpoint(storage, future).await.unwrap();
     assert!(matches!(
         runtime
-            .phase1_today_page(&selected, TodayPageRequest::first(20, NOW))
+            .phase1_today_page(&selected, TodayPageRequest::first(20, NOW, "UTC"))
             .await,
         Err(TodayError::UnsupportedProjectionVersion)
     ));
@@ -524,7 +526,7 @@ async fn invalid_historical_visible_heads_are_quarantined_without_reviving_old_c
         .unwrap();
     let signed_before = raw(&runtime).await;
     let page = runtime
-        .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW))
+        .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
         .await
         .unwrap();
     assert!(page.items.is_empty());
@@ -567,7 +569,7 @@ async fn corrupt_legacy_bytes_and_source_changes_before_promotion_preserve_origi
         .unwrap();
     assert!(matches!(
         runtime
-            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW))
+            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
             .await,
         Err(TodayError::CorruptProjection)
     ));
@@ -639,7 +641,7 @@ async fn corrupt_legacy_bytes_and_source_changes_before_promotion_preserve_origi
     );
     let before = raw(&runtime).await;
     let page = runtime
-        .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW))
+        .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
         .await
         .unwrap();
     assert_eq!(page.items.len(), 2);

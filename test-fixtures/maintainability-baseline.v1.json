@@ -8,7 +8,7 @@
     "python_function_complexity": 10
   },
   "swift_file_exception": [
-    {"path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift", "maximum_lines": 1531},
+    {"path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift", "maximum_lines": 1516},
     {"path": "Tera/Runtime/TeraRuntimeClient.swift", "maximum_lines": 835},
     {"path": "Tera/Runtime/TeraRuntimeModels.swift", "maximum_lines": 1154},
     {"path": "Tera/State/TeraAddStore.swift", "maximum_lines": 810},

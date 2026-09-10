@@ -311,14 +311,20 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert_eq!(refresh.visible_cards, 0);
     assert!(refresh.content_generation > 0);
     let today = runtime
-        .phase1_today_page(local_network.clone(), 20, Some(1_800_000_001), None)
+        .phase1_today_page(
+            local_network.clone(),
+            20,
+            Some(1_800_000_001),
+            None,
+            Some("UTC".to_owned()),
+        )
         .await
         .expect("empty Today page");
     assert!(today.items.is_empty());
     assert!(today.next_cursor.is_none());
     assert!(
         runtime
-            .phase1_today_page(local_network.clone(), 20, None, None)
+            .phase1_today_page(local_network.clone(), 20, None, None, None)
             .await
             .is_err()
     );
@@ -329,6 +335,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
                 20,
                 Some(1_800_000_001),
                 Some("opaque".to_owned()),
+                Some("UTC".to_owned())
             )
             .await
             .is_err()
@@ -340,13 +347,14 @@ async fn native_boundary_delegates_the_complete_core_surface() {
                 "carrots".to_owned(),
                 20,
                 1_800_000_001,
+                "UTC".to_owned()
             )
             .await
             .expect("empty search")
             .is_empty()
     );
     let me = runtime
-        .phase1_me(local_network.clone(), 1_800_000_001)
+        .phase1_me(local_network.clone(), 1_800_000_001, "UTC".to_owned())
         .await
         .expect("Me snapshot");
     assert_eq!(me.public_key, support::PUBLIC_KEY);

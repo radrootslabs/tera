@@ -5,6 +5,7 @@ struct TeraTodayReconcileRequest: Sendable {
   let asOfUnixSeconds: UInt64
   let cardIDs: [String]
   var expectedGeneration: UInt64?
+  let calendar: TeraViewerCalendarContext
 }
 
 enum TeraTodayReconciler {
@@ -17,7 +18,7 @@ enum TeraTodayReconciler {
   /// installed and no newly discovered identity is inserted into a scrolled feed.
   static func read(
     client: TeraRuntimeClient, context: TeraLocalNetwork,
-    asOf: UInt64, cards: [TeraTodayCard]
+    calendar: TeraViewerCalendarContext, cards: [TeraTodayCard]
   ) async throws -> TeraTodayPage {
     let identifiers = cards.map(\.id)
     var current: [String: TeraTodayCard] = [:]
@@ -26,11 +27,12 @@ enum TeraTodayReconciler {
       try Task.checkCancellation()
       let end = min(offset + 100, identifiers.count)
       let page = try await client.reconcileToday(request: TeraTodayReconcileRequest(
-        context: context, asOfUnixSeconds: asOf,
-        cardIDs: Array(identifiers[offset ..< end]), expectedGeneration: generation
+        context: context, asOfUnixSeconds: calendar.asOfUnixSeconds,
+        cardIDs: Array(identifiers[offset ..< end]), expectedGeneration: generation, calendar: calendar
       ))
       guard let received = page.projectionGeneration,
-        generation == nil || generation == received
+        generation == nil || generation == received, page.calendar == calendar,
+        page.asOfUnixSeconds == calendar.asOfUnixSeconds
       else { throw TeraTodayReconciliationError.changed }
       generation = received
       for card in page.items {
@@ -40,8 +42,8 @@ enum TeraTodayReconciler {
       }
     }
     return TeraTodayPage(
-      asOfUnixSeconds: asOf, items: identifiers.compactMap { current[$0] },
-      nextCursor: nil, projectionGeneration: generation
+      asOfUnixSeconds: calendar.asOfUnixSeconds, items: identifiers.compactMap { current[$0] },
+      nextCursor: nil, projectionGeneration: generation, calendar: calendar
     )
   }
 }

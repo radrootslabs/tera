@@ -19,6 +19,10 @@ mod ranking;
 #[cfg(feature = "mobile-social")]
 mod settings;
 mod today;
+mod viewer_calendar;
+pub use viewer_calendar::{
+    VIEWER_CALENDAR_VERSION, VIEWER_TIME_ZONE_MAX_BYTES, ViewerCalendarContext,
+};
 
 pub use authoring::{
     CreateAsk, CreateEvent, CreateFoodAvailability, CreatePhotoUpdate, CreateUpdate,
