@@ -62,6 +62,10 @@ const PROJECTION_CONTENT_DOMAIN: &[u8] = b"radroots.today-content-generation.v2\
 const PROJECTION_DOCUMENT_KEY_DOMAIN: &[u8] = b"radroots.today-document-key.v1\0";
 const SNAPSHOT_ID_DOMAIN: &[u8] = b"tera.today-snapshot-id.v3\0";
 
+#[cfg(test)]
+#[path = "calendar_wire_tests.rs"]
+mod calendar_wire_tests;
+
 #[path = "today_calendar_migration.rs"]
 mod calendar_migration;
 

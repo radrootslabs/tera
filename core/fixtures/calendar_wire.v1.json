@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "provenance": {
+    "repository": "radrootslabs/lib",
+    "reviewed_revision": "13ac1f2135199702a07ba6aa14ab22101f17fcb0",
+    "registry_version": 7,
+    "encoder": "crates/event_codec/src/calendar/encode.rs",
+    "admission": "crates/event/src/contract/registry_v7.rs",
+    "scope": "Current pinned Radroots calendar profiles; reviewed revision is provenance, not an instruction to upgrade dependencies."
+  },
+  "events": [
+    {
+      "id": "date_range",
+      "contract_id": "radroots.calendar.date_event.v1",
+      "kind": 31922,
+      "content": "A two-day local harvest gathering.",
+      "tags": [["d", "harvest-days"], ["title", "Harvest days"], ["start", "2026-09-05"], ["end", "2026-09-07"], ["location", "Fixture field"]],
+      "timing": {"date": {"start": "2026-09-05", "end_exclusive": "2026-09-07"}}
+    },
+    {
+      "id": "time_range",
+      "contract_id": "radroots.calendar.time_event.v1",
+      "kind": 31923,
+      "content": "A timed harvest gathering crossing UTC midnight.",
+      "tags": [["d", "harvest-time"], ["title", "Harvest time"], ["start", "1800000000"], ["end", "1800086400"], ["D", "20833"], ["D", "20834"], ["start_tzid", "America/Vancouver"], ["location", "Fixture field"]],
+      "timing": {"time": {"start": 1800000000, "end_exclusive": 1800086400, "start_tzid": "America/Vancouver", "end_tzid": null}}
+    },
+    {
+      "id": "time_both_zones",
+      "contract_id": "radroots.calendar.time_event.v1",
+      "kind": 31923,
+      "content": "An inbound timed event with independent source zones.",
+      "tags": [["d", "harvest-source-zones"], ["title", "Source zones"], ["start", "1800000000"], ["end", "1800057600"], ["D", "20833"], ["start_tzid", "America/Vancouver"], ["end_tzid", "Pacific/Auckland"], ["location", "Fixture field"]],
+      "timing": {"time": {"start": 1800000000, "end_exclusive": 1800057600, "start_tzid": "America/Vancouver", "end_tzid": "Pacific/Auckland"}}
+    }
+  ]
+}
