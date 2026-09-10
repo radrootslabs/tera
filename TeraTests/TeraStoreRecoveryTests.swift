@@ -24,7 +24,7 @@ final class TeraStoreRecoveryTests: XCTestCase {
     await setCurrentState(backend, revision: 2)
     await retry.resume.open()
     await TeraScopeFixtures.eventually {
-      today.cards.first?.id == "revision-2" && add.drafts.first?.revision == 2
+      today.cards.isEmpty && today.hasPendingContent && add.drafts.first?.revision == 2
         && me.snapshot?.cards.first?.id == "revision-2" && add.blossomEvidence?.observedAtUnixMilliseconds == 2
     }
     let subscriptions = await backend.counts[.subscribe]
@@ -52,7 +52,7 @@ final class TeraStoreRecoveryTests: XCTestCase {
     await setCurrentState(backend, revision: 9)
     await backend.emit(.initial, delivery: .resnapshotRequired)
     await TeraScopeFixtures.eventually {
-      today.cards.first?.id == "revision-9" && add.drafts.first?.revision == 9
+      today.cards.isEmpty && today.hasPendingContent && add.drafts.first?.revision == 9
         && me.snapshot?.cards.first?.id == "revision-9" && add.blossomEvidence?.observedAtUnixMilliseconds == 9
     }
     XCTAssertEqual(add.form.content, "Unsaved local editing")
@@ -64,26 +64,28 @@ final class TeraStoreRecoveryTests: XCTestCase {
     _ = try await client.stop()
   }
 
-  func testTodayStormDuringSlowReadEventuallyDisplaysTheFinalDurablePage() async throws {
+  func testTodayStormDuringSlowReadReconcilesTheFinalDurableVisibility() async throws {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let store = TeraTodayStore(runtimeClient: client)
     store.configure(snapshot: TeraScopeFixtures.snapshot())
     await store.start()
     await TeraScopeFixtures.eventually { store.observationState == .active && !store.cards.isEmpty }
-    let first = await backend.pause(.page)
+    let first = await backend.pause(.reconcile)
     await backend.emit(.today)
     await first.entered.wait()
-    let before = await backend.counts[.page, default: 0]
+    let before = await backend.counts[.reconcile, default: 0]
     await setCurrentState(backend, revision: 256)
     for _ in 1 ... 256 {
       await backend.emit(.today)
     }
-    let paused = await backend.counts[.page, default: 0]
+    let paused = await backend.counts[.reconcile, default: 0]
     XCTAssertEqual(paused, before, "Only one observer query may execute at a time")
     await first.resume.open()
-    await TeraScopeFixtures.eventually { store.cards.first?.id == "revision-256" }
-    XCTAssertEqual(store.presentation.content, .available)
+    await TeraScopeFixtures.eventually { store.cards.isEmpty && store.hasPendingContent }
+    XCTAssertEqual(store.presentation.content, .empty)
+    await store.reload(refreshProjection: false)
+    XCTAssertEqual(store.cards.first?.id, "revision-256")
     store.stop()
     _ = try await client.stop()
   }
@@ -92,17 +94,21 @@ final class TeraStoreRecoveryTests: XCTestCase {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let subscription = await backend.pause(.subscribe)
+    let initial = await backend.pause(.reconcile)
     await backend.setPage(page("one", next: "two"))
     await backend.setPage(page("two", next: "three"), cursor: "two")
     await backend.setPage(page("three"), cursor: "three")
     let store = TeraTodayStore(runtimeClient: client)
     store.configure(snapshot: TeraScopeFixtures.snapshot())
     await store.start()
-    await backend.setPage(page("current-one", next: "two"))
+    // The mandatory initial resnapshot has the same visible identities.
+    await backend.setReconciliation(["one", "two", "three"].map(TeraScopeFixtures.card), generation: 1)
     await subscription.resume.open()
-    await TeraScopeFixtures.eventually { store.cards.first?.id == "current-one" }
+    await initial.entered.wait()
+    await initial.resume.open()
+    await TeraScopeFixtures.eventually { store.observationState == .active && !store.presentation.isReading }
     await store.loadNextPage()
-    XCTAssertEqual(store.cards.map(\.id), ["current-one", "two"])
+    XCTAssertEqual(store.cards.map(\.id), ["one", "two"])
     let before = await backend.counts[.page, default: 0]
     // Space hints beyond one actor turn so this exercises ordinary progress,
     // independently of C029's intentionally stronger overflow resnapshot.
@@ -112,10 +118,10 @@ final class TeraStoreRecoveryTests: XCTestCase {
     }
     let after = await backend.counts[.page, default: 0]
     XCTAssertEqual(after, before)
-    XCTAssertEqual(store.cards.map(\.id), ["current-one", "two"])
+    XCTAssertEqual(store.cards.map(\.id), ["one", "two"])
     XCTAssertTrue(store.canLoadNextPage)
     await store.loadNextPage()
-    XCTAssertEqual(store.cards.map(\.id), ["current-one", "two", "three"])
+    XCTAssertEqual(store.cards.map(\.id), ["one", "two", "three"])
     store.stop()
     _ = try await client.stop()
   }
@@ -129,13 +135,14 @@ final class TeraStoreRecoveryTests: XCTestCase {
 
   private func setCurrentState(_ backend: TeraScopeBackend, revision: UInt64) async {
     await backend.setPage(page("revision-\(revision)"))
+    await backend.setReconciliation([TeraScopeFixtures.card("revision-\(revision)")], generation: revision)
     await backend.setDrafts([TeraScopeFixtures.draft("revision-\(revision)", revision: revision)])
     await backend.setMeCards([TeraScopeFixtures.card("revision-\(revision)")])
     await backend.configure(TeraScopeFixtures.snapshot(evidence: TeraScopeFixtures.evidence(observedAt: revision)))
   }
 
   private func page(_ id: String, next: String? = nil) -> TeraTodayPage {
-    TeraTodayPage(asOfUnixSeconds: 1, items: [TeraScopeFixtures.card(id)], nextCursor: next)
+    TeraTodayPage(asOfUnixSeconds: 1, items: [TeraScopeFixtures.card(id)], nextCursor: next, projectionGeneration: 1)
   }
 
   private func isRetrying(_ value: TeraRuntimeObservationState) -> Bool {

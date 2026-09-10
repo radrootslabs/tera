@@ -2,7 +2,7 @@ import Foundation
 @testable import TeraApp
 
 actor TeraScopeBackend: TeraRuntimeBackend {
-  enum Call: Hashable { case snapshot, drafts, save, probe, page, refresh, search, me, subscribe, media, invalidate }
+  enum Call: Hashable { case snapshot, drafts, save, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate }
   struct Pending {
     let pause: ResourceTestPause
     let failure: TeraRuntimeFailure?
@@ -20,6 +20,9 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   private var meCards = [TeraScopeFixtures.card("old")]
   private var revision: UInt64 = 0
   private var syncReceipt: TeraTodaySyncReceipt?
+  private var reconciliationCards: [TeraTodayCard]?
+  private var reconciliationGeneration: UInt64 = 1
+  private(set) var reconciliationRequests: [TeraTodayReconcileRequest] = []
 
   init() throws {
     media = try TeraScopeFixtures.artifact("a")
@@ -53,6 +56,28 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func setMeCards(_ values: [TeraTodayCard]) {
     meCards = values
+  }
+
+  func setReconciliation(_ cards: [TeraTodayCard], generation: UInt64) {
+    reconciliationCards = cards
+    reconciliationGeneration = generation
+  }
+
+  func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage {
+    reconciliationRequests.append(request)
+    let saved = pages.isEmpty ? [TeraScopeFixtures.card(request.context.relayURLs.first ?? "none")] : pages.values.flatMap(\.items)
+    let values = reconciliationCards ?? saved
+    var seen = Set<String>()
+    let items = values.filter { request.cardIDs.contains($0.id) && seen.insert($0.id).inserted }
+    let generation = reconciliationGeneration
+    try await wait(.reconcile)
+    if let expected = request.expectedGeneration, expected != generation {
+      throw TeraRuntimeFailure.local(operation: "test", code: "today_cursor_invalid", safeMessage: "Changed")
+    }
+    return TeraTodayPage(
+      asOfUnixSeconds: request.asOfUnixSeconds, items: items, nextCursor: nil,
+      projectionGeneration: generation
+    )
   }
 
   private func wait(_ call: Call) async throws {

@@ -21,6 +21,9 @@ final class TeraProductStores {
     me = TeraMeStore(runtimeClient: runtimeClient)
     settings = TeraSettingsStore(runtimeClient: runtimeClient)
     media = TeraMediaStore(runtimeClient: runtimeClient)
+    today.mediaWillChange = { [media] previous, current, context in
+      media.reconcileVisibility(previous: previous, current: current, context: context)
+    }
     today.scopeWillChange = { [search, me, media] context in
       search.stop()
       search.configure(context: context)

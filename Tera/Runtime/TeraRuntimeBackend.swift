@@ -7,6 +7,7 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 protocol TeraRuntimeBackend: Sendable {
   func snapshot() async throws -> TeraRuntimeSnapshot
   func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage
+  func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage
   func refreshToday(
     context: TeraLocalNetwork,
     nowUnixSeconds: UInt64,
@@ -96,6 +97,10 @@ protocol TeraRuntimeBackend: Sendable {
 }
 
 extension TeraRuntimeBackend {
+  func reconcileToday(request _: TeraTodayReconcileRequest) async throws -> TeraTodayPage {
+    throw supportUnsupported()
+  }
+
   private func supportUnsupported() -> TeraRuntimeFailure {
     .local(
       operation: "runtime.support",

@@ -158,32 +158,6 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     }
   }
 
-  func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage {
-    do {
-      let page = try await runtime.phase1TodayPage(
-        context: request.context.generatedValue,
-        limit: request.limit,
-        asOfUnixS: request.asOfUnixSeconds,
-        cursor: request.cursor
-      )
-      return page.appValue
-    } catch {
-      throw Self.failure(from: error)
-    }
-  }
-
-  func refreshToday(
-    context: TeraLocalNetwork, nowUnixSeconds: UInt64,
-    update: TeraTodayProjectionUpdate, backfillCursor: String?
-  ) async throws -> TeraTodaySyncReceipt {
-    do {
-      return try await TeraGeneratedTodayOperation.run(
-        runtime: runtime, context: context.generatedValue, nowUnixSeconds: nowUnixSeconds,
-        update: update.generatedValue, backfillCursor: backfillCursor
-      ).appValue
-    } catch { throw Self.failure(from: error) }
-  }
-
   func search(
     context: TeraLocalNetwork,
     query: String,
@@ -860,18 +834,8 @@ extension TeraTodayProjectionUpdate {
   }
 }
 
-extension FfiTodayPageRecord {
-  fileprivate var appValue: TeraTodayPage {
-    TeraTodayPage(
-      asOfUnixSeconds: asOfUnixS,
-      items: items.map(\.appValue),
-      nextCursor: nextCursor
-    )
-  }
-}
-
 extension FfiTodayCardRecord {
-  fileprivate var appValue: TeraTodayCard {
+  var appValue: TeraTodayCard {
     TeraTodayCard(
       id: cardId,
       type: cardType.appValue,
@@ -903,18 +867,6 @@ extension FfiTodayCardRecord {
       localOperationID: localOperationId,
       localOperationState: localOperationState
     )
-  }
-}
-
-extension FfiTodayCardType {
-  fileprivate var appValue: TeraTodayCardType {
-    switch self {
-    case .update: .update
-    case .photoUpdate: .photoUpdate
-    case .ask: .ask
-    case .event: .event
-    case .foodAvailability: .foodAvailability
-    }
   }
 }
 
@@ -1583,5 +1535,42 @@ extension TeraNativeUploadCompletion {
       responseContentEncoding: responseContentEncoding,
       responseBody: responseBody
     )
+  }
+}
+
+private extension TeraGeneratedRuntimeBackend {
+  func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage {
+    do {
+      return try await runtime.phase1TodayReconcile(
+        context: request.context.generatedValue, asOfUnixS: request.asOfUnixSeconds,
+        cardIds: request.cardIDs, expectedGeneration: request.expectedGeneration
+      ).appValue
+    } catch { throw Self.failure(from: error) }
+  }
+
+  func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage {
+    do {
+      let page = try await runtime.phase1TodayPage(
+        context: request.context.generatedValue,
+        limit: request.limit,
+        asOfUnixS: request.asOfUnixSeconds,
+        cursor: request.cursor
+      )
+      return page.appValue
+    } catch {
+      throw Self.failure(from: error)
+    }
+  }
+
+  func refreshToday(
+    context: TeraLocalNetwork, nowUnixSeconds: UInt64,
+    update: TeraTodayProjectionUpdate, backfillCursor: String?
+  ) async throws -> TeraTodaySyncReceipt {
+    do {
+      return try await TeraGeneratedTodayOperation.run(
+        runtime: runtime, context: context.generatedValue, nowUnixSeconds: nowUnixSeconds,
+        update: update.generatedValue, backfillCursor: backfillCursor
+      ).appValue
+    } catch { throw Self.failure(from: error) }
   }
 }

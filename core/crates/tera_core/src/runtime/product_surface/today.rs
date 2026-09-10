@@ -65,6 +65,14 @@ const SNAPSHOT_ID_DOMAIN: &[u8] = b"radroots.today-snapshot-id.v2\0";
 #[path = "today_paging_scope.rs"]
 mod paging_scope;
 
+#[path = "today_reconciliation.rs"]
+mod reconciliation;
+pub use reconciliation::TodayReconciliation;
+
+#[cfg(test)]
+#[path = "today_reconciliation_tests.rs"]
+mod reconciliation_tests;
+
 #[cfg(test)]
 #[path = "today_scope_tests.rs"]
 mod scope_tests;
@@ -1529,8 +1537,20 @@ fn ranked_cards(
     context: &LocalNetwork,
     as_of: u64,
 ) -> Result<Vec<TodayCard>, TodayError> {
+    selected_ranked_cards(state, context, as_of, None)
+}
+
+fn selected_ranked_cards(
+    state: &TodayProjectionState,
+    context: &LocalNetwork,
+    as_of: u64,
+    selected: Option<&std::collections::BTreeSet<CardId>>,
+) -> Result<Vec<TodayCard>, TodayError> {
     let mut cards = Vec::new();
     for projected in &state.cards {
+        if selected.is_some_and(|ids| !ids.contains(&projected.card.card_id)) {
+            continue;
+        }
         let evidence = locality_evidence(context.locality.as_deref(), &projected.locality);
         let admission = match context.admit(evidence) {
             super::LocalNetworkAdmission::Included(admission) => admission,
@@ -1636,6 +1656,7 @@ fn page_from_snapshot(
         None
     };
     Ok(TodayPage {
+        projection_generation: snapshot.projection_generation,
         as_of: snapshot.as_of,
         items,
         next_cursor,

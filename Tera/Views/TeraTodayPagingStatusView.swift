@@ -6,7 +6,11 @@ struct TeraTodayPagingStatusView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       TeraTodayStatusView(presentation: store.presentation)
-      if store.presentation.readFailure?.requiresRefresh == true {
+      if store.hasPendingContent {
+        Text("Posts have changed. Refresh to see the latest posts.")
+          .font(.subheadline)
+      }
+      if store.hasPendingContent || store.presentation.readFailure?.requiresRefresh == true {
         Button("Refresh posts") { Task { await store.reload() } }
           .buttonStyle(.bordered)
           .frame(minHeight: 44)

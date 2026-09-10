@@ -627,7 +627,7 @@ actor TeraRuntimeClient {
     }
   }
 
-  private func runtimeOperation<T: Sendable>(
+  func runtimeOperation<T: Sendable>(
     _ operation: String,
     _ body: @escaping @Sendable (any TeraRuntimeBackend) async throws -> T
   ) async throws -> T {
@@ -831,44 +831,5 @@ actor TeraRuntimeClient {
       code: "ios.runtime.unexpected",
       safeMessage: "The Tera runtime could not complete the operation."
     )
-  }
-}
-
-extension TeraRuntimeClient {
-  func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage {
-    do {
-      return try await runtimeOperation("runtime.today.page") { backend in
-        try await backend.todayPage(request: request)
-      }
-    } catch let error as TeraRuntimeClientError {
-      throw error
-    } catch {
-      throw TeraRuntimeClientError.today(
-        Self.failure(from: error, operation: "runtime.today.page")
-      )
-    }
-  }
-
-  func refreshToday(
-    context: TeraLocalNetwork,
-    nowUnixSeconds: UInt64,
-    update: TeraTodayProjectionUpdate = .incremental,
-    backfillCursor: String? = nil
-  ) async throws -> TeraTodaySyncReceipt {
-    do {
-      return try await runtimeOperation("runtime.today.refresh") { backend in
-        try await backend.refreshToday(
-          context: context,
-          nowUnixSeconds: nowUnixSeconds,
-          update: update, backfillCursor: backfillCursor
-        )
-      }
-    } catch let error as TeraRuntimeClientError {
-      throw error
-    } catch {
-      throw TeraRuntimeClientError.today(
-        Self.failure(from: error, operation: "runtime.today.refresh")
-      )
-    }
   }
 }

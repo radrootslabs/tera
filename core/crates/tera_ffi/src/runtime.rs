@@ -308,6 +308,28 @@ impl TeraRuntime {
             .map_err(Into::into)
     }
 
+    /// Reconcile displayed identities against current application visibility.
+    pub async fn phase1_today_reconcile(
+        &self,
+        context: FfiLocalNetworkRecord,
+        as_of_unix_s: u64,
+        card_ids: Vec<String>,
+        expected_generation: Option<u64>,
+    ) -> Result<FfiTodayPageRecord, TeraAppError> {
+        let context = self.local_network(context)?;
+        let current = self
+            .inner
+            .phase1_today_reconcile(&context, as_of_unix_s, &card_ids, expected_generation)
+            .await?;
+        Ok(FfiTodayPageRecord {
+            schema_version: crate::MOBILE_FFI_SCHEMA_VERSION,
+            projection_generation: current.projection_generation,
+            as_of_unix_s,
+            items: current.items.into_iter().map(Into::into).collect(),
+            next_cursor: None,
+        })
+    }
+
     pub async fn phase1_refresh_today(
         &self,
         context: FfiLocalNetworkRecord,

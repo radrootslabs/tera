@@ -12,9 +12,9 @@
         "sha256": "edae4b2d7554194dbea56526dacc2dcf7234f59fcc56a3b6c9f90e60b8b85917"
       },
       {
-        "bytes": 70759,
+        "bytes": 71393,
         "path": "TeraFFI.xcframework/ios-arm64-simulator/Headers/TeraFFI.h",
-        "sha256": "0370734d96b8f6237180a3f7033c51aadf4030ce521548a7afd6f7a50e2a7ea8"
+        "sha256": "55b5a701e487ae31f1fda7fcb1cf3fe4641f50b7131c2727c0fcdc55584cff2f"
       },
       {
         "bytes": 124,
@@ -22,14 +22,14 @@
         "sha256": "3ed9b7ece2f86e5b5d1ddc6ecbb97deb49c46ca2ea91a930eaec1b580232345c"
       },
       {
-        "bytes": 71343272,
+        "bytes": 71475528,
         "path": "TeraFFI.xcframework/ios-arm64-simulator/libtera_ffi.a",
-        "sha256": "d244c16708c79e8209c0a5301ae4647879570ebd4e0371121f0c0b6b8e50e89f"
+        "sha256": "fc75faf80679711dc0826952a756e15a55749c03b0297982fbe99c24983bea1a"
       },
       {
-        "bytes": 70759,
+        "bytes": 71393,
         "path": "TeraFFI.xcframework/ios-arm64/Headers/TeraFFI.h",
-        "sha256": "0370734d96b8f6237180a3f7033c51aadf4030ce521548a7afd6f7a50e2a7ea8"
+        "sha256": "55b5a701e487ae31f1fda7fcb1cf3fe4641f50b7131c2727c0fcdc55584cff2f"
       },
       {
         "bytes": 124,
@@ -37,24 +37,24 @@
         "sha256": "3ed9b7ece2f86e5b5d1ddc6ecbb97deb49c46ca2ea91a930eaec1b580232345c"
       },
       {
-        "bytes": 71391648,
+        "bytes": 71528104,
         "path": "TeraFFI.xcframework/ios-arm64/libtera_ffi.a",
-        "sha256": "ce6860d29202e1c3b749f8f0b118bf1ff576dcd06d463ad49742be303b9d5a36"
+        "sha256": "25c2115bfd6c7f581111c6b20bab43bdc9b514cbd82aca0c7717796393345967"
       },
       {
-        "bytes": 42118,
+        "bytes": 42544,
         "path": "abi_symbols.json",
-        "sha256": "f2fd3175226e513b76f3e4af19bc206490866d9aadabe74a16b2eae4f9deb2aa"
+        "sha256": "c62d644ad1bf0004683a35b9e09a511854497ea82977c5409b408f577864cbdb"
       },
       {
-        "bytes": 924304,
+        "bytes": 928809,
         "path": "api/TeraKitBindings.symbols.json",
-        "sha256": "4612ea78e68402fbd05ae3a33455ca74380a93940f457524c642020c7bbff272"
+        "sha256": "4cc03b03dd54db7b4ab22684ff819233444ae0a43a770ab875148892bed1e3f2"
       },
       {
-        "bytes": 70759,
+        "bytes": 71393,
         "path": "generated/TeraFFI.h",
-        "sha256": "0370734d96b8f6237180a3f7033c51aadf4030ce521548a7afd6f7a50e2a7ea8"
+        "sha256": "55b5a701e487ae31f1fda7fcb1cf3fe4641f50b7131c2727c0fcdc55584cff2f"
       },
       {
         "bytes": 124,
@@ -62,14 +62,14 @@
         "sha256": "3ed9b7ece2f86e5b5d1ddc6ecbb97deb49c46ca2ea91a930eaec1b580232345c"
       },
       {
-        "bytes": 510216,
+        "bytes": 512103,
         "path": "generated/TeraKitBindings.swift",
-        "sha256": "ec953b03dc91d2d3fb44c0a643cb052c44dc97322a7120a9214bd81b6ee282db"
+        "sha256": "025d4e5d74c2b900c53b16f2bc28e9eda803a567fc612aa02a3ff34ae81fd9ba"
       },
       {
-        "bytes": 70759,
+        "bytes": 71393,
         "path": "headers/TeraFFI.h",
-        "sha256": "0370734d96b8f6237180a3f7033c51aadf4030ce521548a7afd6f7a50e2a7ea8"
+        "sha256": "55b5a701e487ae31f1fda7fcb1cf3fe4641f50b7131c2727c0fcdc55584cff2f"
       },
       {
         "bytes": 124,
@@ -77,34 +77,34 @@
         "sha256": "3ed9b7ece2f86e5b5d1ddc6ecbb97deb49c46ca2ea91a930eaec1b580232345c"
       },
       {
-        "bytes": 19922560,
+        "bytes": 19948832,
         "path": "native/aarch64-apple-darwin/libtera_ffi.dylib",
-        "sha256": "96b372210f90db5c6f70d0596eec0c07ebb7475b6fa3ef0e8f6108508f90ef2b"
+        "sha256": "18f8312d4ec4e6f45aca1b5f6698ae1cb13cb7957ce064028aff529c64e5f402"
       },
       {
-        "bytes": 71343272,
+        "bytes": 71475528,
         "path": "native/aarch64-apple-ios-sim/libtera_ffi.a",
-        "sha256": "d244c16708c79e8209c0a5301ae4647879570ebd4e0371121f0c0b6b8e50e89f"
+        "sha256": "fc75faf80679711dc0826952a756e15a55749c03b0297982fbe99c24983bea1a"
       },
       {
-        "bytes": 71391648,
+        "bytes": 71528104,
         "path": "native/aarch64-apple-ios/libtera_ffi.a",
-        "sha256": "ce6860d29202e1c3b749f8f0b118bf1ff576dcd06d463ad49742be303b9d5a36"
+        "sha256": "25c2115bfd6c7f581111c6b20bab43bdc9b514cbd82aca0c7717796393345967"
       },
       {
-        "bytes": 65752,
+        "bytes": 66342,
         "path": "source/aarch64-apple-darwin.json",
-        "sha256": "116d60b413b8d9059f686505b98c6431ef1c06f166f1790efd8dd627d276d80e"
+        "sha256": "402223883665871ba2fb4a229a5483a1d52948f7e0855dca3436368683ac5f61"
       },
       {
-        "bytes": 65596,
+        "bytes": 66186,
         "path": "source/aarch64-apple-ios-sim.json",
-        "sha256": "620979ecf1c40e0618320710160fa18d7814a875613b1f251ed9af367602fed6"
+        "sha256": "5eb6c319a529465870f04ca46f7e247c8694e5f5b4f14562d951ab58cbe26f62"
       },
       {
-        "bytes": 65592,
+        "bytes": 66182,
         "path": "source/aarch64-apple-ios.json",
-        "sha256": "71d435edc535064c2c7ddeff4f1bc89beb8076700009b6b0f4ff152f693cc4da"
+        "sha256": "764e8b804218f1bd1b7993f42a31ae621f8c3ccb32a9ce2f0adf1b363d6cc11f"
       }
     ],
     "language": "swift",
@@ -112,7 +112,7 @@
     "schema": "radroots.artifact-manifest.v2",
     "source": {
       "repository": "https://github.com/radrootslabs/tera",
-      "tree": "1f6e59e905d4dd9324a4f0ea804389d6b7fdeca7"
+      "tree": "3ff40c5420af5cfa8f2726bf65285c69a5a0386e"
     },
     "source_records": {
       "aarch64-apple-darwin": "source/aarch64-apple-darwin.json",
@@ -129,9 +129,9 @@
       "sha256": "edae4b2d7554194dbea56526dacc2dcf7234f59fcc56a3b6c9f90e60b8b85917"
     },
     {
-      "bytes": 70759,
+      "bytes": 71393,
       "path": "Tera/Frameworks/TeraFFI.xcframework/ios-arm64-simulator/Headers/TeraFFI.h",
-      "sha256": "0370734d96b8f6237180a3f7033c51aadf4030ce521548a7afd6f7a50e2a7ea8"
+      "sha256": "55b5a701e487ae31f1fda7fcb1cf3fe4641f50b7131c2727c0fcdc55584cff2f"
     },
     {
       "bytes": 124,
@@ -139,14 +139,14 @@
       "sha256": "3ed9b7ece2f86e5b5d1ddc6ecbb97deb49c46ca2ea91a930eaec1b580232345c"
     },
     {
-      "bytes": 71343272,
+      "bytes": 71475528,
       "path": "Tera/Frameworks/TeraFFI.xcframework/ios-arm64-simulator/libtera_ffi.a",
-      "sha256": "d244c16708c79e8209c0a5301ae4647879570ebd4e0371121f0c0b6b8e50e89f"
+      "sha256": "fc75faf80679711dc0826952a756e15a55749c03b0297982fbe99c24983bea1a"
     },
     {
-      "bytes": 70759,
+      "bytes": 71393,
       "path": "Tera/Frameworks/TeraFFI.xcframework/ios-arm64/Headers/TeraFFI.h",
-      "sha256": "0370734d96b8f6237180a3f7033c51aadf4030ce521548a7afd6f7a50e2a7ea8"
+      "sha256": "55b5a701e487ae31f1fda7fcb1cf3fe4641f50b7131c2727c0fcdc55584cff2f"
     },
     {
       "bytes": 124,
@@ -154,39 +154,39 @@
       "sha256": "3ed9b7ece2f86e5b5d1ddc6ecbb97deb49c46ca2ea91a930eaec1b580232345c"
     },
     {
-      "bytes": 71391648,
+      "bytes": 71528104,
       "path": "Tera/Frameworks/TeraFFI.xcframework/ios-arm64/libtera_ffi.a",
-      "sha256": "ce6860d29202e1c3b749f8f0b118bf1ff576dcd06d463ad49742be303b9d5a36"
+      "sha256": "25c2115bfd6c7f581111c6b20bab43bdc9b514cbd82aca0c7717796393345967"
     },
     {
-      "bytes": 510216,
+      "bytes": 512103,
       "path": "Tera/Generated/TeraKitBindings.swift",
-      "sha256": "ec953b03dc91d2d3fb44c0a643cb052c44dc97322a7120a9214bd81b6ee282db"
+      "sha256": "025d4e5d74c2b900c53b16f2bc28e9eda803a567fc612aa02a3ff34ae81fd9ba"
     },
     {
-      "bytes": 42118,
+      "bytes": 42544,
       "path": "TeraFFI/abi_symbols.json",
-      "sha256": "f2fd3175226e513b76f3e4af19bc206490866d9aadabe74a16b2eae4f9deb2aa"
+      "sha256": "c62d644ad1bf0004683a35b9e09a511854497ea82977c5409b408f577864cbdb"
     },
     {
-      "bytes": 924304,
+      "bytes": 928809,
       "path": "TeraFFI/api/TeraKitBindings.symbols.json",
-      "sha256": "4612ea78e68402fbd05ae3a33455ca74380a93940f457524c642020c7bbff272"
+      "sha256": "4cc03b03dd54db7b4ab22684ff819233444ae0a43a770ab875148892bed1e3f2"
     },
     {
-      "bytes": 65752,
+      "bytes": 66342,
       "path": "TeraFFI/source/aarch64-apple-darwin.json",
-      "sha256": "116d60b413b8d9059f686505b98c6431ef1c06f166f1790efd8dd627d276d80e"
+      "sha256": "402223883665871ba2fb4a229a5483a1d52948f7e0855dca3436368683ac5f61"
     },
     {
-      "bytes": 65596,
+      "bytes": 66186,
       "path": "TeraFFI/source/aarch64-apple-ios-sim.json",
-      "sha256": "620979ecf1c40e0618320710160fa18d7814a875613b1f251ed9af367602fed6"
+      "sha256": "5eb6c319a529465870f04ca46f7e247c8694e5f5b4f14562d951ab58cbe26f62"
     },
     {
-      "bytes": 65592,
+      "bytes": 66182,
       "path": "TeraFFI/source/aarch64-apple-ios.json",
-      "sha256": "71d435edc535064c2c7ddeff4f1bc89beb8076700009b6b0f4ff152f693cc4da"
+      "sha256": "764e8b804218f1bd1b7993f42a31ae621f8c3ccb32a9ce2f0adf1b363d6cc11f"
     }
   ],
   "schema": "tera.installed-native-artifacts.v1"

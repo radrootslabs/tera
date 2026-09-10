@@ -3731,7 +3731,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraTodayView.swift",
+          "path": "Tera/Views/TeraTodayDetailView.swift",
           "count": 1
         }
       ]
@@ -3809,7 +3809,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraTodayView.swift",
+          "path": "Tera/Views/TeraTodayDetailView.swift",
           "count": 1
         }
       ]
@@ -3819,7 +3819,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraTodayView.swift",
+          "path": "Tera/Views/TeraTodayDetailView.swift",
           "count": 1
         }
       ]

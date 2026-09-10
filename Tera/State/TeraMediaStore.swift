@@ -45,6 +45,7 @@ final class TeraMediaStore: ObservableObject {
 
   private let runtimeClient: TeraRuntimeClient
   private var tasks: [Key: Work] = [:]
+  private var revoked = Set<Key>()
   private var configuration: TeraPresentationConfiguration?
 
   init(runtimeClient: TeraRuntimeClient) {
@@ -75,7 +76,7 @@ final class TeraMediaStore: ObservableObject {
   func load(media: TeraMediaReference, context: TeraLocalNetwork?) {
     guard let context else { return }
     let key = key(media: media, context: context)
-    guard states[key] == nil, tasks[key] == nil else { return }
+    guard !revoked.contains(key), states[key] == nil, tasks[key] == nil else { return }
     switch media.verification {
     case .pending:
       states[key] = .pending
@@ -102,11 +103,30 @@ final class TeraMediaStore: ObservableObject {
   func retry(media: TeraMediaReference, context: TeraLocalNetwork?) {
     guard let context else { return }
     let key = key(media: media, context: context)
+    guard !revoked.contains(key) else { return }
     tasks[key]?.task.cancel()
     tasks[key] = nil
     states[key] = nil
     start(key: key, context: context) { [runtimeClient] in
       try await runtimeClient.retrieveMedia(context: context, reference: media)
+    }
+  }
+
+  func reconcileVisibility(
+    previous: [TeraMediaReference], current: [TeraMediaReference], context: TeraLocalNetwork?
+  ) {
+    guard let context else { return }
+    let allowed = Set(current.map { key(media: $0, context: context) })
+    for key in allowed where revoked.remove(key) != nil {
+      states[key] = nil
+    }
+    for reference in previous {
+      let key = key(media: reference, context: context)
+      guard !allowed.contains(key) else { continue }
+      revoked.insert(key)
+      tasks[key]?.task.cancel()
+      tasks[key] = nil
+      states[key] = .unavailable
     }
   }
 
@@ -116,6 +136,7 @@ final class TeraMediaStore: ObservableObject {
     }
     tasks.removeAll(keepingCapacity: false)
     states.removeAll(keepingCapacity: false)
+    revoked.removeAll(keepingCapacity: false)
   }
 
   func configure(snapshot: TeraRuntimeSnapshot) {

@@ -11,6 +11,9 @@ final class TeraTodayStore: ObservableObject {
     @Published private(set) var isLoadingNextPage = false
     @Published private(set) var observationState: TeraRuntimeObservationState = .inactive
     @Published private(set) var scopeGeneration = TeraSessionGeneration.initial
+    @Published private(set) var hasPendingContent = false
+    var mediaWillChange: ([TeraMediaReference], [TeraMediaReference], TeraLocalNetwork?) -> Void = { _, _, _ in }
+    private var projectionGeneration: UInt64?
     var scopeWillChange: (TeraLocalNetwork?) -> Void = { _ in }
 
     private let runtimeClient: TeraRuntimeClient
@@ -21,6 +24,7 @@ final class TeraTodayStore: ObservableObject {
     private var nextCursor: String?
     private var requestGeneration = TeraSessionGeneration.initial
     private let observation = TeraStoreObservation()
+    private let reconciliation = TeraTodayReconciliationTask()
     private var configuration: TeraPresentationConfiguration?
     private var reloadTask: Task<Void, Never>?
 
@@ -34,7 +38,7 @@ final class TeraTodayStore: ObservableObject {
             TeraRuntimeObservationBackoff.sleep
     ) {
         self.runtimeClient = runtimeClient
-        self.contexts = Self.unique(contexts)
+        self.contexts = TeraTodayReconciler.unique(contexts)
         self.pageSize = min(max(pageSize, 1), 100)
         self.clock = clock
         self.observationDelay = observationDelay
@@ -77,6 +81,7 @@ final class TeraTodayStore: ObservableObject {
 
     func stop() {
         observation.stop()
+        reconciliation.cancel()
         observationState = .stopped
         discoveryGeneration = discoveryGeneration.invalidated()
         discovery.stop()
@@ -89,6 +94,9 @@ final class TeraTodayStore: ObservableObject {
 
     private func invalidatePresentation(for context: TeraLocalNetwork?) {
         resetDiscovery()
+        reconciliation.cancel()
+        hasPendingContent = false
+        projectionGeneration = nil
         requestGeneration = requestGeneration.invalidated()
         reloadTask?.cancel()
         reloadTask = nil
@@ -117,7 +125,7 @@ final class TeraTodayStore: ObservableObject {
     }
 
     func replaceContexts(_ updatedContexts: [TeraLocalNetwork], selectedID: String?) {
-        let updatedContexts = Self.unique(updatedContexts)
+        let updatedContexts = TeraTodayReconciler.unique(updatedContexts)
         let selected = [selectedID, selectedContextID].compactMap(\.self).first { requested in
             updatedContexts.contains(where: { $0.id == requested })
         } ?? updatedContexts.first?.id
@@ -157,6 +165,7 @@ final class TeraTodayStore: ObservableObject {
         frozenAsOfUnixSeconds = nil
         nextCursor = nil
         isLoadingNextPage = false
+        hasPendingContent = false
         presentation.beginReload()
         guard generation.isActive else { return }
         await readFirstPage(context: context, generation: generation, receipt: nil)
@@ -214,7 +223,8 @@ final class TeraTodayStore: ObservableObject {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             frozenAsOfUnixSeconds = page.asOfUnixSeconds
             nextCursor = page.nextCursor
-            cards = Self.unique(page.items)
+            projectionGeneration = page.projectionGeneration
+            replaceCards(TeraTodayReconciler.unique(page.items))
             presentation.acceptPage(count: cards.count, receipt: receipt)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
@@ -223,6 +233,9 @@ final class TeraTodayStore: ObservableObject {
     }
 
     func loadNextPage() async {
+        let requestedScope = scopeGeneration
+        await reconciliation.wait()
+        guard requestedScope == scopeGeneration, !Task.isCancelled else { return }
         guard let context = selectedContext,
               let cursor = nextCursor,
               !isLoadingNextPage
@@ -242,20 +255,24 @@ final class TeraTodayStore: ObservableObject {
                 request: .after(context: context, limit: pageSize, cursor: cursor)
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
-            guard frozenAsOfUnixSeconds == nil || frozenAsOfUnixSeconds == page.asOfUnixSeconds else {
+            guard projectionGeneration == nil || projectionGeneration == page.projectionGeneration,
+              frozenAsOfUnixSeconds == nil || frozenAsOfUnixSeconds == page.asOfUnixSeconds
+            else {
                 failPagination(.staleCursor(message: "Today changed while loading. Refresh to continue."))
                 return
             }
             frozenAsOfUnixSeconds = page.asOfUnixSeconds
             nextCursor = page.nextCursor
-            cards = Self.unique(cards + page.items)
+            replaceCards(TeraTodayReconciler.unique(cards + page.items))
             presentation.acceptPage(count: cards.count)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             failPagination(TeraTodayFailure(error))
         }
     }
+}
 
+private extension TeraTodayStore {
     private func startObservation() {
         observation.start(
           client: runtimeClient, buffer: (capacity: 16, delay: observationDelay),
@@ -267,21 +284,43 @@ final class TeraTodayStore: ObservableObject {
                 guard batch.contains(anyOf: [.today, .drafts, .identity, .profile]) else { return }
                 await self?.reloadTask?.value
                 guard !Task.isCancelled else { return }
-                await self?.reload(refreshProjection: false)
+                await self?.reconciliation.run { [weak self] in await self?.reconcileLoadedCards() }
             }
         )
     }
-}
 
-private extension TeraTodayStore {
-    private static func unique(_ contexts: [TeraLocalNetwork]) -> [TeraLocalNetwork] {
-        var identifiers = Set<String>()
-        return contexts.filter { identifiers.insert($0.id).inserted }
+    func replaceCards(_ updated: [TeraTodayCard]) {
+        mediaWillChange(cards.flatMap(\.media), updated.flatMap(\.media), selectedContext)
+        cards = updated
     }
 
-    private static func unique(_ cards: [TeraTodayCard]) -> [TeraTodayCard] {
-        var identifiers = Set<String>()
-        return cards.filter { identifiers.insert($0.id).inserted }
+    func reconcileLoadedCards() async {
+        guard let context = selectedContext, let asOf = frozenAsOfUnixSeconds else { return }
+        requestGeneration = requestGeneration.invalidated()
+        let generation = requestGeneration
+        isLoadingNextPage = false
+        presentation.beginRead()
+        do {
+            let page = try await TeraTodayReconciler.read(
+              client: runtimeClient, context: context, asOf: asOf, cards: cards
+            )
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
+            if projectionGeneration != page.projectionGeneration {
+                hasPendingContent = true
+                nextCursor = nil
+            }
+            replaceCards(page.items)
+            presentation.acceptPage(count: cards.count)
+        } catch {
+            guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
+            // Visibility could not be established. An old card or photo must
+            // not remain authoritative after a failed mandatory resnapshot.
+            replaceCards([])
+            nextCursor = nil
+            hasPendingContent = true
+            presentation.acceptPage(count: 0)
+            presentation.failRead(TeraTodayFailure(error))
+        }
     }
 
     func resetDiscovery() {
@@ -298,6 +337,10 @@ private extension TeraTodayStore {
 }
 
 extension TeraTodayStore {
+    func currentCard(id: String) -> TeraTodayCard? {
+      cards.first { $0.id == id }
+    }
+
     var selectedContext: TeraLocalNetwork? {
         contexts.first(where: { $0.id == selectedContextID })
     }

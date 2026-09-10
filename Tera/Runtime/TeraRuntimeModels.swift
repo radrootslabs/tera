@@ -692,31 +692,6 @@ struct TeraTodayCard: Sendable, Equatable, Hashable, Identifiable {
   }
 }
 
-struct TeraTodayPageRequest: Sendable, Equatable {
-  let context: TeraLocalNetwork
-  let limit: UInt16
-  let asOfUnixSeconds: UInt64?
-  let cursor: String?
-
-  static func first(
-    context: TeraLocalNetwork,
-    limit: UInt16,
-    asOfUnixSeconds: UInt64
-  ) -> Self {
-    Self(context: context, limit: limit, asOfUnixSeconds: asOfUnixSeconds, cursor: nil)
-  }
-
-  static func after(context: TeraLocalNetwork, limit: UInt16, cursor: String) -> Self {
-    Self(context: context, limit: limit, asOfUnixSeconds: nil, cursor: cursor)
-  }
-}
-
-struct TeraTodayPage: Sendable, Equatable {
-  let asOfUnixSeconds: UInt64
-  let items: [TeraTodayCard]
-  let nextCursor: String?
-}
-
 enum TeraTodayProjectionUpdate: Sendable, Equatable {
   case incremental
   case rebuild

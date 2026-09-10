@@ -741,6 +741,7 @@ impl From<TodayCard> for FfiTodayCardRecord {
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiTodayPageRecord {
+    pub projection_generation: u64,
     pub schema_version: u16,
     pub as_of_unix_s: u64,
     pub items: Vec<FfiTodayCardRecord>,
@@ -799,6 +800,7 @@ impl From<TodayPage> for FfiTodayPageRecord {
     fn from(value: TodayPage) -> Self {
         Self {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            projection_generation: value.projection_generation,
             as_of_unix_s: value.as_of,
             items: value.items.into_iter().map(Into::into).collect(),
             next_cursor: value.next_cursor,

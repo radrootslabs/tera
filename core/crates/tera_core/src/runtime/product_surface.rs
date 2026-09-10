@@ -73,7 +73,8 @@ pub use today::{
     TodayTargetPageSummary, TodayTargetSyncReceipt, TodayTargetSyncState,
 };
 pub use today::{
-    TodayError, TodayIngestReceipt, TodayPageRequest, TodayProjectionUpdate, TodayRefreshReceipt,
+    TodayError, TodayIngestReceipt, TodayPageRequest, TodayProjectionUpdate, TodayReconciliation,
+    TodayRefreshReceipt,
 };
 
 use super::TeraRuntime;
