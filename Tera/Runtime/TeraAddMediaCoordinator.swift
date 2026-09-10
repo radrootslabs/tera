@@ -280,7 +280,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
       byteSize: UInt64(prepared.file.sizeBytes),
       width: prepared.width,
       height: prepared.height,
-      alt: "Farm photo",
+      alt: "",
       preparedAtUnixSeconds: clock.unixSeconds()
     )
   }

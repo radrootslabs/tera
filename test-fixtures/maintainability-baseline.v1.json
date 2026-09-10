@@ -11,12 +11,12 @@
     {"path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift", "maximum_lines": 1474},
     {"path": "Tera/Runtime/TeraRuntimeClient.swift", "maximum_lines": 820},
     {"path": "Tera/Runtime/TeraRuntimeModels.swift", "maximum_lines": 1154},
-    {"path": "Tera/State/TeraAddStore.swift", "maximum_lines": 785},
+    {"path": "Tera/State/TeraAddStore.swift", "maximum_lines": 783},
     {"path": "Tera/State/TeraConfigurationStore.swift", "maximum_lines": 759},
     {"path": "Tera/Views/TeraSupportingViews.swift", "maximum_lines": 629},
     {"path": "TeraTests/TeraAddStoreTests.swift", "maximum_lines": 1366},
     {"path": "TeraTests/TeraStateMigrationTests.swift", "maximum_lines": 718},
-    {"path": "TeraUITests/TeraRemoteQualificationUITests.swift", "maximum_lines": 2212}
+    {"path": "TeraUITests/TeraRemoteQualificationUITests.swift", "maximum_lines": 2140}
   ],
   "python_file_exception": [
     {"path": "scripts/local-social-fixture.py", "maximum_lines": 2626},

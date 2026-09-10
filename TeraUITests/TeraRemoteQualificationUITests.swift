@@ -750,7 +750,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func openAdd(_ app: XCUIApplication) -> XCUIElement? {
+  func openAdd(_ app: XCUIApplication) -> XCUIElement? {
     let add = app.tabBars.buttons["Add"]
     guard add.waitForExistence(timeout: 10) else { return nil }
     let type = app.descendants(matching: .any)["radroots.add.type"]
@@ -761,79 +761,6 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       }
     }
     return nil
-  }
-
-  @MainActor
-  private func preparePhotoUpdate(_ app: XCUIApplication, marker: String) -> XCUIElement? {
-    guard let type = openAdd(app) else {
-      XCTFail("The Add bottom tab did not present the Add surface")
-      return nil
-    }
-    let newDraft = app.buttons["radroots.add.new"]
-    XCTAssertTrue(newDraft.waitForExistence(timeout: 10))
-    newDraft.tap()
-
-    for _ in 0 ..< 3 where !app.buttons["Photo update"].exists {
-      type.tap()
-      _ = app.buttons["Photo update"].waitForExistence(timeout: 10)
-    }
-    let photoUpdate = app.buttons["Photo update"]
-    guard photoUpdate.exists else {
-      XCTFail("The Add type picker did not present Photo update")
-      return nil
-    }
-    guard waitUntilHittable(photoUpdate, timeout: 10) else {
-      XCTFail("Photo update did not become hittable")
-      return nil
-    }
-
-    let content = app.descendants(matching: .any)["radroots.add.content"]
-    var selectedPhotoUpdate = false
-    for _ in 0 ..< 3 where !selectedPhotoUpdate {
-      photoUpdate.tap()
-      selectedPhotoUpdate = waitForValue(type, value: "Photo update", timeout: 10)
-      if !selectedPhotoUpdate, !photoUpdate.exists {
-        type.tap()
-        _ = photoUpdate.waitForExistence(timeout: 10)
-      }
-    }
-    guard selectedPhotoUpdate else {
-      XCTFail("Photo update selection did not update the Add composer type")
-      return nil
-    }
-    XCTAssertTrue(content.waitForExistence(timeout: 10))
-    guard waitUntilHittable(content, timeout: 10) else {
-      XCTFail("Photo update content did not become hittable")
-      return nil
-    }
-    content.tap()
-    content.typeText(marker)
-    let keyboardDone = app.buttons["radroots.add.keyboard.done"]
-    XCTAssertTrue(keyboardDone.waitForExistence(timeout: 10))
-    keyboardDone.tap()
-    XCTAssertFalse(app.keyboards.firstMatch.waitForExistence(timeout: 5))
-
-    let library = app.descendants(matching: .any)["radroots.add.media.library"]
-    scrollTo(app, element: library)
-    guard library.waitForExistence(timeout: 10), waitUntilHittable(library, timeout: 10) else {
-      XCTFail("The Photo Library action did not become available through the visible UI")
-      return nil
-    }
-    library.tap()
-    let preparedStatus = app.staticTexts.matching(
-      NSPredicate(format: "label == 'Photo prepared. Add descriptive text before publishing.'")
-    ).firstMatch
-    guard preparedStatus.waitForExistence(timeout: 60) else {
-      XCTFail("The selected Photo update did not report the visible prepared state")
-      return nil
-    }
-    let prepared = app.descendants(matching: .any)["radroots.add.media.prepared"]
-    scrollTo(app, element: prepared)
-    guard prepared.waitForExistence(timeout: 10) else {
-      XCTFail("The selected Photo update did not reach the visible prepared state")
-      return nil
-    }
-    return readySubmit(app)
   }
 
   @MainActor
@@ -932,6 +859,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
         XCTFail("The governed prepared Photo update was obscured")
         throw QualificationError.missingProductSurface
       }
+      try enterPhotoDescription(app)
     case .event:
       try enterText(app, identifier: "radroots.add.title", value: marker)
     case .foodAvailability:
@@ -1109,7 +1037,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func enterText(
+  func enterText(
     _ app: XCUIApplication,
     identifier: String,
     value: String
@@ -1146,7 +1074,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func scrollTo(_ app: XCUIApplication, element: XCUIElement) {
+  func scrollTo(_ app: XCUIApplication, element: XCUIElement) {
     let root = app.descendants(matching: .any)["radroots.add.root"]
     let tabBar = app.tabBars.firstMatch
     for attempt in 0 ..< 16 where !isVisibleInAddViewport(
@@ -1226,7 +1154,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func readySubmit(_ app: XCUIApplication) -> XCUIElement? {
+  func readySubmit(_ app: XCUIApplication) -> XCUIElement? {
     let submit = app.descendants(matching: .any)["radroots.add.submit"]
     let addRoot = app.descendants(matching: .any)["radroots.add.root"]
     for _ in 0 ..< 8 {
@@ -1418,7 +1346,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
+  func waitUntilHittable(_ element: XCUIElement, timeout: TimeInterval) -> Bool {
     let predicate = NSPredicate(format: "exists == true AND hittable == true")
     let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
@@ -1461,7 +1389,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func waitForValue(
+  func waitForValue(
     _ element: XCUIElement,
     value: String,
     timeout: TimeInterval

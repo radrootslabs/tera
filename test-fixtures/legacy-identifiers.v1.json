@@ -261,6 +261,10 @@
           "count": 2
         },
         {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 2
+        },
+        {
           "path": "TeraTests/TeraRemoteQualificationTests.swift",
           "count": 1
         },
@@ -364,6 +368,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
           "count": 1
         }
       ]
@@ -713,6 +721,10 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraUserMessagesTests.swift",
           "count": 1
         }
@@ -739,6 +751,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraUserMessagesTests.swift",
@@ -861,6 +877,10 @@
         {
           "path": "Tera/State/TeraConfigurationStore.swift",
           "count": 5
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraRemoteQualificationTests.swift",
@@ -1087,6 +1107,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraRemoteQualificationTests.swift",
           "count": 1
         },
@@ -1161,6 +1185,10 @@
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 2
         }
       ]
     },
@@ -1175,6 +1203,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 2
         }
       ]
     },
@@ -1189,6 +1221,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 2
         }
       ]
     },
@@ -1203,6 +1239,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 2
         }
       ]
     },
@@ -1217,6 +1257,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 2
         }
       ]
     },
@@ -1231,6 +1275,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
         }
       ]
     },
@@ -1244,6 +1292,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
           "count": 2
         }
       ]
@@ -2085,8 +2137,12 @@
           "count": 1
         },
         {
+          "path": "TeraUITests/TeraPhotoQualificationInput.swift",
+          "count": 1
+        },
+        {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 16
+          "count": 15
         }
       ]
     },
@@ -2221,8 +2277,12 @@
           "count": 1
         },
         {
+          "path": "TeraUITests/TeraPhotoQualificationInput.swift",
+          "count": 1
+        },
+        {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
         }
       ]
     },
@@ -2257,6 +2317,10 @@
         {
           "path": "Tera/Views/TeraAddView.swift",
           "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraPhotoQualificationInput.swift",
+          "count": 1
         }
       ]
     },
@@ -2283,8 +2347,12 @@
           "count": 1
         },
         {
+          "path": "TeraUITests/TeraPhotoQualificationInput.swift",
+          "count": 1
+        },
+        {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 3
+          "count": 2
         }
       ]
     },
@@ -2297,8 +2365,12 @@
           "count": 1
         },
         {
+          "path": "TeraUITests/TeraPhotoQualificationInput.swift",
+          "count": 1
+        },
+        {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
         }
       ]
     },
@@ -2311,8 +2383,12 @@
           "count": 1
         },
         {
+          "path": "TeraUITests/TeraPhotoQualificationInput.swift",
+          "count": 1
+        },
+        {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
         }
       ]
     },
@@ -4851,6 +4927,16 @@
         {
           "path": "scripts/test_package_contract.py",
           "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsMediaSource",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
         }
       ]
     }

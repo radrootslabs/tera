@@ -172,7 +172,6 @@ final class TeraAddStore: ObservableObject {
   func checkPhotoService() async {
     guard !isCheckingBlossom, !Task.isCancelled else { return }
     guard blossomConfiguration != nil else {
-      mediaSupport = .unavailable
       message = "No photo service is configured for the current network profile."
       return
     }
@@ -201,7 +200,6 @@ final class TeraAddStore: ObservableObject {
             serviceRequest == blossomGeneration else { return }
       guard await refreshBlossomSnapshot(), isCurrent(requestedGeneration),
             probe == probeGeneration else { return }
-      mediaSupport = .unavailable
       message = TeraAddPresentation.message(for: error)
     }
   }
@@ -533,7 +531,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   private func loadMediaSupport() async throws -> TeraAddMediaSupport {
-    guard blossomConfiguration != nil, let media else { return .unavailable }
+    guard let media else { return .unavailable }
     return try await media.support()
   }
 
