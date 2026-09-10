@@ -80,17 +80,7 @@ impl ComposerStorageRecord {
     ) -> Result<Self, ComposerStorageError> {
         validate_time(created_at_unix_ms)?;
         let stored_scope = Self::scope_digest(&scope)?;
-        let wire = StoredComposerV1 {
-            schema_version: COMPOSER_SCHEMA_VERSION,
-            schema_sha256: COMPOSER_SCHEMA_SHA256.to_owned(),
-            scope: scope.clone(),
-            edit_sequence,
-            form,
-        };
-        let payload = serde_json::to_vec(&wire).map_err(|_| ComposerStorageError::InvalidRecord)?;
-        if payload.len() > COMPOSER_FORM_MAX_BYTES {
-            return Err(ComposerStorageError::InvalidRecord);
-        }
+        let (payload, form) = encode(scope.clone(), edit_sequence, form)?;
         let stored = AuthoredDraft::initial(
             AuthoredDraftId::new(*id.as_bytes())
                 .map_err(|_| ComposerStorageError::InvalidRecord)?,
@@ -105,13 +95,7 @@ impl ComposerStorageRecord {
         .map_err(|_| ComposerStorageError::InvalidRecord)?;
         Ok(Self {
             stored,
-            draft: ComposerDraft::new(
-                id,
-                ComposerRevision::INITIAL,
-                scope,
-                edit_sequence,
-                wire.form,
-            ),
+            draft: ComposerDraft::new(id, ComposerRevision::INITIAL, scope, edit_sequence, form),
         })
     }
 
@@ -173,6 +157,38 @@ impl ComposerStorageRecord {
         self.stored
     }
 
+    pub(super) fn successor(
+        &self,
+        edit_sequence: ComposerEditSequence,
+        form: ComposerPartialForm,
+        persisted_at_unix_ms: u64,
+    ) -> Result<Self, ComposerStorageError> {
+        validate_time(persisted_at_unix_ms)?;
+        let revision = self
+            .draft
+            .revision()
+            .next()
+            .map_err(|_| ComposerStorageError::InvalidRecord)?;
+        if edit_sequence <= self.draft.edit_sequence() {
+            return Err(ComposerStorageError::InvalidRecord);
+        }
+        let scope = self.draft.scope().clone();
+        let (payload, form) = encode(scope.clone(), edit_sequence, form)?;
+        let stored = self
+            .stored
+            .successor(
+                payload,
+                AuthoredDraftStage::Draft,
+                None,
+                persisted_at_unix_ms.max(self.stored.updated_at_unix_ms()),
+            )
+            .map_err(|_| ComposerStorageError::InvalidRecord)?;
+        Ok(Self {
+            stored,
+            draft: ComposerDraft::new(self.draft.id(), revision, scope, edit_sequence, form),
+        })
+    }
+
     /// Stable namespace, independent of process/session generation and relay configuration.
     pub fn scope_digest(scope: &ComposerScope) -> Result<AuthoredDraftScope, ComposerStorageError> {
         let context = scope.local_network().as_bytes();
@@ -186,6 +202,25 @@ impl ComposerStorageRecord {
         AuthoredDraftScope::new(digest.finalize().into())
             .map_err(|_| ComposerStorageError::InvalidRecord)
     }
+}
+
+fn encode(
+    scope: ComposerScope,
+    edit_sequence: ComposerEditSequence,
+    form: ComposerPartialForm,
+) -> Result<(Vec<u8>, ComposerPartialForm), ComposerStorageError> {
+    let wire = StoredComposerV1 {
+        schema_version: COMPOSER_SCHEMA_VERSION,
+        schema_sha256: COMPOSER_SCHEMA_SHA256.to_owned(),
+        scope,
+        edit_sequence,
+        form,
+    };
+    let payload = serde_json::to_vec(&wire).map_err(|_| ComposerStorageError::InvalidRecord)?;
+    if payload.len() > COMPOSER_FORM_MAX_BYTES {
+        return Err(ComposerStorageError::InvalidRecord);
+    }
+    Ok((payload, wire.form))
 }
 
 fn validate_time(value: u64) -> Result<(), ComposerStorageError> {

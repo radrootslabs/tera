@@ -11,6 +11,11 @@ use crate::runtime::product_surface::LocalNetworkId;
 pub struct ComposerId(AuthoredDraftId);
 
 impl ComposerId {
+    /// Reserves editing identity before the first save, independently of operation IDs.
+    pub fn generate() -> Result<Self, ComposerError> {
+        Self::new(*uuid::Uuid::new_v4().as_bytes())
+    }
+
     pub fn new(bytes: [u8; 16]) -> Result<Self, ComposerError> {
         AuthoredDraftId::new(bytes)
             .map(Self)

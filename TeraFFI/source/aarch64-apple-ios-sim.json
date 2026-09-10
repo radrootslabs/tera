@@ -641,10 +641,10 @@
         "sha256": "dff55e46521c26f5f0ece024453b55c15f132fa94f78e2cba3d141f123d4eca0"
       },
       "core/crates/tera_core/src/runtime/product_surface.rs": {
-        "bytes": 6919,
-        "git_blob": "c6b9a5fa1e0f1ba53b90630fb49e0383ad740a92",
+        "bytes": 6970,
+        "git_blob": "b7a2eb1b8d9bdaa9b99526a3c3fdf7459ff62be0",
         "mode": "100644",
-        "sha256": "d49d1d7e3ecbda3239183045e4171d2aa736398c099cac9038353a64e8137352"
+        "sha256": "6d2ce1e54af1291fbdff356ab788478490fe757fa668a8bc7e683e8297373637"
       },
       "core/crates/tera_core/src/runtime/product_surface/authoring.rs": {
         "bytes": 11282,
@@ -677,10 +677,10 @@
         "sha256": "3ec65d1cb2d94740396137d03920b212afb74692dba11729e4ce5bb3c5a2a789"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer.rs": {
-        "bytes": 2087,
-        "git_blob": "84ae67d8e260d987d51298a357c735da7294c959",
+        "bytes": 2172,
+        "git_blob": "36aafd0e0b14998aced2f8363afa714f62b6a8db",
         "mode": "100644",
-        "sha256": "d8955b5998e3471b8a4e55b934138ea76fe96d6803355c69b977f06a81893e4e"
+        "sha256": "2d3251f4b337466b811a53a2e4a061e00e947cf07cf78b59ff878d4f453e0223"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/form.rs": {
         "bytes": 6734,
@@ -689,16 +689,34 @@
         "sha256": "0c69e3cc7674807537ad1f29667e474a3483e14160859da728c2db477a5ab7b1"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/identity.rs": {
-        "bytes": 4004,
-        "git_blob": "f212f48aedc7612cf4cf7441f115e51e52b26c6f",
+        "bytes": 4207,
+        "git_blob": "e75825371f77c0dda83704e3cc0d87935e4728ff",
         "mode": "100644",
-        "sha256": "3dc9c2fc93fa3f368de6717dbe85406c240a71f05e7d94784fc4f2553b53897b"
+        "sha256": "db2014f5d22eb19d4f8ca07daea7e19c33b9741663429c10e27e05737d352dc6"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/composer/repository.rs": {
+        "bytes": 7679,
+        "git_blob": "c97293d2ac983746148e1243033ef6c81cd2ada6",
+        "mode": "100644",
+        "sha256": "ddc6a098dfd7aacce09097f4cd9894e13c78277d8a85d3184092bdb177cb0060"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/composer/repository_sqlite_tests.rs": {
+        "bytes": 7276,
+        "git_blob": "09a4c261ab1abd31c5294413f5d69229cb49c253",
+        "mode": "100644",
+        "sha256": "29cd33d6dd8a45d8c86ace0f1f4cd48b1caf123159589a434079dd60a202c55d"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/composer/repository_tests.rs": {
+        "bytes": 11486,
+        "git_blob": "fc137e3cf247eca8be14dbbde72574c2b79f671d",
+        "mode": "100644",
+        "sha256": "73af5646cfbd35de35c0a5b3b7d035a53c6f684b13f6452027919db118e85b80"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/storage.rs": {
-        "bytes": 7272,
-        "git_blob": "0a3417af19a294f9cb2bc120be59186de8f95cb7",
+        "bytes": 8518,
+        "git_blob": "0ae7ad06e738acc10592bef7cea221fc3361e228",
         "mode": "100644",
-        "sha256": "271f6a8dd894ff10a371173f2b098ad4cd9413ab0d9c28c95fe34bb4045e1b69"
+        "sha256": "6f5a128bf9f0b779651ede5983d614b3dd27cb521a5e69f39a5166e282381338"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/storage_sqlite_tests.rs": {
         "bytes": 6768,
@@ -1601,13 +1619,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 122410,
-        "git_blob": "f0e450953eab508af6345f09c4ae7cc73ff446e2",
+        "bytes": 123270,
+        "git_blob": "2ea1d8cb75e05b44800bfd042354387945eee102",
         "mode": "100644",
-        "sha256": "1da17843897d19a73571f9675276909d114d6730c5ae6ff5b44ae6af19a81494"
+        "sha256": "a84c98a9acb0abde8880e6d4aa0f25ce5c759f0d3de632cbff600e420eeedb08"
       }
     },
     "policy": "staged_inputs",
-    "tree": "e0ba029e9f889064f46953f7033508d9ea2e48cf"
+    "tree": "ea52e196d8cec300a827b65f3c28bcd0c08f38a9"
   }
 }

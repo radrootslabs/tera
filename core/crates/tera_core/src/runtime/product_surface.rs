@@ -36,8 +36,9 @@ pub use composer::{
     COMPOSER_CONTENT_MAX_BYTES, COMPOSER_FORM_MAX_BYTES, COMPOSER_MEDIA_MAX,
     COMPOSER_PAYLOAD_SCHEMA, COMPOSER_SCHEMA_SHA256, COMPOSER_SCHEMA_VERSION,
     COMPOSER_TEXT_MAX_BYTES, ComposerDraft, ComposerEditSequence, ComposerError, ComposerFormInput,
-    ComposerId, ComposerMediaInput, ComposerPartialForm, ComposerRevision, ComposerScope,
-    ComposerStorageError, ComposerStorageRecord,
+    ComposerId, ComposerMediaInput, ComposerPartialForm, ComposerPersistenceError,
+    ComposerRevision, ComposerSaveReceipt, ComposerScope, ComposerStorageError,
+    ComposerStorageRecord,
 };
 pub use context::{
     ContextAdmission, ContextRank, LocalNetwork, LocalNetworkAdmission, LocalNetworkError,
