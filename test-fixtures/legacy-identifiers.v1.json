@@ -2519,7 +2519,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraTodayView.swift",
+          "path": "Tera/Views/TeraContextPicker.swift",
           "count": 1
         }
       ]
@@ -2529,7 +2529,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraTodayView.swift",
+          "path": "Tera/Views/TeraContextPicker.swift",
           "count": 1
         }
       ]
@@ -4009,6 +4009,10 @@
           "count": 5
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_ffi/Cargo.toml",
           "count": 1
         },
@@ -4421,6 +4425,14 @@
           "count": 11
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/store.rs",
           "count": 1
         },
@@ -4486,6 +4498,14 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
+          "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_cursor.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
           "count": 4
         },
         {

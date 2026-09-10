@@ -63,6 +63,7 @@ targets:
       - path: TeraTests/TeraTodayStoreTests.swift
       - path: TeraTests/TeraTodaySyncFixtures.swift
       - path: TeraTests/TeraTodaySyncReceiptTests.swift
+      - path: TeraTests/TeraTodayBackfillTests.swift
       - path: TeraTests/TeraTodayPresentationTests.swift
       - path: TeraTests/TeraTodayCacheFirstTests.swift
       - path: TeraTests/TeraTodayContextTests.swift

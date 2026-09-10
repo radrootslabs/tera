@@ -79,9 +79,12 @@ final class TeraTodaySyncReceiptTests: XCTestCase {
       projection: FfiTodayRefreshRecord(
         schemaVersion: 1, update: .rebuild, sourceEvents: 501, visibleCards: 400,
         profiles: 20, threadEntries: 70, contentGeneration: 7, changed: true
-      )
+      ),
+      discovery: FfiTodayDiscoveryRecord(continuation: "opaque-backfill", hadIncompleteResponses: true)
     )
     let receipt = record.appValue
+    XCTAssertEqual(receipt.discovery.continuation, "opaque-backfill")
+    XCTAssertTrue(receipt.discovery.hadIncompleteResponses)
     XCTAssertEqual(receipt.relayState, .partial)
     XCTAssertEqual(receipt.termination, .pageLimit)
     XCTAssertEqual(receipt.targets.first?.finalState, .complete)

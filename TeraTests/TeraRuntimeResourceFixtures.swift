@@ -131,7 +131,8 @@ actor ResourceTestBackend: TeraRuntimeBackend {
   }
 
   func refreshToday(
-    context _: TeraLocalNetwork, nowUnixSeconds _: UInt64, update _: TeraTodayProjectionUpdate
+    context _: TeraLocalNetwork, nowUnixSeconds _: UInt64, update _: TeraTodayProjectionUpdate,
+    backfillCursor _: String?
   ) throws -> TeraTodaySyncReceipt {
     throw unsupported()
   }

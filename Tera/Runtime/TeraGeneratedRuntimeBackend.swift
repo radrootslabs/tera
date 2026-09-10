@@ -173,20 +173,15 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
   }
 
   func refreshToday(
-    context: TeraLocalNetwork,
-    nowUnixSeconds: UInt64,
-    update: TeraTodayProjectionUpdate
+    context: TeraLocalNetwork, nowUnixSeconds: UInt64,
+    update: TeraTodayProjectionUpdate, backfillCursor: String?
   ) async throws -> TeraTodaySyncReceipt {
     do {
-      let receipt = try await runtime.phase1SyncToday(
-        context: context.generatedValue,
-        nowUnixS: nowUnixSeconds,
-        update: update.generatedValue
-      )
-      return receipt.appValue
-    } catch {
-      throw Self.failure(from: error)
-    }
+      return try await TeraGeneratedTodayOperation.run(
+        runtime: runtime, context: context.generatedValue, nowUnixSeconds: nowUnixSeconds,
+        update: update.generatedValue, backfillCursor: backfillCursor
+      ).appValue
+    } catch { throw Self.failure(from: error) }
   }
 
   func search(

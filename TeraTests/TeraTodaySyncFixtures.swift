@@ -5,7 +5,8 @@ enum TeraTodaySyncFixtures {
     state: TeraTodayRelaySyncState = .complete,
     termination: TeraTodaySyncTermination = .complete,
     targets: [TeraTodayTargetSyncReceipt] = [],
-    update: TeraTodayProjectionUpdate = .incremental
+    update: TeraTodayProjectionUpdate = .incremental,
+    discovery: TeraTodayDiscoveryReceipt? = nil
   ) -> TeraTodaySyncReceipt {
     TeraTodaySyncReceipt(
       relayState: state, termination: termination, targets: targets,
@@ -13,7 +14,8 @@ enum TeraTodaySyncFixtures {
       projection: TeraTodayRefreshReceipt(
         update: update, sourceEvents: 0, visibleCards: 0, profiles: 0,
         threadEntries: 0, contentGeneration: 1, changed: false
-      )
+      ),
+      discovery: discovery ?? TeraTodayDiscoveryReceipt(continuation: nil, hadIncompleteResponses: false)
     )
   }
 }

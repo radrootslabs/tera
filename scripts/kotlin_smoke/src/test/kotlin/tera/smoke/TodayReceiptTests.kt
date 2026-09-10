@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import uniffi.tera_core.FfiConverterTypeFfiTodaySyncRecord
+import uniffi.tera_core.FfiTodayDiscoveryRecord
 import uniffi.tera_core.FfiTodayProjectionUpdate
 import uniffi.tera_core.FfiTodayRefreshRecord
 import uniffi.tera_core.FfiTodayRelaySyncState
@@ -30,6 +31,7 @@ class TodayReceiptTests {
                     ),
                     pagesFetched = 8u, eventsObserved = ULong.MAX_VALUE,
                     eventsAdmitted = ULong.MAX_VALUE - 1uL, eventsRejected = 1uL,
+                    discovery = FfiTodayDiscoveryRecord("opaque-backfill", true),
                     projection = FfiTodayRefreshRecord(
                         1u, FfiTodayProjectionUpdate.REBUILD, 501uL, 400uL,
                         20uL, 70uL, ULong.MAX_VALUE, true,
@@ -39,6 +41,8 @@ class TodayReceiptTests {
                     FfiConverterTypeFfiTodaySyncRecord.lower(receipt),
                 )
                 assertEquals(receipt, lifted)
+                assertEquals("opaque-backfill", lifted.discovery.continuation)
+                assertEquals(true, lifted.discovery.hadIncompleteResponses)
                 assertEquals(state, lifted.targets.first().summary?.lastIncomplete)
                 assertNull(lifted.targets.last().summary)
                 assertNull(lifted.targets.last().finalState)

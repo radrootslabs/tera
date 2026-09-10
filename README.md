@@ -19,6 +19,16 @@ workspace. Installed native artifacts use the owned `tera_ffi` and matching
 The five creation families, Today/Add tabs, installed identity and persisted
 operation formats remain compatible with the original app.
 
+Today refresh starts from the newest relay window without an age cutoff or a
+latest-event watermark. Each search requests the same seven supported kinds
+with at most eight pages of 500 observations. Saved-feed pagination reads local
+posts; the separate **Search older posts** action explicitly continues remote
+discovery while saved posts remain usable. Continuations belong to the active
+network, account and store generation. Incomplete relay responses remain visible
+through the search, including when a later page completes. A saturated timestamp
+can leave gaps among same-time posts, so advancing to older posts does not prove
+complete relay history. Refresh starts a new search from the newest window.
+
 `TeraFFI/producer.toml` separately governs the owned Tera FFI producer.
 After staging its source inputs, `make ffi-source-write ffi-source-check`
 captures and checks the exact source tree, foundation lock, target, features and

@@ -25,6 +25,11 @@ struct TeraTodayTargetSyncReceipt: Sendable, Equatable {
   let summary: TeraTodayTargetPageSummary?
 }
 
+struct TeraTodayDiscoveryReceipt: Sendable, Equatable {
+  let continuation: String?
+  let hadIncompleteResponses: Bool
+}
+
 struct TeraTodaySyncReceipt: Sendable, Equatable {
   let relayState: TeraTodayRelaySyncState
   let termination: TeraTodaySyncTermination
@@ -34,6 +39,7 @@ struct TeraTodaySyncReceipt: Sendable, Equatable {
   let eventsAdmitted: UInt64
   let eventsRejected: UInt64
   let projection: TeraTodayRefreshReceipt
+  let discovery: TeraTodayDiscoveryReceipt
 }
 
 struct TeraTodayRefreshReceipt: Sendable, Equatable {

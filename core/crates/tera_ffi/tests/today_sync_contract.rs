@@ -1,6 +1,7 @@
 use tera_core::runtime::product_surface::{
-    TodayProjectionUpdate, TodayRefreshReceipt, TodayRelaySyncState, TodaySyncReceipt,
-    TodaySyncTermination, TodayTargetPageSummary, TodayTargetSyncReceipt, TodayTargetSyncState,
+    TodayDiscoveryReceipt, TodayProjectionUpdate, TodayRefreshReceipt, TodayRelaySyncState,
+    TodaySyncReceipt, TodaySyncTermination, TodayTargetPageSummary, TodayTargetSyncReceipt,
+    TodayTargetSyncState,
 };
 use tera_ffi::{
     FfiTodayProjectionUpdate, FfiTodayRelaySyncState, FfiTodaySyncRecord, FfiTodaySyncTermination,
@@ -33,6 +34,10 @@ fn ffi_preserves_partial_history_even_when_the_final_target_state_is_complete() 
         events_observed: 500,
         events_admitted: 490,
         events_rejected: 10,
+        discovery: TodayDiscoveryReceipt {
+            continuation: Some("opaque-app-backfill".into()),
+            had_incomplete_responses: true,
+        },
         projection: TodayRefreshReceipt {
             update: TodayProjectionUpdate::Rebuild,
             source_events: 501,
@@ -45,6 +50,11 @@ fn ffi_preserves_partial_history_even_when_the_final_target_state_is_complete() 
     };
     let record: FfiTodaySyncRecord = receipt.into();
     assert_eq!(record.schema_version, MOBILE_FFI_SCHEMA_VERSION);
+    assert_eq!(
+        record.discovery.continuation.as_deref(),
+        Some("opaque-app-backfill")
+    );
+    assert!(record.discovery.had_incomplete_responses);
     assert_eq!(record.relay_state, FfiTodayRelaySyncState::Partial);
     assert_eq!(record.termination, FfiTodaySyncTermination::PageLimit);
     assert_eq!(record.targets.len(), 2);

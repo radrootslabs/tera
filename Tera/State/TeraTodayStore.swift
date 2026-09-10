@@ -6,6 +6,8 @@ final class TeraTodayStore: ObservableObject {
     @Published private(set) var selectedContextID: String?
     @Published private(set) var cards: [TeraTodayCard] = []
     @Published private(set) var presentation = TeraTodayPresentation()
+    @Published private(set) var discovery = TeraTodayDiscoveryPresentation()
+    private var discoveryGeneration = TeraSessionGeneration.initial
     @Published private(set) var isLoadingNextPage = false
     @Published private(set) var observationState: TeraRuntimeObservationState = .inactive
     @Published private(set) var scopeGeneration = TeraSessionGeneration.initial
@@ -49,14 +51,6 @@ final class TeraTodayStore: ObservableObject {
         reloadTask?.cancel()
     }
 
-    var selectedContext: TeraLocalNetwork? {
-        contexts.first(where: { $0.id == selectedContextID })
-    }
-
-    var canLoadNextPage: Bool {
-        nextCursor != nil && !isLoadingNextPage
-    }
-
     func configure(snapshot: TeraRuntimeSnapshot) {
         let updated = TeraPresentationConfiguration(snapshot: snapshot)
         guard configuration != updated else { return }
@@ -84,6 +78,8 @@ final class TeraTodayStore: ObservableObject {
     func stop() {
         observation.stop()
         observationState = .stopped
+        discoveryGeneration = discoveryGeneration.invalidated()
+        discovery.stop()
         requestGeneration = requestGeneration.invalidated()
         reloadTask?.cancel()
         reloadTask = nil
@@ -92,6 +88,7 @@ final class TeraTodayStore: ObservableObject {
     }
 
     private func invalidatePresentation(for context: TeraLocalNetwork?) {
+        resetDiscovery()
         requestGeneration = requestGeneration.invalidated()
         reloadTask?.cancel()
         reloadTask = nil
@@ -147,6 +144,9 @@ final class TeraTodayStore: ObservableObject {
             return
         }
 
+        if refreshProjection {
+          resetDiscovery()
+        }
         requestGeneration = requestGeneration.invalidated()
         var generation = requestGeneration
         defer {
@@ -184,6 +184,7 @@ final class TeraTodayStore: ObservableObject {
             )
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return nil }
             presentation.refreshCompleted(receipt)
+            discovery.accept(receipt.discovery)
             return receipt.projection
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return nil }
@@ -255,11 +256,6 @@ final class TeraTodayStore: ObservableObject {
         }
     }
 
-    private static func unique(_ contexts: [TeraLocalNetwork]) -> [TeraLocalNetwork] {
-        var identifiers = Set<String>()
-        return contexts.filter { identifiers.insert($0.id).inserted }
-    }
-
     private func startObservation() {
         observation.start(
           client: runtimeClient, buffer: (capacity: 16, delay: observationDelay),
@@ -275,18 +271,71 @@ final class TeraTodayStore: ObservableObject {
             }
         )
     }
+}
+
+private extension TeraTodayStore {
+    private static func unique(_ contexts: [TeraLocalNetwork]) -> [TeraLocalNetwork] {
+        var identifiers = Set<String>()
+        return contexts.filter { identifiers.insert($0.id).inserted }
+    }
 
     private static func unique(_ cards: [TeraTodayCard]) -> [TeraTodayCard] {
         var identifiers = Set<String>()
         return cards.filter { identifiers.insert($0.id).inserted }
     }
-}
 
-private extension TeraTodayStore {
+    func resetDiscovery() {
+        discoveryGeneration = discoveryGeneration.invalidated()
+        discovery = TeraTodayDiscoveryPresentation()
+    }
+
     func failPagination(_ failure: TeraTodayFailure) {
         if failure.requiresRefresh {
           nextCursor = nil
         }
         presentation.failRead(failure)
+    }
+}
+
+extension TeraTodayStore {
+    var selectedContext: TeraLocalNetwork? {
+        contexts.first(where: { $0.id == selectedContextID })
+    }
+
+    var canLoadNextPage: Bool {
+        nextCursor != nil && !isLoadingNextPage
+    }
+
+    func searchOlderPosts() async {
+        guard !Task.isCancelled, let context = selectedContext,
+              let cursor = discovery.continuation, discovery.canSearchOlder
+        else { return }
+        discoveryGeneration = discoveryGeneration.invalidated()
+        let generation = discoveryGeneration
+        guard generation.isActive else { return }
+        discovery.begin()
+        defer {
+            if generation == discoveryGeneration {
+              discovery.stop()
+            }
+        }
+        do {
+            let receipt = try await runtimeClient.refreshToday(
+              context: context, nowUnixSeconds: clock.unixSeconds(), backfillCursor: cursor
+            )
+            guard generation == discoveryGeneration, !Task.isCancelled else { return }
+            discovery.accept(receipt.discovery)
+            // An explicit older search can refresh the local view. Ordinary
+            // local reloads cannot erase this search's continuation/evidence.
+            await reload(refreshProjection: false)
+            guard generation == discoveryGeneration, !Task.isCancelled else { return }
+            presentation.refreshCompleted(receipt)
+            if presentation.readFailure == nil {
+                presentation.acceptPage(count: cards.count, receipt: receipt.projection)
+            }
+        } catch {
+            guard generation == discoveryGeneration, !Task.isCancelled else { return }
+            discovery.fail(error)
+        }
     }
 }

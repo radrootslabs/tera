@@ -13,6 +13,23 @@ use super::{
 };
 use crate::runtime::TeraRuntime;
 
+#[path = "today_backfill_cursor.rs"]
+mod backfill_cursor;
+use backfill_cursor::BackfillCursor;
+
+#[cfg(test)]
+#[path = "today_backfill_tests.rs"]
+mod backfill_tests;
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TodayDiscoveryReceipt {
+    /// Context/store-bound shared continuation for one explicit older search.
+    pub continuation: Option<String>,
+    /// Cumulative within this search; false never proves global completeness.
+    pub had_incomplete_responses: bool,
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
 pub enum TodayRelaySyncState {
@@ -97,6 +114,7 @@ pub struct TodaySyncReceipt {
     pub events_admitted: u64,
     pub events_rejected: u64,
     pub projection: TodayRefreshReceipt,
+    pub discovery: TodayDiscoveryReceipt,
 }
 
 impl TeraRuntime {
@@ -108,7 +126,35 @@ impl TeraRuntime {
         now_unix_seconds: u64,
         update: TodayProjectionUpdate,
     ) -> Result<TodaySyncReceipt, TodayError> {
+        self.run_today_sync(context, now_unix_seconds, update, None)
+            .await
+    }
+
+    /// Explicit bounded older discovery, independent of locally saved feed paging.
+    pub async fn phase1_backfill_today(
+        &self,
+        context: &LocalNetwork,
+        now_unix_seconds: u64,
+        cursor: &str,
+    ) -> Result<TodaySyncReceipt, TodayError> {
+        self.run_today_sync(
+            context,
+            now_unix_seconds,
+            TodayProjectionUpdate::Incremental,
+            Some(cursor),
+        )
+        .await
+    }
+
+    async fn run_today_sync(
+        &self,
+        context: &LocalNetwork,
+        now_unix_seconds: u64,
+        update: TodayProjectionUpdate,
+        cursor: Option<&str>,
+    ) -> Result<TodaySyncReceipt, TodayError> {
         let _command = self.lifecycle.enter()?;
+        let cursor = cursor.map(BackfillCursor::decode).transpose()?;
         if now_unix_seconds == 0
             || context.relay_urls.is_empty()
             || context.relay_urls.len() > TARGET_SET_MAX_ITEMS
@@ -125,10 +171,22 @@ impl TeraRuntime {
         let selector = FetchSelector::all()
             .with_kinds(TODAY_SYNC_KINDS.to_vec())
             .map_err(|_| TodayError::InvalidRequest)?;
-        let request =
+        let mut request =
             PullRequest::new(targets.clone(), TODAY_SYNC_PAGE_LIMIT, TODAY_SYNC_MAX_PAGES)
                 .map_err(|_| TodayError::RuntimeUnavailable)?
                 .with_selector(selector);
+        let query_scope = super::paging_scope::query_scope(context, self.store_public_key)?;
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let status = radroots_storage::EventStore::status(storage).await?;
+        let store_generation = *status.generation().as_bytes();
+        let mut had_incomplete_responses = false;
+        if let Some(cursor) = cursor {
+            had_incomplete_responses = cursor.had_incomplete_responses;
+            request = request.with_cursor(cursor.validate(query_scope, store_generation)?);
+        }
         let sync = self
             .client
             .sync()
@@ -165,6 +223,18 @@ impl TeraRuntime {
                 TodayRelaySyncState::Offline
             }
             _ => TodayRelaySyncState::Partial,
+        };
+        had_incomplete_responses |= relay_state != TodayRelaySyncState::Complete;
+        let discovery = TodayDiscoveryReceipt {
+            continuation: pull.resume_from().map(|cursor| {
+                BackfillCursor::encode(
+                    cursor,
+                    query_scope,
+                    store_generation,
+                    had_incomplete_responses,
+                )
+            }),
+            had_incomplete_responses,
         };
         let targets = targets
             .targets()
@@ -204,6 +274,7 @@ impl TeraRuntime {
             events_admitted,
             events_rejected,
             projection,
+            discovery,
         })
     }
 }

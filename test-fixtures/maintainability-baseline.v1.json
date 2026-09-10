@@ -8,8 +8,8 @@
     "python_function_complexity": 10
   },
   "swift_file_exception": [
-    {"path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift", "maximum_lines": 1592},
-    {"path": "Tera/Runtime/TeraRuntimeClient.swift", "maximum_lines": 1371},
+    {"path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift", "maximum_lines": 1587},
+    {"path": "Tera/Runtime/TeraRuntimeClient.swift", "maximum_lines": 874},
     {"path": "Tera/Runtime/TeraRuntimeModels.swift", "maximum_lines": 1200},
     {"path": "Tera/State/TeraAddStore.swift", "maximum_lines": 810},
     {"path": "Tera/State/TeraConfigurationStore.swift", "maximum_lines": 759},

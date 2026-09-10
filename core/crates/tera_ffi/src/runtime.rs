@@ -342,6 +342,23 @@ impl TeraRuntime {
         Ok(receipt.into())
     }
 
+    pub async fn phase1_backfill_today(
+        &self,
+        context: FfiLocalNetworkRecord,
+        now_unix_s: u64,
+        cursor: String,
+    ) -> Result<FfiTodaySyncRecord, TeraAppError> {
+        let context = self.local_network(context)?;
+        let receipt = self
+            .inner
+            .phase1_backfill_today(&context, now_unix_s, &cursor)
+            .await
+            .map_err(TeraAppError::from)?;
+        self.subscriptions
+            .notify_context(FfiRuntimeChangeKind::Today, Some(&context), None);
+        Ok(receipt.into())
+    }
+
     pub async fn phase1_search(
         &self,
         context: FfiLocalNetworkRecord,

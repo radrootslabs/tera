@@ -1,8 +1,23 @@
 use super::{FfiTodayRefreshRecord, MOBILE_FFI_SCHEMA_VERSION};
 use tera_core::runtime::product_surface::{
-    TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination, TodayTargetPageSummary,
-    TodayTargetSyncReceipt, TodayTargetSyncState,
+    TodayDiscoveryReceipt, TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination,
+    TodayTargetPageSummary, TodayTargetSyncReceipt, TodayTargetSyncState,
 };
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiTodayDiscoveryRecord {
+    pub continuation: Option<String>,
+    pub had_incomplete_responses: bool,
+}
+
+impl From<TodayDiscoveryReceipt> for FfiTodayDiscoveryRecord {
+    fn from(value: TodayDiscoveryReceipt) -> Self {
+        Self {
+            continuation: value.continuation,
+            had_incomplete_responses: value.had_incomplete_responses,
+        }
+    }
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
 pub enum FfiTodayRelaySyncState {
@@ -102,6 +117,7 @@ pub struct FfiTodaySyncRecord {
     pub events_admitted: u64,
     pub events_rejected: u64,
     pub projection: FfiTodayRefreshRecord,
+    pub discovery: FfiTodayDiscoveryRecord,
 }
 
 impl From<TodaySyncReceipt> for FfiTodaySyncRecord {
@@ -120,6 +136,7 @@ impl From<TodaySyncReceipt> for FfiTodaySyncRecord {
             events_admitted: value.events_admitted,
             events_rejected: value.events_rejected,
             projection: value.projection.into(),
+            discovery: value.discovery.into(),
         }
     }
 }

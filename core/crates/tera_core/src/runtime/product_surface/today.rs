@@ -114,8 +114,8 @@ pub struct TodayIngestReceipt {
 mod relay_sync;
 #[cfg(feature = "mobile-social")]
 pub use relay_sync::{
-    TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination, TodayTargetPageSummary,
-    TodayTargetSyncReceipt, TodayTargetSyncState,
+    TodayDiscoveryReceipt, TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination,
+    TodayTargetPageSummary, TodayTargetSyncReceipt, TodayTargetSyncState,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]

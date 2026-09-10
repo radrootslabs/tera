@@ -1,12 +1,12 @@
 {
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
-    "ffi_api_sha256": "985b96ed14cbcf4945b547ed7d0abf475c5bf79c5eb4b3649a745c2dfaf9385d",
-    "ffi_provenance_sha256": "5410d120f183842192a08bcbec975f59f2d32e0dc4988b0f517770743ec1774b",
+    "ffi_api_sha256": "4612ea78e68402fbd05ae3a33455ca74380a93940f457524c642020c7bbff272",
+    "ffi_provenance_sha256": "544dd3a858d45dc8c3a8845d94262872f5b6f7dda08bda6a4e2b47413325d625",
     "info_plist_sha256": "15ef08b1cdd1096cfb9eeaf5be5bf8f814807a7ca9350bbbb47860fa72ec13ef",
     "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
-    "sbom_sha256": "ce7b6c373ede90c291e80599df71d208472a84eb66d4f0535d678602bc37747a",
-    "xcode_project_sha256": "c1187f6b9c2ad01ac4ac72409617a2fd4e1a3a6e0b28bfea6926fe10f5d77bb4"
+    "sbom_sha256": "73c919d0547948de01ba49bc8c038f0bb0b80c4278d18e6acc47348f3d67c378",
+    "xcode_project_sha256": "1ea38befa180f5bb3ca273a69b6779219e43a5d6ee15e24927850923fcb6aebf"
   },
   "disposition": "unsigned",
   "platforms": [
@@ -17,12 +17,12 @@
   "repository": "https://github.com/radrootslabs/tera",
   "schema": "tera.release-provenance.v1",
   "source": {
-    "cargo_lock_sha256": "ed95547c4794097141b65670891fb94b9092104ab80df896dfaba2c1144e900c",
-    "consumer_source_lock_sha256": "0bf51edaa91ce21f2e816cd691c2f667bdff5ba17d3718d6f26490ad2ce04bad",
-    "lib_revision": "ab084e6943b24e24cb7408f05fbb6241ae8f8c83",
+    "cargo_lock_sha256": "5e88e7061036db35f9343dba2456d6c2244ebd9a76dc4b6937b4272191c04605",
+    "consumer_source_lock_sha256": "32afe83428c1f81bbbbb6a74a950e49da8d6ef144b335df054e37afa7bb1e679",
+    "lib_revision": "9119bb31c59cd84a4a05c0a75d65d708b49cdd8e",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "94ae067a374726cdaf6b4ca0a5e44663c57fcdc5334060c5ffef5e79cfbf04c0",
-    "tera_ffi_source_tree": "68fa424b9b23470ee5d773e418f9f678d26fa23b",
+    "tera_ffi_source_tree": "6ea8d0b4311bc5b146778388ed016e16ed0d70de",
     "xcode_package_lock_sha256": "c7f41934ea25f7a287bdc4f3a6ecabbf09a3a0bdd0f5a3e58183f355ca814096"
   },
   "version": "0.1.0-alpha"

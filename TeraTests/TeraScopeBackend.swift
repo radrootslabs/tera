@@ -110,9 +110,13 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     return result
   }
 
+  private(set) var lastBackfillCursor: String?
+
   func refreshToday(
-    context _: TeraLocalNetwork, nowUnixSeconds _: UInt64, update: TeraTodayProjectionUpdate
+    context _: TeraLocalNetwork, nowUnixSeconds _: UInt64, update: TeraTodayProjectionUpdate,
+    backfillCursor: String?
   ) async throws -> TeraTodaySyncReceipt {
+    lastBackfillCursor = backfillCursor
     let result = syncReceipt ?? TeraTodaySyncFixtures.receipt(update: update)
     try await wait(.refresh)
     return result

@@ -359,7 +359,8 @@ private actor TodayBackend: TeraRuntimeBackend {
     func refreshToday(
       context _: TeraLocalNetwork,
       nowUnixSeconds _: UInt64,
-      update: TeraTodayProjectionUpdate
+      update: TeraTodayProjectionUpdate,
+      backfillCursor _: String?
     ) throws -> TeraTodaySyncReceipt {
         if let refreshFailure {
             throw refreshFailure

@@ -38,8 +38,8 @@ use crate::TeraAppError;
 
 mod today_sync;
 pub use today_sync::{
-    FfiTodayRelaySyncState, FfiTodaySyncRecord, FfiTodaySyncTermination, FfiTodayTargetPageSummary,
-    FfiTodayTargetSyncRecord, FfiTodayTargetSyncState,
+    FfiTodayDiscoveryRecord, FfiTodayRelaySyncState, FfiTodaySyncRecord, FfiTodaySyncTermination,
+    FfiTodayTargetPageSummary, FfiTodayTargetSyncRecord, FfiTodayTargetSyncState,
 };
 
 pub const MOBILE_FFI_SCHEMA_VERSION: u16 = 1;

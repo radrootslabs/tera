@@ -201,6 +201,21 @@ async fn page_limit_returns_eight_pages_and_retains_the_remaining_backfill() {
     assert_eq!(receipt.termination, TodaySyncTermination::PageLimit);
     assert_eq!(receipt.relay_state, TodayRelaySyncState::Partial);
     assert_eq!(source.pages.lock().unwrap().len(), 1);
+    assert!(receipt.discovery.had_incomplete_responses);
+    let cursor = receipt
+        .discovery
+        .continuation
+        .as_deref()
+        .expect("explicit backfill");
+    let resumed = runtime
+        .phase1_backfill_today(&context(None, 1), 2_000_000_201, cursor)
+        .await
+        .unwrap();
+    assert_eq!(resumed.pages_fetched, 1);
+    assert_eq!(resumed.relay_state, TodayRelaySyncState::Complete);
+    assert!(resumed.discovery.had_incomplete_responses);
+    assert!(resumed.discovery.continuation.is_none());
+    assert!(source.pages.lock().unwrap().is_empty());
     assert_eq!(
         receipt.targets[0].summary.as_ref().unwrap().pages_observed,
         TODAY_SYNC_MAX_PAGES

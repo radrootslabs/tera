@@ -7,7 +7,7 @@ extension FfiTodaySyncRecord {
       relayState: relayState.appValue, termination: termination.appValue,
       targets: targets.map(\.appValue), pagesFetched: pagesFetched,
       eventsObserved: eventsObserved, eventsAdmitted: eventsAdmitted,
-      eventsRejected: eventsRejected, projection: projection.appValue
+      eventsRejected: eventsRejected, projection: projection.appValue, discovery: discovery.appValue
     )
   }
 }
@@ -84,5 +84,27 @@ extension FfiTodayProjectionUpdate {
     case .incremental: .incremental
     case .rebuild: .rebuild
     }
+  }
+}
+
+extension FfiTodayDiscoveryRecord {
+  var appValue: TeraTodayDiscoveryReceipt {
+    TeraTodayDiscoveryReceipt(continuation: continuation, hadIncompleteResponses: hadIncompleteResponses)
+  }
+}
+
+enum TeraGeneratedTodayOperation {
+  static func run(
+    runtime: TeraRuntime, context: FfiLocalNetworkRecord, nowUnixSeconds: UInt64,
+    update: FfiTodayProjectionUpdate, backfillCursor: String?
+  ) async throws -> FfiTodaySyncRecord {
+    if let backfillCursor {
+      return try await runtime.phase1BackfillToday(
+        context: context, nowUnixS: nowUnixSeconds, cursor: backfillCursor
+      )
+    }
+    return try await runtime.phase1SyncToday(
+      context: context, nowUnixS: nowUnixSeconds, update: update
+    )
   }
 }

@@ -193,7 +193,8 @@ private actor TestRuntimeBackend: TeraRuntimeBackend {
     func refreshToday(
       context _: TeraLocalNetwork,
       nowUnixSeconds _: UInt64,
-      update _: TeraTodayProjectionUpdate
+      update _: TeraTodayProjectionUpdate,
+      backfillCursor _: String?
     ) throws -> TeraTodaySyncReceipt {
         throw TeraRuntimeFailure.local(
           operation: "test.today.refresh",

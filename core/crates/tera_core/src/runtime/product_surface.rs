@@ -67,13 +67,13 @@ pub use settings::{
     RelayAccessPreference, RelayEndpointPreference, RelayPreferences, ReplaceMobileSettings,
     SettingsError, SettingsTransition,
 };
-pub use today::{
-    TodayError, TodayIngestReceipt, TodayPageRequest, TodayProjectionUpdate, TodayRefreshReceipt,
-};
 #[cfg(feature = "mobile-social")]
 pub use today::{
-    TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination, TodayTargetPageSummary,
-    TodayTargetSyncReceipt, TodayTargetSyncState,
+    TodayDiscoveryReceipt, TodayRelaySyncState, TodaySyncReceipt, TodaySyncTermination,
+    TodayTargetPageSummary, TodayTargetSyncReceipt, TodayTargetSyncState,
+};
+pub use today::{
+    TodayError, TodayIngestReceipt, TodayPageRequest, TodayProjectionUpdate, TodayRefreshReceipt,
 };
 
 use super::TeraRuntime;
