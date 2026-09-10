@@ -23,6 +23,9 @@ final class TeraComposerAutosave {
   private var current: TeraComposerForm?
   private var attempted: TeraComposerSaveRequest?
   private var worker: Task<Void, Never>?
+  private var coalescingTask: Task<Void, Error>?
+  private var immediateSave = false
+  private var lastFailure: Error?
   private var paused = false
   private var exhausted = false
 
@@ -34,7 +37,10 @@ final class TeraComposerAutosave {
     self.delay = delay
   }
 
-  deinit { worker?.cancel() }
+  deinit {
+    coalescingTask?.cancel()
+    worker?.cancel()
+  }
 
   var isDirty: Bool {
     current != nil && (exhausted || acknowledged?.editSequence != editSequence || acknowledged?.form != current)
@@ -44,12 +50,15 @@ final class TeraComposerAutosave {
   /// worker slot occupied until it exits, preventing abandoned task fan-out.
   func reset(scope: TeraComposerScope?) {
     generation = generation.invalidated()
+    immediateSave = false
+    coalescingTask?.cancel()
     worker?.cancel()
     self.scope = scope
     id = nil
     current = nil
     acknowledged = nil
     attempted = nil
+    lastFailure = nil
     editSequence = 0
     exhausted = false
     paused = false
@@ -59,6 +68,8 @@ final class TeraComposerAutosave {
   func stop() {
     generation = generation.invalidated()
     paused = true
+    immediateSave = false
+    coalescingTask?.cancel()
     worker?.cancel()
     if isDirty {
       state = .unsaved
@@ -121,12 +132,20 @@ final class TeraComposerAutosave {
     if state == .failed {
       state = .unsaved
     }
+    if isDirty {
+      immediateSave = true
+      coalescingTask?.cancel()
+    }
     startWorker()
     while let task = worker {
+      if isDirty {
+        immediateSave = true
+        coalescingTask?.cancel()
+      }
       await task.value
       try ensureCurrent(requested)
     }
-    guard !isDirty, let acknowledged else { throw TeraComposerAcknowledgment.unconfirmed }
+    guard !isDirty, let acknowledged else { throw lastFailure ?? TeraComposerAcknowledgment.unconfirmed }
     return acknowledged
   }
 
@@ -134,6 +153,7 @@ final class TeraComposerAutosave {
     guard worker == nil, !paused, !exhausted, generation.isActive, scope != nil,
           isDirty, state != .failed else { return }
     let requested = generation
+    lastFailure = nil
     worker = Task { [weak self] in
       guard let self else { return }
       await run(requested)
@@ -142,6 +162,9 @@ final class TeraComposerAutosave {
 
   private func run(_ requested: TeraSessionGeneration) async {
     defer {
+      if generation == requested {
+        immediateSave = false
+      }
       worker = nil
       startWorker()
     }
@@ -149,7 +172,7 @@ final class TeraComposerAutosave {
       while isDirty {
         try ensureCurrent(requested)
         state = .saving
-        try await delay()
+        try await coalesce(requested)
         try ensureCurrent(requested)
         try await reconcileAttempt(requested)
         try await persistCurrent(requested)
@@ -160,8 +183,24 @@ final class TeraComposerAutosave {
       // A write may have committed before cancellation or a lost callback.
       // Keep its exact request for a read before any retry in this lifetime.
       if generation == requested, !paused {
+        lastFailure = error
         state = .failed
       }
+    }
+  }
+
+  private func coalesce(_ requested: TeraSessionGeneration) async throws {
+    guard !immediateSave else { return }
+    let task = Task { [delay] in try await delay() }
+    coalescingTask = task
+    defer { coalescingTask = nil }
+    do {
+      try await task.value
+    } catch {
+      try ensureCurrent(requested)
+      // Explicit Save cancels only batching; an in-flight write still owns
+      // its slot until its receipt or unknown-write reconciliation completes.
+      guard immediateSave, error is CancellationError else { throw error }
     }
   }
 

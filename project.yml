@@ -48,6 +48,9 @@ targets:
       - path: TeraTests/TeraRuntimeClientTests.swift
       - path: TeraTests/TeraComposerPersistenceFFITests.swift
       - path: TeraTests/TeraComposerAutosaveTests.swift
+      - path: TeraTests/TeraComposerSaveLatencyTests.swift
+      - path: TeraTests/TeraComposerSaveSchedulingTests.swift
+      - path: TeraTests/TeraComposerDurabilityBoundaryTests.swift
       - path: TeraTests/TeraDraftRecoveryTests.swift
       - path: TeraTests/TeraEditingProtectionTests.swift
       - path: TeraTests/TeraEditingReplacementTests.swift

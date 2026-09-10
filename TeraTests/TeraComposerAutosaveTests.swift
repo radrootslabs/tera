@@ -234,6 +234,7 @@ actor ComposerTestStorage {
   private var failure: Failure?
   private(set) var requests: [TeraComposerSaveRequest] = []
   private(set) var readCount = 0
+  private(set) var cancelledWrites = 0
   let completed = ResourceTestGate()
 
   nonisolated var port: TeraComposerPersistence {
@@ -263,6 +264,9 @@ actor ComposerTestStorage {
     let failure = failure
     self.failure = nil
     await pause?.wait()
+    if Task.isCancelled {
+      cancelledWrites += 1
+    }
     if failure == .beforeCommit {
       throw TeraComposerAcknowledgment.unconfirmed
     }
