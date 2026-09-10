@@ -46,6 +46,12 @@ use super::{
 };
 use crate::runtime::TeraRuntime;
 
+#[path = "outbox/inventory.rs"]
+mod inventory;
+pub use inventory::{
+    Phase1DraftListEntry, Phase1DraftPage, Phase1DraftRepairReason, Phase1DraftSummary,
+};
+
 const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
 const PROFILE_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-profile.v1";
 const DRAFT_SCHEMA_VERSION: u16 = 1;
@@ -973,6 +979,10 @@ pub enum Phase1DraftError {
     IdentityUnavailable,
     #[error("phase 1 draft input is invalid")]
     InvalidDraft,
+    #[error("legacy draft inventory request is invalid")]
+    InvalidInventoryRequest,
+    #[error("legacy draft inventory cursor is invalid")]
+    InvalidInventoryCursor,
     #[error("phase 1 media prerequisite is invalid")]
     InvalidMedia,
     #[error("phase 1 queue policy is invalid")]

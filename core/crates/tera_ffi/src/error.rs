@@ -199,6 +199,14 @@ impl From<Phase1DraftError> for TeraAppError {
                 &["unlock_identity", "retry"][..],
             ),
             Phase1DraftError::InvalidDraft => ("draft_invalid", false, &["correct_input"][..]),
+            Phase1DraftError::InvalidInventoryRequest => {
+                ("draft_inventory_invalid", false, &["correct_input"][..])
+            }
+            Phase1DraftError::InvalidInventoryCursor => (
+                "draft_inventory_cursor_invalid",
+                false,
+                &["reload_drafts"][..],
+            ),
             Phase1DraftError::InvalidMedia => {
                 ("draft_media_invalid", false, &["replace_media"][..])
             }
@@ -410,6 +418,8 @@ mod tests {
         for error in [
             Phase1DraftError::IdentityUnavailable,
             Phase1DraftError::InvalidDraft,
+            Phase1DraftError::InvalidInventoryRequest,
+            Phase1DraftError::InvalidInventoryCursor,
             Phase1DraftError::InvalidMedia,
             Phase1DraftError::InvalidQueuePolicy,
             Phase1DraftError::RevisionConflict,

@@ -36,7 +36,7 @@ struct TeraAddView: View {
         EmptyView()
       }
 
-      TeraAddSaveStatus(message: store.message, symbol: statusSymbol, state: store.composerState)
+      TeraAddSaveStatus(message: store.message, symbol: statusSymbol, state: store.composerState, mediaMessage: store.mediaRecoveryMessage)
 
       if store.activeDraft?.kind == .retraction {
         Section("Retraction") {
@@ -403,71 +403,5 @@ struct TeraAddView: View {
     case .cancelled: "slash.circle"
     default: "info.circle"
     }
-  }
-}
-
-struct TeraDraftsSheet: View {
-  @ObservedObject var store: TeraAddStore
-  @Environment(\.dismiss) private var dismiss
-
-  var body: some View {
-    NavigationStack {
-      List {
-        if store.drafts.isEmpty {
-          ContentUnavailableView("No saved drafts", systemImage: "tray")
-        }
-        ForEach(store.drafts) { draft in
-          VStack(alignment: .leading, spacing: 8) {
-            HStack {
-              Text(draft.commandType.label).font(.headline)
-              Spacer()
-              Text(draft.state.label).font(.caption).foregroundStyle(.secondary)
-            }
-            Text(draft.honestSummary).font(.subheadline)
-            if !draft.media.isEmpty {
-              Text(mediaSummary(draft.media))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .accessibilityIdentifier(
-                  "radroots.add.draft.media_status.\(draft.id)"
-                )
-            }
-            HStack {
-              if draft.form != nil {
-                Button(draft.state.isEditable ? "Reopen" : "View") {
-                  store.reopen(draft)
-                  dismiss()
-                }
-              }
-              if draft.state.canAdvance {
-                Button("Retry") { Task { await store.retry(draft) } }
-              }
-              if draft.state.canCancel {
-                Button("Cancel", role: .destructive) { Task { await store.cancel(draft) } }
-              }
-            }
-            .buttonStyle(.borderless)
-          }
-          .accessibilityElement(children: .contain)
-          .accessibilityIdentifier("radroots.add.draft.\(draft.id)")
-        }
-      }
-      .navigationTitle("Drafts & outbox")
-      .toolbar {
-        ToolbarItem(placement: .confirmationAction) {
-          Button("Done") { dismiss() }
-        }
-      }
-    }
-    .accessibilityIdentifier("radroots.add.drafts.sheet")
-  }
-
-  private func mediaSummary(_ values: [TeraDraftMediaStatus]) -> String {
-    let verified = values.count(where: { $0.stage == .verified })
-    let orphaned = values.count(where: { $0.possibleOrphan })
-    if orphaned > 0 {
-      return "\(verified) of \(values.count) photos verified; \(orphaned) possible orphan"
-    }
-    return "\(verified) of \(values.count) photos verified"
   }
 }

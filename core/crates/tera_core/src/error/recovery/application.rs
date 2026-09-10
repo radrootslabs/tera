@@ -44,7 +44,7 @@ pub(super) fn classify(code: &str) -> RecoveryDisposition {
         | "today_refresh_required"
         | "today_state_failed"
         | "authoring_overlay_failed" => Recovery::StaleRevision,
-        "today_cursor_invalid" => Recovery::StaleCursor,
+        "today_cursor_invalid" | "draft_inventory_cursor_invalid" => Recovery::StaleCursor,
         "media_operation_already_used" | "identity_import_operation_mismatch" => {
             Recovery::IdempotencyConflict
         }
@@ -87,6 +87,7 @@ pub(super) fn classify(code: &str) -> RecoveryDisposition {
         | "operation_clock_unavailable" => Recovery::RuntimeUnavailable,
         "today_invalid_request"
         | "draft_invalid"
+        | "draft_inventory_invalid"
         | "draft_media_invalid"
         | "draft_queue_policy_invalid"
         | "revision_invalid"

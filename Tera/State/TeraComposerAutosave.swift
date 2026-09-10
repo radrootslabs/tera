@@ -70,6 +70,21 @@ final class TeraComposerAutosave {
     startWorker()
   }
 
+  func restore(_ draft: TeraComposerDraft) throws {
+    guard draft.scope == scope, TeraAddPresentation.isValidIdentifier(draft.id),
+          draft.id != String(repeating: "0", count: 32), draft.revision > 0,
+          draft.revision <= UInt64(Int64.max), draft.editSequence > 0
+    else {
+      throw TeraComposerAcknowledgment.unconfirmed
+    }
+    reset(scope: draft.scope)
+    id = draft.id
+    editSequence = draft.editSequence
+    current = draft.form
+    acknowledged = draft
+    state = .saved
+  }
+
   func change(_ form: TeraComposerForm) {
     guard form != current else { return }
     current = form
@@ -84,6 +99,15 @@ final class TeraComposerAutosave {
       state = .unsaved
     }
     startWorker()
+  }
+
+  func observeEditing(_ form: TeraAddForm, isEditable: Bool, isRevision: Bool) {
+    guard isEditable, !isRevision else {
+      stop()
+      state = isRevision ? .revision : .idle
+      return
+    }
+    change(TeraComposerForm(editing: form))
   }
 
   func save(_ form: TeraComposerForm) async throws -> TeraComposerDraft {

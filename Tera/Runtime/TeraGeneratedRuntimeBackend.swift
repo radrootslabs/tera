@@ -346,22 +346,6 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     }
   }
 
-  func draftStatus(id: String) async throws -> TeraDraftStatus {
-    do {
-      return try await runtime.phase1DraftStatus(draftId: id).appValue
-    } catch {
-      throw TeraGeneratedRuntimeFailure.from(error)
-    }
-  }
-
-  func draftHeads(limit: UInt16) async throws -> [TeraDraftStatus] {
-    do {
-      return try await runtime.phase1DraftHeads(limit: limit).map(\.appValue)
-    } catch {
-      throw TeraGeneratedRuntimeFailure.from(error)
-    }
-  }
-
   func queueAddIntent(
     id: String,
     expectedRevision: UInt64
@@ -968,18 +952,6 @@ extension FfiAddFieldKind {
   }
 }
 
-extension FfiAddCommandType {
-  fileprivate var appValue: TeraAddCommandType {
-    switch self {
-    case .createUpdate: .createUpdate
-    case .createPhotoUpdate: .createPhotoUpdate
-    case .createAsk: .createAsk
-    case .createEvent: .createEvent
-    case .createFoodAvailability: .createFoodAvailability
-    }
-  }
-}
-
 extension TeraAddCommandType {
   fileprivate var generatedValue: FfiAddCommandType {
     switch self {
@@ -1354,35 +1326,6 @@ extension FfiRelayAccessRecord {
   }
 }
 
-extension FfiDraftKind {
-  fileprivate var appValue: TeraDraftKind {
-    switch self {
-    case .add: .add
-    case .retraction: .retraction
-    }
-  }
-}
-
-extension FfiOutboxState {
-  fileprivate var appValue: TeraOutboxState {
-    switch self {
-    case .draft: .draft
-    case .mediaPreparing: .mediaPreparing
-    case .mediaUploading: .mediaUploading
-    case .readyToSign: .readyToSign
-    case .signing: .signing
-    case .signed: .signed
-    case .queued: .queued
-    case .delivering: .delivering
-    case .partiallyDelivered: .partiallyDelivered
-    case .retryable: .retryable
-    case .terminal: .terminal
-    case .cancelled: .cancelled
-    case .complete: .complete
-    }
-  }
-}
-
 extension FfiDraftMediaRecord {
   fileprivate var appValue: TeraDraftMediaStatus {
     TeraDraftMediaStatus(
@@ -1411,7 +1354,7 @@ extension FfiMediaStage {
 }
 
 extension FfiOperationSettlementRecord {
-  fileprivate var appValue: TeraOperationSettlement {
+  var appValue: TeraOperationSettlement {
     TeraOperationSettlement(
       artifacts: artifacts,
       signed: signed,
@@ -1505,5 +1448,27 @@ private extension TeraGeneratedRuntimeBackend {
         update: update.generatedValue, backfillCursor: backfillCursor
       ).appValue
     } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+}
+
+private extension TeraGeneratedRuntimeBackend {
+  func draftStatus(id: String) async throws -> TeraDraftStatus {
+    do {
+      return try await runtime.phase1DraftStatus(draftId: id).appValue
+    } catch {
+      throw TeraGeneratedRuntimeFailure.from(error)
+    }
+  }
+
+  func draftHeads(limit: UInt16) async throws -> [TeraDraftStatus] {
+    do {
+      return try await runtime.phase1DraftHeads(limit: limit).map(\.appValue)
+    } catch {
+      throw TeraGeneratedRuntimeFailure.from(error)
+    }
+  }
+
+  func legacyDraftPage(limit: UInt16, cursor: String?) async throws -> TeraLegacyDraftPage {
+    do { return try await TeraGeneratedDraftInventory.page(runtime: runtime, limit: limit, cursor: cursor) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
   }
 }

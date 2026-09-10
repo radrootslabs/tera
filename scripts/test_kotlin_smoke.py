@@ -23,7 +23,7 @@ class KotlinSmokeTests(unittest.TestCase):
         self.root = Path(temporary.name).resolve()
         self.path = self.root / "TEST-smoke.xml"
         self.suite = ET.Element(
-            "testsuite", tests="15", failures="0", errors="0", skipped="0"
+            "testsuite", tests="16", failures="0", errors="0", skipped="0"
         )
         for identity in sorted(smoke.EXPECTED_CASES):
             name, case = identity.split("/")
@@ -35,7 +35,7 @@ class KotlinSmokeTests(unittest.TestCase):
     def test_only_complete_executed_inventory_is_green(self) -> None:
         self.write()
         result = smoke.test_results(self.root)
-        self.assertEqual(result["passed"], 15)
+        self.assertEqual(result["passed"], 16)
         self.assertEqual((result["failed"], result["skipped"]), (0, 0))
 
     def test_empty_and_missing_results_cannot_pass(self) -> None:
@@ -69,7 +69,7 @@ class KotlinSmokeTests(unittest.TestCase):
         with self.assertRaises(source.ProvenanceError):
             smoke.test_results(self.root)
         self.suite.remove(cases[-1])
-        self.suite.set("tests", "14")
+        self.suite.set("tests", "15")
         self.write()
         with self.assertRaises(source.ProvenanceError):
             smoke.test_results(self.root)

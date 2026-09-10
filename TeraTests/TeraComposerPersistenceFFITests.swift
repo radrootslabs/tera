@@ -137,9 +137,85 @@ final class TeraComposerPersistenceFFITests: XCTestCase {
     editing.eventTimezone = "Mars/unfinished"
     editing.eventStartUnixSeconds = .max
     editing.priceAmount = "12."
+    editing.identifier = "partial-id"
+    editing.title = ""
+    editing.summary = "unfinished summary"
+    editing.location = "unfinished place"
+    editing.eventEndUnixSeconds = 0
+    editing.currency = "u"
+    editing.unit = "b"
     editing.quantity = "-"
+    editing.foodPublishedAtUnixSeconds = .max
+    editing.foodStatus = "unknown"
     editing.media = [fixture.media]
     return TeraComposerForm(editing: editing)
+  }
+
+  @MainActor
+  func testStartupRecoveryPagesBeyondOneHundredAndReopensExactIncompleteRevision() async throws {
+    let fixture = try MediaOwnershipFixture()
+    defer { fixture.remove() }
+    let signer = ComposerForbiddenSigner()
+    let configuration = configuration(fixture, signer: signer)
+    let client = TeraRuntimeClient.production()
+    _ = try await client.start(configuration: configuration)
+    let scope = TeraComposerScope(authorPublicKey: scope.authorPublicKey, localNetworkID: "default")
+    let form = partialForm(fixture)
+    var ids = Set<String>()
+    var saved: TeraComposerDraft?
+    for _ in 0 ..< 101 {
+      let id = try await client.reserveComposerID()
+      ids.insert(id)
+      saved = try await client.saveComposer(request: TeraComposerSaveRequest(
+        scope: scope, id: id, expectedRevision: nil, editSequence: 17, form: form
+      )).draft
+    }
+    let selected = try XCTUnwrap(saved)
+    _ = try await client.stop()
+    let snapshot = try await client.start(configuration: configuration)
+    let store = TeraAddStore(runtimeClient: client)
+    store.configure(snapshot: snapshot)
+    await store.start()
+    try await assertRecoveryPages(store.recovery, ids: ids)
+    let applied = await store.reopenSaved(.composer(selected.id))
+    XCTAssertTrue(applied)
+    XCTAssertEqual(TeraComposerForm(editing: store.form), form)
+    XCTAssertEqual(store.savedComposer, selected)
+    XCTAssertEqual(store.composerState, .saved)
+    XCTAssertTrue(store.form.media.allSatisfy { $0.remoteURL == nil })
+    XCTAssertNil(store.activeDraft)
+    store.updateForm(\.content, "continued incomplete editing")
+    await store.save()
+    let updated = try XCTUnwrap(store.savedComposer)
+    XCTAssertEqual(updated.id, selected.id)
+    XCTAssertEqual(updated.revision, 2)
+    XCTAssertEqual(updated.editSequence, 18)
+    let loaded = try await client.loadComposer(scope: scope, id: selected.id)
+    XCTAssertEqual(loaded, updated)
+    let operations = try await client.legacyDraftPage()
+    XCTAssertTrue(operations.entries.isEmpty)
+    store.stop()
+    _ = try await client.stop()
+    let signingRequests = await signer.requests
+    XCTAssertEqual(signingRequests, 0)
+  }
+
+  @MainActor
+  private func assertRecoveryPages(_ recovery: TeraDraftRecoveryStore, ids: Set<String>) async throws {
+    await TeraScopeFixtures.eventually { !recovery.isLoading }
+    XCTAssertNil(recovery.composerError)
+    XCTAssertEqual(recovery.composers.count, 100)
+    let first = recovery.composers.compactMap { entry -> String? in
+      if case let .draft(summary) = entry {
+        return summary.id
+      }; return nil
+    }
+    recovery.moreComposers()
+    await TeraScopeFixtures.eventually { !recovery.isLoading }
+    XCTAssertEqual(recovery.composers.count, 1)
+    guard case let .draft(last) = try XCTUnwrap(recovery.composers.first) else { return XCTFail("Missing final page") }
+    XCTAssertEqual(Set(first + [last.id]), ids)
+    XCTAssertNil(recovery.composerCursor)
   }
 
   private func assertInventory(_ client: TeraRuntimeClient, id: String) async throws {

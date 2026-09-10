@@ -28,3 +28,17 @@ final class TeraOpenedMedia: Sendable {
     }
   }
 }
+
+extension TeraOpenedMedia {
+  static func open(_ values: [TeraPreparedMedia], using media: (any TeraAddMediaHandling)?) async throws -> TeraOpenedMedia {
+    guard !values.isEmpty else { return TeraOpenedMedia(handles: [], files: []) }
+    guard let media else {
+      throw TeraRuntimeFailure.local(
+        operation: "add.media.open",
+        code: "ios.add.media_unavailable",
+        safeMessage: "Prepared photos are unavailable on this device."
+      )
+    }
+    return try await media.open(values)
+  }
+}

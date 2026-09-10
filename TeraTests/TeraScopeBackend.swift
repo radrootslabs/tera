@@ -2,7 +2,7 @@ import Foundation
 @testable import TeraApp
 
 actor TeraScopeBackend: TeraRuntimeBackend {
-  enum Call: Hashable { case snapshot, drafts, save, composer, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate }
+  enum Call: Hashable { case snapshot, schemas, drafts, save, composer, composerLoad, composerList, legacyPage, draftStatus, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate }
   struct Pending {
     let pause: ResourceTestPause
     let failure: TeraRuntimeFailure?
@@ -10,6 +10,9 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   private(set) var value = TeraScopeFixtures.snapshot()
   private let composerStorage = ComposerTestStorage()
+  private var composerPages: [String: TeraComposerPage] = [:]
+  private var legacyPages: [String: TeraLegacyDraftPage] = [:]
+  private(set) var recoveryLimits: [UInt16] = []
   private var pending: [Call: [Pending]] = [:]
   private(set) var counts: [Call: Int] = [:]
   private var receivers: [@Sendable (TeraRuntimeChange) async -> Void] = []
@@ -96,8 +99,10 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     return snapshot
   }
 
-  func addSchemas() -> [TeraAddSchema] {
-    TeraAddSchemaFixtures.schemas()
+  func addSchemas() async throws -> [TeraAddSchema] {
+    let schemas = TeraAddSchemaFixtures.schemas()
+    try await wait(.schemas)
+    return schemas
   }
 
   func draftHeads(limit _: UInt16) async throws -> [TeraDraftStatus] {
@@ -125,7 +130,37 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   }
 
   func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft {
-    try await composerStorage.load(scope, id: id)
+    let saved = try await composerStorage.load(scope, id: id)
+    try await wait(.composerLoad)
+    return saved
+  }
+
+  func setComposerPage(_ page: TeraComposerPage, cursor: String = "first") {
+    composerPages[cursor] = page
+  }
+
+  func setLegacyPage(_ page: TeraLegacyDraftPage, cursor: String = "first") {
+    legacyPages[cursor] = page
+  }
+
+  func listComposers(scope: TeraComposerScope, limit: UInt16, cursor: String?) async throws -> TeraComposerPage {
+    recoveryLimits.append(limit)
+    let result = composerPages[cursor ?? "first"] ?? TeraComposerPage(scope: scope, entries: [], nextCursor: nil)
+    try await wait(.composerList)
+    return result
+  }
+
+  func legacyDraftPage(limit: UInt16, cursor: String?) async throws -> TeraLegacyDraftPage {
+    recoveryLimits.append(limit)
+    let result = legacyPages[cursor ?? "first"] ?? TeraLegacyDraftPage(authorPublicKey: value.identity.publicKeyHex, entries: [], nextCursor: nil)
+    try await wait(.legacyPage)
+    return result
+  }
+
+  func draftStatus(id: String) async throws -> TeraDraftStatus {
+    guard let result = drafts.first(where: { $0.id == id }) else { throw TeraScopeFixtures.failure() }
+    try await wait(.draftStatus)
+    return result
   }
 
   func probeBlossom() async throws -> TeraBlossomEvidence {

@@ -2109,7 +2109,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraAddView.swift",
+          "path": "Tera/Views/TeraDraftsSheet.swift",
           "count": 1
         },
         {
@@ -2123,7 +2123,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraAddView.swift",
+          "path": "Tera/Views/TeraDraftsSheet.swift",
           "count": 1
         },
         {
@@ -2151,7 +2151,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraAddView.swift",
+          "path": "Tera/Views/TeraDraftsSheet.swift",
           "count": 1
         },
         {
@@ -4635,6 +4635,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/inventory.rs",
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",

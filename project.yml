@@ -48,6 +48,8 @@ targets:
       - path: TeraTests/TeraRuntimeClientTests.swift
       - path: TeraTests/TeraComposerPersistenceFFITests.swift
       - path: TeraTests/TeraComposerAutosaveTests.swift
+      - path: TeraTests/TeraDraftRecoveryTests.swift
+      - path: TeraTests/TeraComposerStartupTests.swift
       - path: TeraTests/TeraRuntimeInvalidationTests.swift
       - path: TeraTests/TeraRuntimeBackpressureTests.swift
       - path: TeraTests/TeraRuntimeClientFixtures.swift

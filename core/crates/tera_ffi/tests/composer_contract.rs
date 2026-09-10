@@ -1,6 +1,117 @@
 use tera_ffi::*;
 mod support;
 
+#[tokio::test]
+async fn legacy_inventory_is_versioned_paged_and_separate_from_partial_composers() {
+    let (root, runtime) = support::runtime().await;
+    runtime.composer_save(request()).await.unwrap();
+    let mut saved = Vec::new();
+    for _ in 0..2 {
+        saved.push(
+            runtime
+                .phase1_save_add_intent(legacy_input(), None, None)
+                .await
+                .unwrap(),
+        );
+    }
+    let first = runtime.legacy_draft_page(1, 1, None).await.unwrap();
+    assert_eq!(first.schema_version, 1);
+    assert_eq!(first.author_public_key, support::PUBLIC_KEY);
+    assert_eq!(first.entries.len(), 1);
+    let FfiLegacyDraftListEntry::Draft { summary } = &first.entries[0] else {
+        panic!("valid legacy summary")
+    };
+    assert_eq!(summary.schema_version, 1);
+    assert_eq!(summary.revision, 1);
+    assert_eq!(summary.command_type, FfiAddCommandType::CreateUpdate);
+    assert_eq!(summary.state, FfiOutboxState::Draft);
+    assert!(summary.has_form && !summary.is_revision);
+    assert_eq!(summary.media_count, 0);
+    assert_eq!(summary.verified_media_count, 0);
+    assert_eq!(summary.possible_orphan_count, 0);
+    assert!(summary.settlement.is_none());
+    let first_id = summary.draft_id.clone();
+    for (version, limit, cursor, code) in [
+        (2, 1, None, "unsupported_schema_version"),
+        (1, 0, None, "draft_inventory_invalid"),
+        (1, 257, None, "draft_inventory_invalid"),
+        (
+            1,
+            1,
+            Some("invalid".to_owned()),
+            "draft_inventory_cursor_invalid",
+        ),
+    ] {
+        assert_eq!(
+            runtime
+                .legacy_draft_page(version, limit, cursor)
+                .await
+                .unwrap_err()
+                .report()
+                .code,
+            code
+        );
+    }
+    runtime.shutdown().await.unwrap();
+    let runtime = TeraRuntime::new(
+        root.path().to_string_lossy().into_owned(),
+        support::PUBLIC_KEY.into(),
+        support::GENERATION.into(),
+        1_800_000_000_000,
+        ProtectedDataAvailability::Available,
+    )
+    .await
+    .unwrap();
+    let second = runtime
+        .legacy_draft_page(1, 1, first.next_cursor)
+        .await
+        .unwrap();
+    assert!(second.next_cursor.is_none());
+    let FfiLegacyDraftListEntry::Draft { summary } = &second.entries[0] else {
+        panic!("valid second summary")
+    };
+    let mut actual = vec![first_id, summary.draft_id.clone()];
+    actual.sort();
+    let mut expected: Vec<_> = saved.iter().map(|draft| draft.draft_id.clone()).collect();
+    expected.sort();
+    assert_eq!(actual, expected);
+    for draft in saved {
+        assert_eq!(
+            runtime
+                .phase1_draft_status(draft.draft_id.clone())
+                .await
+                .unwrap(),
+            draft
+        );
+    }
+    runtime.shutdown().await.unwrap();
+}
+
+fn legacy_input() -> FfiAddDraftInput {
+    FfiAddDraftInput {
+        schema_version: 1,
+        command_type: FfiAddCommandType::CreateUpdate,
+        content: "legacy fixture".into(),
+        identifier: None,
+        title: None,
+        summary: None,
+        location: None,
+        event_timing: None,
+        event_start_date: None,
+        event_end_date: None,
+        event_start_unix_s: None,
+        event_end_unix_s: None,
+        event_timezone: None,
+        price_amount: None,
+        currency: None,
+        unit: None,
+        quantity: None,
+        food_published_at_unix_s: None,
+        food_status: None,
+        media: Vec::new(),
+    }
+}
+
 fn scope() -> FfiComposerScopeRecord {
     FfiComposerScopeRecord {
         schema_version: 1,

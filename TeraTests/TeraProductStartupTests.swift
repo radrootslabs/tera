@@ -10,6 +10,7 @@ final class TeraProductStartupTests: XCTestCase {
     await refresh.entered.wait()
     await TeraScopeFixtures.eventually { fixture.stores.add.isProductReady }
     XCTAssertEqual(Set(fixture.stores.add.schemas.map(\.commandType)), Set(TeraAddCommandType.allCases))
+    await TeraScopeFixtures.eventually { fixture.stores.add.drafts.first?.form?.content == "old" }
     XCTAssertEqual(fixture.stores.add.drafts.first?.form?.content, "old")
     XCTAssertEqual(fixture.stores.today.presentation.refresh, .refreshing)
     fixture.stores.add.updateForm(\.content, "Compose while refresh is held")
@@ -27,18 +28,20 @@ final class TeraProductStartupTests: XCTestCase {
     let task = Task { await fixture.stores.resume() }
     await page.entered.wait()
     await drafts.entered.wait()
+    let validated = fixture.stores.add.schemas
+    XCTAssertEqual(validated.count, 5)
     fixture.stores.suspend()
     await task.value
     XCTAssertTrue(fixture.stores.today.cards.isEmpty)
-    XCTAssertTrue(fixture.stores.add.schemas.isEmpty)
+    XCTAssertEqual(fixture.stores.add.schemas, validated)
     XCTAssertTrue(fixture.stores.add.drafts.isEmpty)
-    XCTAssertFalse(fixture.stores.add.isProductReady)
+    XCTAssertTrue(fixture.stores.add.isProductReady)
     XCTAssertEqual(fixture.stores.today.observationState, .stopped)
     XCTAssertEqual(fixture.stores.add.observationState, .stopped)
     await page.resume.open()
     await drafts.resume.open()
     try await fixture.close()
-    XCTAssertTrue(fixture.stores.add.schemas.isEmpty)
+    XCTAssertEqual(fixture.stores.add.schemas, validated)
     XCTAssertTrue(fixture.stores.add.drafts.isEmpty)
     XCTAssertTrue(fixture.stores.today.cards.isEmpty)
   }
@@ -54,7 +57,7 @@ final class TeraProductStartupTests: XCTestCase {
     await task.value
     XCTAssertEqual(fixture.stores.today.observationState, .stopped)
     XCTAssertEqual(fixture.stores.add.observationState, .stopped)
-    XCTAssertFalse(fixture.stores.add.isProductReady)
+    XCTAssertTrue(fixture.stores.add.isProductReady, "Validated local editing remains available while optional reads are cancelled")
     await refresh.resume.open()
     await drafts.resume.open()
     await fixture.releaseObservers()
@@ -124,6 +127,7 @@ final class TeraProductStartupTests: XCTestCase {
     await newRefresh.entered.wait()
     await old.value
     await TeraScopeFixtures.eventually { fixture.stores.add.isProductReady }
+    await TeraScopeFixtures.eventually { fixture.stores.add.drafts.first?.form?.content == "replacement" }
     XCTAssertEqual(fixture.stores.add.drafts.first?.form?.content, "replacement")
     XCTAssertEqual(fixture.stores.today.selectedContext?.relayURLs, snapshot.relay?.relays.map(\.url))
     fixture.stores.suspend()

@@ -9,6 +9,7 @@ protocol TeraRuntimeBackend: Sendable {
   func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt
   func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft
   func listComposers(scope: TeraComposerScope, limit: UInt16, cursor: String?) async throws -> TeraComposerPage
+  func legacyDraftPage(limit: UInt16, cursor: String?) async throws -> TeraLegacyDraftPage
   func snapshot() async throws -> TeraRuntimeSnapshot
   func todayPage(request: TeraTodayPageRequest) async throws -> TeraTodayPage
   func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage
@@ -101,6 +102,10 @@ protocol TeraRuntimeBackend: Sendable {
 }
 
 extension TeraRuntimeBackend {
+  func legacyDraftPage(limit _: UInt16, cursor _: String?) async throws -> TeraLegacyDraftPage {
+    throw addUnsupported()
+  }
+
   func reserveComposerID() async throws -> String {
     throw addUnsupported()
   }

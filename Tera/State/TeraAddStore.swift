@@ -9,12 +9,14 @@ final class TeraAddStore: ObservableObject {
     didSet {
       if form != oldValue {
         message = nil
-        composerFormChanged()
+        composer.observeEditing(form, isEditable: isFormEditable, isRevision: revisionTarget != nil)
       }
     }
   }
 
   @Published private(set) var composerState: TeraComposerSaveState = .idle
+  let recovery: TeraDraftRecoveryStore
+  @Published private(set) var mediaRecoveryMessage: String?
   @Published private(set) var state: TeraAddLoadState = .idle
   @Published private(set) var mediaSupport: TeraAddMediaSupport = .unavailable
   @Published private(set) var blossomConfiguration: TeraBlossomConfigurationStatus?
@@ -56,6 +58,7 @@ final class TeraAddStore: ObservableObject {
       TeraRuntimeObservationBackoff.sleep
   ) {
     self.runtimeClient = runtimeClient
+    recovery = TeraDraftRecoveryStore(client: runtimeClient)
     composer = TeraComposerAutosave(persistence: TeraComposerPersistence(client: runtimeClient))
     self.media = media
     self.identifier = identifier
@@ -71,95 +74,6 @@ final class TeraAddStore: ObservableObject {
 
   var savedComposer: TeraComposerDraft? {
     composer.acknowledged
-  }
-
-  private func composerFormChanged() {
-    guard revisionTarget == nil, isFormEditable else {
-      composer.stop()
-      composerState = revisionTarget == nil ? .idle : .revision
-      return
-    }
-    composer.change(TeraComposerForm(editing: form))
-  }
-
-  func configure(snapshot: TeraRuntimeSnapshot) {
-    let updated = TeraPresentationConfiguration(snapshot: snapshot)
-    let scope = TeraComposerScope(authorPublicKey: updated.publicKey, localNetworkID: updated.context.id)
-    let scopeChanged = composer.scope != scope
-    if scopeChanged {
-      composer.reset(scope: scope)
-    }
-    if let configuration, configuration != updated {
-      stop()
-      schemas = []
-      drafts = []
-      if scopeChanged {
-        activeDraft = nil
-        revisionTarget = nil
-        revisionOperationID = nil
-        form = TeraAddPresentation.newForm(type: form.commandType, identifier: identifier, clock: clock)
-      }
-      state = .idle
-      mediaSupport = .unavailable
-      message = nil
-      lastFailureCode = nil
-    }
-    blossomGeneration = blossomGeneration.invalidated()
-    configuration = updated
-    activePublicKey = snapshot.identity.publicKeyHex
-    blossomConfiguration = snapshot.blossomConfiguration
-    blossomEvidence = snapshot.blossomEvidence
-  }
-
-  func start() async {
-    guard !observation.isActive, !Task.isCancelled else { return }
-    composer.resume()
-    startObservation()
-    guard operationGeneration == nil else { return }
-    message = nil
-    state = .loading
-    generation = generation.invalidated()
-    let requestedGeneration = generation
-    draftsGeneration = draftsGeneration.invalidated()
-    let draftRequest = appliedDraftsGeneration
-    let serviceConfiguration = configuration
-    do {
-      let loaded = try await TeraAddStartupSnapshot.load(client: runtimeClient, support: loadMediaSupport)
-      guard isCurrent(requestedGeneration) else { return }
-      let inventory = draftRequest == appliedDraftsGeneration ? loaded.drafts : drafts
-      try await media?.reconcileBackgroundUploads(drafts: inventory)
-      try ensureCurrent(requestedGeneration)
-      schemas = loaded.schemas
-      if draftRequest == appliedDraftsGeneration {
-        appliedDraftsGeneration = try appliedDraftsGeneration.next()
-        drafts = TeraAddPresentation.sorted(loaded.drafts)
-      }
-      if serviceConfiguration == configuration {
-        mediaSupport = loaded.support
-      }
-      state = .ready
-    } catch {
-      guard isCurrent(requestedGeneration) else { return }
-      state = .failed(TeraAddPresentation.message(for: error))
-    }
-  }
-
-  func stop() {
-    composer.stop()
-    generation = generation.invalidated()
-    operationGeneration = nil
-    probeGeneration = probeGeneration.invalidated()
-    isCheckingBlossom = false
-    operationTask?.cancel()
-    operationTask = nil
-    observation.stop()
-    observationState = .stopped
-    isWorking = false
-  }
-
-  func suspend() {
-    observation.stop()
-    observationState = .stopped
   }
 
   func selectType(_ type: TeraAddCommandType) {
@@ -201,6 +115,31 @@ final class TeraAddStore: ObservableObject {
     revisionOperationID = draft.isRevision ? draft.id : nil
     form = snapshot
     message = draft.state.isEditable ? "Draft reopened." : draft.honestSummary
+  }
+
+  func reopenSaved(_ selection: TeraDraftRecoverySelection) async -> Bool {
+    var applied = false
+    await perform { requested in
+      let recovered = try await self.recovery.load(selection)
+      try self.ensureCurrent(requested)
+      switch recovered {
+      case let .composer(draft):
+        try self.composer.restore(draft)
+        self.activeDraft = nil
+        self.revisionTarget = nil
+        self.revisionOperationID = nil
+        self.form = draft.form.editingValue
+        self.message = "Saved editing reopened."
+      case let .legacy(draft):
+        self.composer.reset(scope: self.composer.scope)
+        self.revisionTarget = nil
+        self.revisionOperationID = draft.isRevision ? draft.id : nil
+        try self.accept(draft, generation: requested)
+        self.message = draft.honestSummary
+      }
+      applied = true
+    }
+    return applied
   }
 
   func importPhotos() async {
@@ -349,8 +288,12 @@ final class TeraAddStore: ObservableObject {
 
   func retry(_ draft: TeraDraftStatus? = nil) async {
     guard let draft = draft ?? activeDraft else { return }
+    await retry(id: draft.id)
+  }
+
+  func retry(id: String) async {
     await perform { requestedGeneration in
-      var current = try await self.runtimeClient.draftStatus(id: draft.id)
+      var current = try await self.runtimeClient.draftStatus(id: id)
       try self.ensureCurrent(requestedGeneration)
       if current.state == .draft || current.state == .mediaPreparing
         || current.state == .readyToSign
@@ -384,9 +327,14 @@ final class TeraAddStore: ObservableObject {
 
   func cancel(_ draft: TeraDraftStatus? = nil) async {
     guard let draft = draft ?? activeDraft, draft.state.canCancel else { return }
+    await cancel(id: draft.id)
+  }
+
+  func cancel(id: String) async {
     await perform { requestedGeneration in
-      let current = try await self.runtimeClient.draftStatus(id: draft.id)
+      let current = try await self.runtimeClient.draftStatus(id: id)
       try self.ensureCurrent(requestedGeneration)
+      guard current.state.canCancel else { return }
       if current.isRevision {
         let cancelled = try await self.runtimeClient.cancelRevision(
           operationID: current.id
@@ -596,19 +544,8 @@ final class TeraAddStore: ObservableObject {
     return status
   }
 
-  private func openedMedia(_ values: [TeraPreparedMedia]? = nil) async throws
-    -> TeraOpenedMedia
-  {
-    let values = values ?? form.media
-    guard !values.isEmpty else { return TeraOpenedMedia(handles: [], files: []) }
-    guard let media else {
-      throw TeraRuntimeFailure.local(
-        operation: "add.media.open",
-        code: "ios.add.media_unavailable",
-        safeMessage: "Prepared photos are unavailable on this device."
-      )
-    }
-    return try await media.open(values)
+  private func openedMedia(_ values: [TeraPreparedMedia]? = nil) async throws -> TeraOpenedMedia {
+    try await TeraOpenedMedia.open(values ?? form.media, using: media)
   }
 
   private func reloadDrafts() async {
@@ -750,43 +687,101 @@ final class TeraAddStore: ObservableObject {
   }
 }
 
+/// Lifecycle remains in the same lexical owner so private callback guards and
+/// editing authority cannot be bypassed by a second controller.
 extension TeraAddStore {
-  var selectedSchema: TeraAddSchema? {
-    schemas.first(where: { $0.commandType == form.commandType })
+  func configure(snapshot: TeraRuntimeSnapshot) {
+    let updated = TeraPresentationConfiguration(snapshot: snapshot)
+    let scope = TeraComposerScope(authorPublicKey: updated.publicKey, localNetworkID: updated.context.id)
+    let scopeChanged = composer.scope != scope
+    recovery.configure(scope: scope)
+    if scopeChanged {
+      composer.reset(scope: scope)
+    }
+    if let configuration, configuration != updated {
+      stop()
+      schemas = []
+      drafts = []
+      if scopeChanged {
+        activeDraft = nil
+        revisionTarget = nil
+        revisionOperationID = nil
+        form = TeraAddPresentation.newForm(type: form.commandType, identifier: identifier, clock: clock)
+      }
+      state = .idle
+      mediaSupport = .unavailable
+      mediaRecoveryMessage = nil
+      message = nil
+      lastFailureCode = nil
+    }
+    blossomGeneration = blossomGeneration.invalidated()
+    configuration = updated
+    activePublicKey = snapshot.identity.publicKeyHex
+    blossomConfiguration = snapshot.blossomConfiguration
+    blossomEvidence = snapshot.blossomEvidence
   }
 
-  var isFormEditable: Bool {
-    guard activeDraft?.isRevision != true, activeDraft?.kind != .retraction else { return false }
-    return activeDraft?.state.isEditable ?? true
+  func start() async {
+    guard !observation.isActive, !Task.isCancelled else { return }
+    composer.resume()
+    startObservation()
+    guard operationGeneration == nil else { return }
+    message = nil
+    state = .loading
+    generation = generation.invalidated()
+    let requestedGeneration = generation
+    draftsGeneration = draftsGeneration.invalidated()
+    let draftRequest = appliedDraftsGeneration
+    let serviceConfiguration = configuration
+    do {
+      let loaded = try await TeraAddStartupSnapshot.load(client: runtimeClient, support: loadMediaSupport) { schemas in
+        guard self.isCurrent(requestedGeneration) else { return }
+        self.schemas = schemas
+        self.state = .ready
+        self.recovery.start()
+      }
+      guard isCurrent(requestedGeneration) else { return }
+      let inventory = draftRequest == appliedDraftsGeneration ? loaded.drafts : drafts
+      if serviceConfiguration == configuration {
+        mediaRecoveryMessage = loaded.mediaMessage
+      }
+      let mediaMessage = await TeraAddStartupSnapshot.reconcile(media: media, drafts: inventory)
+      try ensureCurrent(requestedGeneration)
+      if let mediaMessage {
+        mediaRecoveryMessage = mediaMessage
+      }
+      schemas = loaded.schemas
+      if draftRequest == appliedDraftsGeneration {
+        appliedDraftsGeneration = try appliedDraftsGeneration.next()
+        drafts = TeraAddPresentation.sorted(loaded.drafts)
+      }
+      if serviceConfiguration == configuration {
+        mediaSupport = loaded.support
+      }
+      state = .ready
+    } catch {
+      guard isCurrent(requestedGeneration) else { return }
+      state = .failed(TeraAddPresentation.message(for: error))
+    }
   }
 
-  var isProductReady: Bool {
-    state == .ready && selectedSchema != nil
+  func stop() {
+    recovery.stop()
+    composer.stop()
+    generation = generation.invalidated()
+    operationGeneration = nil
+    probeGeneration = probeGeneration.invalidated()
+    isCheckingBlossom = false
+    operationTask?.cancel()
+    operationTask = nil
+    observation.stop()
+    observationState = .stopped
+    isWorking = false
   }
 
-  var canSave: Bool {
-    isProductReady && isFormEditable && !isWorking
-  }
-
-  var canSubmit: Bool {
-    isProductReady && !isWorking
-      && (activeDraft?.isRevision == true || activeDraft?.state.canAdvance == true
-        || isFormEditable)
-  }
-
-  var acceptsMedia: Bool {
-    mediaLimit > 0
-  }
-
-  var canAddMedia: Bool {
-    isFormEditable && acceptsMedia && form.media.count < mediaLimit
-  }
-
-  private var mediaLimit: Int {
-    guard
-      let maximum = selectedSchema?.fields
-        .first(where: { $0.kind == .media })?.maxItems
-    else { return 0 }
-    return Int(maximum)
+  func suspend() {
+    recovery.stop()
+    observation.stop()
+    observationState = .stopped
   }
 }

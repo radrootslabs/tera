@@ -2,6 +2,8 @@ use std::sync::Arc;
 
 #[path = "composer/runtime.rs"]
 mod composer;
+#[path = "draft_inventory/runtime.rs"]
+mod draft_inventory;
 
 use tera_core::runtime::product_surface::{
     LocalNetworkRelayPolicy, Phase1AddIntent, Phase1ExistingDraft, Phase1MediaCachePolicy,

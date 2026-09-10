@@ -6,6 +6,7 @@
 uniffi::setup_scaffolding!("tera_core");
 
 mod composer;
+mod draft_inventory;
 mod dto;
 mod invalidation;
 pub mod logging;
@@ -18,6 +19,7 @@ mod subscription;
 mod subscription_queue;
 
 pub use composer::*;
+pub use draft_inventory::*;
 pub use dto::*;
 pub use error::{TeraAppError, TeraErrorRecord};
 pub use invalidation::*;

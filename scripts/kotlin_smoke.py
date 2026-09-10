@@ -27,6 +27,7 @@ WRAPPER_HASHES = {
     "gradle/wrapper/gradle-wrapper.jar": "497c8c2a7e5031f6aa847f88104aa80a93532ec32ee17bdb8d1d2f67a194a9c7",
 }
 EXPECTED_CASES = {
+    "tera.smoke.LegacyInventoryTests/nativeLegacyPagesPreserveOperationsAcrossRestartAndRejectMalformedCursors",
     "tera.smoke.ScopeLifecycleTests/scopeAndUnsignedContextsCrossRustWithoutSignedNarrowing",
     "tera.smoke.ScopeLifecycleTests/cancelledCloseWaitRetainsNativeCallbackDrainAndClosedAdmission",
     "tera.smoke.ScopeLifecycleTests/independentSubscriptionDisposalStopsOnlyItsObserver",

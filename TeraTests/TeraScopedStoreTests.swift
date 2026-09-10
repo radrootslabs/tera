@@ -109,10 +109,12 @@ final class TeraScopedStoreTests: XCTestCase {
     let old = Task { await stores.resume() }
     await pause.entered.wait()
     await drafts.entered.wait()
+    let validated = stores.add.schemas
+    XCTAssertEqual(validated.count, 5)
     stores.stop()
     await old.value
-    XCTAssertFalse(stores.add.isProductReady)
-    XCTAssertTrue(stores.add.schemas.isEmpty)
+    XCTAssertTrue(stores.add.isProductReady)
+    XCTAssertEqual(stores.add.schemas, validated)
     XCTAssertTrue(stores.add.drafts.isEmpty)
     XCTAssertEqual(stores.add.observationState, .stopped)
     let calls = await backend.counts[.drafts, default: 0]
@@ -122,5 +124,7 @@ final class TeraScopedStoreTests: XCTestCase {
     await firstObserver.resume.open()
     await secondObserver.resume.open()
     _ = try await client.stop()
+    XCTAssertEqual(stores.add.schemas, validated)
+    XCTAssertTrue(stores.add.drafts.isEmpty)
   }
 }

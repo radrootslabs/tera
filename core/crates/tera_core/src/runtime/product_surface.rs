@@ -65,7 +65,8 @@ pub use model::{
 #[cfg(feature = "mobile-social")]
 pub use outbox::{
     Phase1AddIntent, Phase1CancellationPolicy, Phase1DraftError, Phase1DraftEventTiming,
-    Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftMediaSnapshot, Phase1DraftStatus,
+    Phase1DraftFormSnapshot, Phase1DraftKind, Phase1DraftListEntry, Phase1DraftMediaSnapshot,
+    Phase1DraftPage, Phase1DraftRepairReason, Phase1DraftStatus, Phase1DraftSummary,
     Phase1ExistingDraft, Phase1MediaOrphanRecord, Phase1MediaPrerequisite, Phase1MediaStage,
     Phase1NativeUploadJob, Phase1OutboxState, Phase1ProfileStatus, Phase1QueueIntent,
     Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1ReviseIntent, Phase1RevisionPhase,
