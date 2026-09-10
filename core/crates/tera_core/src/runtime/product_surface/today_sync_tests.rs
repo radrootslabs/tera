@@ -68,6 +68,7 @@ pub(super) fn runtime(source: Arc<dyn EventSource>) -> TeraRuntime {
         lifecycle: Default::default(),
         platform_app: RwLock::new(None),
         store_public_key: None,
+        today_projection_lock: Default::default(),
         mutations: Default::default(),
         settings_lock: tokio::sync::Mutex::new(()),
         identity_session: tokio::sync::RwLock::new(None),

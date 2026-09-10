@@ -10,7 +10,7 @@ use super::{
     SupportingProfile, TodayCardType,
 };
 
-const CLASSIFIED_CARD_SCHEMA_VERSION: u16 = 1;
+const CLASSIFIED_CARD_SCHEMA_VERSION: u16 = 2;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -202,8 +202,6 @@ fn card(
         content: event.content().to_owned(),
         authored_at: event.created_at_u64(),
         effective_at,
-        legacy_event_start: None,
-        legacy_event_end: None,
         calendar_timing,
         location,
         price_amount,

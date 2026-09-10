@@ -1,0 +1,11 @@
+{
+  "cardId": "9617f75695b64dcfcdcf77f35d44cb98238af2832fb4dbe06b97140860ddd47b",
+  "event": "{\"content\":\"\",\"created_at\":1800000000,\"id\":\"f67b2f5785757cd8dab29e259955157085c7c8adebfc1c36912fac5a974e27d6\",\"kind\":31922,\"pubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"sig\":\"a792621e1fc57c0608f4fc0f7092174e75b979cdeaf863bc92f99187979701a90b4b0adda823a104e9b51e4f37d48c2634421c0c9860a39bf416edd2c25b7459\",\"tags\":[[\"d\",\"harvest-day\"],[\"title\",\"Harvest day\"],[\"start\",\"2026-09-05\"],[\"end\",\"2026-09-07\"]]}",
+  "projection": "{\"schemaVersion\":1,\"contextId\":\"victoria\",\"contextGeneration\":1,\"storeGeneration\":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],\"sourceEvents\":1,\"contentGeneration\":6138091618127561838,\"cards\":[{\"card\":{\"schemaVersion\":1,\"cardId\":\"9617f75695b64dcfcdcf77f35d44cb98238af2832fb4dbe06b97140860ddd47b\",\"cardType\":\"Event\",\"sourceEventId\":\"f67b2f5785757cd8dab29e259955157085c7c8adebfc1c36912fac5a974e27d6\",\"sourceAddress\":\"31922:585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df:harvest-day\",\"authorPubkey\":\"585591529da0bab31b3b1b1f986611cf5f435dca84f978c89ee8a40cca7103df\",\"contractId\":\"radroots.calendar.date_event.v1\",\"title\":\"Harvest day\",\"content\":\"\",\"authoredAt\":1800000000,\"effectiveAt\":1788566400,\"eventStart\":1788566400,\"eventEnd\":1788739200,\"contextRank\":\"MissingLocalityFallback\",\"inclusionReason\":\"locality_missing_fallback\",\"media\":[],\"lifecycle\":\"Active\",\"rank\":null},\"locality\":[]}],\"profiles\":{},\"thread\":[],\"overlays\":{},\"mediaCache\":{\"schemaVersion\":1,\"configuration\":null,\"entries\":{}},\"queryScope\":[11,203,36,96,172,171,131,36,155,175,50,198,91,169,59,191,239,46,108,61,140,132,88,59,214,10,66,117,90,248,75,51],\"visibilityDigest\":[77,213,177,108,8,70,188,140,46,174,28,229,248,81,25,255,9,70,198,29,226,165,30,0,150,65,1,247,36,211,156,221]}",
+  "provenance": {
+    "producer_commit": "0f592663540ea913f5c577c66739259ce15cfdca",
+    "producer_test": "every_local_presentation_read_reconstructs_untyped_v1_calendar_without_rewriting_source",
+    "synthetic": true,
+    "projection_sha256": "b36d04578c610522cbbc520cdeea8e7e84c0253f3cb1aa04e7b0a27af761201f"
+  }
+}

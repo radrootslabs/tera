@@ -161,12 +161,6 @@ pub struct ClassifiedCard {
     pub content: String,
     pub authored_at: u64,
     pub effective_at: u64,
-    // Read-only v1 hash compatibility; retired by the versioned C048 rebuild.
-    // New projections carry only typed calendar values and leave these empty.
-    #[serde(rename = "eventStart")]
-    pub(crate) legacy_event_start: Option<u64>,
-    #[serde(rename = "eventEnd")]
-    pub(crate) legacy_event_end: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub calendar_timing: Option<super::CalendarTiming>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

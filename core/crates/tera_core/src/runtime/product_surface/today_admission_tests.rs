@@ -69,7 +69,7 @@ fn observed(event: SignedEvent) -> ObservedEvent {
 // Shared typestates accept caller-supplied verifier/policy implementations.
 // The app's public direct-ingest boundary must use its actual crypto/profile
 // rules before writing even if another host supplied permissive evidence.
-struct PermissiveEvidence;
+pub(super) struct PermissiveEvidence;
 impl SignatureVerifier for PermissiveEvidence {
     fn verify_signature(
         &self,

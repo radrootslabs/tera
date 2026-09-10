@@ -1,4 +1,4 @@
-use super::tests::{context, ingest, keys, signed_owned};
+use super::tests::{context, ingest, signed_owned};
 use super::*;
 use radroots_event::calendar::{
     AuthoredCalendarDateEvent, AuthoredCalendarTimeEvent, CalendarDate,
@@ -65,7 +65,6 @@ async fn actual_admitted_calendar_projection_keeps_dates_instants_and_zones_dist
     assert_eq!(timing.start().as_str(), "2026-09-05");
     assert_eq!(timing.end_exclusive().unwrap().as_str(), "2026-09-07");
     assert_eq!(civil_card.effective_at, AUTHORED);
-    assert!(civil_card.legacy_event_start.is_none() && civil_card.legacy_event_end.is_none());
     let timed_card = &page
         .items
         .iter()
@@ -88,94 +87,4 @@ async fn actual_admitted_calendar_projection_keeps_dates_instants_and_zones_dist
     .unwrap();
     assert_eq!(raw.items()[0].event(), &civil);
     assert_eq!(raw.items()[1].event(), &timed_event);
-}
-
-#[tokio::test]
-async fn every_local_presentation_read_reconstructs_untyped_v1_calendar_without_rewriting_source() {
-    let runtime = TeraRuntime::test_memory().unwrap();
-    let context = context(None, 1);
-    let event = date_event();
-    ingest(&runtime, &context, event.clone(), NOW).await;
-    let storage = runtime.client.storage().unwrap();
-    let generation = projection_generation().unwrap();
-    let mut legacy = load_state(storage, &context, generation)
-        .await
-        .unwrap()
-        .unwrap();
-    let card_id = legacy.cards[0].card.card_id;
-    // Reproduce the old v1 value/hash using only a synthetic historical fixture.
-    let old_midnight = chrono::NaiveDate::from_ymd_opt(2026, 9, 5)
-        .unwrap()
-        .and_hms_opt(0, 0, 0)
-        .unwrap()
-        .and_utc()
-        .timestamp() as u64;
-    legacy.cards[0].card.calendar_timing = None;
-    legacy.cards[0].card.legacy_event_start = Some(old_midnight);
-    legacy.cards[0].card.legacy_event_end = Some(old_midnight + 2 * 86_400);
-    legacy.cards[0].card.effective_at = old_midnight;
-    legacy.content_generation = content_generation(&legacy).unwrap();
-    assert!(
-        !String::from_utf8(encode(&legacy).unwrap())
-            .unwrap()
-            .contains("calendarTiming")
-    );
-    let before = EventStore::query_raw(
-        storage,
-        EventQuery::all(EventQueryBounds::first(20).unwrap()),
-    )
-    .await
-    .unwrap();
-    for reader in ["page", "search", "me", "reconcile"] {
-        store_state(storage, &context, generation, &legacy)
-            .await
-            .unwrap();
-        let selected = match reader {
-            "page" => {
-                runtime
-                    .phase1_today_page(&context, TodayPageRequest::first(20, NOW))
-                    .await
-                    .unwrap()
-                    .items
-            }
-            "search" => runtime
-                .phase1_search(&context, "Harvest", 20, NOW)
-                .await
-                .unwrap()
-                .into_iter()
-                .filter_map(|result| result.card)
-                .collect(),
-            "me" => {
-                runtime
-                    .phase1_me(&context, &keys().public_key().to_string(), NOW)
-                    .await
-                    .unwrap()
-                    .cards
-            }
-            "reconcile" => {
-                runtime
-                    .phase1_today_reconcile(&context, NOW, &[card_id.to_hex()], None)
-                    .await
-                    .unwrap()
-                    .items
-            }
-            _ => unreachable!(),
-        };
-        assert_eq!(selected.len(), 1, "{reader}");
-        assert_eq!(selected[0].card.card_id, card_id);
-        assert_eq!(selected[0].card.source_event_id, event.id().to_hex());
-        assert!(matches!(
-            selected[0].card.calendar_timing,
-            Some(CalendarTiming::DateBased(_))
-        ));
-        assert_eq!(selected[0].card.effective_at, AUTHORED);
-        assert!(selected[0].card.legacy_event_start.is_none());
-        let after = EventStore::query_raw(
-            storage,
-            EventQuery::all(EventQueryBounds::first(20).unwrap()),
-        )
-        .await
-        .unwrap();
-        assert_eq!(before, after, "{reader} changed signed history");
-    }
 }

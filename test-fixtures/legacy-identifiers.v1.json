@@ -2525,7 +2525,15 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/calendar_v1_fixture.json",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration_tests.rs",
           "count": 1
         }
       ]
@@ -3683,6 +3691,16 @@
       "category": "persisted_data",
       "occurrences": [
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-content-generation.v2",
+      "category": "persisted_data",
+      "occurrences": [
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 1
         }
@@ -3710,6 +3728,16 @@
     },
     {
       "identifier": "radroots.today-projection.v1",
+      "category": "persisted_data",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots.today-projection.v2",
       "category": "persisted_data",
       "occurrences": [
         {
@@ -4067,6 +4095,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration_tests.rs",
+          "count": 4
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_tests.rs",
@@ -4521,6 +4553,14 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration.rs",
+          "count": 15
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration_tests.rs",
+          "count": 5
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_counted_storage_tests.rs",
           "count": 2
         },
@@ -4567,6 +4607,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",
           "count": 1
         }
@@ -4607,6 +4651,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
           "count": 4
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration_tests.rs",
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",

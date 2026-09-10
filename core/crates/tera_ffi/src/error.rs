@@ -154,6 +154,11 @@ impl From<TodayError> for TeraAppError {
             TodayError::CursorPositionMissing | TodayError::Cursor(_) => {
                 ("today_cursor_invalid", true, &["restart_pagination"][..])
             }
+            TodayError::UnsupportedProjectionVersion => (
+                "today_reader_unsupported",
+                false,
+                &["upgrade_application"][..],
+            ),
             TodayError::RuntimeUnavailable => ("today_runtime_unavailable", true, &["retry"][..]),
             TodayError::InboundMedia(error) => (
                 tera_core::error::recovery::inbound_media_code(&error),

@@ -24,7 +24,6 @@ mobile-social = [
   "radroots_sdk/blossom",
   "radroots_sdk/nostr",
   "radroots_sdk/sync",
-  "dep:tokio",
 ]
 
 [dependencies]
@@ -65,7 +64,7 @@ hex = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, optional = true, features = [
+tokio = { workspace = true, features = [
   "fs",
   "io-util",
   "rt",

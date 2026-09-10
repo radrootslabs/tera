@@ -47,8 +47,8 @@ use super::{Phase1MediaCachePolicy, Phase1VerifiedMediaReceipt};
 use crate::runtime::TeraRuntime;
 
 const TODAY_PROJECTION_ID: &str = "radroots.today.v1";
-const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 1;
-const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 2;
+const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 2;
+const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 3;
 const TODAY_PAGE_LIMIT_MAX: u16 = 100;
 const TODAY_SEARCH_LIMIT_MAX: u16 = 100;
 #[cfg(feature = "mobile-social")]
@@ -57,10 +57,17 @@ const TODAY_SYNC_PAGE_LIMIT: u16 = 500;
 const TODAY_SYNC_MAX_PAGES: u16 = 8;
 #[cfg(feature = "mobile-social")]
 const TODAY_SYNC_KINDS: [u32; 7] = [0, 1, 5, 1111, 30_402, 31_922, 31_923];
-const PROJECTION_GENERATION_DOMAIN: &[u8] = b"radroots.today-projection.v1\0";
-const PROJECTION_CONTENT_DOMAIN: &[u8] = b"radroots.today-content-generation.v1\0";
+const PROJECTION_GENERATION_DOMAIN: &[u8] = b"radroots.today-projection.v2\0";
+const PROJECTION_CONTENT_DOMAIN: &[u8] = b"radroots.today-content-generation.v2\0";
 const PROJECTION_DOCUMENT_KEY_DOMAIN: &[u8] = b"radroots.today-document-key.v1\0";
 const SNAPSHOT_ID_DOMAIN: &[u8] = b"radroots.today-snapshot-id.v2\0";
+
+#[path = "today_calendar_migration.rs"]
+mod calendar_migration;
+
+#[cfg(test)]
+#[path = "today_calendar_migration_tests.rs"]
+mod calendar_migration_tests;
 
 #[path = "today_paging_scope.rs"]
 mod paging_scope;
@@ -185,6 +192,8 @@ pub enum TodayError {
     EventNotVisible,
     #[error("today projection state is corrupt")]
     CorruptProjection,
+    #[error("today projection requires a different supported reader")]
+    UnsupportedProjectionVersion,
     #[error(transparent)]
     Cursor(#[from] CursorError),
     #[error(transparent)]
@@ -233,6 +242,8 @@ struct TodayProjectionState {
     query_scope: Option<[u8; 32]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     visibility_digest: Option<[u8; 32]>,
+    #[serde(default)]
+    quarantined_source_ids: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -296,10 +307,13 @@ impl TeraRuntime {
         let requested_updated_at_unix_ms = now_unix_seconds
             .checked_mul(1_000)
             .ok_or(TodayError::InvalidRequest)?;
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
+        // Reject an unsupported reader before rebuilding any owner metadata.
+        calendar_migration::ready(storage).await?;
         let visibility_digest = *EventStore::rebuild_visibility(storage)
             .await?
             .digest()
@@ -308,7 +322,10 @@ impl TeraRuntime {
         let generation = projection_generation()?;
         let projection_id = projection_id()?;
         let key = projection_document_key(context);
-        let prior = load_state(storage, context, generation).await?;
+        let prior = match load_state(storage, context, generation).await? {
+            Some(state) => Some(state),
+            None => calendar_migration::legacy_state(storage, context).await?,
+        };
         let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
 
         if update == TodayProjectionUpdate::Incremental
@@ -317,12 +334,15 @@ impl TeraRuntime {
                     && state.query_scope == Some(query_scope)
                     && state.visibility_digest == Some(visibility_digest)
                     && calendar_projection_ready(state)
+                    && state.schema_version == TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION
             })
         {
             let state = prior.expect("checked present");
             return Ok(refresh_receipt(update, &state, false));
         }
 
+        let rebuild =
+            calendar_migration::begin(storage, requested_updated_at_unix_ms, &event_status).await?;
         let visible = query_all_visible(storage).await?;
         let local_media = prior.as_ref().map(local_media_evidence).unwrap_or_default();
         let overlays = prior
@@ -376,17 +396,18 @@ impl TeraRuntime {
             })
             .unwrap_or(0);
         let updated_at_unix_ms = requested_updated_at_unix_ms.max(prior_updated_at);
-        ProjectionStore::checkpoint(
-            storage,
-            ProjectionCheckpoint::new(
-                projection_id,
-                generation,
-                source_position,
-                event_status.raw_events(),
-                updated_at_unix_ms,
-            )?,
-        )
-        .await?;
+        let checkpoint = ProjectionCheckpoint::new(
+            projection_id,
+            generation,
+            source_position,
+            event_status.raw_events(),
+            updated_at_unix_ms,
+        )?;
+        if let Some(ticket) = rebuild {
+            calendar_migration::complete(storage, &ticket, checkpoint).await?;
+        } else {
+            ProjectionStore::checkpoint(storage, checkpoint).await?;
+        }
         Ok(refresh_receipt(update, &state, changed))
     }
 
@@ -500,10 +521,15 @@ impl TeraRuntime {
         as_of: u64,
     ) -> Result<Option<TodayProjectionState>, TodayError> {
         let state = load_state(storage, context, projection_generation()?).await?;
-        if state
+        let needs_upgrade = state
             .as_ref()
             .is_some_and(|value| !calendar_projection_ready(value))
-        {
+            || (state.is_none()
+                && (!calendar_migration::ready(storage).await?
+                    || calendar_migration::legacy_state(storage, context)
+                        .await?
+                        .is_some()));
+        if needs_upgrade {
             self.phase1_refresh_today(context, as_of, TodayProjectionUpdate::Rebuild)
                 .await?;
             load_state(storage, context, projection_generation()?).await
@@ -1401,12 +1427,17 @@ fn project_state(
     overlays: BTreeMap<String, LocalAuthorOverlay>,
 ) -> Result<TodayProjectionState, TodayError> {
     let mut cards = Vec::new();
+    let mut quarantined_source_ids = Vec::new();
     let mut profiles = BTreeMap::new();
     let mut thread = Vec::new();
     for stored in visible {
-        let verified = verify_nip01_event(stored.event().envelope().clone())
-            .map_err(|_| TodayError::CorruptProjection)?;
-        let admitted = admit_verified_event(verified).map_err(|_| TodayError::CorruptProjection)?;
+        let admitted = verify_nip01_event(stored.event().envelope().clone())
+            .ok()
+            .and_then(|verified| admit_verified_event(verified).ok());
+        let Some(admitted) = admitted else {
+            quarantined_source_ids.push(stored.event().id().to_hex());
+            continue;
+        };
         match &admitted {
             RadrootsAdmittedEvent::Profile(profile) => {
                 profiles.insert(
@@ -1455,6 +1486,7 @@ fn project_state(
         media_cache: Phase1MediaCacheIndex::default(),
         query_scope: None,
         visibility_digest: None,
+        quarantined_source_ids,
     })
 }
 
@@ -1765,6 +1797,9 @@ async fn load_state(
     context: &LocalNetwork,
     generation: ProjectionGeneration,
 ) -> Result<Option<TodayProjectionState>, TodayError> {
+    if !calendar_migration::ready(storage).await? {
+        return Ok(None);
+    }
     let document = ProjectionStore::projection_document(
         storage,
         projection_id()?,
@@ -1831,7 +1866,7 @@ async fn load_snapshot(
         .await?
         .map(|snapshot| {
             if snapshot.generation() != generation {
-                return Err(TodayError::CorruptProjection);
+                return Err(CursorError::Stale.into());
             }
             decode_snapshot(snapshot.value())
         })
@@ -1940,7 +1975,7 @@ fn decode_snapshot(value: &[u8]) -> Result<FrozenTodaySnapshot, TodayError> {
         schema_version: u16,
     }
     let header: Header = decode(value)?;
-    if header.schema_version == 1 {
+    if matches!(header.schema_version, 1 | 2) {
         return Err(CursorError::Stale.into());
     }
     let snapshot: FrozenTodaySnapshot = match serde_json::from_slice(value) {
@@ -1980,7 +2015,11 @@ enum LegacyMediaVerificationState {
 }
 
 fn migrate_legacy_state(value: &[u8]) -> Result<TodayProjectionState, TodayError> {
-    verify_legacy_content_generation(value)?;
+    verify_legacy_content_generation(
+        value,
+        TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION,
+        PROJECTION_CONTENT_DOMAIN,
+    )?;
     let mut legacy: serde_json::Value = decode(value)?;
     migrate_legacy_media_values(&mut legacy)?;
     let object = legacy
@@ -2001,7 +2040,11 @@ fn migrate_legacy_state(value: &[u8]) -> Result<TodayProjectionState, TodayError
     Ok(state)
 }
 
-fn verify_legacy_content_generation(value: &[u8]) -> Result<(), TodayError> {
+fn verify_legacy_content_generation(
+    value: &[u8],
+    schema: u16,
+    domain: &[u8],
+) -> Result<(), TodayError> {
     let parsed: serde_json::Value = decode(value)?;
     let expected = parsed
         .get("contentGeneration")
@@ -2011,7 +2054,7 @@ fn verify_legacy_content_generation(value: &[u8]) -> Result<(), TodayError> {
     if parsed
         .get("schemaVersion")
         .and_then(serde_json::Value::as_u64)
-        != Some(u64::from(TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION))
+        != Some(u64::from(schema))
     {
         return Err(TodayError::CorruptProjection);
     }
@@ -2037,7 +2080,7 @@ fn verify_legacy_content_generation(value: &[u8]) -> Result<(), TodayError> {
     canonical.extend_from_slice(&value[..number_start]);
     canonical.push(b'0');
     canonical.extend_from_slice(&value[number_end..]);
-    let digest = Sha256::digest([PROJECTION_CONTENT_DOMAIN, canonical.as_slice()].concat());
+    let digest = Sha256::digest([domain, canonical.as_slice()].concat());
     let observed = u64::from_be_bytes(digest[..8].try_into().expect("digest prefix")).max(1);
     (observed == expected)
         .then_some(())
@@ -2553,6 +2596,7 @@ mod tests {
             lifecycle: Default::default(),
             platform_app: RwLock::new(None),
             store_public_key: None,
+            today_projection_lock: Default::default(),
             mutations: Default::default(),
             settings_lock: tokio::sync::Mutex::new(()),
             identity_session: tokio::sync::RwLock::new(None),
