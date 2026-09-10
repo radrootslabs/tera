@@ -74,6 +74,10 @@ pub use reconciliation::TodayReconciliation;
 mod reconciliation_tests;
 
 #[cfg(test)]
+#[path = "today_performance_tests.rs"]
+mod performance_tests;
+
+#[cfg(test)]
 #[path = "today_scope_tests.rs"]
 mod scope_tests;
 
@@ -391,17 +395,14 @@ impl TeraRuntime {
         if request.limit == 0 || request.limit > TODAY_PAGE_LIMIT_MAX {
             return Err(TodayError::InvalidRequest);
         }
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let event_status = EventStore::status(storage).await?;
-        let algorithm_generation = projection_generation()?;
-        let projection_id = projection_id()?;
+        // Decode and validate all caller-owned scope before any storage I/O.
+        let decoded_scope = request
+            .cursor
+            .as_deref()
+            .map(TodayCursor::scope)
+            .transpose()?;
         let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
-
-        let (scope, snapshot, after) = if let Some(cursor) = request.cursor.as_deref() {
-            let scope = TodayCursor::scope(cursor)?;
+        if let Some(scope) = &decoded_scope {
             if scope.context_id != context.id
                 || scope.context_generation != context.generation
                 || scope.query_scope != query_scope
@@ -411,7 +412,19 @@ impl TeraRuntime {
             if request.as_of.is_some_and(|as_of| as_of != scope.as_of) {
                 return Err(CursorError::SnapshotMismatch.into());
             }
-            if scope.store_generation != *event_status.generation().as_bytes() {
+        } else if request.as_of.is_none_or(|value| value == 0) {
+            return Err(TodayError::InvalidRequest);
+        }
+        let storage = self
+            .client
+            .storage()
+            .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let store_generation = current_store_generation(storage).await?;
+        let algorithm_generation = projection_generation()?;
+        let projection_id = projection_id()?;
+        let (scope, snapshot, after) = if let Some(cursor) = request.cursor.as_deref() {
+            let scope = decoded_scope.expect("cursor presence was decoded above");
+            if scope.store_generation != store_generation {
                 return Err(CursorError::Stale.into());
             }
             let position = TodayCursor::decode(cursor, &scope)?;
@@ -453,8 +466,7 @@ impl TeraRuntime {
                         .ok_or(TodayError::ProjectionMissing)?
                 }
             };
-            if state.store_generation != *event_status.generation().as_bytes()
-                || state.query_scope != Some(query_scope)
+            if state.store_generation != store_generation || state.query_scope != Some(query_scope)
             {
                 return Err(CursorError::Stale.into());
             }
@@ -1320,6 +1332,17 @@ fn refresh_thread_profiles(state: &mut TodayProjectionState) {
     for entry in &mut state.thread {
         entry.author_profile = state.profiles.get(&entry.author_pubkey).cloned();
     }
+}
+
+// A bounded owner query authenticates the source generation without invoking
+// full visibility/status reduction. The backend may read one look-ahead row.
+async fn current_store_generation(storage: &dyn EventStore) -> Result<[u8; 32], TodayError> {
+    Ok(
+        *EventStore::query_raw(storage, EventQuery::all(EventQueryBounds::first(1)?))
+            .await?
+            .generation()
+            .as_bytes(),
+    )
 }
 
 async fn query_all_visible(
@@ -2248,7 +2271,7 @@ mod tests {
         SignedEvent::from_wire_verified_id(wire, raw).expect("signed event")
     }
 
-    fn visible_admission(event: SignedEvent, observed_at: u64) -> EventAdmission {
+    pub(super) fn visible_admission(event: SignedEvent, observed_at: u64) -> EventAdmission {
         let selected = admit_verified_event(
             verify_nip01_event(event.envelope().clone()).expect("codec verification"),
         )

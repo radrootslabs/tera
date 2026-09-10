@@ -4337,6 +4337,14 @@
           "count": 4
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_counted_storage_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_performance_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_sync_tests.rs",
           "count": 2
         },
@@ -4459,6 +4467,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_backfill_tests.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_counted_storage_tests.rs",
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",

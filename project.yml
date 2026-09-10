@@ -84,6 +84,8 @@ targets:
       - path: TeraTests/TeraStoreRecoveryTests.swift
       - path: TeraTests/TeraAddObservationStartupTests.swift
       - path: TeraTests/TeraMediaStoreTests.swift
+      - path: TeraTests/TeraMediaBudgetTests.swift
+      - path: TeraTests/TeraTodayRenderingTests.swift
       - path: TeraTests/TeraMediaFileFixture.swift
       - path: TeraTests/TeraMediaOwnershipFFITests.swift
       - path: TeraTests/TeraBindingPortabilityTests.swift

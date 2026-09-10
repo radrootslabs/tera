@@ -41,7 +41,7 @@ impl TeraRuntime {
         if state.query_scope != Some(query_scope)
             || state.visibility_digest.is_none()
             || expected_generation.is_some_and(|value| value != state.content_generation)
-            || state.store_generation != *EventStore::status(storage).await?.generation().as_bytes()
+            || state.store_generation != current_store_generation(storage).await?
         {
             return Err(CursorError::Stale.into());
         }

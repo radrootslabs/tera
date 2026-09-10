@@ -13,7 +13,7 @@ struct TeraTodayDetailView: View {
   var body: some View {
     List {
       Section {
-        TeraTodayCardView(card: card, context: context, mediaStore: mediaStore)
+        TeraTodayCardView(card: card, context: context, mediaStore: mediaStore, presentation: .detail)
       }
       if !card.thread.isEmpty {
         Section("Conversation") {

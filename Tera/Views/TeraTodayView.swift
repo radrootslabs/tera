@@ -194,10 +194,12 @@ struct TeraTodayCardView: View {
   let context: TeraLocalNetwork?
   @ObservedObject var mediaStore: TeraMediaStore
 
+  var presentation: TeraTodayCardPresentation = .feed
+
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       HStack(alignment: .firstTextBaseline) {
-        Text(card.authorName)
+        Text(presentation.label(card.authorName))
           .font(.subheadline.weight(.semibold))
         Spacer()
         Text(card.type.label)
@@ -208,11 +210,11 @@ struct TeraTodayCardView: View {
       }
 
       if let title = card.title {
-        Text(title)
+        Text(presentation.label(title))
           .font(.headline)
       }
       if !card.content.isEmpty {
-        Text(card.content)
+        Text(presentation.content(card.content))
           .font(card.type == .ask ? .headline : .body)
       }
 
@@ -223,7 +225,7 @@ struct TeraTodayCardView: View {
         foodMetadata
       }
 
-      ForEach(card.media) { media in
+      ForEach(presentation.media(card.media)) { media in
         TeraTrustedMediaView(media: media, context: context, store: mediaStore)
       }
 
@@ -246,7 +248,7 @@ struct TeraTodayCardView: View {
     }
     .padding(.vertical, 8)
     .accessibilityElement(children: .combine)
-    .accessibilityLabel(card.accessibilitySummary)
+    .accessibilityLabel(presentation.accessibility(card))
   }
 
   private var eventMetadata: some View {
@@ -260,7 +262,7 @@ struct TeraTodayCardView: View {
         )
       }
       if let location = card.location {
-        Label(location, systemImage: "mappin.and.ellipse")
+        Label(presentation.label(location), systemImage: "mappin.and.ellipse")
       }
     }
     .font(.subheadline)
@@ -281,13 +283,13 @@ struct TeraTodayCardView: View {
   @ViewBuilder
   private var foodMetadataLabels: some View {
     if let price = card.priceSummary {
-      Label(price, systemImage: "tag")
+      Label(presentation.label(price), systemImage: "tag")
     }
     if let quantity = card.quantity, let unit = card.priceUnit {
-      Label("\(quantity) \(unit) available", systemImage: "basket")
+      Label(presentation.label("\(quantity) \(unit) available"), systemImage: "basket")
     }
     if let location = card.location {
-      Label(location, systemImage: "mappin.and.ellipse")
+      Label(presentation.label(location), systemImage: "mappin.and.ellipse")
     }
   }
 }
@@ -314,8 +316,8 @@ struct TeraLocalMediaContent: View {
     let state = store.state(for: media, context: context)
     Group {
       switch state {
-      case let .ready(artifact):
-        if let image = UIImage(data: artifact.bytes) {
+      case .ready:
+        if let image = store.image(for: media, context: context) {
           Image(uiImage: image)
             .resizable()
             .scaledToFill()
@@ -366,6 +368,6 @@ struct TeraLocalMediaContent: View {
 
   private func accessibilityLabel(for state: TeraMediaPresentationState) -> String {
     guard let alt = media.alt, !alt.isEmpty else { return state.accessibilityLabel }
-    return "\(alt). \(state.accessibilityLabel)"
+    return "\(TeraTodayCardPresentation.feed.label(alt)). \(state.accessibilityLabel)"
   }
 }

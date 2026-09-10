@@ -36,34 +36,50 @@ final class TeraMediaStore: ObservableObject {
     let reference: String
   }
 
-  private struct Work {
-    let id: UUID
-    let task: Task<Void, Never>
+  private struct CachedImage {
+    let image: UIImage
+    let cost: Int
   }
 
   @Published private var states: [Key: TeraMediaPresentationState] = [:]
-
   private let runtimeClient: TeraRuntimeClient
-  private var tasks: [Key: Work] = [:]
+  private let limits: TeraMediaPresentationLimits
+  private let work: TeraMediaWorkQueue
+  private var owners: [Key: UUID] = [:]
+  private var images: [Key: CachedImage] = [:]
+  private var recent: [Key] = []
   private var revoked = Set<Key>()
+  private var visibilityOverflow = false
+  private var reauthorized = Set<Key>()
   private var configuration: TeraPresentationConfiguration?
 
-  init(runtimeClient: TeraRuntimeClient) {
+  init(runtimeClient: TeraRuntimeClient, limits: TeraMediaPresentationLimits = .standard) {
     self.runtimeClient = runtimeClient
+    self.limits = limits
+    work = TeraMediaWorkQueue(limits: limits)
   }
 
-  deinit {
-    for task in tasks.values {
-      task.task.cancel()
-    }
+  var cachedByteCount: Int {
+    images.values.reduce(0) { $0 + $1.cost }
   }
 
-  func state(
-    for media: TeraMediaReference,
-    context: TeraLocalNetwork?
-  ) -> TeraMediaPresentationState {
+  var stateCount: Int {
+    states.count
+  }
+
+  func image(for media: TeraMediaReference, context: TeraLocalNetwork?) -> UIImage? {
+    guard let context else { return nil }
+    let key = key(media: media, context: context)
+    guard allowed(key) else { return nil }
+    touch(key)
+    return images[key]?.image
+  }
+
+  func state(for media: TeraMediaReference, context: TeraLocalNetwork?) -> TeraMediaPresentationState {
     guard let context else { return .unavailable }
-    if let state = states[key(media: media, context: context)] {
+    let key = key(media: media, context: context)
+    guard allowed(key) else { return .unavailable }
+    if let state = states[key] {
       return state
     }
     switch media.verification {
@@ -76,22 +92,14 @@ final class TeraMediaStore: ObservableObject {
   func load(media: TeraMediaReference, context: TeraLocalNetwork?) {
     guard let context else { return }
     let key = key(media: media, context: context)
-    guard !revoked.contains(key), states[key] == nil, tasks[key] == nil else { return }
+    guard allowed(key), states[key] == nil, owners[key] == nil else { return }
     switch media.verification {
-    case .pending:
-      states[key] = .pending
-    case .failed:
-      states[key] = .failed
+    case .pending: set(.pending, for: key)
+    case .failed: set(.failed, for: key)
     case .verified:
-      guard let artifactID = media.verifiedArtifactID else {
-        states[key] = .corrupt
-        return
-      }
+      guard let artifactID = media.verifiedArtifactID else { set(.corrupt, for: key); return }
       start(key: key, context: context) { [runtimeClient] in
-        try await runtimeClient.verifiedMediaArtifact(
-          context: context,
-          artifactID: artifactID
-        )
+        try await runtimeClient.verifiedMediaArtifact(context: context, artifactID: artifactID)
       }
     case .unavailable:
       start(key: key, context: context) { [runtimeClient] in
@@ -103,40 +111,58 @@ final class TeraMediaStore: ObservableObject {
   func retry(media: TeraMediaReference, context: TeraLocalNetwork?) {
     guard let context else { return }
     let key = key(media: media, context: context)
-    guard !revoked.contains(key) else { return }
-    tasks[key]?.task.cancel()
-    tasks[key] = nil
-    states[key] = nil
+    guard allowed(key) else { return }
+    cancel(key)
     start(key: key, context: context) { [runtimeClient] in
       try await runtimeClient.retrieveMedia(context: context, reference: media)
     }
   }
 
-  func reconcileVisibility(
-    previous: [TeraMediaReference], current: [TeraMediaReference], context: TeraLocalNetwork?
-  ) {
+  func reconcileVisibility(previous: [TeraMediaReference], current: [TeraMediaReference],
+                           context: TeraLocalNetwork?)
+  {
     guard let context else { return }
-    let allowed = Set(current.map { key(media: $0, context: context) })
-    for key in allowed where revoked.remove(key) != nil {
-      states[key] = nil
+    let permitted = Set(current.prefix(limits.visibilityEntries).map { key(media: $0, context: context) })
+    if current.count > limits.visibilityEntries {
+      visibilityOverflow = true
+    }
+    reauthorized = permitted
+    for key in permitted where revoked.remove(key) != nil {
+      remove(key)
     }
     for reference in previous {
       let key = key(media: reference, context: context)
-      guard !allowed.contains(key) else { continue }
-      revoked.insert(key)
-      tasks[key]?.task.cancel()
-      tasks[key] = nil
-      states[key] = .unavailable
+      guard !permitted.contains(key) else { continue }
+      if !revoked.contains(key) {
+        if revoked.count < limits.visibilityEntries {
+          revoked.insert(key)
+        } else {
+          visibilityOverflow = true
+        }
+      }
+      cancel(key)
+    }
+    // Under admission pressure only the bounded, explicitly current window may
+    // load. Forgetting an old denial must never authorize a stale reference.
+    if visibilityOverflow {
+      for key in Array(owners.keys) where !allowed(key) {
+        cancel(key)
+      }
+      for key in Array(states.keys) where !allowed(key) {
+        remove(key)
+      }
     }
   }
 
   func reset() {
-    for task in tasks.values {
-      task.task.cancel()
-    }
-    tasks.removeAll(keepingCapacity: false)
-    states.removeAll(keepingCapacity: false)
-    revoked.removeAll(keepingCapacity: false)
+    work.cancelAll()
+    owners.removeAll()
+    states.removeAll()
+    images.removeAll()
+    recent.removeAll()
+    revoked.removeAll()
+    reauthorized.removeAll()
+    visibilityOverflow = false
   }
 
   func configure(snapshot: TeraRuntimeSnapshot) {
@@ -146,46 +172,93 @@ final class TeraMediaStore: ObservableObject {
     configuration = updated
   }
 
-  private func start(
-    key: Key,
-    context: TeraLocalNetwork,
-    operation: @escaping @Sendable () async throws -> TeraVerifiedMediaArtifact?
-  ) {
-    states[key] = .loading
+  private func start(key: Key, context: TeraLocalNetwork,
+                     operation: @escaping @Sendable () async throws -> TeraVerifiedMediaArtifact?)
+  {
     let id = UUID()
-    let task = Task { [weak self] in
+    owners[key] = id
+    set(.loading, for: key)
+    let accepted = work.submit(id: id) { [weak self, runtimeClient, limits] in
       do {
-        let artifact = try await operation()
-        guard let self, isCurrent(key: key, id: id) else { return }
-        guard let artifact else {
-          complete(key: key, id: id, state: .unavailable)
+        try Task.checkCancellation()
+        guard let artifact = try await operation() else {
+          self?.complete(key: key, id: id, state: .unavailable)
           return
         }
-        guard UIImage(data: artifact.bytes) != nil else {
-          _ = try? await runtimeClient.invalidateMediaArtifact(
-            context: context, artifactID: artifact.artifactID
-          )
-          complete(key: key, id: id, state: .corrupt)
-          return
+        guard self?.isCurrent(key, id) == true else { return }
+        do {
+          let image = try await TeraMediaThumbnail.prepare(artifact, limits: limits)
+          guard let self, isCurrent(key, id) else { return }
+          let cost = artifact.bytes.count + image.bytesPerRow * image.height
+          guard cost <= limits.cacheBytes else {
+            complete(key: key, id: id, state: .unavailable)
+            return
+          }
+          images[key] = CachedImage(image: UIImage(cgImage: image), cost: cost)
+          complete(key: key, id: id, state: .ready(artifact))
+        } catch TeraMediaThumbnailFailure.corrupt {
+          guard self?.isCurrent(key, id) == true else { return }
+          _ = try? await runtimeClient.invalidateMediaArtifact(context: context, artifactID: artifact.artifactID)
+          self?.complete(key: key, id: id, state: .corrupt)
+        } catch TeraMediaThumbnailFailure.resourceLimit {
+          self?.complete(key: key, id: id, state: .unavailable)
         }
-        complete(key: key, id: id, state: .ready(artifact))
       } catch is CancellationError {
         self?.complete(key: key, id: id, state: nil)
       } catch {
         self?.complete(key: key, id: id, state: Self.failureState(error))
       }
     }
-    tasks[key] = Work(id: id, task: task)
+    if !accepted {
+      owners[key] = nil; set(.unavailable, for: key)
+    }
   }
 
-  private func isCurrent(key: Key, id: UUID) -> Bool {
-    tasks[key]?.id == id && !Task.isCancelled
+  private func isCurrent(_ key: Key, _ id: UUID) -> Bool {
+    owners[key] == id && allowed(key) && !Task.isCancelled
   }
 
   private func complete(key: Key, id: UUID, state: TeraMediaPresentationState?) {
-    guard tasks[key]?.id == id else { return }
-    tasks[key] = nil
-    states[key] = Task.isCancelled ? nil : state
+    guard owners[key] == id else { return }
+    owners[key] = nil
+    if Task.isCancelled || !allowed(key) {
+      remove(key)
+    } else {
+      set(state, for: key)
+    }
+  }
+
+  private func allowed(_ key: Key) -> Bool {
+    visibilityOverflow ? reauthorized.contains(key) : !revoked.contains(key)
+  }
+
+  private func cancel(_ key: Key) {
+    if let id = owners.removeValue(forKey: key) {
+      work.cancel(id: id)
+    }
+    remove(key)
+  }
+
+  private func remove(_ key: Key) {
+    states[key] = nil
+    images[key] = nil
+    recent.removeAll { $0 == key }
+  }
+
+  private func touch(_ key: Key) {
+    guard states[key] != nil else { return }
+    recent.removeAll { $0 == key }
+    recent.append(key)
+  }
+
+  private func set(_ state: TeraMediaPresentationState?, for key: Key) {
+    guard let state else { remove(key); return }
+    states[key] = state
+    touch(key)
+    while states.count > limits.cacheEntries || cachedByteCount > limits.cacheBytes {
+      guard let oldest = recent.first(where: { owners[$0] == nil }) else { break }
+      remove(oldest)
+    }
   }
 
   private func key(media: TeraMediaReference, context: TeraLocalNetwork) -> Key {
