@@ -6,6 +6,8 @@
 
 mod authoring;
 mod calendar_timing;
+#[cfg(feature = "mobile-social")]
+mod composer;
 mod context;
 mod cursor;
 mod identity;
@@ -29,6 +31,12 @@ pub use authoring::{
     Phase1AddCommand, Phase1ReplacementPolicy, phase1_retraction_plan,
 };
 pub use calendar_timing::{CalendarTiming, CalendarTimingError, DateBasedTiming, TimeBasedTiming};
+#[cfg(feature = "mobile-social")]
+pub use composer::{
+    COMPOSER_CONTENT_MAX_BYTES, COMPOSER_FORM_MAX_BYTES, COMPOSER_MEDIA_MAX,
+    COMPOSER_TEXT_MAX_BYTES, ComposerDraft, ComposerEditSequence, ComposerError, ComposerFormInput,
+    ComposerId, ComposerMediaInput, ComposerPartialForm, ComposerRevision, ComposerScope,
+};
 pub use context::{
     ContextAdmission, ContextRank, LocalNetwork, LocalNetworkAdmission, LocalNetworkError,
     LocalNetworkRelayPolicy, LocalityEvidence,
