@@ -60,7 +60,15 @@ struct TeraRootShell: View {
         if let stores {
           TeraAddView(store: stores.add)
         } else {
+          #if DEBUG
+            if ProcessInfo.processInfo.environment["TERA_IOS_UI_TEST_EDITING_PROTECTION"] == "1" {
+              TeraEditingProtectionUITestSurface()
+            } else {
+              TeraAddUnavailable()
+            }
+          #else
           TeraAddUnavailable()
+          #endif
         }
       }
       .tabItem { Label("Add", systemImage: "plus.circle.fill") }

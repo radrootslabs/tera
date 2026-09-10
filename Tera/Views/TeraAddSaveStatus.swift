@@ -5,6 +5,7 @@ struct TeraAddSaveStatus: View {
   let symbol: String
   let state: TeraComposerSaveState
   var mediaMessage: String?
+  let protection: TeraEditingProtection
 
   var body: some View {
     Section {
@@ -20,5 +21,6 @@ struct TeraAddSaveStatus: View {
           .accessibilityIdentifier("radroots.add.status")
       }
     }
+    TeraEditingProtectionActions(protection: protection)
   }
 }

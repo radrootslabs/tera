@@ -9,6 +9,7 @@ final class TeraAddStore: ObservableObject {
     didSet {
       if form != oldValue {
         message = nil
+        protection.editingChanged()
         composer.observeEditing(form, isEditable: isFormEditable, isRevision: revisionTarget != nil)
       }
     }
@@ -16,6 +17,7 @@ final class TeraAddStore: ObservableObject {
 
   @Published private(set) var composerState: TeraComposerSaveState = .idle
   let recovery: TeraDraftRecoveryStore
+  let protection = TeraEditingProtection()
   @Published private(set) var mediaRecoveryMessage: String?
   @Published private(set) var state: TeraAddLoadState = .idle
   @Published private(set) var mediaSupport: TeraAddMediaSupport = .unavailable
@@ -70,6 +72,7 @@ final class TeraAddStore: ObservableObject {
       clock: clock
     )
     composer.stateChanged = { [weak self] in self?.composerState = $0 }
+    protection.cancelled = { [weak self] in guard let self else { return }; generation = generation.invalidated() }
   }
 
   var savedComposer: TeraComposerDraft? {
@@ -88,22 +91,34 @@ final class TeraAddStore: ObservableObject {
   }
 
   func newDraft(type: TeraAddCommandType? = nil) {
-    guard !isWorking else { return }
+    guard !isWorking, !protection.isWorking, !protection.failed else { return }
+    if needsEditingPreservation {
+      protection.schedule(kind: .editing, save: preservation(), apply: replacement { store, _ in store.replaceWithNew(type: type) })
+    } else {
+      replaceWithNew(type: type)
+    }
+  }
+
+  private func replaceWithNew(type: TeraAddCommandType?) {
     composer.reset(scope: composer.scope)
     generation = generation.invalidated()
     activeDraft = nil
     revisionTarget = nil
     revisionOperationID = nil
-    form = TeraAddPresentation.newForm(
-      type: type ?? form.commandType,
-      identifier: identifier,
-      clock: clock
-    )
+    form = TeraAddPresentation.newForm(type: type ?? form.commandType, identifier: identifier, clock: clock)
     message = nil
   }
 
   func reopen(_ draft: TeraDraftStatus) {
-    guard !isWorking else { return }
+    guard !isWorking, !protection.isWorking, !protection.failed else { return }
+    if needsEditingPreservation {
+      protection.schedule(kind: .reopen, save: preservation(), apply: replacement { store, _ in store.replaceWithLegacy(draft) })
+    } else {
+      replaceWithLegacy(draft)
+    }
+  }
+
+  private func replaceWithLegacy(_ draft: TeraDraftStatus) {
     guard let snapshot = draft.form else {
       message = "This operation has no editable Add form."
       return
@@ -118,28 +133,25 @@ final class TeraAddStore: ObservableObject {
   }
 
   func reopenSaved(_ selection: TeraDraftRecoverySelection) async -> Bool {
-    var applied = false
-    await perform { requested in
-      let recovered = try await self.recovery.load(selection)
-      try self.ensureCurrent(requested)
+    await replaceEditing(kind: .reopen) { store, requested in
+      let recovered = try await store.recovery.load(selection)
+      try store.ensureCurrent(requested)
       switch recovered {
       case let .composer(draft):
-        try self.composer.restore(draft)
-        self.activeDraft = nil
-        self.revisionTarget = nil
-        self.revisionOperationID = nil
-        self.form = draft.form.editingValue
-        self.message = "Saved editing reopened."
+        try store.composer.restore(draft)
+        store.activeDraft = nil
+        store.revisionTarget = nil
+        store.revisionOperationID = nil
+        store.form = draft.form.editingValue
+        store.message = "Saved editing reopened."
       case let .legacy(draft):
-        self.composer.reset(scope: self.composer.scope)
-        self.revisionTarget = nil
-        self.revisionOperationID = draft.isRevision ? draft.id : nil
-        try self.accept(draft, generation: requested)
-        self.message = draft.honestSummary
+        store.composer.reset(scope: store.composer.scope)
+        store.revisionTarget = nil
+        store.revisionOperationID = draft.isRevision ? draft.id : nil
+        try store.accept(draft, generation: requested)
+        store.message = draft.honestSummary
       }
-      applied = true
     }
-    return applied
   }
 
   func importPhotos() async {
@@ -292,36 +304,41 @@ final class TeraAddStore: ObservableObject {
   }
 
   func retry(id: String) async {
-    await perform { requestedGeneration in
-      var current = try await self.runtimeClient.draftStatus(id: id)
-      try self.ensureCurrent(requestedGeneration)
+    await replaceEditing { store, requestedGeneration in
+      var current = try await store.runtimeClient.draftStatus(id: id)
+      try store.ensureCurrent(requestedGeneration)
       if current.state == .draft || current.state == .mediaPreparing
         || current.state == .readyToSign
       {
-        self.activeDraft = current
-        self.revisionOperationID = current.isRevision ? current.id : nil
+        store.composer.reset(scope: store.composer.scope)
+        store.activeDraft = current
+        store.revisionOperationID = current.isRevision ? current.id : nil
         if let form = current.form {
-          self.form = form
+          store.form = form
         }
-        self.message = "Review the draft before submitting again."
+        store.message = "Review the draft before submitting again."
         return
       }
       if current.isRevision {
-        let revision = try await self.runtimeClient.advanceRevision(
+        let revision = try await store.runtimeClient.advanceRevision(
           operationID: current.id
         )
-        try self.accept(revision, generation: requestedGeneration)
-        self.message = revision.honestSummary
+        try store.ensureCurrent(requestedGeneration)
+        store.composer.reset(scope: store.composer.scope)
+        try store.accept(revision, generation: requestedGeneration)
+        store.message = revision.honestSummary
         return
       }
       if current.state.canAdvance {
-        current = try await self.runtimeClient.advanceDraft(
+        current = try await store.runtimeClient.advanceDraft(
           id: current.id,
           expectedRevision: current.revision
         )
       }
-      try self.accept(current, generation: requestedGeneration)
-      self.message = current.honestSummary
+      try store.ensureCurrent(requestedGeneration)
+      store.composer.reset(scope: store.composer.scope)
+      try store.accept(current, generation: requestedGeneration)
+      store.message = current.honestSummary
     }
   }
 
@@ -331,117 +348,68 @@ final class TeraAddStore: ObservableObject {
   }
 
   func cancel(id: String) async {
-    await perform { requestedGeneration in
-      let current = try await self.runtimeClient.draftStatus(id: id)
-      try self.ensureCurrent(requestedGeneration)
+    await replaceEditing { store, requestedGeneration in
+      let current = try await store.runtimeClient.draftStatus(id: id)
+      try store.ensureCurrent(requestedGeneration)
       guard current.state.canCancel else { return }
       if current.isRevision {
-        let cancelled = try await self.runtimeClient.cancelRevision(
+        let cancelled = try await store.runtimeClient.cancelRevision(
           operationID: current.id
         )
-        try self.accept(cancelled, generation: requestedGeneration)
-        self.message = cancelled.honestSummary
+        try store.ensureCurrent(requestedGeneration)
+        store.composer.reset(scope: store.composer.scope)
+        try store.accept(cancelled, generation: requestedGeneration)
+        store.message = cancelled.honestSummary
         return
       }
-      let cancelled = try await self.runtimeClient.cancelAddIntent(
+      let cancelled = try await store.runtimeClient.cancelAddIntent(
         id: current.id,
         expectedRevision: current.revision
       )
-      try self.accept(cancelled, generation: requestedGeneration)
-      self.message = "Local work was cancelled. Any already-published relay effect is preserved."
+      try store.ensureCurrent(requestedGeneration)
+      store.composer.reset(scope: store.composer.scope)
+      try store.accept(cancelled, generation: requestedGeneration)
+      store.message = "Local work was cancelled. Any already-published relay effect is preserved."
     }
   }
 
   func retractAndRevise(_ card: TeraTodayCard) async {
-    await perform { requestedGeneration in
-      guard let publicKey = self.activePublicKey, publicKey == card.authorPublicKey else {
-        throw TeraRuntimeFailure.local(
-          operation: "add.revise",
-          code: "ios.add.revision_not_authorized",
-          safeMessage: "Only your own post can be revised."
-        )
-      }
-      guard let operationID = card.localOperationID else {
-        throw TeraRuntimeFailure.local(
-          operation: "add.revise",
-          code: "ios.add.revision_source_unavailable",
-          safeMessage: "This post cannot be revised losslessly on this device."
-        )
-      }
-      let source = try await self.runtimeClient.draftStatus(id: operationID)
-      try self.ensureCurrent(requestedGeneration)
-      guard let sourceForm = source.form else {
-        throw TeraRuntimeFailure.local(
-          operation: "add.revise",
-          code: "ios.add.revision_form_unavailable",
-          safeMessage: "The original Add form is unavailable on this device."
-        )
-      }
-      self.revisionTarget = TeraRevisionTarget(
-        cardID: card.id,
-        sourceEventID: card.sourceEventID,
-        sourceAddress: card.sourceAddress,
-        authorPublicKey: card.authorPublicKey
-      )
-      self.composer.reset(scope: self.composer.scope)
-      self.revisionOperationID = nil
-      self.activeDraft = nil
-      self.form = sourceForm
-      self.message = "Review the lossless revised copy before publishing."
+    await replaceEditing { store, requestedGeneration in
+      let editing = try await TeraAddCardIntents.revision(card, author: store.activePublicKey, client: store.runtimeClient)
+      try store.ensureCurrent(requestedGeneration)
+      store.revisionTarget = editing.target
+      store.composer.reset(scope: store.composer.scope)
+      store.revisionOperationID = nil
+      store.activeDraft = nil
+      store.form = editing.form
+      store.message = "Review the lossless revised copy before publishing."
     }
   }
 
   func retract(_ card: TeraTodayCard) async {
-    await perform { requestedGeneration in
-      guard let publicKey = self.activePublicKey, publicKey == card.authorPublicKey else {
-        throw TeraRuntimeFailure.local(
-          operation: "add.retract",
-          code: "ios.add.retraction_not_authorized",
-          safeMessage: "Only your own post can be retracted."
-        )
-      }
-      guard let targetKind = card.retractionTargetKind else {
-        throw TeraRuntimeFailure.local(
-          operation: "add.retract",
-          code: "ios.add.retraction_target_invalid",
-          safeMessage: "This post cannot be retracted safely."
-        )
-      }
-      let draftID = self.identifier()
-      guard TeraAddPresentation.isValidIdentifier(draftID) else {
-        throw TeraRuntimeFailure.local(
-          operation: "add.retract",
-          code: "ios.add.identifier_invalid",
-          safeMessage: "The local operation identifier is invalid."
-        )
-      }
-      var status = try await self.runtimeClient.saveRetractionDraft(
-        id: draftID,
-        input: TeraRetractionDraftInput(
-          commandType: card.type.addCommandType,
-          targetCardID: card.id,
-          targetEventID: card.sourceEventID,
-          targetKind: targetKind,
-          targetAddress: card.sourceAddress,
-          reason: "Removed by author."
-        ),
-        authoredAtUnixSeconds: self.clock.unixSeconds(),
-        persistedAtUnixMilliseconds: self.clock.unixMilliseconds()
+    await replaceEditing { store, requestedGeneration in
+      let request = try TeraAddCardIntents.retraction(card, author: store.activePublicKey, identifier: store.identifier)
+      var status = try await store.runtimeClient.saveRetractionDraft(
+        id: request.id, input: request.input,
+        authoredAtUnixSeconds: store.clock.unixSeconds(),
+        persistedAtUnixMilliseconds: store.clock.unixMilliseconds()
       )
-      try self.accept(status, generation: requestedGeneration)
-      status = try await self.runtimeClient.queueAddIntent(
+      try store.ensureCurrent(requestedGeneration)
+      store.composer.reset(scope: store.composer.scope)
+      try store.accept(status, generation: requestedGeneration)
+      status = try await store.runtimeClient.queueAddIntent(
         id: status.id,
         expectedRevision: status.revision
       )
-      try self.accept(status, generation: requestedGeneration)
+      try store.accept(status, generation: requestedGeneration)
       if status.state.canAdvance {
-        status = try await self.runtimeClient.advanceDraft(
+        status = try await store.runtimeClient.advanceDraft(
           id: status.id,
           expectedRevision: status.revision
         )
-        try self.accept(status, generation: requestedGeneration)
+        try store.accept(status, generation: requestedGeneration)
       }
-      self.message = status.honestSummary
+      store.message = status.honestSummary
     }
   }
 
@@ -497,11 +465,7 @@ final class TeraAddStore: ObservableObject {
     return status
   }
 
-  private func uploadPendingMedia(
-    _ initial: TeraDraftStatus, generation requestedGeneration: TeraSessionGeneration
-  ) async throws
-    -> TeraDraftStatus
-  {
+  private func uploadPendingMedia(_ initial: TeraDraftStatus, generation requestedGeneration: TeraSessionGeneration) async throws -> TeraDraftStatus {
     guard let media else {
       throw TeraRuntimeFailure.local(
         operation: "add.media.upload",
@@ -614,9 +578,7 @@ final class TeraAddStore: ObservableObject {
     guard isCurrent(requested) else { throw CancellationError() }
   }
 
-  private func accept(
-    _ status: TeraDraftStatus, generation requested: TeraSessionGeneration
-  ) throws {
+  private func accept(_ status: TeraDraftStatus, generation requested: TeraSessionGeneration) throws {
     try ensureCurrent(requested)
     draftsGeneration = draftsGeneration.invalidated()
     appliedDraftsGeneration = try appliedDraftsGeneration.next()
@@ -629,9 +591,7 @@ final class TeraAddStore: ObservableObject {
     drafts = TeraAddPresentation.sorted(drafts)
   }
 
-  private func accept(
-    _ status: TeraRevisionStatus, generation requested: TeraSessionGeneration
-  ) throws {
+  private func accept(_ status: TeraRevisionStatus, generation requested: TeraSessionGeneration) throws {
     try ensureCurrent(requested)
     revisionOperationID = status.operationID
     try accept(status.replacement, generation: requested)
@@ -766,6 +726,7 @@ extension TeraAddStore {
   }
 
   func stop() {
+    protection.cancel()
     recovery.stop()
     composer.stop()
     generation = generation.invalidated()
@@ -783,5 +744,42 @@ extension TeraAddStore {
     recovery.stop()
     observation.stop()
     observationState = .stopped
+  }
+}
+
+private extension TeraAddStore {
+  var needsEditingPreservation: Bool {
+    revisionTarget != nil || (isFormEditable && composer.isDirty)
+  }
+
+  func preservation() -> () async -> Bool {
+    let scope = composer.scope
+    return { [weak self] in
+      guard let self, composer.scope == scope else { return false }
+      guard needsEditingPreservation else { return true }
+      let editing = form
+      await save()
+      return composer.scope == scope && form == editing && !needsEditingPreservation
+    }
+  }
+
+  func replacement(_ operation: @escaping (TeraAddStore, TeraSessionGeneration) async throws -> Void) -> () async -> Bool {
+    let scope = composer.scope
+    return { [weak self] in
+      guard let self, composer.scope == scope else { return false }
+      var applied = false
+      await perform { requested in
+        try await operation(self, requested)
+        applied = true
+      }
+      return applied
+    }
+  }
+
+  @discardableResult
+  func replaceEditing(kind: TeraEditingProtection.Kind = .editing,
+                      _ operation: @escaping (TeraAddStore, TeraSessionGeneration) async throws -> Void) async -> Bool
+  {
+    await protection.replace(kind: kind, save: preservation(), apply: replacement(operation))
   }
 }

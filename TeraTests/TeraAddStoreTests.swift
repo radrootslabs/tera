@@ -671,7 +671,7 @@ final class TeraAddStoreTests: XCTestCase {
     return false
   }
 
-  private static func startedClient(_ backend: AddBackend) async throws -> TeraRuntimeClient {
+  static func startedClient(_ backend: AddBackend) async throws -> TeraRuntimeClient {
     let client = TeraRuntimeClient { _ in
       await TeraRuntimeBackendStart(backend: backend, snapshot: backend.snapshot())
     }
@@ -706,7 +706,7 @@ final class TeraAddStoreTests: XCTestCase {
     )
   }
 
-  private static func card(localOperationID: String? = nil) -> TeraTodayCard {
+  static func card(localOperationID: String? = nil) -> TeraTodayCard {
     TeraTodayCard(
       id: String(repeating: "c", count: 64),
       type: .foodAvailability,
@@ -750,13 +750,13 @@ private struct AddSigner: TeraRuntimeSigner {
   }
 }
 
-private enum AddDelayPhase: String, CaseIterable {
+enum AddDelayPhase: String, CaseIterable {
   case save
   case queue
   case advance
 }
 
-private actor AddBackend: TeraRuntimeBackend {
+actor AddBackend: TeraRuntimeBackend {
   private let composerStorage = ComposerTestStorage()
   private let savePause: ResourceTestPause?
   private let advanceOffline: Bool
@@ -1341,7 +1341,7 @@ extension TeraAddStoreTests {
   }
 }
 
-private extension AddBackend {
+extension AddBackend {
   func reserveComposerID() async -> String {
     await composerStorage.reserve()
   }

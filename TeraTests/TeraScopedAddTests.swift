@@ -137,10 +137,14 @@ final class TeraScopedAddTests: XCTestCase {
     let client = try await TeraScopeFixtures.client(backend)
     let store = TeraAddStore(runtimeClient: client)
     store.configure(snapshot: TeraScopeFixtures.snapshot())
-    let pause = await backend.pause(.drafts)
+    let schemas = await backend.pause(.schemas)
     let startup = Task { await store.start() }
-    await pause.entered.wait()
+    await schemas.entered.wait()
     await TeraScopeFixtures.eventually { store.observationState == .active }
+    await TeraScopeFixtures.eventually { store.drafts.first?.revision == 1 }
+    let pause = await backend.pause(.drafts)
+    await schemas.resume.open()
+    await pause.entered.wait()
     await backend.setDrafts([TeraScopeFixtures.draft("new revision", revision: 2)])
     await backend.emit(.drafts)
     await TeraScopeFixtures.eventually { store.drafts.first?.revision == 2 }

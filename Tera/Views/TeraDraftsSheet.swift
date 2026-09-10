@@ -3,11 +3,13 @@ import SwiftUI
 struct TeraDraftsSheet: View {
   @ObservedObject var store: TeraAddStore
   @ObservedObject private var recovery: TeraDraftRecoveryStore
+  @ObservedObject private var protection: TeraEditingProtection
   @Environment(\.dismiss) private var dismiss
 
   init(store: TeraAddStore) {
     self.store = store
     recovery = store.recovery
+    protection = store.protection
   }
 
   var body: some View {
@@ -19,6 +21,7 @@ struct TeraDraftsSheet: View {
         if let message = store.message {
           Text(message)
         }
+        TeraEditingProtectionActions(protection: protection)
         composerSection
         legacySection
         Section {
@@ -35,6 +38,11 @@ struct TeraDraftsSheet: View {
     }
     .accessibilityIdentifier("radroots.add.drafts.sheet")
     .onAppear { recovery.start() }
+    .onChange(of: protection.reopened) { _, value in
+      if value != nil {
+        dismiss()
+      }
+    }
   }
 
   private var composerSection: some View {

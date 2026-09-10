@@ -252,7 +252,7 @@ final class TeraComposerPersistenceFFITests: XCTestCase {
   }
 }
 
-private actor ComposerForbiddenSigner: TeraRuntimeSigner {
+actor ComposerForbiddenSigner: TeraRuntimeSigner {
   private(set) var requests = 0
   func availability() -> TeraRuntimeSignerAvailability {
     .ready

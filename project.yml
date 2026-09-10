@@ -49,6 +49,10 @@ targets:
       - path: TeraTests/TeraComposerPersistenceFFITests.swift
       - path: TeraTests/TeraComposerAutosaveTests.swift
       - path: TeraTests/TeraDraftRecoveryTests.swift
+      - path: TeraTests/TeraEditingProtectionTests.swift
+      - path: TeraTests/TeraEditingReplacementTests.swift
+      - path: TeraTests/TeraEditingReplacementFFITests.swift
+      - path: TeraTests/TeraEditingOperationProtectionTests.swift
       - path: TeraTests/TeraComposerStartupTests.swift
       - path: TeraTests/TeraRuntimeInvalidationTests.swift
       - path: TeraTests/TeraRuntimeBackpressureTests.swift
@@ -127,6 +131,7 @@ targets:
     deploymentTarget: "18.0"
     sources:
       - path: TeraUITests/TeraRootShellUITests.swift
+      - path: TeraUITests/TeraEditingProtectionUITests.swift
       - path: TeraUITests/TeraRemoteQualificationUITests.swift
       - path: test-fixtures/local-social-personas.v1.json
         buildPhase: resources
