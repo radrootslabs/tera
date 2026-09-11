@@ -43,6 +43,8 @@ EXPECTED_CASES = {
     "tera.smoke.CalendarTimingTests/unknownVariantsAndTruncatedGeneratedValuesFailWithoutFabricatingDates",
     "tera.smoke.ComposerPersistenceTests/actualNativeComposerPreservesPartialFormsExactUnsignedReceiptsAndRestart",
     "tera.smoke.ComposerPersistenceTests/unsupportedNestedVersionsAndMalformedVariantsFailClosed",
+    "tera.smoke.SubmissionReservationTests/reservationRecoversOneHistoricalSourceAcrossConcurrencyAndRestart",
+    "tera.smoke.SubmissionReservationTests/invalidReservationVersionsAndUnsignedWidthsFailClosed",
 }
 
 

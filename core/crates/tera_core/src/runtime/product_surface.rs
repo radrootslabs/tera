@@ -20,6 +20,8 @@ mod projection;
 mod ranking;
 #[cfg(feature = "mobile-social")]
 mod settings;
+#[cfg(feature = "mobile-social")]
+mod submission;
 mod today;
 mod viewer_calendar;
 pub use viewer_calendar::{
@@ -85,6 +87,13 @@ pub use settings::{
     MobileNetworkEnvironment, MobileSettings, ProfileMetadataCommand, ProfileMetadataError,
     RelayAccessPreference, RelayEndpointPreference, RelayPreferences, ReplaceMobileSettings,
     SettingsError, SettingsTransition,
+};
+#[cfg(feature = "mobile-social")]
+pub use submission::{
+    SUBMISSION_RESERVATION_MAX_BYTES, SUBMISSION_RESERVATION_PAYLOAD_SCHEMA,
+    SUBMISSION_RESERVATION_SCHEMA_SHA256, SUBMISSION_RESERVATION_SCHEMA_VERSION,
+    SubmissionCommandId, SubmissionReservationError, SubmissionReservationReceipt,
+    SubmissionReservationRequest,
 };
 #[cfg(feature = "mobile-social")]
 pub use today::{

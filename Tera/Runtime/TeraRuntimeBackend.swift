@@ -5,6 +5,8 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 }
 
 protocol TeraRuntimeBackend: Sendable {
+  func reserveSubmissionID() async throws -> String
+  func reserveSubmission(request: TeraSubmissionRequest) async throws -> TeraSubmissionReservation
   func reserveComposerID() async throws -> String
   func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt
   func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft

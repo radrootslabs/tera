@@ -53,7 +53,7 @@ radroots_protocol = { workspace = true, default-features = false, features = [
 radroots_signing = { workspace = true, default-features = false, features = [
   "std",
 ] }
-radroots_storage = { workspace = true, default-features = false }
+radroots_storage = { workspace = true, default-features = false, features = ["serde"] }
 radroots_sync = { workspace = true, default-features = false }
 radroots_transport = { workspace = true, default-features = false, features = [
   "std",

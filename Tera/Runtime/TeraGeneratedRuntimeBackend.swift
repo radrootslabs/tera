@@ -108,8 +108,8 @@ private actor TeraGeneratedSubscriptionToken: TeraRuntimeSubscriptionToken {
   }
 }
 
-private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked Sendable {
-  private let runtime: TeraRuntime
+final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked Sendable {
+  let runtime: TeraRuntime
 
   init(runtime: TeraRuntime) {
     self.runtime = runtime
@@ -246,22 +246,6 @@ private final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked 
     } catch {
       throw TeraGeneratedRuntimeFailure.from(error)
     }
-  }
-
-  func reserveComposerID() async throws -> String {
-    do { return try TeraGeneratedComposer.reserveID() } catch { throw TeraGeneratedRuntimeFailure.from(error) }
-  }
-
-  func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt {
-    do { return try await TeraGeneratedComposer.save(runtime: runtime, request: request) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
-  }
-
-  func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft {
-    do { return try await TeraGeneratedComposer.load(runtime: runtime, scope: scope, id: id) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
-  }
-
-  func listComposers(scope: TeraComposerScope, limit: UInt16, cursor: String?) async throws -> TeraComposerPage {
-    do { return try await TeraGeneratedComposer.list(runtime: runtime, scope: scope, limit: limit, cursor: cursor) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
   }
 
   func addSchemas() async throws -> [TeraAddSchema] {
@@ -1429,7 +1413,7 @@ extension TeraNativeUploadCompletion {
   }
 }
 
-private extension TeraGeneratedRuntimeBackend {
+extension TeraGeneratedRuntimeBackend {
   func reconcileToday(request: TeraTodayReconcileRequest) async throws -> TeraTodayPage {
     do { return try await TeraGeneratedTodayReads.reconcile(runtime: runtime, request: request) } catch { throw TeraGeneratedRuntimeFailure.from(error) }
   }
@@ -1451,7 +1435,7 @@ private extension TeraGeneratedRuntimeBackend {
   }
 }
 
-private extension TeraGeneratedRuntimeBackend {
+extension TeraGeneratedRuntimeBackend {
   func draftStatus(id: String) async throws -> TeraDraftStatus {
     do {
       return try await runtime.phase1DraftStatus(draftId: id).appValue

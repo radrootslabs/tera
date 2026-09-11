@@ -15,6 +15,7 @@ mod operations;
 mod recovery;
 mod runtime;
 mod signer;
+mod submission;
 mod subscription;
 mod subscription_queue;
 
@@ -31,6 +32,7 @@ pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,
     SignerAvailabilityRecord, SignerStatusRecord, TeraHostSigner,
 };
+pub use submission::*;
 pub use subscription::{FfiSubscriptionHandle, TeraRuntimeObserver};
 
 mod error;

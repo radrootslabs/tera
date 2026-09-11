@@ -47,6 +47,7 @@ targets:
     sources:
       - path: TeraTests/TeraRuntimeClientTests.swift
       - path: TeraTests/TeraComposerPersistenceFFITests.swift
+      - path: TeraTests/TeraSubmissionReservationTests.swift
       - path: TeraTests/TeraComposerAutosaveTests.swift
       - path: TeraTests/TeraComposerSaveLatencyTests.swift
       - path: TeraTests/TeraComposerSaveSchedulingTests.swift

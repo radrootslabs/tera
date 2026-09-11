@@ -5,14 +5,18 @@ pub(super) fn classify(code: &str) -> RecoveryDisposition {
     use RecoveryDisposition as Recovery;
     match code {
         "composer_owner_unavailable" | "composer_scope_mismatch" => Recovery::IdentityUnavailable,
-        "composer_storage_failed" | "composer_record_corrupt" => Recovery::StorageFailure,
-        "composer_schema_unsupported" | "composer_revision_exhausted" => {
-            Recovery::UnsupportedVersion
-        }
+        "composer_storage_failed"
+        | "composer_record_corrupt"
+        | "submission_storage_failed"
+        | "submission_record_corrupt" => Recovery::StorageFailure,
+        "composer_schema_unsupported"
+        | "composer_revision_exhausted"
+        | "submission_schema_unsupported" => Recovery::UnsupportedVersion,
         "composer_revision_conflict" | "composer_edit_sequence_conflict" => Recovery::StaleRevision,
         "composer_cursor_invalid" => Recovery::StaleCursor,
-        "composer_receipt_mismatch" => Recovery::OutcomeUnknown,
-        "composer_id_invalid"
+        "composer_receipt_mismatch" | "submission_receipt_mismatch" => Recovery::OutcomeUnknown,
+        "submission_command_id_invalid"
+        | "composer_id_invalid"
         | "composer_revision_invalid"
         | "composer_edit_sequence_invalid"
         | "composer_form_invalid"
