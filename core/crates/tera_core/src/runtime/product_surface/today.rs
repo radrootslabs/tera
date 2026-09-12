@@ -70,6 +70,10 @@ mod calendar_wire_tests;
 mod calendar_migration;
 
 #[cfg(test)]
+#[path = "today_permissive_evidence_tests.rs"]
+mod permissive_evidence;
+
+#[cfg(test)]
 #[path = "today_calendar_migration_tests.rs"]
 mod calendar_migration_tests;
 

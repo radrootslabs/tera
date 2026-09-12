@@ -479,7 +479,7 @@ async fn obsolete_snapshots_and_unknown_generations_fail_without_rewriting_histo
 
 #[tokio::test]
 async fn invalid_historical_visible_heads_are_quarantined_without_reviving_old_cards() {
-    use super::admission_tests::PermissiveEvidence;
+    use super::permissive_evidence::PermissiveEvidence;
     use radroots_event::admission::RawEvent;
     use radroots_transport::{
         Target, TransportId,

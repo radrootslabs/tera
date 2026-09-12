@@ -90,10 +90,10 @@ pub use settings::{
 };
 #[cfg(feature = "mobile-social")]
 pub use submission::{
-    SUBMISSION_RESERVATION_MAX_BYTES, SUBMISSION_RESERVATION_PAYLOAD_SCHEMA,
+    CapturedSubmission, SUBMISSION_RESERVATION_MAX_BYTES, SUBMISSION_RESERVATION_PAYLOAD_SCHEMA,
     SUBMISSION_RESERVATION_SCHEMA_SHA256, SUBMISSION_RESERVATION_SCHEMA_VERSION,
-    SubmissionCommandId, SubmissionReservationError, SubmissionReservationReceipt,
-    SubmissionReservationRequest,
+    SubmissionCaptureError, SubmissionCommandId, SubmissionReservationError,
+    SubmissionReservationReceipt, SubmissionReservationRequest,
 };
 #[cfg(feature = "mobile-social")]
 pub use today::{

@@ -1456,7 +1456,10 @@ impl TeraRuntime {
         .await
     }
 
-    fn active_queue_policy(&self, now_unix_ms: u64) -> Result<Phase1QueuePolicy, Phase1DraftError> {
+    pub(super) fn active_queue_policy(
+        &self,
+        now_unix_ms: u64,
+    ) -> Result<Phase1QueuePolicy, Phase1DraftError> {
         let report = self
             .client
             .nostr_status()

@@ -1,8 +1,10 @@
 //! Stable user-action reservations over the existing authored draft journal.
 //! Reservation does not authorize signing, delivery or strict publication.
 
+mod capture;
 mod record;
 mod repository;
+pub use capture::{CapturedSubmission, SubmissionCaptureError};
 #[cfg(test)]
 mod test_support;
 
