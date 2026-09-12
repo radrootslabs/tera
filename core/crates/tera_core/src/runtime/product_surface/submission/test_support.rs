@@ -1,7 +1,8 @@
 use super::*;
 use crate::runtime::product_surface::{
-    AddCommandType, ComposerEditSequence, ComposerFormInput, ComposerPartialForm,
-    ComposerStorageRecord, LocalNetworkId,
+    AddCommandType, ComposerEditSequence, ComposerFormInput, ComposerMediaInput,
+    ComposerPartialForm, ComposerStorageRecord, LocalNetworkId, Phase1CancellationPolicy,
+    Phase1QueuePolicy, Phase1RelaySatisfaction,
 };
 use radroots_identity::PublicKey;
 
@@ -41,5 +42,60 @@ pub(super) fn request() -> SubmissionReservationRequest {
         scope(AUTHOR, "nearby"),
         ComposerId::new([3; 16]).unwrap(),
         ComposerRevision::INITIAL,
+    )
+}
+
+use radroots_sdk::transport::{
+    BlossomConfig, BlossomEndpointAuthority, BlossomHostKind, BlossomProfile, BlossomSlot,
+};
+use std::sync::Arc;
+
+pub(super) fn policy(relay: &str) -> Phase1QueuePolicy {
+    Phase1QueuePolicy::new(
+        vec![relay.into()],
+        Phase1RelaySatisfaction::AllAccepted,
+        NOW + 1000,
+        Phase1CancellationPolicy::LocalCooperative,
+    )
+    .unwrap()
+}
+
+pub(super) fn blossom() -> BlossomSlot {
+    let slot = BlossomSlot::new();
+    slot.configure(BlossomConfig::from_profile(
+        BlossomProfile::new(
+            BlossomHostKind::Simulator,
+            BlossomEndpointAuthority::LoopbackDevelopment,
+            "http://127.0.0.1:3000",
+            std::iter::empty::<&str>(),
+        )
+        .unwrap(),
+    ))
+    .unwrap();
+    slot
+}
+
+pub(super) fn input(kind: AddCommandType) -> ComposerFormInput {
+    let mut input = ComposerFormInput::empty(kind);
+    input.content = "PRIVATE harvest café".into();
+    input
+}
+
+pub(super) fn photo() -> (ComposerMediaInput, Arc<[u8]>) {
+    let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
+    bytes.extend_from_slice(&2u32.to_be_bytes());
+    bytes.extend_from_slice(&2u32.to_be_bytes());
+    (
+        ComposerMediaInput {
+            opaque_reference: "media:harvest".into(),
+            sha256: radroots_blossom::Sha256::digest(&bytes).to_hex(),
+            media_type: "image/png".into(),
+            byte_size: bytes.len() as u64,
+            width: 2,
+            height: 2,
+            alt: "Harvest".into(),
+            prepared_at_unix_s: NOW / 1000,
+        },
+        bytes.into(),
     )
 }

@@ -72,9 +72,7 @@ impl CapturedSubmission {
 
     /// Compares semantic request identity, excluding the transient replay observation.
     pub fn same_request(&self, other: &Self) -> bool {
-        self.reservation.request() == other.reservation.request()
-            && self.reservation.captured() == other.reservation.captured()
-            && self.reservation.reserved_at_unix_ms() == other.reservation.reserved_at_unix_ms()
+        self.reservation.same_request(&other.reservation)
             && self.command == other.command
             && self.media == other.media
             && self.media_policy == other.media_policy
@@ -82,7 +80,7 @@ impl CapturedSubmission {
             && self.plan == other.plan
     }
 
-    fn capture(
+    pub(super) fn capture(
         reservation: SubmissionReservationReceipt,
         policy: Phase1QueuePolicy,
         blossom: Option<&BlossomSlot>,

@@ -4071,7 +4071,7 @@
           "count": 1
         },
         {
-          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/tests.rs",
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/test_support.rs",
           "count": 1
         },
         {
@@ -4189,6 +4189,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 6
         },
@@ -4284,6 +4288,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
           "count": 1
         },
         {
@@ -4601,8 +4609,24 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/commit_sqlite_tests.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/commit_tests.rs",
+          "count": 6
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent_tests.rs",
+          "count": 3
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/repository_tests.rs",
           "count": 5
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/test_support.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
@@ -4691,6 +4715,10 @@
           "count": 6
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_ffi/Cargo.toml",
           "count": 1
         },
@@ -4770,10 +4798,34 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/atomic_fault_store.rs",
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/commit.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/commit_tests.rs",
+          "count": 4
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/fault_store.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent_tests.rs",
           "count": 1
         },
         {
@@ -4786,6 +4838,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/repository_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/transaction_test_support.rs",
           "count": 1
         },
         {
@@ -4848,6 +4904,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
           "count": 1
         },
         {

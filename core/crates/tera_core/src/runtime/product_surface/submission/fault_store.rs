@@ -17,17 +17,23 @@ pub(super) enum Fault {
     Race(tokio::sync::Barrier),
 }
 
-pub(super) struct FaultStore<'a> {
-    pub inner: &'a dyn AuthoredDraftStore,
+pub(super) struct FaultStore<'a, S: ?Sized> {
+    pub inner: &'a S,
+    pub atomic_fault: Fault,
+    pub commits: AtomicUsize,
+    pub receipt_override: Option<Option<radroots_storage::authored_atomic::AuthoredAtomicReceipt>>,
     pub fault: Fault,
     pub appends: AtomicUsize,
     pub historical_override: Option<AuthoredDraft>,
 }
 
-impl<'a> FaultStore<'a> {
-    pub fn new(inner: &'a dyn AuthoredDraftStore, fault: Fault) -> Self {
+impl<'a, S: ?Sized> FaultStore<'a, S> {
+    pub fn new(inner: &'a S, fault: Fault) -> Self {
         Self {
             inner,
+            atomic_fault: Fault::None,
+            commits: AtomicUsize::new(0),
+            receipt_override: None,
             fault,
             appends: AtomicUsize::new(0),
             historical_override: None,
@@ -38,7 +44,7 @@ impl<'a> FaultStore<'a> {
     }
 }
 
-impl AuthoredDraftStore for FaultStore<'_> {
+impl<S: AuthoredDraftStore + ?Sized> AuthoredDraftStore for FaultStore<'_, S> {
     fn query_authored_drafts(
         &self,
         query: AuthoredDraftQuery,
@@ -108,3 +114,6 @@ impl AuthoredDraftStore for FaultStore<'_> {
         self.inner.authored_draft_heads(author, limit)
     }
 }
+
+#[path = "atomic_fault_store.rs"]
+mod atomic;

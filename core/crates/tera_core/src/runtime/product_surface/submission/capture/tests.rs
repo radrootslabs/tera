@@ -1,81 +1,35 @@
 use super::super::test_support::*;
 use super::*;
 use crate::runtime::product_surface::{
-    AddCommandType, ComposerDraft, ComposerEditSequence, ComposerFormInput, ComposerMediaInput,
-    ComposerPartialForm, Phase1CancellationPolicy, Phase1DraftEventTiming, Phase1RelaySatisfaction,
+    AddCommandType, ComposerDraft, ComposerEditSequence, ComposerFormInput, ComposerPartialForm,
+    ComposerStorageRecord, Phase1DraftEventTiming,
 };
-use radroots_sdk::transport::{
-    BlossomConfig, BlossomEndpointAuthority, BlossomHostKind, BlossomProfile,
-};
+use radroots_sdk::transport::BlossomConfig;
 
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
 
 fn reservation(input: ComposerFormInput) -> SubmissionReservationReceipt {
     let request = request();
+    let source = ComposerStorageRecord::initial(
+        request.composer_id(),
+        request.scope().clone(),
+        ComposerEditSequence::INITIAL,
+        ComposerPartialForm::new(input).unwrap(),
+        NOW,
+    )
+    .unwrap();
     SubmissionReservationReceipt {
         reservation_id: super::super::record::reservation_id(&request).unwrap(),
-        captured: ComposerDraft::new(
-            request.composer_id(),
-            request.expected_revision(),
-            request.scope().clone(),
-            ComposerEditSequence::INITIAL,
-            ComposerPartialForm::new(input).unwrap(),
-        ),
+        captured: source.draft().clone(),
+        source: radroots_storage::authored_draft_submission::AuthoredDraftSource::capture(
+            source.stored(),
+        )
+        .unwrap(),
         request,
         reserved_at_unix_ms: NOW,
         replayed: false,
     }
-}
-
-fn policy(relay: &str) -> Phase1QueuePolicy {
-    Phase1QueuePolicy::new(
-        vec![relay.into()],
-        Phase1RelaySatisfaction::AllAccepted,
-        NOW + 1000,
-        Phase1CancellationPolicy::LocalCooperative,
-    )
-    .unwrap()
-}
-
-fn blossom() -> BlossomSlot {
-    let slot = BlossomSlot::new();
-    slot.configure(BlossomConfig::from_profile(
-        BlossomProfile::new(
-            BlossomHostKind::Simulator,
-            BlossomEndpointAuthority::LoopbackDevelopment,
-            "http://127.0.0.1:3000",
-            std::iter::empty::<&str>(),
-        )
-        .unwrap(),
-    ))
-    .unwrap();
-    slot
-}
-
-fn input(kind: AddCommandType) -> ComposerFormInput {
-    let mut input = ComposerFormInput::empty(kind);
-    input.content = "PRIVATE harvest café".into();
-    input
-}
-
-fn photo() -> (ComposerMediaInput, Arc<[u8]>) {
-    let mut bytes = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR".to_vec();
-    bytes.extend_from_slice(&2u32.to_be_bytes());
-    bytes.extend_from_slice(&2u32.to_be_bytes());
-    (
-        ComposerMediaInput {
-            opaque_reference: "media:harvest".into(),
-            sha256: radroots_blossom::Sha256::digest(&bytes).to_hex(),
-            media_type: "image/png".into(),
-            byte_size: bytes.len() as u64,
-            width: 2,
-            height: 2,
-            alt: "Harvest".into(),
-            prepared_at_unix_s: NOW / 1000,
-        },
-        bytes.into(),
-    )
 }
 
 #[test]

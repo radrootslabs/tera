@@ -2,9 +2,7 @@ use super::*;
 use crate::runtime::product_surface::submission::test_support::*;
 use crate::runtime::product_surface::{ComposerId, ComposerRevision, SubmissionCommandId};
 
-#[path = "fault_store.rs"]
-mod fault_store;
-use fault_store::{Fault, FaultStore};
+use super::super::fault_store::{Fault, FaultStore};
 
 #[tokio::test]
 async fn concurrent_equivalent_reservations_reuse_one_winner_despite_different_clocks() {

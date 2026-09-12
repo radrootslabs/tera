@@ -14,8 +14,8 @@ use crate::{
     runtime::product_surface::{ComposerPersistenceError as SourceError, ComposerStorageRecord},
 };
 
-struct SubmissionRepository<'a> {
-    store: &'a dyn AuthoredDraftStore,
+pub(super) struct SubmissionRepository<'a, S: ?Sized> {
+    pub(super) store: &'a S,
 }
 
 #[cfg(test)]
@@ -25,8 +25,8 @@ mod sqlite_tests;
 #[path = "repository_tests.rs"]
 mod tests;
 
-impl SubmissionRepository<'_> {
-    async fn replay(
+impl<S: AuthoredDraftStore + ?Sized> SubmissionRepository<'_, S> {
+    pub(super) async fn replay(
         &self,
         request: &SubmissionReservationRequest,
     ) -> Result<Option<SubmissionReservationReceipt>, E> {
@@ -65,12 +65,13 @@ impl SubmissionRepository<'_> {
             request: request.clone(),
             reservation_id: stored.draft_id(),
             captured,
+            source: wire.source,
             reserved_at_unix_ms: stored.created_at_unix_ms(),
             replayed,
         })
     }
 
-    async fn reserve(
+    pub(super) async fn reserve(
         &self,
         request: &SubmissionReservationRequest,
         observed_time: Option<u64>,

@@ -2,11 +2,22 @@
 //! Reservation does not authorize signing, delivery or strict publication.
 
 mod capture;
+mod commit;
+mod intent;
 mod record;
 mod repository;
 pub use capture::{CapturedSubmission, SubmissionCaptureError};
+pub use commit::{SubmissionCommitError, SubmissionReceipt};
+pub use intent::{
+    SUBMISSION_INTENT_MAX_BYTES, SUBMISSION_INTENT_PAYLOAD_SCHEMA, SUBMISSION_INTENT_SCHEMA_SHA256,
+    SUBMISSION_INTENT_SCHEMA_VERSION,
+};
+#[cfg(test)]
+mod fault_store;
 #[cfg(test)]
 mod test_support;
+#[cfg(test)]
+mod transaction_test_support;
 
 use radroots_storage::{Error, authored_draft::AuthoredDraftId};
 use serde::{Deserialize, Serialize};
@@ -125,11 +136,20 @@ pub struct SubmissionReservationReceipt {
     request: SubmissionReservationRequest,
     reservation_id: AuthoredDraftId,
     captured: ComposerDraft,
+    source: radroots_storage::authored_draft_submission::AuthoredDraftSource,
     reserved_at_unix_ms: u64,
     replayed: bool,
 }
 
 impl SubmissionReservationReceipt {
+    fn same_request(&self, other: &Self) -> bool {
+        self.request == other.request
+            && self.reservation_id == other.reservation_id
+            && self.captured == other.captured
+            && self.source == other.source
+            && self.reserved_at_unix_ms == other.reserved_at_unix_ms
+    }
+
     pub fn request(&self) -> &SubmissionReservationRequest {
         &self.request
     }

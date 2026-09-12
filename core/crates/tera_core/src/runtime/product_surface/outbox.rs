@@ -246,7 +246,7 @@ impl Phase1MediaPrerequisite {
         Ok(value)
     }
 
-    fn validate(&self) -> Result<(), Phase1DraftError> {
+    pub(super) fn validate(&self) -> Result<(), Phase1DraftError> {
         let blob = BlobUrl::parse(self.url.as_str()).map_err(|_| Phase1DraftError::InvalidMedia)?;
         let hash = blob.hash_path().hash().to_string();
         if self.local_reference.is_empty()
@@ -379,7 +379,7 @@ impl Phase1CancellationPolicy {
 pub struct Phase1QueuePolicy {
     relay_urls: Vec<String>,
     satisfaction: Phase1RelaySatisfaction,
-    delivery_deadline_unix_ms: u64,
+    pub(super) delivery_deadline_unix_ms: u64,
     cancellation: Phase1CancellationPolicy,
 }
 
@@ -400,7 +400,7 @@ impl Phase1QueuePolicy {
         Ok(value)
     }
 
-    fn materialize(
+    pub(super) fn materialize(
         &self,
     ) -> Result<(TargetSet, SatisfactionPolicy, CancellationPolicy), Phase1DraftError> {
         if self.delivery_deadline_unix_ms == 0 || self.relay_urls.is_empty() {
