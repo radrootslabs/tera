@@ -46,6 +46,7 @@ use super::{
 };
 use crate::runtime::TeraRuntime;
 
+mod advance;
 #[path = "outbox/inventory.rs"]
 mod inventory;
 pub use inventory::{
@@ -2586,52 +2587,7 @@ impl TeraRuntime {
             return Err(Phase1DraftError::RevisionConflict);
         }
         let request = push_request(&head)?;
-        let operation_id = request.operation_id();
-        let sync = self.sync()?;
-        let mut status = sync
-            .push_status(operation_id)
-            .await
-            .map_err(|_| Phase1DraftError::Operation)?
-            .ok_or(Phase1DraftError::Corrupt)?;
-
-        if matches!(
-            status.artifact().signing_state(),
-            SigningState::Planned | SigningState::Retryable
-        ) {
-            sync.sign_prepared(request)
-                .await
-                .map_err(|_| Phase1DraftError::Operation)?;
-            status = sync
-                .push_status(operation_id)
-                .await
-                .map_err(|_| Phase1DraftError::Operation)?
-                .ok_or(Phase1DraftError::Corrupt)?;
-        }
-        if status.artifact().signing_state() == SigningState::Signed
-            && matches!(
-                status.artifact().admission_state(),
-                AdmissionState::Pending | AdmissionState::Retryable
-            )
-        {
-            sync.admit_signed(operation_id)
-                .await
-                .map_err(|_| Phase1DraftError::Operation)?;
-            status = sync
-                .push_status(operation_id)
-                .await
-                .map_err(|_| Phase1DraftError::Operation)?
-                .ok_or(Phase1DraftError::Corrupt)?;
-        }
-        if status.artifact().admission_state().is_admitted()
-            && matches!(
-                status.delivery_plan().state(),
-                AuthoredDeliveryState::Pending | AuthoredDeliveryState::Retryable
-            )
-        {
-            sync.deliver_push(operation_id)
-                .await
-                .map_err(|_| Phase1DraftError::Operation)?;
-        }
+        self.advance_push_request(request).await?;
         self.draft_status_from(head).await
     }
 
@@ -3126,7 +3082,7 @@ impl TeraRuntime {
             .map_err(|_| Phase1DraftError::Storage)
     }
 
-    fn sync(&self) -> Result<radroots_sdk::sync::Operations<'_>, Phase1DraftError> {
+    pub(super) fn sync(&self) -> Result<radroots_sdk::sync::Operations<'_>, Phase1DraftError> {
         self.client
             .sync()
             .map_err(|_| Phase1DraftError::OperationUnavailable)?
@@ -3302,7 +3258,10 @@ const fn valid_media_transition(previous: Phase1MediaStage, next: Phase1MediaSta
     }
 }
 
-fn aggregate_state(draft: &AuthoredDraft, push: Option<&PushStatus>) -> Phase1OutboxState {
+pub(super) fn aggregate_state(
+    draft: &AuthoredDraft,
+    push: Option<&PushStatus>,
+) -> Phase1OutboxState {
     if draft.stage() == AuthoredDraftStage::Cancelled {
         return Phase1OutboxState::Cancelled;
     }

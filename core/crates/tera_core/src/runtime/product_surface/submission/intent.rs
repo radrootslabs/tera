@@ -192,6 +192,15 @@ impl IntentPayload {
         &self,
         reservation: &SubmissionReservationReceipt,
     ) -> Result<PrepareAuthoredOperation, E> {
+        self.push_request(reservation)?
+            .authored_preparation(reservation.reserved_at_unix_ms())
+            .map_err(|_| E::InvalidIntent)
+    }
+
+    pub(super) fn push_request(
+        &self,
+        reservation: &SubmissionReservationReceipt,
+    ) -> Result<PushRequest, E> {
         let request = reservation.request();
         let input = reservation.captured().form().input();
         if self.command_id != request.command_id()
@@ -245,7 +254,6 @@ impl IntentPayload {
             self.policy.delivery_deadline_unix_ms,
             cancellation,
         )
-        .and_then(|request| request.authored_preparation(reservation.reserved_at_unix_ms()))
         .map_err(|_| E::InvalidIntent)
     }
 }

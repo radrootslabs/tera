@@ -4515,6 +4515,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/mutation_admission_tests.rs",
           "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
+          "count": 1
         }
       ]
     },
@@ -4621,6 +4625,10 @@
           "count": 3
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/repository_tests.rs",
           "count": 5
         },
@@ -4717,6 +4725,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
+          "count": 6
         },
         {
           "path": "core/crates/tera_ffi/Cargo.toml",
@@ -4829,6 +4841,22 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_load.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_recovery_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/record.rs",
           "count": 2
         },
@@ -4908,6 +4936,18 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_load.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_recovery_tests.rs",
           "count": 1
         },
         {

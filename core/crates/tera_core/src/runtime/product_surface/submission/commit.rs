@@ -152,7 +152,7 @@ impl<S: AuthoredDraftStore + AuthoredAtomicStorage + ?Sized> SubmissionRepositor
             .map(Some)
     }
 
-    async fn committed_receipt(
+    pub(super) async fn committed_receipt(
         &self,
         request: &SubmissionReservationRequest,
         receipt: AuthoredAtomicReceipt,
@@ -233,7 +233,10 @@ impl TeraRuntime {
         self.submission_commit(&captured).await
     }
 
-    fn validate_submission_owner(&self, request: &SubmissionReservationRequest) -> Result<(), E> {
+    pub(super) fn validate_submission_owner(
+        &self,
+        request: &SubmissionReservationRequest,
+    ) -> Result<(), E> {
         let author = self
             .store_public_key
             .ok_or(SubmissionReservationError::Source(
