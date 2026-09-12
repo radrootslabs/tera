@@ -133,3 +133,29 @@ pub(super) fn decode(
     }
     Ok(wire)
 }
+
+pub(super) fn request_from(
+    stored: &AuthoredDraft,
+    scope: &ComposerScope,
+) -> Result<SubmissionReservationRequest, E> {
+    if stored.payload().len() > SUBMISSION_RESERVATION_MAX_BYTES {
+        return Err(E::CorruptRecord);
+    }
+    let header: SchemaHeader =
+        serde_json::from_slice(stored.payload()).map_err(|_| E::CorruptRecord)?;
+    if header.schema_version != SUBMISSION_RESERVATION_SCHEMA_VERSION
+        || header.schema_sha256 != SUBMISSION_RESERVATION_SCHEMA_SHA256
+    {
+        return Err(E::UnsupportedSchema);
+    }
+    let wire: ReservationWire =
+        serde_json::from_slice(stored.payload()).map_err(|_| E::CorruptRecord)?;
+    let request = SubmissionReservationRequest::new(
+        wire.command_id,
+        scope.clone(),
+        super::ComposerId::new(*wire.source.draft_id().as_bytes()).map_err(|_| E::CorruptRecord)?,
+        super::ComposerRevision::new(wire.source.revision().get()).map_err(|_| E::CorruptRecord)?,
+    );
+    decode(stored, &request)?;
+    Ok(request)
+}

@@ -29,6 +29,10 @@ pub enum SubmissionOperationError {
     PrerequisitesPending,
     #[error("submission operation requires repair")]
     Corrupt,
+    #[error("submission media does not match its captured input")]
+    InvalidMedia,
+    #[error("submission media policy changed")]
+    MediaPolicyChanged,
 }
 
 impl From<Error> for SubmissionOperationError {
@@ -42,6 +46,8 @@ pub struct SubmissionOperationStatus {
     receipt: SubmissionReceipt,
     intent: AuthoredDraft,
     push: PushStatus,
+    captured: crate::runtime::product_surface::ComposerDraft,
+    media: Vec<crate::runtime::product_surface::Phase1MediaPrerequisite>,
 }
 
 impl std::fmt::Debug for SubmissionOperationStatus {
@@ -63,6 +69,12 @@ impl SubmissionOperationStatus {
     pub fn push(&self) -> &PushStatus {
         &self.push
     }
+    pub fn captured(&self) -> &crate::runtime::product_surface::ComposerDraft {
+        &self.captured
+    }
+    pub fn media(&self) -> &[crate::runtime::product_surface::Phase1MediaPrerequisite] {
+        &self.media
+    }
     pub fn state(&self) -> Phase1OutboxState {
         let push = (self.intent.stage() == AuthoredDraftStage::Queued).then_some(&self.push);
         outbox::aggregate_state(&self.intent, push)
@@ -79,6 +91,8 @@ impl TeraRuntime {
         let _command = self.lifecycle.enter().map_err(Phase1DraftError::from)?;
         let (loaded, push) = self.load_submission_operation(request).await?;
         Ok(SubmissionOperationStatus {
+            media: loaded.payload.media().to_vec(),
+            captured: loaded.captured,
             receipt: loaded.receipt,
             intent: loaded.head,
             push,
@@ -120,7 +134,7 @@ impl TeraRuntime {
         self.submission_operation_status(request).await
     }
 
-    async fn load_submission_operation(
+    pub(super) async fn load_submission_operation(
         &self,
         request: &SubmissionReservationRequest,
     ) -> Result<(LoadedOperation, PushStatus), E> {
@@ -129,9 +143,26 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| Error::BackendUnavailable)?;
-        let loaded = SubmissionRepository { store }
+        let loaded = match (SubmissionRepository { store })
             .load_operation(request)
-            .await?;
+            .await
+        {
+            Err(E::NotFound) => {
+                if store
+                    .authored_draft_head(intent::intent_id(request)?)
+                    .await?
+                    .is_some()
+                    || store
+                        .authored_operation(intent::operation_id(request)?)
+                        .await?
+                        .is_some()
+                {
+                    return Err(E::Corrupt);
+                }
+                return Err(E::NotFound);
+            }
+            value => value?,
+        };
         let push = self
             .sync()?
             .push_status(loaded.request.operation_id())

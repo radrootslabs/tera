@@ -4,6 +4,8 @@
 mod capture;
 mod commit;
 mod intent;
+mod inventory;
+mod media;
 mod operation;
 mod operation_load;
 mod record;
@@ -14,9 +16,21 @@ pub use intent::{
     SUBMISSION_INTENT_MAX_BYTES, SUBMISSION_INTENT_PAYLOAD_SCHEMA, SUBMISSION_INTENT_SCHEMA_SHA256,
     SUBMISSION_INTENT_SCHEMA_VERSION,
 };
+pub use inventory::{
+    SubmissionListEntry, SubmissionPage, SubmissionSummary, SubmissionSummaryState,
+};
+pub use media::{SubmissionMediaRequest, SubmissionMediaResponse};
 pub use operation::{SubmissionOperationError, SubmissionOperationStatus};
 #[cfg(test)]
 mod fault_store;
+#[cfg(test)]
+mod inventory_tests;
+#[cfg(test)]
+mod media_recovery_tests;
+#[cfg(test)]
+mod media_test_support;
+#[cfg(test)]
+mod media_tests;
 #[cfg(test)]
 mod operation_recovery_tests;
 #[cfg(test)]

@@ -2,7 +2,7 @@
 
 use radroots_storage::{
     authored_atomic::{AuthoredAtomicOutcome, AuthoredAtomicStorage, PrepareAuthoredOperation},
-    authored_draft::{AuthoredDraft, AuthoredDraftStage, AuthoredDraftStore},
+    authored_draft::{AuthoredDraft, AuthoredDraftStore},
 };
 use radroots_sync::{PushRequest, PushStatus};
 
@@ -17,6 +17,8 @@ pub(super) struct LoadedOperation {
     pub receipt: SubmissionReceipt,
     pub head: AuthoredDraft,
     pub request: PushRequest,
+    pub captured: crate::runtime::product_surface::ComposerDraft,
+    pub payload: IntentPayload,
     preparation: PrepareAuthoredOperation,
 }
 
@@ -50,10 +52,13 @@ impl<S: AuthoredDraftStore + AuthoredAtomicStorage + ?Sized> SubmissionRepositor
             .await?
             .ok_or(E::Corrupt)?;
         validate_head(original.intent(), &head)?;
+        let current = payload.current(&head, receipt.operation_id())?;
         Ok(LoadedOperation {
             receipt,
             head,
             request: push,
+            captured: reservation.captured().clone(),
+            payload: current,
             preparation: original.preparation().clone(),
         })
     }
@@ -65,29 +70,15 @@ fn validate_head(original: &AuthoredDraft, head: &AuthoredDraft) -> Result<(), E
         || head.author() != original.author()
         || head.scope() != original.scope()
         || head.payload_schema() != original.payload_schema()
-        || head.payload() != original.payload()
-        || head.operation_id() != original.operation_id()
         || head.created_at_unix_ms() != original.created_at_unix_ms()
         || head.updated_at_unix_ms() < original.updated_at_unix_ms()
+        || head.updated_at_unix_ms() > i64::MAX as u64
         || head.revision() < original.revision()
         || (head.revision() == original.revision() && head != original)
     {
         return Err(E::Corrupt);
     }
-    // Media progression is admitted separately by the scoped prerequisite adapter.
-    // A forged stage cannot turn the immutable waiting snapshot into signing authority.
-    match original.stage() {
-        AuthoredDraftStage::ReadyToSign
-            if matches!(
-                head.stage(),
-                AuthoredDraftStage::ReadyToSign | AuthoredDraftStage::Queued
-            ) =>
-        {
-            Ok(())
-        }
-        AuthoredDraftStage::MediaPreparing if head == original => Ok(()),
-        _ => Err(E::Corrupt),
-    }
+    Ok(())
 }
 
 impl LoadedOperation {

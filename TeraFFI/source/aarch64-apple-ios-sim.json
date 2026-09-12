@@ -186,36 +186,36 @@
       "proc-macro2 v1.0.107|default,proc-macro (*)",
       "quote v1.0.47|default,proc-macro",
       "quote v1.0.47|default,proc-macro (*)",
-      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std",
-      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std (*)",
-      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std",
-      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std (*)",
-      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std",
-      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std (*)",
-      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|json,serde,std",
-      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|json,serde,std (*)",
-      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std",
-      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std (*)",
-      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|blossom,events,std",
-      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|blossom,events,std (*)",
-      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std",
-      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std (*)",
-      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|blossom,nostr,sqlite,sync",
-      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|blossom,nostr,sqlite,sync (*)",
-      "radroots_secrets v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|",
-      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std",
-      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std (*)",
-      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde",
-      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde (*)",
-      "radroots_storage_sqlite v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|",
-      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|",
-      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)| (*)",
-      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|json,serde,std",
-      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|json,serde,std (*)",
-      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std",
-      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|serde,std (*)",
-      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)|",
-      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=ac392da942896a6b676f063929af16971e201b0e#ac392da9)| (*)",
+      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std",
+      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std (*)",
+      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std",
+      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std (*)",
+      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std",
+      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std (*)",
+      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|json,serde,std",
+      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|json,serde,std (*)",
+      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std",
+      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std (*)",
+      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|blossom,events,std",
+      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|blossom,events,std (*)",
+      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std",
+      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std (*)",
+      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|blossom,nostr,sqlite,sync",
+      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|blossom,nostr,sqlite,sync (*)",
+      "radroots_secrets v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|",
+      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std",
+      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std (*)",
+      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde",
+      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde (*)",
+      "radroots_storage_sqlite v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|",
+      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|",
+      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)| (*)",
+      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|json,serde,std",
+      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|json,serde,std (*)",
+      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std",
+      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|serde,std (*)",
+      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)|",
+      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=bb54297d208f8e3817485d1c1a63a386f457349a#bb54297d)| (*)",
       "rand v0.8.7|alloc,getrandom,libc,rand_chacha,std,std_rng",
       "rand v0.9.5|alloc,default,os_rng,small_rng,std,std_rng,thread_rng",
       "rand_chacha v0.3.1|std",
@@ -381,15 +381,15 @@
     "symbol_reader": "llvm-nm, compatible with GNU nm\nLLVM (http://llvm.org/):\n  LLVM version 22.1.6-rust-1.97.1-stable\n  Optimized build.",
     "target": "aarch64-apple-ios-sim"
   },
-  "cargo_lock_sha256": "694cbdae0b6de4918edc747207a9e372dfba8ce8e590f9dd15ea6ab864f842c4",
+  "cargo_lock_sha256": "4d1143601e90436115100eabcab9f098152ae7606976e906746cfe0bba78be8c",
   "disposition": "local_staged_source_only",
   "foundation": {
     "architecture": "radroots.crates.release.v2",
-    "lockfile_sha256": "694cbdae0b6de4918edc747207a9e372dfba8ce8e590f9dd15ea6ab864f842c4",
+    "lockfile_sha256": "4d1143601e90436115100eabcab9f098152ae7606976e906746cfe0bba78be8c",
     "repository": "https://github.com/radrootslabs/lib",
-    "revision": "ac392da942896a6b676f063929af16971e201b0e",
+    "revision": "bb54297d208f8e3817485d1c1a63a386f457349a",
     "schema": "radroots.lib.source-lock.v1",
-    "source_archive_sha256": "c7c5de435fa7965181d44ccc146cab4286b943e0fdc34d6be757d38a2961ed1c",
+    "source_archive_sha256": "30c02cb48df5864e53febe96b7ec3193e896ad9b94d05cfce0d051a4f539618a",
     "version": "0.1.0-alpha",
     "workspace_catalog_sha256": "ee295f2352e2577a4052d980624415aec9871197d4fc9910a4c21c83a9179200"
   },
@@ -498,15 +498,15 @@
     "files": {
       "Cargo.lock": {
         "bytes": 94853,
-        "git_blob": "93daaf6d05fc4f6d7dfd7343b4e6d9cf11dbd5ba",
+        "git_blob": "bf6d9d493e562eecb389b1a75c38324b3e1f0190",
         "mode": "100644",
-        "sha256": "694cbdae0b6de4918edc747207a9e372dfba8ce8e590f9dd15ea6ab864f842c4"
+        "sha256": "4d1143601e90436115100eabcab9f098152ae7606976e906746cfe0bba78be8c"
       },
       "Cargo.toml": {
         "bytes": 4442,
-        "git_blob": "2e86fc8e74051e44b1acad6736543c30cb7c9b19",
+        "git_blob": "a76a43232f8e359b08368612ecc225ec8a8e9d87",
         "mode": "100644",
-        "sha256": "29004a91f6b5f6474439d39fb15f4bf8794bd0677a82eec1b7266191d23be5cc"
+        "sha256": "76563476c14d43ea9c7c1f5b78000676918619c501940b06a5f6159a615dc0d7"
       },
       "Makefile": {
         "bytes": 3934,
@@ -641,10 +641,10 @@
         "sha256": "dff55e46521c26f5f0ece024453b55c15f132fa94f78e2cba3d141f123d4eca0"
       },
       "core/crates/tera_core/src/runtime/product_surface.rs": {
-        "bytes": 7824,
-        "git_blob": "d47c550c5f18f5ef4d106004287ece34b8df4ad7",
+        "bytes": 7961,
+        "git_blob": "038219781276bedec4da0ad309be6784c7cc4252",
         "mode": "100644",
-        "sha256": "74cc8b81313265d09456dc0efe619e49fcd7a5d7962055215cf8e31618cb1f1b"
+        "sha256": "c47647330fb03412d9237b14c9ccb8b434d7bc796a1517ad96a7608840295b12"
       },
       "core/crates/tera_core/src/runtime/product_surface/authoring.rs": {
         "bytes": 11282,
@@ -797,10 +797,10 @@
         "sha256": "f5d9c1bac647bf745600c2edefffa1f25172221ac9d4913b81b2b5a8fcc8b590"
       },
       "core/crates/tera_core/src/runtime/product_surface/outbox.rs": {
-        "bytes": 170329,
-        "git_blob": "696260720ef6a54c2111d7b975fb85ac45abb41d",
+        "bytes": 167726,
+        "git_blob": "28341e9a2efd3fb6ed3d98ffeddf3cda11803a40",
         "mode": "100644",
-        "sha256": "48cc3be9a8a1356f2cde36816329955fd20bb930c01e75d2243d82dbe8ed3d0b"
+        "sha256": "db3d98be8e920a41c205bb58c6ac3bc873b3e17638dc78cf4d958dd9cc04310f"
       },
       "core/crates/tera_core/src/runtime/product_surface/outbox/advance.rs": {
         "bytes": 2011,
@@ -820,11 +820,23 @@
         "mode": "100644",
         "sha256": "a77be347ffb219b07d15b79582dfc159f5728e1f5b8c9036b9c132a64f7a9ce8"
       },
+      "core/crates/tera_core/src/runtime/product_surface/outbox/media.rs": {
+        "bytes": 2714,
+        "git_blob": "a24fb22dd3088d6609a403849203b18b8602aa05",
+        "mode": "100644",
+        "sha256": "b6878895dc35c38578cc8ee95874c019462fb4d2090c91d162b2a675f6f9584f"
+      },
       "core/crates/tera_core/src/runtime/product_surface/outbox/mutation_admission_tests.rs": {
         "bytes": 13316,
         "git_blob": "9c63f04493eda38aa11cb77bec8173004ca70865",
         "mode": "100644",
         "sha256": "3c048e44551d04e607597761481c24e9bbe55f6b20358047d18c8013c093fb8f"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/outbox/native_upload.rs": {
+        "bytes": 1856,
+        "git_blob": "6d0db606aa081418f2d221e6a6d31c7aecd7274b",
+        "mode": "100644",
+        "sha256": "2e1b1e65d461a73f6d5737297ded95cb683b9daea4b076a5625c36757808a70d"
       },
       "core/crates/tera_core/src/runtime/product_surface/projection.rs": {
         "bytes": 23423,
@@ -845,10 +857,10 @@
         "sha256": "76e3bddfc237dac63293d264d68991b489585136fe377e39dbba72aa3a1181f4"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission.rs": {
-        "bytes": 5404,
-        "git_blob": "aca536a36c4a9f5cebad5f206ecb66e17d7c392c",
+        "bytes": 5744,
+        "git_blob": "388bc937587f9a7f4c2ea4f33ca2b050a3f5dc2d",
         "mode": "100644",
-        "sha256": "70c51fbd3abb0c743df1e2840a59e484d8fdc3cf7dd08a2534c26d8e5e9e1bd7"
+        "sha256": "fde343558bab6cca019fd59e09ab693746e6ee721a371d30665f08a486d61b15"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/atomic_fault_store.rs": {
         "bytes": 3189,
@@ -917,10 +929,16 @@
         "sha256": "23fab4dd866cf8d4acf87c9091c8858312dc7789d5fe08c250694a69a02248ed"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs": {
-        "bytes": 9935,
-        "git_blob": "8a8367a4d9df09700af6eb152dda91646886f6eb",
+        "bytes": 9975,
+        "git_blob": "cd873d3fcaadb22b7b58d2019e47500255e06fc3",
         "mode": "100644",
-        "sha256": "44459a1fc1819d83dbf5355cfa01442e832a8607d9c4dd5a210fdf51b2d3757f"
+        "sha256": "add8efa48b69b51c81df8b384d8cd489d165459837275d23e18cf4aa490ebc0b"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/intent_media.rs": {
+        "bytes": 3230,
+        "git_blob": "b01b93b31cda3d507b30b6e092a96e316dd34c98",
+        "mode": "100644",
+        "sha256": "3a1cbb65da28dd8cf84c494001c071df75449185deb4cd4fb11054feecca9d5f"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/intent_tests.rs": {
         "bytes": 7768,
@@ -928,17 +946,59 @@
         "mode": "100644",
         "sha256": "513320bd503d0f747edc5b72e4039bd51344c03ab82f73c870e5346e785b66e4"
       },
-      "core/crates/tera_core/src/runtime/product_surface/submission/operation.rs": {
-        "bytes": 5956,
-        "git_blob": "025015f05b1674ac462f71a333e5781111704a5f",
+      "core/crates/tera_core/src/runtime/product_surface/submission/inventory.rs": {
+        "bytes": 8116,
+        "git_blob": "e8c53467ebab66cd381aa8f177bdaca11a053b3b",
         "mode": "100644",
-        "sha256": "178be957fd0b899de4f3dbecb31fc5e41faeb2a83b9cec329747d628bc49d104"
+        "sha256": "889b35c7b852273999a3202a56495547e2ec147595029bad31c1122d05c2aa53"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/inventory_tests.rs": {
+        "bytes": 10786,
+        "git_blob": "8e297884db1b82738313adc12f0a72daccd47af1",
+        "mode": "100644",
+        "sha256": "91e8ea5db8bb9f969262978e7a2bc823823a58d24f39414ec33a10fe6b3fa5eb"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/media.rs": {
+        "bytes": 4702,
+        "git_blob": "f8899c770131df84d5ef4c04adc58303babca898",
+        "mode": "100644",
+        "sha256": "c1a495ecd8930805268a2536c692d428c1f1f3de08730cb60e6792324a268417"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/media_recovery_tests.rs": {
+        "bytes": 4696,
+        "git_blob": "49548e21af9da1c4ef03d86a32ae1a89987818b1",
+        "mode": "100644",
+        "sha256": "528d5829ac92c5a4d2e6a62fcc15f28b599efee184beaf764ddb5b80f9a9fa58"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/media_runtime.rs": {
+        "bytes": 5023,
+        "git_blob": "2ff692b844909ec444637f697b96fa102d747ff8",
+        "mode": "100644",
+        "sha256": "6c87773ff682aca31183d167a14b75a61a6a7318fd7c200c9be5f8cfb8b0896c"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/media_test_support.rs": {
+        "bytes": 2655,
+        "git_blob": "201ccb3ba7f6376ebe1151090ac34ea8a829e823",
+        "mode": "100644",
+        "sha256": "0e75609fd40ec2712841ca784ac4a55b0053fdf54f1fd42f59abd1bcc5721e93"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/media_tests.rs": {
+        "bytes": 6296,
+        "git_blob": "aea440f717ea461427118fb5082d9c13574e02ca",
+        "mode": "100644",
+        "sha256": "6ae1acbd4c0cbc4b8ad38861c7359e6f9bf98659551878c71ef76c4a2aa967ae"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/operation.rs": {
+        "bytes": 7126,
+        "git_blob": "69292d1f696a9973533bf348d02cfb8b83c21133",
+        "mode": "100644",
+        "sha256": "511d21ba6b6614821cc05b40793943e79e5636a393b0250d6ba33043caa2ef81"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_load.rs": {
-        "bytes": 4726,
-        "git_blob": "b0d9c843be0156d125f99900ec342a23d97dc70a",
+        "bytes": 4379,
+        "git_blob": "8dd7e15aa3c3883c024646c74bbc0bc424ab3c7c",
         "mode": "100644",
-        "sha256": "1d9f0935dd2b36d97b3d553754c6f12d2c536df9225c997cc416cb2bf6a84497"
+        "sha256": "4caea4f80c950b4897af6c818b4a52e3936d02a5a912d3e7db1946ff6c339052"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_recovery_tests.rs": {
         "bytes": 3771,
@@ -947,10 +1007,10 @@
         "sha256": "34053a01079a939b54615f9c39e9f97314f9741bb1ff70fd309257c24ba00acc"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs": {
-        "bytes": 6267,
-        "git_blob": "a4a3aa744a9b25ab693cc9cde426c086adbf023c",
+        "bytes": 6425,
+        "git_blob": "b035c31234de26dd50a9533b1103ff7caf501b24",
         "mode": "100644",
-        "sha256": "0c5e6561cb50ab0c05d5001a3e8e8d59cba0cb51961bd8efd8fc36b86f698d8a"
+        "sha256": "83ec90cbadc617260a9b23e492e2a6fabfbe789eee12a4f237c9390ed9767c4d"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_tests.rs": {
         "bytes": 10339,
@@ -959,10 +1019,10 @@
         "sha256": "442655af58a6de128bb9a2f38be6b7173d12ea602d8565ea7dca1d15e681213e"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/record.rs": {
-        "bytes": 5041,
-        "git_blob": "0b1a1d54477249f2ccfa0ec7955de5378340a528",
+        "bytes": 6059,
+        "git_blob": "d9b3be0014e232421b7053837a8e02aa8d5b6f98",
         "mode": "100644",
-        "sha256": "5a450eaab5c699da2aa8e940aad1a5560aff48d3030859d3ba05ab9944c55334"
+        "sha256": "24c0b383433ad05338a611f733090902ac33257a59434ceed0c599c664097e69"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/record_tests.rs": {
         "bytes": 4988,
@@ -1578,9 +1638,9 @@
       },
       "radroots.lib.source-lock.v1.toml": {
         "bytes": 482,
-        "git_blob": "c72ce8cf2a900d3464fe6ec2311fa5d21bc1bf57",
+        "git_blob": "a51c5b19b5417403b38651c73e973aff45762ba3",
         "mode": "100644",
-        "sha256": "a910d5d15d9c020172fb215bc8e2d27dd92c05cb1ab3b803791f13579e2932fa"
+        "sha256": "e952058c8b7e929c335fda72f85b5e28bcc9a63398ae97887b9bbba18a96ce52"
       },
       "rust-toolchain.toml": {
         "bytes": 79,
@@ -1895,13 +1955,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 131954,
-        "git_blob": "32349030113731123547695834e580cf8d6b3b3c",
+        "bytes": 133764,
+        "git_blob": "2a245f8465a183c6263a41b46a0364e7dd4bb9a7",
         "mode": "100644",
-        "sha256": "e8f0034a49cddca52703bae646f2f88b06331195572902b9b728cde64e1a4ffa"
+        "sha256": "d6846c226536d724a7049c1404b8780feadcfd564c104e6ffb78e480a7625986"
       }
     },
     "policy": "staged_inputs",
-    "tree": "18a7a18d56a4fb953cd53e12f99afee48c7e6e41"
+    "tree": "2debefe8f899f1f0441c77eb804b135905a43358"
   }
 }

@@ -25,6 +25,9 @@ use crate::runtime::product_surface::{
     AddCommandType, ComposerScope, Phase1MediaPrerequisite, Phase1MediaStage, Phase1QueuePolicy,
 };
 
+#[path = "intent_media.rs"]
+mod media;
+
 pub const SUBMISSION_INTENT_PAYLOAD_SCHEMA: &str = "tera.publication_intent.v1";
 pub const SUBMISSION_INTENT_SCHEMA_VERSION: u64 = 1;
 pub const SUBMISSION_INTENT_SCHEMA_SHA256: &str =

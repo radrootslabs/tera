@@ -49,6 +49,8 @@ use crate::runtime::TeraRuntime;
 mod advance;
 #[path = "outbox/inventory.rs"]
 mod inventory;
+mod media;
+mod native_upload;
 pub use inventory::{
     Phase1DraftListEntry, Phase1DraftPage, Phase1DraftRepairReason, Phase1DraftSummary,
 };
@@ -340,7 +342,7 @@ impl Phase1MediaPrerequisite {
             && receipt.verified_at_unix_ms() > 0
     }
 
-    fn is_remote_verified(&self) -> bool {
+    pub(super) fn is_remote_verified(&self) -> bool {
         self.stage == Phase1MediaStage::Verified
             && self.upload_attempts > 0
             && self.verified_at_unix_ms.is_some()
@@ -863,7 +865,7 @@ impl Phase1RevisionStatus {
 }
 
 impl Phase1UploadPlan {
-    fn derive(
+    pub(super) fn derive(
         now_unix_ms: u64,
         operation_id: [u8; 16],
         artifact_id: [u8; 16],
@@ -1559,50 +1561,20 @@ impl TeraRuntime {
         let transaction = blossom
             .prepare_upload(request)
             .map_err(|_| Phase1DraftError::Operation)?;
-        let remote_url = transaction.expected_url().as_str().to_owned();
-        let content = radroots_blossom::authorization::AuthorizationContent::parse(
-            &plan.authorization_content,
-        )
-        .map_err(|_| Phase1DraftError::InvalidMedia)?;
-        let claim = blossom
-            .authored_upload_claim(
-                &transaction,
-                content,
-                plan.authorization_created_at_unix_s,
-                plan.authorization_lifetime_seconds,
-            )
-            .map_err(|_| Phase1DraftError::Operation)?;
-        let authorization = self
-            .phase1_authorize_blossom_upload(
-                *plan.operation_id.as_bytes(),
-                *plan.artifact_id.as_bytes(),
-                claim,
-                plan.signing_deadline_unix_ms,
-                plan.cancellation,
-            )
-            .await?;
+        let job = self.authorize_native_upload(&transaction, &plan).await?;
+        let remote_url = job.remote_url();
         let uploading = self
             .phase1_update_draft_media_admitted(
                 &admission,
                 *intent.draft_id.as_bytes(),
                 intent.expected_revision.get(),
-                remote_url.as_str(),
+                remote_url,
                 Phase1MediaStage::Uploading,
                 None,
                 now_unix_ms,
             )
             .await?;
-        Ok((
-            uploading,
-            Phase1NativeUploadJob {
-                operation_id: *plan.operation_id.as_bytes(),
-                remote_url,
-                authorization_header: authorization.into_string(),
-                expected_sha256: transaction.request().sha256().to_string(),
-                media_type: transaction.request().media_type().as_str().to_owned(),
-                byte_size: transaction.request().byte_size(),
-            },
-        ))
+        Ok((uploading, job))
     }
 
     /// Verifies a native BUD-02 response and canonical BUD-01 retrieval before
@@ -2214,20 +2186,7 @@ impl TeraRuntime {
             .iter_mut()
             .find(|media| media.url == url)
             .ok_or(Phase1DraftError::InvalidMedia)?;
-        if !valid_media_transition(media.stage, stage)
-            || matches!(
-                stage,
-                Phase1MediaStage::Verified | Phase1MediaStage::Orphaned
-            )
-        {
-            return Err(Phase1DraftError::InvalidMedia);
-        }
-        media.stage = stage;
-        media.failure_code = failure_code;
-        if stage != Phase1MediaStage::Failed {
-            media.failure_code = None;
-        }
-        media.validate()?;
+        media.transition_requested(stage, failure_code)?;
         let next_stage = draft_stage_for_media(&payload.media);
         let next = head
             .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
@@ -2295,15 +2254,7 @@ impl TeraRuntime {
             .iter_mut()
             .find(|media| media.url == url)
             .ok_or(Phase1DraftError::InvalidMedia)?;
-        if media.stage != Phase1MediaStage::Uploading || !media.matches_receipt(&receipt) {
-            return Err(Phase1DraftError::InvalidMedia);
-        }
-        media.stage = Phase1MediaStage::Verified;
-        media.failure_code = None;
-        media.upload_attempts = receipt.attempts();
-        media.verified_at_unix_ms = Some(receipt.verified_at_unix_ms());
-        media.orphan = None;
-        media.validate()?;
+        media.complete_transfer(&receipt)?;
         let next_stage = draft_stage_for_media(&payload.media);
         let next = head
             .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
@@ -2374,24 +2325,7 @@ impl TeraRuntime {
             .iter_mut()
             .find(|media| media.url == url)
             .ok_or(Phase1DraftError::InvalidMedia)?;
-        if !matches!(
-            media.stage,
-            Phase1MediaStage::Pending
-                | Phase1MediaStage::Preparing
-                | Phase1MediaStage::Uploading
-                | Phase1MediaStage::Failed
-        ) {
-            return Err(Phase1DraftError::InvalidMedia);
-        }
-        media.stage = Phase1MediaStage::Failed;
-        media.failure_code = Some(error.code().to_owned());
-        media.upload_attempts = error.attempts();
-        media.verified_at_unix_ms = None;
-        media.orphan = error.possible_orphan().then(|| Phase1MediaOrphanRecord {
-            reason_code: error.code().to_owned(),
-            recorded_at_unix_ms: updated_at_unix_ms,
-        });
-        media.validate()?;
+        media.fail_transfer(error, updated_at_unix_ms)?;
         let next_stage = draft_stage_for_media(&payload.media);
         let next = head
             .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)

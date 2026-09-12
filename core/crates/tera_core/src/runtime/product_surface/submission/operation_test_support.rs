@@ -28,6 +28,7 @@ pub(super) struct CountingSigner {
     inner: LocalSigner,
     pub calls: AtomicUsize,
     pub statuses: AtomicUsize,
+    pub kinds: std::sync::Mutex<Vec<u32>>,
     pub pause: AtomicBool,
     pub entered: Notify,
     pub resume: Notify,
@@ -45,6 +46,7 @@ impl CountingSigner {
             .unwrap(),
             calls: AtomicUsize::new(0),
             statuses: AtomicUsize::new(0),
+            kinds: std::sync::Mutex::new(Vec::new()),
             pause: AtomicBool::new(false),
             entered: Notify::new(),
             resume: Notify::new(),
@@ -68,6 +70,7 @@ impl Signer for CountingSigner {
     ) -> BoxFuture<'_, Result<radroots_signing::SignReceipt, radroots_signing::Error>> {
         Box::pin(async move {
             self.calls.fetch_add(1, Ordering::SeqCst);
+            self.kinds.lock().unwrap().push(request.kind());
             if self.pause.swap(false, Ordering::SeqCst) {
                 self.entered.notify_one();
                 self.resume.notified().await;
