@@ -38,6 +38,8 @@ mod operation_test_support;
 #[cfg(test)]
 mod operation_tests;
 #[cfg(test)]
+mod signing_preparation_tests;
+#[cfg(test)]
 mod test_support;
 #[cfg(test)]
 mod transaction_test_support;

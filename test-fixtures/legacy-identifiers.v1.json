@@ -4776,7 +4776,11 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
-          "count": 6
+          "count": 9
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/signing_preparation_tests.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_ffi/Cargo.toml",
@@ -4934,6 +4938,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/repository_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/signing_preparation_tests.rs",
           "count": 1
         },
         {

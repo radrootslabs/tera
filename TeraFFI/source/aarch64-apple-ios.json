@@ -857,10 +857,10 @@
         "sha256": "76e3bddfc237dac63293d264d68991b489585136fe377e39dbba72aa3a1181f4"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission.rs": {
-        "bytes": 5744,
-        "git_blob": "388bc937587f9a7f4c2ea4f33ca2b050a3f5dc2d",
+        "bytes": 5788,
+        "git_blob": "34a2c45d8ccd63504fd018f866d31c9c5d7aad74",
         "mode": "100644",
-        "sha256": "fde343558bab6cca019fd59e09ab693746e6ee721a371d30665f08a486d61b15"
+        "sha256": "43b9e796aa3c954961c714af9b9a397f1bf66b3ef92b14ab67cc432627c32dd7"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/atomic_fault_store.rs": {
         "bytes": 3189,
@@ -1007,10 +1007,10 @@
         "sha256": "34053a01079a939b54615f9c39e9f97314f9741bb1ff70fd309257c24ba00acc"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs": {
-        "bytes": 6425,
-        "git_blob": "b035c31234de26dd50a9533b1103ff7caf501b24",
+        "bytes": 6891,
+        "git_blob": "6a0a792fc2dec4ae04f83ab818024275db55e8e6",
         "mode": "100644",
-        "sha256": "83ec90cbadc617260a9b23e492e2a6fabfbe789eee12a4f237c9390ed9767c4d"
+        "sha256": "ba8e0fd8b4c85437d89049c3652ce2ba8f05771c114c91a8c4c638bf59aa7ce6"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_tests.rs": {
         "bytes": 10339,
@@ -1041,6 +1041,12 @@
         "git_blob": "98d15c4779d02813070543145c4cf89a7489c1ed",
         "mode": "100644",
         "sha256": "5d05ddf11b0ce9040f9221b7158a50374e4df6c344ce23faa1e14ce2d6c91122"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/signing_preparation_tests.rs": {
+        "bytes": 9603,
+        "git_blob": "edebc427e882cbacb50419de84ebbebe772af990",
+        "mode": "100644",
+        "sha256": "202c93a99d2132ae72b0333a5b3f32e65ce84205537d51f3ba4b872ea5dfd7de"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/sqlite_tests.rs": {
         "bytes": 5247,
@@ -1997,13 +2003,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 134234,
-        "git_blob": "d87127249e1943580e522e8c70769062fcc91ad3",
+        "bytes": 134540,
+        "git_blob": "65653d77a42b56e472da03e38dbc76f568a84340",
         "mode": "100644",
-        "sha256": "dfe64e685cae9a5fec5cb311a590b10415d570a406296dca5fc3998cce9372b5"
+        "sha256": "0a5f18d3ce7fcdec536dd72504b1e1556d9458d8e215bb54bfd888ad582d7e8c"
       }
     },
     "policy": "staged_inputs",
-    "tree": "b7c0e8adcd745dc848f8ab8f5f55da12e49e2384"
+    "tree": "b3f79cda46bad95581c429bf99ba63555c782cd5"
   }
 }
