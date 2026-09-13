@@ -11,7 +11,7 @@ enum TeraBackgroundUploadRequest {
   )
 
   static func prepare(
-    job: TeraNativeUploadJob,
+    job: TeraNativeTransferJob,
     media: TeraPreparedMedia,
     preparer: RadrootsAppleMediaPreparer
   ) async throws -> RadrootsBackgroundTransferRequest {
@@ -19,7 +19,7 @@ enum TeraBackgroundUploadRequest {
       job.mediaType == media.mediaType,
       job.byteSize == media.byteSize,
       let byteSize = Int(exactly: media.byteSize),
-      let remoteURL = URL(string: job.remoteURL)
+      let remoteURL = URL(string: job.uploadURL)
     else {
       throw TeraRuntimeFailure.local(
         operation: "add.media.background",
@@ -50,10 +50,10 @@ enum TeraBackgroundUploadRequest {
   }
 
   static func transferIdentifier(
-    job: TeraNativeUploadJob
+    job: TeraNativeTransferJob
   ) throws -> RadrootsBackgroundTransferIdentifier {
     try RadrootsBackgroundTransferIdentifier(
-      "radroots.add.\(job.draft.id).\(job.draft.revision).\(job.operationID)"
+      "radroots.add.\(job.ownerID).\(job.expectedRevision).\(job.operationID)"
     )
   }
 
@@ -73,7 +73,8 @@ enum TeraBackgroundUploadRequest {
 
   static func persistedRequestMatchesMedia(
     _ persisted: RadrootsBackgroundTransferRequest,
-    media: TeraPreparedMedia
+    media: TeraPreparedMedia,
+    uploadURL: String?
   ) throws -> Bool {
     guard let remoteURL = media.remoteURL.flatMap(URL.init(string:)),
       let byteSize = Int(exactly: media.byteSize)
@@ -86,7 +87,7 @@ enum TeraBackgroundUploadRequest {
     )
     let responsePolicy = try RadrootsBackgroundTransferResponsePolicy.boundedJSON()
     return persisted.headers.isEmpty && persisted.metadata.isEmpty
-      && persisted.remoteURL == remoteURL
+      && (persisted.remoteURL == remoteURL || persisted.remoteURL.absoluteString == uploadURL)
       && persisted.method == .put
       && persisted.operation == .upload(source: .stagedBlob(blob))
       && persisted.networkPolicy

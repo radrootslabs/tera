@@ -30,19 +30,19 @@ enum TeraGeneratedSubmission {
                                      replayed: value.replayed)
   }
 
-  private static func validID(_ value: String) -> Bool {
+  static func validID(_ value: String) -> Bool {
     value.utf8.count == 32 && value != String(repeating: "0", count: 32)
       && value.utf8.allSatisfy { (48 ... 57).contains($0) || (97 ... 102).contains($0) }
   }
 
-  private static func version(_ version: UInt16) throws {
+  static func version(_ version: UInt16) throws {
     guard version == 1 else {
       throw TeraRuntimeFailure.local(operation: "runtime.submission", code: "submission_schema_unsupported",
                                      safeMessage: "This reservation format requires a compatible app.")
     }
   }
 
-  private static func mismatch() -> TeraRuntimeFailure {
+  static func mismatch() -> TeraRuntimeFailure {
     .local(operation: "runtime.submission", code: "submission_receipt_mismatch",
            safeMessage: "The reservation response could not be reconciled.")
   }

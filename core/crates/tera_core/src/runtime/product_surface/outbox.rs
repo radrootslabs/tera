@@ -579,6 +579,7 @@ pub struct Phase1UploadPlan {
 pub struct Phase1NativeUploadJob {
     operation_id: [u8; 16],
     remote_url: String,
+    upload_url: String,
     authorization_header: String,
     expected_sha256: String,
     media_type: String,
@@ -591,6 +592,9 @@ impl Phase1NativeUploadJob {
     }
     pub fn remote_url(&self) -> &str {
         self.remote_url.as_str()
+    }
+    pub fn upload_url(&self) -> &str {
+        self.upload_url.as_str()
     }
     pub fn authorization_header(&self) -> &str {
         self.authorization_header.as_str()

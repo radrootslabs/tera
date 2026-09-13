@@ -1007,6 +1007,7 @@ struct TeraDraftMediaStatus: Sendable, Equatable, Hashable {
   let possibleOrphan: Bool
   let orphanReasonCode: String?
   let orphanRecordedAtUnixMilliseconds: UInt64?
+  var uploadURL: String?
 }
 
 struct TeraOperationSettlement: Sendable, Equatable, Hashable {
@@ -1123,16 +1124,6 @@ struct TeraBlossomUploadIntent: Sendable, Equatable {
   let draftID: String
   let expectedRevision: UInt64
   let media: TeraPreparedMediaHandle
-}
-
-struct TeraNativeUploadJob: Sendable, Equatable {
-  let operationID: String
-  let draft: TeraDraftStatus
-  let remoteURL: String
-  let authorizationHeader: String
-  let expectedSHA256: String
-  let mediaType: String
-  let byteSize: UInt64
 }
 
 struct TeraNativeUploadCompletion: Sendable, Equatable {

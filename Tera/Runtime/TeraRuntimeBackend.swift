@@ -7,6 +7,13 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 protocol TeraRuntimeBackend: Sendable {
   func reserveSubmissionID() async throws -> String
   func reserveSubmission(request: TeraSubmissionRequest) async throws -> TeraSubmissionReservation
+  func prepareSubmission(request: TeraSubmissionRequest, media: [TeraPreparedMediaHandle]) async throws -> TeraSubmissionStatus
+  func recoverSubmission(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus?
+  func submissionStatus(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus
+  func advanceSubmission(request: TeraSubmissionRequest, expectedRevision: UInt64) async throws -> TeraSubmissionStatus
+  func listSubmissions(scope: TeraComposerScope, limit: UInt16, cursor: String?) async throws -> TeraSubmissionPage
+  func prepareSubmissionUpload(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionUploadJob
+  func completeSubmissionUpload(input: TeraSubmissionMediaRequest, response: TeraAddBackgroundUploadReceipt) async throws -> TeraSubmissionStatus
   func reserveComposerID() async throws -> String
   func saveComposer(request: TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt
   func loadComposer(scope: TeraComposerScope, id: String) async throws -> TeraComposerDraft

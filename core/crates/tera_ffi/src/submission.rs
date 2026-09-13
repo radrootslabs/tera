@@ -8,6 +8,12 @@ use tera_core::runtime::product_surface::{
     SubmissionReservationReceipt, SubmissionReservationRequest,
 };
 
+mod error;
+mod operation;
+mod page;
+pub use operation::*;
+pub use page::*;
+
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiSubmissionCommandIdRecord {
     pub schema_version: u16,
@@ -30,6 +36,18 @@ pub struct FfiSubmissionReservationRequest {
     pub scope: FfiComposerScopeRecord,
     pub composer_id: String,
     pub expected_revision: u64,
+}
+
+impl From<&SubmissionReservationRequest> for FfiSubmissionReservationRequest {
+    fn from(value: &SubmissionReservationRequest) -> Self {
+        Self {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            command_id: hex::encode(value.command_id().as_bytes()),
+            scope: value.scope().into(),
+            composer_id: hex::encode(value.composer_id().as_bytes()),
+            expected_revision: value.expected_revision().get(),
+        }
+    }
 }
 
 impl TryFrom<FfiSubmissionReservationRequest> for SubmissionReservationRequest {

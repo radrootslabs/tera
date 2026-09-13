@@ -795,10 +795,11 @@ impl TeraRuntime {
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, Some(input.draft_id));
         Ok(crate::FfiNativeUploadJobRecord {
-            schema_version: crate::MOBILE_FFI_SCHEMA_VERSION,
+            schema_version: crate::UPLOAD_OUTPUT_FFI_SCHEMA_VERSION,
             operation_id: hex::encode(job.operation_id()),
             draft: status.into(),
             remote_url: job.remote_url().to_owned(),
+            upload_url: job.upload_url().to_owned(),
             authorization_header: job.authorization_header().to_owned(),
             expected_sha256: job.expected_sha256().to_owned(),
             media_type: job.media_type().to_owned(),

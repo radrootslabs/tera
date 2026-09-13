@@ -36,6 +36,12 @@ async fn scoped_media_memory_and_sqlite_verify_before_original_operation_can_sig
             *original.receipt().operation_id().as_bytes()
         );
         assert!(job.authorization_header().starts_with("Nostr "));
+        assert_eq!(job.upload_url(), format!("{origin}/upload"));
+        assert_eq!(
+            job.remote_url(),
+            format!("{origin}/{}.png", photo().0.sha256)
+        );
+        assert_ne!(job.upload_url(), job.remote_url());
         assert_eq!(uploading.captured(), original.captured());
         assert_eq!(
             uploading.receipt().operation_id(),

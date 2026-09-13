@@ -1,6 +1,11 @@
 use super::TeraRuntime;
 use crate::{FfiSubmissionReservationReceipt, FfiSubmissionReservationRequest, TeraAppError};
 
+#[path = "media_runtime.rs"]
+mod media;
+#[path = "operation_runtime.rs"]
+mod operation;
+
 #[cfg_attr(not(coverage_nightly), uniffi::export(async_runtime = "tokio"))]
 impl TeraRuntime {
     /// Retrying the original request recovers a committed reservation after a lost callback.

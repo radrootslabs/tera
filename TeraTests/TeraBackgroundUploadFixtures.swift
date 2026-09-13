@@ -61,6 +61,7 @@ final class BackgroundUploadFixture: @unchecked Sendable {
       operationID: operation,
       draft: draft(revision: revision, stage: .uploading),
       remoteURL: media.remoteURL!,
+      uploadURL: "http://127.0.0.1:3000/upload",
       authorizationHeader: "Nostr test-authorization",
       expectedSHA256: media.sha256,
       mediaType: media.mediaType,
@@ -92,7 +93,8 @@ final class BackgroundUploadFixture: @unchecked Sendable {
           verifiedAtUnixMilliseconds: stage == .verified ? 1_800_000_000_001 : nil,
           possibleOrphan: false,
           orphanReasonCode: nil,
-          orphanRecordedAtUnixMilliseconds: nil
+          orphanRecordedAtUnixMilliseconds: nil,
+          uploadURL: "http://127.0.0.1:3000/upload"
         ),
       ],
       settlement: nil,
@@ -112,7 +114,7 @@ final class BackgroundUploadFixture: @unchecked Sendable {
     )
     return try RadrootsBackgroundTransferRequest(
       identifier: RadrootsBackgroundTransferIdentifier(job.transferIdentifier),
-      remoteURL: URL(string: remoteURL ?? job.remoteURL)!,
+      remoteURL: URL(string: remoteURL ?? job.uploadURL)!,
       method: .put,
       operation: .upload(source: .stagedBlob(blob)),
       headers: [:],

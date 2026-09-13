@@ -23,7 +23,6 @@
     {"path": "scripts/test_local_social_fixture.py", "maximum_lines": 1188}
   ],
   "python_complexity_exception": [
-    {"function": "scripts/local-social-fixture.py:BlossomHandler.do_PUT", "maximum_complexity": 11},
     {"function": "scripts/local-social-fixture.py:FixtureState._publish_persona_event", "maximum_complexity": 13},
     {"function": "scripts/local-social-fixture.py:FixtureState.upload", "maximum_complexity": 14},
     {"function": "scripts/local-social-fixture.py:RelayHandler.handle", "maximum_complexity": 26},

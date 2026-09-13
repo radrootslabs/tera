@@ -23,6 +23,7 @@ struct TeraDraftsSheet: View {
         }
         TeraEditingProtectionActions(protection: protection)
         composerSection
+        TeraSubmissionInventoryView(store: store.submissions)
         legacySection
         Section {
           Button("Reload from first page") { recovery.start() }
@@ -37,7 +38,7 @@ struct TeraDraftsSheet: View {
       }
     }
     .accessibilityIdentifier("radroots.add.drafts.sheet")
-    .onAppear { recovery.start() }
+    .onAppear { recovery.start(); store.submissions.inventory.start() }
     .onChange(of: protection.reopened) { _, value in
       if value != nil {
         dismiss()

@@ -32,6 +32,7 @@ actor TeraRuntimeClient {
   private var startupOperation: StartupOperation?
   private var shutdownOperation: ShutdownOperation?
   private var activeOperations: [UInt64: ActiveOperation] = [:]
+  private var activeSubmission: TeraRuntimeOperationIdentity?
   private var subscriptions: [UUID: TeraRuntimeSubscription] = [:]
 
   init(
@@ -629,13 +630,24 @@ actor TeraRuntimeClient {
 
   func runtimeOperation<T: Sendable>(
     _ operation: String,
+    submission: Bool = false,
     _ body: @escaping @Sendable (any TeraRuntimeBackend) async throws -> T
   ) async throws -> T {
     guard let backend, case .running = lifecycleState else {
       throw TeraRuntimeClientError.notRunning
     }
+    if submission {
+      try Task.checkCancellation()
+      guard activeSubmission == nil else {
+        throw TeraRuntimeFailure.local(operation: operation, code: "operation_in_progress",
+                                       safeMessage: "The original submission call is still returning. Retry the same request when it finishes.")
+      }
+    }
     let operationGeneration = generation
     let identity = nextIdentity(kind: .operation)
+    if submission {
+      activeSubmission = identity
+    }
     let task = TeraRuntimeBoundedTask<T>(
       deadlineNanoseconds: deadlines.operationNanoseconds,
       operation: { [weak self] in
@@ -755,66 +767,10 @@ actor TeraRuntimeClient {
   }
 
   private func removeActiveOperation(_ identity: TeraRuntimeOperationIdentity) {
+    if activeSubmission == identity {
+      activeSubmission = nil
+    }
     guard activeOperations[identity.sequence]?.identity == identity else { return }
     activeOperations.removeValue(forKey: identity.sequence)
-  }
-
-  private static func deadlineFailure(
-    identity: TeraRuntimeOperationIdentity
-  ) -> TeraRuntimeFailure {
-    .local(
-      operation: identity.rawValue,
-      code: "ios.runtime.deadline_exceeded",
-      safeMessage: "The Tera runtime operation did not finish in time."
-    )
-  }
-
-  private static func cancellationFailure(
-    identity: TeraRuntimeOperationIdentity
-  ) -> TeraRuntimeFailure {
-    .local(
-      operation: identity.rawValue,
-      code: "ios.runtime.cancelled",
-      safeMessage: "The Tera runtime operation was cancelled."
-    )
-  }
-
-  static func failure(from error: Error, operation: String) -> TeraRuntimeFailure {
-    if let failure = error as? TeraRuntimeFailure {
-      return failure
-    }
-    if error is CancellationError {
-      return .local(
-        operation: operation,
-        code: "ios.runtime.cancelled",
-        safeMessage: "The Tera runtime operation was cancelled."
-      )
-    }
-    if case let TeraRuntimeClientError.startup(failure) = error {
-      return failure
-    }
-    if case let TeraRuntimeClientError.subscription(failure) = error {
-      return failure
-    }
-    if case let TeraRuntimeClientError.status(failure) = error {
-      return failure
-    }
-    if case let TeraRuntimeClientError.today(failure) = error {
-      return failure
-    }
-    if case let TeraRuntimeClientError.add(failure) = error {
-      return failure
-    }
-    if case let TeraRuntimeClientError.support(failure) = error {
-      return failure
-    }
-    if case let TeraRuntimeClientError.shutdown(failure) = error {
-      return failure
-    }
-    return .local(
-      operation: operation,
-      code: "ios.runtime.unexpected",
-      safeMessage: "The Tera runtime could not complete the operation."
-    )
   }
 }

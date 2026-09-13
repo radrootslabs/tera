@@ -503,6 +503,10 @@
           "count": 3
         },
         {
+          "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
         }
@@ -1060,6 +1064,10 @@
         },
         {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
           "count": 1
         },
         {
@@ -2167,10 +2175,6 @@
         {
           "path": "Tera/Views/TeraDraftsSheet.swift",
           "count": 1
-        },
-        {
-          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 1
         }
       ]
     },
@@ -2212,7 +2216,11 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSubmissionQualificationSupport.swift",
+          "count": 1
         }
       ]
     },
@@ -2416,7 +2424,11 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSubmissionQualificationSupport.swift",
+          "count": 1
         }
       ]
     },
@@ -2448,11 +2460,15 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 5
+          "count": 4
         },
         {
           "path": "TeraUITests/TeraRootShellUITests.swift",
           "count": 2
+        },
+        {
+          "path": "TeraUITests/TeraSubmissionQualificationSupport.swift",
+          "count": 1
         }
       ]
     },
@@ -2489,7 +2505,7 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Views/TeraAddView.swift",
+          "path": "Tera/Views/TeraAddSubmitButton.swift",
           "count": 1
         },
         {
@@ -4096,7 +4112,7 @@
         },
         {
           "path": "core/crates/tera_ffi/src/dto.rs",
-          "count": 2
+          "count": 3
         },
         {
           "path": "core/crates/tera_ffi/src/runtime.rs",

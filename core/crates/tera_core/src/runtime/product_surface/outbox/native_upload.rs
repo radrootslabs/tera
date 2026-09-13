@@ -38,6 +38,7 @@ impl TeraRuntime {
         Ok(Phase1NativeUploadJob {
             operation_id: *plan.operation_id.as_bytes(),
             remote_url,
+            upload_url: transaction.expected_url().upload_url(),
             authorization_header: authorization.into_string(),
             expected_sha256: transaction.request().sha256().to_string(),
             media_type: transaction.request().media_type().as_str().to_owned(),

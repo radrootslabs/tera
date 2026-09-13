@@ -12,6 +12,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from scripts.local_social_test_support import blossom_server
+
 
 SCRIPT = Path(__file__).with_name("local-social-fixture.py")
 SPEC = importlib.util.spec_from_file_location("local_social_fixture", SCRIPT)
@@ -418,18 +420,12 @@ class LocalSocialFixtureTests(unittest.TestCase):
             control = root / "control"
             control.touch()
             state = fixture.FixtureState(root / "evidence.json", control, 0)
-            fixture.BlossomHandler.state = state
-            server = fixture.http.server.ThreadingHTTPServer(
-                ("127.0.0.1", 0), fixture.BlossomHandler
-            )
-            state.blossom_port = server.server_address[1]
-            thread = fixture.threading.Thread(target=server.serve_forever, daemon=True)
-            thread.start()
-            try:
-                for vector in corpus["vectors"]:
-                    if vector["surface"] != "http":
-                        continue
-                    with self.subTest(vector=vector["id"]):
+            with blossom_server(fixture.BlossomHandler, state):
+                cases = [(v, "/upload", digest) for v in corpus["vectors"] if v["surface"] == "http"]
+                valid = next(v for v, _, _ in cases if v["expected_accepted"])
+                cases += [(valid, f"/{digest}.png", digest), (valid, "/upload", ""), (valid, "/upload", digest.upper())]
+                for vector, path, supplied_hash in cases:
+                    with self.subTest(vector=vector["id"], path=path, supplied_hash=supplied_hash):
                         _, header = mutate_bud11_event(
                             bud11_event(now, digest), vector["mutation"], now
                         )
@@ -438,24 +434,22 @@ class LocalSocialFixtureTests(unittest.TestCase):
                         )
                         connection.request(
                             "PUT",
-                            f"/{digest}.png",
+                            path,
                             body=body,
                             headers={
                                 "Authorization": header,
                                 "Content-Type": "image/png",
                                 "Content-Length": str(len(body)),
+                                "X-SHA-256": supplied_hash,
                             },
                         )
                         response = connection.getresponse()
                         response.read()
                         connection.close()
                         self.assertEqual(
-                            response.status == 200, vector["expected_accepted"]
+                            response.status == 200,
+                            vector["expected_accepted"] and path == "/upload" and supplied_hash == digest,
                         )
-            finally:
-                server.shutdown()
-                server.server_close()
-                thread.join(timeout=5)
             evidence = json.loads((root / "evidence.json").read_text(encoding="utf-8"))
             self.assertEqual(evidence["accepted_uploads"], 1)
 

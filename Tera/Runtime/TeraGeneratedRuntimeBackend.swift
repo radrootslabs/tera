@@ -1247,7 +1247,7 @@ extension FfiDraftFormRecord {
 }
 
 extension FfiDraftStatusRecord {
-  fileprivate var appValue: TeraDraftStatus {
+  var appValue: TeraDraftStatus {
     TeraDraftStatus(
       id: draftId,
       revision: revision,
@@ -1310,22 +1310,8 @@ extension FfiRelayAccessRecord {
   }
 }
 
-extension FfiDraftMediaRecord {
-  fileprivate var appValue: TeraDraftMediaStatus {
-    TeraDraftMediaStatus(
-      url: url,
-      stage: stage.appValue,
-      uploadAttempts: uploadAttempts,
-      verifiedAtUnixMilliseconds: verifiedAtUnixMs,
-      possibleOrphan: possibleOrphan,
-      orphanReasonCode: orphanReasonCode,
-      orphanRecordedAtUnixMilliseconds: orphanRecordedAtUnixMs
-    )
-  }
-}
-
 extension FfiMediaStage {
-  fileprivate var appValue: TeraDraftMediaStage {
+  var appValue: TeraDraftMediaStage {
     switch self {
     case .pending: .pending
     case .preparing: .preparing
@@ -1380,20 +1366,6 @@ extension TeraBlossomUploadIntent {
       draftId: draftID,
       expectedRevision: expectedRevision,
       media: media.generatedValue
-    )
-  }
-}
-
-extension FfiNativeUploadJobRecord {
-  fileprivate var appValue: TeraNativeUploadJob {
-    TeraNativeUploadJob(
-      operationID: operationId,
-      draft: draft.appValue,
-      remoteURL: remoteUrl,
-      authorizationHeader: authorizationHeader,
-      expectedSHA256: expectedSha256,
-      mediaType: mediaType,
-      byteSize: byteSize
     )
   }
 }

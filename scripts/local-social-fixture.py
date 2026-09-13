@@ -1225,12 +1225,7 @@ class BlossomHandler(http.server.BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
     def do_PUT(self) -> None:  # noqa: N802
-        component = self.path.removeprefix("/")
-        if (
-            not component.endswith(".png")
-            or len(component) != 68
-            or any(character not in "0123456789abcdef" for character in component[:-4])
-        ):
+        if self.path != "/upload":
             self.send_error(404)
             return
         try:
@@ -1238,11 +1233,12 @@ class BlossomHandler(http.server.BaseHTTPRequestHandler):
         except ValueError:
             length = -1
         authorization = self.headers.get("Authorization", "")
-        expected_hash = component[:-4]
+        expected_hash = self.headers.get("X-SHA-256", "")
         media_type = self.headers.get("Content-Type", "")
         if (
             length < 1
             or length > MAX_HTTP_BODY
+            or not lowercase_hex(expected_hash, 64)
             or not authorization.startswith("Nostr ")
             or media_type != "image/png"
         ):

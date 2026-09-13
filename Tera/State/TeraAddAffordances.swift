@@ -19,7 +19,7 @@ extension TeraAddStore {
   }
 
   var canSubmit: Bool {
-    isProductReady && !isWorking
+    isProductReady && !isWorking && !submissions.isWorking
       && (activeDraft?.isRevision == true || activeDraft?.state.canAdvance == true
         || isFormEditable)
   }

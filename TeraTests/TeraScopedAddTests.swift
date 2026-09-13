@@ -50,12 +50,14 @@ final class TeraScopedAddTests: XCTestCase {
     _ = try await client.stop()
   }
 
-  func testFormEditDuringSubmitKeepsTheNewFormAndRetainsDurableOldReceipt() async throws {
+  func testLegacyFormEditDuringSubmitKeepsTheNewFormAndRetainsDurableOldReceipt() async throws {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let store = TeraAddStore(runtimeClient: client)
     store.configure(snapshot: TeraScopeFixtures.snapshot())
     await store.start()
+    store.reopen(TeraScopeFixtures.draft("legacy source"))
+    await TeraScopeFixtures.eventually { !store.protection.isWorking }
     store.updateForm(\.content, "saved version")
     let pause = await backend.pause(.save)
     let old = Task { await store.submit() }
@@ -64,7 +66,7 @@ final class TeraScopedAddTests: XCTestCase {
     await pause.resume.open()
     await old.value
     XCTAssertEqual(store.form.content, "new edit")
-    XCTAssertNil(store.activeDraft)
+    XCTAssertEqual(store.activeDraft?.form?.content, "legacy source")
     XCTAssertNil(store.message)
     XCTAssertFalse(store.isWorking)
     let durable = try await client.draftHeads(limit: 100)
@@ -75,12 +77,14 @@ final class TeraScopedAddTests: XCTestCase {
     _ = try await client.stop()
   }
 
-  func testLateFailureSnapshotCannotWriteItsMessageOrClearANewerOperation() async throws {
+  func testLegacyLateFailureSnapshotCannotWriteItsMessageOrClearANewerOperation() async throws {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let store = TeraAddStore(runtimeClient: client)
     store.configure(snapshot: TeraScopeFixtures.snapshot())
     await store.start()
+    store.reopen(TeraScopeFixtures.draft("legacy source"))
+    await TeraScopeFixtures.eventually { !store.protection.isWorking }
     let save = await backend.pause(.save, fails: true)
     let old = Task { await store.submit() }
     await save.entered.wait()
@@ -91,6 +95,8 @@ final class TeraScopedAddTests: XCTestCase {
     await backend.configure(updated)
     store.configure(snapshot: updated)
     await store.start()
+    store.reopen(TeraScopeFixtures.draft("legacy replacement"))
+    await TeraScopeFixtures.eventually { !store.protection.isWorking }
     store.updateForm(\.content, "new account")
     let next = await backend.pause(.save)
     let current = Task { await store.submit() }
@@ -178,12 +184,14 @@ final class TeraScopedAddTests: XCTestCase {
     _ = try await client.stop()
   }
 
-  func testLateFailureSnapshotCannotOverwriteEditedFormMessage() async throws {
+  func testLegacyLateFailureSnapshotCannotOverwriteEditedFormMessage() async throws {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let store = TeraAddStore(runtimeClient: client)
     store.configure(snapshot: TeraScopeFixtures.snapshot())
     await store.start()
+    store.reopen(TeraScopeFixtures.draft("legacy source"))
+    await TeraScopeFixtures.eventually { !store.protection.isWorking }
     let save = await backend.pause(.save, fails: true)
     let old = Task { await store.submit() }
     await save.entered.wait()

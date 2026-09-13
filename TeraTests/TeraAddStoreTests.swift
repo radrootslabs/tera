@@ -17,6 +17,9 @@ final class TeraAddStoreTests: XCTestCase {
       media: fixture.media
     )
     XCTAssertEqual(first.expectedRevision, 2)
+    let snapshots = try await transfer.snapshots()
+    let snapshot = try XCTUnwrap(snapshots.first)
+    XCTAssertEqual(snapshot.request.remoteURL.absoluteString, "http://127.0.0.1:3000/upload")
     var counts = await transfer.counts
     XCTAssertEqual(counts.enqueue, 1)
 
@@ -189,12 +192,14 @@ final class TeraAddStoreTests: XCTestCase {
   }
 
   func testVerifiedRustDraftReconcilesAwaitingReceiptAfterRelaunch() async throws {
+    for legacyPath in [false, true] {
     let fixture = try BackgroundUploadFixture()
     defer { fixture.remove() }
     let transfer = BackgroundTransferHarness()
     let coordinator = fixture.coordinator(transfer: transfer)
     let job = fixture.job(revision: 2, operation: String(repeating: "a", count: 32))
-    try await transfer.seed(request: fixture.request(job: job), state: .awaitingVerification)
+    try await transfer.seed(request: fixture.request(job: job, remoteURL: legacyPath ? job.remoteURL : nil),
+                            state: .awaitingVerification)
 
     try await coordinator.reconcileBackgroundUploads(
       drafts: [fixture.draft(revision: 3, stage: .verified)]
@@ -204,6 +209,7 @@ final class TeraAddStoreTests: XCTestCase {
     let state = await transfer.state
     XCTAssertEqual(counts.acceptedSettlement, 1)
     XCTAssertEqual(state, .completed)
+    }
   }
 
   func testBackgroundReconciliationRejectsDuplicateDraftInventory() async throws {
@@ -218,48 +224,6 @@ final class TeraAddStoreTests: XCTestCase {
     } catch let failure as TeraRuntimeFailure {
       XCTAssertEqual(failure.code, "ios.add.background_draft_ambiguous")
     }
-  }
-
-  @MainActor
-  func testAllFiveFormsCompleteThroughRuntimeAndSubmittedSnapshotsFreeze() async throws {
-    let backend = AddBackend()
-    let client = try await Self.startedClient(backend)
-    let store = TeraAddStore(
-      runtimeClient: client,
-      media: AddMediaHarness()
-    )
-    await store.configure(snapshot: backend.snapshot())
-    await store.start()
-
-    for type in TeraAddCommandType.allCases {
-      store.newDraft(type: type)
-      configure(store, type: type)
-      if type == .createPhotoUpdate {
-        await store.importPhotos()
-        XCTAssertEqual(store.form.media.count, 1)
-        XCTAssertNil(store.form.media.first?.remoteURL)
-      }
-      await store.submit()
-      XCTAssertEqual(store.activeDraft?.commandType, type)
-      XCTAssertEqual(store.activeDraft?.state, .complete)
-      XCTAssertEqual(store.activeDraft?.form, store.form)
-      if type == .createPhotoUpdate {
-        XCTAssertEqual(
-          store.form.media.first?.remoteURL,
-          "http://127.0.0.1:3000/\(String(repeating: "0", count: 64)).png"
-        )
-        let didUpload = await backend.didUploadMedia()
-        XCTAssertTrue(didUpload)
-      }
-    }
-
-    let frozen = store.form
-    store.updateForm(\.content, "mutated after submit")
-    store.selectType(.createUpdate)
-    XCTAssertEqual(store.form, frozen)
-    XCTAssertFalse(store.isFormEditable)
-    XCTAssertEqual(store.drafts.filter { $0.kind == .add }.count, 5)
-    _ = try await client.stop()
   }
 
   @MainActor
@@ -326,16 +290,18 @@ final class TeraAddStoreTests: XCTestCase {
     await store.configure(snapshot: backend.snapshot())
     await store.start()
     store.updateForm(\.content, "Saved while the farm is offline")
-
     await store.submit()
-
-    let queued = try XCTUnwrap(store.activeDraft)
+    let queued = try XCTUnwrap(store.submissions.status)
     XCTAssertEqual(queued.state, .queued)
-    XCTAssertEqual(queued.form?.content, "Saved while the farm is offline")
-    XCTAssertTrue(store.message?.contains("Saved for retry") == true)
-    store.reopen(queued)
-    XCTAssertEqual(store.form, queued.form)
-    XCTAssertFalse(store.isFormEditable)
+    XCTAssertEqual(queued.captured.form.content, "Saved while the farm is offline")
+    XCTAssertTrue(store.submissions.message?.contains("Original request retained") == true)
+    store.updateForm(\.content, "Newer editing")
+    let page = try await client.listSubmissions(scope: queued.request.scope)
+    guard case let .submission(summary) = page.entries.first else { return XCTFail("Missing submission") }
+    await store.submissions.select(summary)
+    XCTAssertEqual(store.form.content, "Newer editing")
+    XCTAssertEqual(store.submissions.status, queued)
+    XCTAssertTrue(store.isFormEditable)
     _ = try await client.stop()
   }
 
@@ -348,6 +314,10 @@ final class TeraAddStoreTests: XCTestCase {
     await store.start()
     store.selectType(.createFoodAvailability)
     configure(store, type: .createFoodAvailability)
+    let legacy = try await backend.saveAddIntent(input: TeraAddRuntimeInput(form: store.form, media: []),
+                                                 existingDraftID: nil, expectedRevision: nil)
+    store.reopen(legacy)
+    await TeraScopeFixtures.eventually { !store.protection.isWorking }
     await store.submit()
     let source = try XCTUnwrap(store.activeDraft)
 
@@ -407,21 +377,20 @@ final class TeraAddStoreTests: XCTestCase {
 
       let submit = Task { await store.submit() }
       try await Task.sleep(nanoseconds: 2_000_000)
-      let visibleAtStop = store.activeDraft
+      let visibleAtStop = store.submissions.status
       store.stop()
       await submit.value
 
-      XCTAssertEqual(store.activeDraft, visibleAtStop)
+      XCTAssertEqual(store.submissions.status, visibleAtStop)
       XCTAssertFalse(store.isWorking)
 
       await store.start()
       XCTAssertEqual(store.state, .ready)
-      if let durable = store.drafts.first {
-        store.reopen(durable)
-      }
       await store.submit()
-      XCTAssertEqual(store.activeDraft?.state, .complete)
-      XCTAssertFalse(store.isWorking)
+      XCTAssertEqual(store.submissions.status?.state, .complete)
+      XCTAssertFalse(store.submissions.isWorking)
+      let count = await backend.submissionBackend.operationCount
+      XCTAssertEqual(count, 1)
       _ = try await client.stop()
     }
   }
@@ -442,20 +411,17 @@ final class TeraAddStoreTests: XCTestCase {
 
     let submit = Task { await store.submit() }
     try await Task.sleep(nanoseconds: 2_000_000)
-    let visibleAtStop = store.activeDraft
+    let visibleAtStop = store.submissions.status
     store.stop()
     await submit.value
 
-    XCTAssertEqual(store.activeDraft, visibleAtStop)
+    XCTAssertEqual(store.submissions.status, visibleAtStop)
     XCTAssertFalse(store.isWorking)
 
     await store.start()
-    let durable = try XCTUnwrap(store.drafts.first)
-    XCTAssertEqual(durable.state, .mediaUploading)
-    store.reopen(durable)
     await store.submit()
-    XCTAssertEqual(store.activeDraft?.state, .complete)
-    XCTAssertEqual(store.activeDraft?.media.first?.stage, .verified)
+    XCTAssertEqual(store.submissions.status?.state, .complete)
+    XCTAssertEqual(store.submissions.status?.media.first?.progress.stage, .verified)
     _ = try await client.stop()
   }
 
@@ -473,7 +439,7 @@ final class TeraAddStoreTests: XCTestCase {
 
     let submit = Task { await store.submit() }
     let persistedCompletion = await Self.waitUntil {
-      await backend.didPersistBackgroundCompletion()
+      await backend.submissionBackend.completionPersisted
     }
     XCTAssertTrue(persistedCompletion)
     store.stop()
@@ -482,8 +448,8 @@ final class TeraAddStoreTests: XCTestCase {
     var settlements = await media.settlementValues()
     XCTAssertEqual(settlements, [])
     await store.start()
-    XCTAssertEqual(store.drafts.first?.state, .readyToSign)
-    XCTAssertEqual(store.drafts.first?.media.first?.stage, .verified)
+    XCTAssertEqual(store.submissions.status?.state, .readyToSign)
+    XCTAssertEqual(store.submissions.status?.media.first?.progress.stage, .verified)
     settlements = await media.settlementValues()
     let reconciliations = await media.reconciliationCount()
     XCTAssertEqual(settlements, [])
@@ -512,7 +478,7 @@ final class TeraAddStoreTests: XCTestCase {
     let settlements = await media.settlementValues()
     XCTAssertEqual(settlements, [])
     await store.start()
-    XCTAssertEqual(store.drafts.first?.media.first?.stage, .verified)
+    XCTAssertEqual(store.submissions.status?.media.first?.progress.stage, .verified)
     let reconciliations = await media.reconciliationCount()
     XCTAssertEqual(reconciliations, 2)
     _ = try await client.stop()
@@ -577,7 +543,7 @@ final class TeraAddStoreTests: XCTestCase {
   }
 
   @MainActor
-  func testSubmitWithoutWritableRelayVerifiesMediaAndPreservesDraftForRetry() async throws {
+  func testSubmitWithoutWritableRelayPreservesSourceBeforeAnyUpload() async throws {
     let backend = AddBackend(includeWritableRelay: false)
     let client = try await Self.startedClient(backend)
     let store = TeraAddStore(
@@ -592,13 +558,15 @@ final class TeraAddStoreTests: XCTestCase {
 
     await store.submit()
 
-    XCTAssertEqual(store.activeDraft?.state, .readyToSign)
-    XCTAssertEqual(store.activeDraft?.media.first?.stage, .verified)
-    XCTAssertEqual(
-      store.message,
-      "Photo verified and draft saved. Configure a writable relay to publish."
-    )
-    XCTAssertNil(store.lastFailureCode)
+    XCTAssertNil(store.submissions.status)
+    let request = try XCTUnwrap(store.submissions.request)
+    let captured = try await client.loadComposer(scope: request.scope, id: request.composerID)
+    XCTAssertEqual(captured.form.content, "Carrots from today")
+    XCTAssertEqual(captured.revision, request.expectedRevision)
+    XCTAssertEqual(store.submissions.failureCode, "submission_policy_unavailable")
+    let uploads = await backend.submissionBackend.uploadCount
+    XCTAssertEqual(uploads, 0)
+    XCTAssertTrue(store.isFormEditable)
     _ = try await client.stop()
   }
 
@@ -623,14 +591,14 @@ final class TeraAddStoreTests: XCTestCase {
 
     await store.submit()
 
-    XCTAssertEqual(store.message, TeraUserMessages.text(.addOperationFailed))
-    XCTAssertEqual(store.lastFailureCode, failure.code)
+    XCTAssertTrue(store.submissions.message?.contains(TeraUserMessages.text(.addOperationFailed)) == true)
+    XCTAssertEqual(store.submissions.failureCode, failure.code)
     XCTAssertNil(store.activeDraft)
     _ = try await client.stop()
   }
 
   @MainActor
-  private func configure(_ store: TeraAddStore, type: TeraAddCommandType) {
+  func configure(_ store: TeraAddStore, type: TeraAddCommandType) {
     switch type {
     case .createUpdate:
       store.updateForm(\.content, "Harvest update")
@@ -679,7 +647,7 @@ final class TeraAddStoreTests: XCTestCase {
     return client
   }
 
-  private static func configuration() -> TeraRuntimeLaunchConfiguration {
+  static func configuration() -> TeraRuntimeLaunchConfiguration {
     TeraRuntimeLaunchConfiguration(
       applicationSupportDirectory: "/tmp/radroots-add-tests",
       publicKeyHex: String(repeating: "ab", count: 32),
@@ -740,17 +708,7 @@ final class TeraAddStoreTests: XCTestCase {
   }
 }
 
-private struct AddSigner: TeraRuntimeSigner {
-  func availability() async -> TeraRuntimeSignerAvailability {
-    .ready
-  }
-
-  func sign(_: TeraRuntimeSigningRequest) async -> TeraRuntimeSigningOutcome {
-    .failed
-  }
-}
-
-enum AddDelayPhase: String, CaseIterable {
+enum AddDelayPhase: String, CaseIterable, Sendable {
   case save
   case queue
   case advance
@@ -758,6 +716,7 @@ enum AddDelayPhase: String, CaseIterable {
 
 actor AddBackend: TeraRuntimeBackend {
   private let composerStorage = ComposerTestStorage()
+  let submissionBackend: SubmissionTestBackend
   private let savePause: ResourceTestPause?
   private let advanceOffline: Bool
   private let saveFailure: TeraRuntimeFailure?
@@ -782,6 +741,8 @@ actor AddBackend: TeraRuntimeBackend {
     delayAfterBackgroundCompletion: Bool = false,
     schemas: [TeraAddSchema] = TeraAddSchemaFixtures.schemas()
   ) {
+    submissionBackend = SubmissionTestBackend(composer: composerStorage, writable: includeWritableRelay,
+                                              offline: advanceOffline, delayedPhase: delayedPhase, delayAfterCompletion: delayAfterBackgroundCompletion)
     self.advanceOffline = advanceOffline
     self.savePause = savePause
     self.saveFailure = saveFailure
@@ -789,46 +750,6 @@ actor AddBackend: TeraRuntimeBackend {
     self.delayedPhase = delayedPhase
     self.delayAfterBackgroundCompletion = delayAfterBackgroundCompletion
     schemaInventory = schemas
-  }
-
-  func snapshot() -> TeraRuntimeSnapshot {
-    TeraRuntimeSnapshot(
-      identity: TeraRuntimeIdentity(
-        publicKeyHex: String(repeating: "ab", count: 32),
-        hostSignerConfigured: true
-      ),
-      relay: TeraRelayStatus(
-        profile: "simulator",
-        state: "configured",
-        readAvailability: "unobserved",
-        writeAvailability: "unobserved",
-        relays: includeWritableRelay
-          ? [
-            TeraRelayEndpointStatus(
-              url: "ws://127.0.0.1:7447",
-              access: .readWrite,
-              readState: "unobserved",
-              writeState: "unobserved",
-              readLastAttemptUnixMilliseconds: nil,
-              writeLastAttemptUnixMilliseconds: nil,
-              readNextAttemptUnixMilliseconds: nil,
-              writeNextAttemptUnixMilliseconds: nil
-            ),
-          ] : []
-      ),
-      blossomConfiguration: TeraBlossomConfigurationStatus(
-        schemaVersion: 1,
-        hostKind: "simulator",
-        endpointAuthority: "loopback_development",
-        primaryOrigin: "http://127.0.0.1:3000",
-        fallbackOrigins: [],
-        configFingerprint: String(repeating: "f", count: 64)
-      ),
-      blossomEvidence: nil,
-      crateName: "tera_ffi",
-      crateVersion: "0.1.0-alpha",
-      isClosed: closed
-    )
   }
 
   func todayPage(request _: TeraTodayPageRequest) throws -> TeraTodayPage {
@@ -1094,6 +1015,7 @@ actor AddBackend: TeraRuntimeBackend {
       operationID: String(repeating: "a", count: 32),
       draft: uploading,
       remoteURL: "http://127.0.0.1:3000/\(input.media.media.sha256).png",
+      uploadURL: "http://127.0.0.1:3000/upload",
       authorizationHeader: "Nostr test",
       expectedSHA256: input.media.media.sha256,
       mediaType: input.media.media.mediaType,
@@ -1362,5 +1284,47 @@ extension AddBackend {
   private func storedDraft(id: String) throws -> TeraDraftStatus {
     guard let value = values[id] else { throw unsupported() }
     return value
+  }
+}
+
+extension AddBackend {
+  func snapshot() -> TeraRuntimeSnapshot {
+    TeraRuntimeSnapshot(
+      identity: TeraRuntimeIdentity(
+        publicKeyHex: String(repeating: "ab", count: 32),
+        hostSignerConfigured: true
+      ),
+      relay: TeraRelayStatus(
+        profile: "simulator",
+        state: "configured",
+        readAvailability: "unobserved",
+        writeAvailability: "unobserved",
+        relays: includeWritableRelay
+          ? [
+            TeraRelayEndpointStatus(
+              url: "ws://127.0.0.1:7447",
+              access: .readWrite,
+              readState: "unobserved",
+              writeState: "unobserved",
+              readLastAttemptUnixMilliseconds: nil,
+              writeLastAttemptUnixMilliseconds: nil,
+              readNextAttemptUnixMilliseconds: nil,
+              writeNextAttemptUnixMilliseconds: nil
+            ),
+          ] : []
+      ),
+      blossomConfiguration: TeraBlossomConfigurationStatus(
+        schemaVersion: 1,
+        hostKind: "simulator",
+        endpointAuthority: "loopback_development",
+        primaryOrigin: "http://127.0.0.1:3000",
+        fallbackOrigins: [],
+        configFingerprint: String(repeating: "f", count: 64)
+      ),
+      blossomEvidence: nil,
+      crateName: "tera_ffi",
+      crateVersion: "0.1.0-alpha",
+      isClosed: closed
+    )
   }
 }

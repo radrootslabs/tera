@@ -37,6 +37,7 @@ struct TeraAddView: View {
       }
 
       TeraAddSaveStatus(message: store.message, symbol: statusSymbol, state: store.composerState, mediaMessage: store.mediaRecoveryMessage, protection: store.protection)
+      TeraSubmissionStatusView(store: store.submissions)
 
       if store.activeDraft?.kind == .retraction {
         Section("Retraction") {
@@ -128,6 +129,7 @@ struct TeraAddView: View {
           Label("New", systemImage: "square.and.pencil")
         }
         .accessibilityIdentifier("radroots.add.new")
+        .disabled(store.submissions.isWorking)
       }
       ToolbarItemGroup(placement: .keyboard) {
         Spacer()
@@ -306,18 +308,7 @@ struct TeraAddView: View {
   }
 
   private var submitButton: some View {
-    Button {
-      Task { await store.submit() }
-    } label: {
-      Text(submitLabel)
-        .fixedSize(horizontal: false, vertical: true)
-        .frame(maxWidth: .infinity)
-    }
-    .accessibilityIdentifier("radroots.add.submit")
-    .accessibilityValue(submitAccessibilityValue)
-    .buttonStyle(.borderedProminent)
-    .tint(.primary)
-    .disabled(!store.canSubmit)
+    TeraAddSubmitButton(store: store)
   }
 
   private func formTextField(
@@ -351,22 +342,6 @@ struct TeraAddView: View {
     store.selectedSchema?.fields.first(where: { $0.id == "unit" })?.choices ?? []
   }
 
-  private var submitAccessibilityValue: String {
-    if store.isWorking {
-      return "Working"
-    }
-    if let message = store.message {
-      if let code = store.lastFailureCode {
-        return "\(message) Error code \(code)"
-      }
-      return message
-    }
-    if let activeDraft = store.activeDraft {
-      return activeDraft.honestSummary
-    }
-    return store.canSubmit ? "Ready" : "Unavailable"
-  }
-
   private var typeBinding: Binding<TeraAddCommandType> {
     Binding(get: { store.form.commandType }, set: { store.selectType($0) })
   }
@@ -383,16 +358,6 @@ struct TeraAddView: View {
       get: { store.form[keyPath: keyPath] },
       set: { store.updateForm(keyPath, $0) }
     )
-  }
-
-  private var submitLabel: String {
-    if store.activeDraft?.kind == .retraction {
-      return "Retry retraction"
-    }
-    if let state = store.activeDraft?.state, state.canAdvance {
-      return "Retry delivery"
-    }
-    return "Submit"
   }
 
   private var statusSymbol: String {

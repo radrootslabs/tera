@@ -11,6 +11,10 @@ final class TeraEditingOperationProtectionTests: XCTestCase {
     await store.configure(snapshot: backend.snapshot())
     await store.start()
     store.updateForm(\.content, "original")
+    let legacy = try await backend.saveAddIntent(input: TeraAddRuntimeInput(form: store.form, media: []),
+                                                 existingDraftID: nil, expectedRevision: nil)
+    store.reopen(legacy)
+    await TeraScopeFixtures.eventually { !store.protection.isWorking }
     await store.submit()
     let source = try XCTUnwrap(store.activeDraft)
     await store.retractAndRevise(TeraAddStoreTests.card(localOperationID: source.id))

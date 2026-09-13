@@ -14,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/radrootslabs/apple_kit.git",
-      revision: "35aedb6b54ff645b663fecff26082b3e91fcb232"
+      revision: "c254f3740126527e95340c41f6d2650770893e9c"
     ),
   ],
   targets: [
@@ -55,6 +55,12 @@ let package = Package(
         "App/TeraRemoteQualificationEvidence.swift",
         "App/TeraRootShell.swift",
         "App/TeraTodayNavigation.swift",
+        "Runtime/TeraNativeUploadReconciliation.swift",
+        "Runtime/TeraGeneratedRuntimeBackendSubmission.swift",
+        "Runtime/TeraGeneratedSubmissionOperation.swift",
+        "Runtime/TeraNativeTransferJob.swift",
+        "Runtime/TeraRuntimeClientSubmission.swift",
+        "Runtime/TeraSubmissionOperationModels.swift",
         "Runtime/TeraAddMediaCoordinator.swift",
         "Runtime/TeraBackgroundUploadRequest.swift",
         "Runtime/TeraCalendarTiming.swift",
@@ -84,6 +90,7 @@ let package = Package(
         "Runtime/TeraRuntimeBoundedTask.swift",
         "Runtime/TeraRuntimeBackend.swift",
         "Runtime/TeraRuntimeClient.swift",
+        "Runtime/TeraRuntimeFailureMapping.swift",
         "Runtime/TeraRuntimeClientComposer.swift",
         "Runtime/TeraRuntimeClientDraftInventory.swift",
         "Runtime/TeraRuntimeTodayClient.swift",
@@ -99,6 +106,10 @@ let package = Package(
         "Runtime/TeraSubmissionModels.swift",
         "Runtime/TeraUserMessageClassifier.swift",
         "Runtime/TeraUserMessages.swift",
+        "State/TeraLegacySubmission.swift",
+        "State/TeraSubmissionEffects.swift",
+        "State/TeraSubmissionInventory.swift",
+        "State/TeraSubmissionStore.swift",
         "State/TeraAddStore.swift",
         "State/TeraAddAffordances.swift",
         "State/TeraAddCardIntents.swift",
@@ -126,6 +137,8 @@ let package = Package(
         "State/TeraTodayReconciler.swift",
         "State/TeraTodayReconciliationTask.swift",
         "State/TeraTodayPresentation.swift",
+        "Views/TeraAddSubmitButton.swift",
+        "Views/TeraSubmissionViews.swift",
         "Views/TeraAddView.swift",
         "Views/TeraAddSaveStatus.swift",
         "Views/TeraDraftsSheet.swift",

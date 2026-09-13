@@ -77,14 +77,10 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     }
     let addRoot = app.descendants(matching: .any)["radroots.add.root"]
     save.tap()
+    scrollAddFormToTop(app)
     let saved = app.staticTexts.matching(identifier: "radroots.add.status").firstMatch
-    let saveStarted = NSPredicate { _, _ in
-      addRoot.value as? String == "Working"
-        || saved.exists && saved.label == "Draft saved on this device."
-    }
-    let startExpectation = XCTNSPredicateExpectation(predicate: saveStarted, object: app)
-    guard XCTWaiter.wait(for: [startExpectation], timeout: 10) == .completed else {
-      return XCTFail("The visible Save draft action did not start durable persistence")
+    guard waitForLabel(saved, label: "Draft saved on this device.", timeout: 60) else {
+      return XCTFail("The visible Add status did not confirm the durable draft save")
     }
     let saveSettled = NSPredicate { _, _ in
       addRoot.value as? String == "Ready"
@@ -93,11 +89,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     guard XCTWaiter.wait(for: [settleExpectation], timeout: 60) == .completed else {
       return XCTFail("The visible Save draft action did not finish durable persistence")
     }
-    scrollAddFormToTop(app)
-    guard waitForLabel(saved, label: "Draft saved on this device.", timeout: 10) else {
-      return XCTFail("The visible Add status did not confirm the durable draft save")
-    }
-    XCTAssertTrue(assertUnverifiedDraft(app))
+    assertSavedPhotoEditing(app)
     app.terminate()
 
     XCTAssertTrue(FileManager.default.createFile(atPath: control, contents: Data()))
@@ -478,6 +470,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   ) throws {
     let auditTypes = includeContrast ? accessibilityAuditTypes : personaSemanticAuditTypes
     try app.performAccessibilityAudit(for: auditTypes) { issue in
+      self.recordAccessibilityIssue(issue)
       if issue.auditType == .contrast && issue.compactDescription == "Contrast nearly passed" {
         return true
       }
@@ -1223,6 +1216,11 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       XCTFail("The Drafts sheet did not open after the unavailable attempt")
       return false
     }
+    let selectedMedia = app.descendants(matching: .any)["tera.add.submission.media_status"]
+    let viewSubmission = app.buttons["View submission"].firstMatch
+    if !selectedMedia.exists, viewSubmission.exists {
+      viewSubmission.tap()
+    }
     let mediaStatus = app.descendants(matching: .any).matching(
       NSPredicate(format: "label CONTAINS '0 of 1 photos verified'")
     ).firstMatch
@@ -1238,67 +1236,6 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     }
     app.buttons["Done"].tap()
     return exists
-  }
-
-  @MainActor
-  private func assertDraftOutboxContainsAtLeast(_ app: XCUIApplication, count: Int) {
-    let sheet = app.descendants(matching: .any)["radroots.add.drafts.sheet"]
-    let list = sheet.descendants(matching: .collectionView).firstMatch
-    guard list.waitForExistence(timeout: 10) else {
-      return XCTFail("The visible Drafts list was unavailable")
-    }
-
-    for _ in 0 ..< 8 {
-      list.swipeDown()
-    }
-    var identifiers = Set<String>()
-    let rows = app.descendants(matching: .any).matching(
-      NSPredicate(format: "identifier BEGINSWITH 'radroots.add.draft.'")
-    )
-    for _ in 0 ..< 12 where identifiers.count < count {
-      for index in 0 ..< rows.count {
-        let identifier = rows.element(boundBy: index).identifier
-        if !identifier.contains(".media_status.") {
-          identifiers.insert(identifier)
-        }
-      }
-      if identifiers.count < count {
-        list.swipeUp()
-      }
-    }
-    XCTAssertGreaterThanOrEqual(
-      identifiers.count,
-      count,
-      "The visible Drafts list omitted persisted outbox rows; identifiers=\(identifiers.sorted())"
-    )
-  }
-
-  @MainActor
-  private func waitForWorkToFinish(
-    _ app: XCUIApplication,
-    submit: XCUIElement,
-    status: XCUIElement,
-    priorStatusLabel: String?,
-    priorSubmitValue: String?
-  ) -> Bool {
-    let addRoot = app.descendants(matching: .any)["radroots.add.root"]
-    let progress = app.descendants(matching: .any)["radroots.add.progress"]
-    let started = NSPredicate { _, _ in
-      if progress.exists || addRoot.value as? String == "Working" {
-        return true
-      }
-      if status.exists, !status.label.isEmpty, status.label != priorStatusLabel {
-        return true
-      }
-      return submit.exists && submit.value as? String != priorSubmitValue
-    }
-    let startExpectation = XCTNSPredicateExpectation(predicate: started, object: app)
-    _ = XCTWaiter.wait(for: [startExpectation], timeout: 5)
-    let settled = NSPredicate { _, _ in
-      addRoot.value as? String == "Ready" && !progress.exists
-    }
-    let settleExpectation = XCTNSPredicateExpectation(predicate: settled, object: app)
-    return XCTWaiter.wait(for: [settleExpectation], timeout: 180) == .completed
   }
 
   @MainActor
@@ -1332,7 +1269,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func openDrafts(_ app: XCUIApplication) -> Bool {
+  func openDrafts(_ app: XCUIApplication) -> Bool {
     let drafts = app.buttons["radroots.add.drafts"]
     guard drafts.waitForExistence(timeout: 10) else { return false }
     let sheet = app.descendants(matching: .any)["radroots.add.drafts.sheet"]

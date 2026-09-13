@@ -14,8 +14,13 @@ pub(super) fn classify(code: &str) -> RecoveryDisposition {
         | "submission_schema_unsupported" => Recovery::UnsupportedVersion,
         "composer_revision_conflict" | "composer_edit_sequence_conflict" => Recovery::StaleRevision,
         "composer_cursor_invalid" => Recovery::StaleCursor,
-        "composer_receipt_mismatch" | "submission_receipt_mismatch" => Recovery::OutcomeUnknown,
+        "composer_receipt_mismatch"
+        | "submission_receipt_mismatch"
+        | "submission_capture_pending"
+        | "submission_not_found" => Recovery::OutcomeUnknown,
         "submission_command_id_invalid"
+        | "submission_intent_invalid"
+        | "submission_media_invalid"
         | "composer_id_invalid"
         | "composer_revision_invalid"
         | "composer_edit_sequence_invalid"
@@ -65,8 +70,10 @@ pub(super) fn classify(code: &str) -> RecoveryDisposition {
         "blossom_resolution_failed" | "blossom_transport_failed" | "today_relay_offline" => {
             Recovery::NetworkUnavailable
         }
-        "today_relay_partial" => Recovery::PartialResult,
+        "today_relay_partial" | "submission_prerequisites_pending" => Recovery::PartialResult,
         "writable_relay_unavailable"
+        | "submission_policy_unavailable"
+        | "submission_media_policy_changed"
         | "blossom_unconfigured"
         | "blossom_endpoint_not_configured"
         | "blossom_configuration_changed"

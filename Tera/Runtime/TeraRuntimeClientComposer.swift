@@ -27,10 +27,11 @@ extension TeraRuntimeClient {
 
   func addOperation<T: Sendable>(
     _ operation: String,
+    submission: Bool = false,
     _ body: @escaping @Sendable (any TeraRuntimeBackend) async throws -> T
   ) async throws -> T {
     do {
-      return try await runtimeOperation(operation, body)
+      return try await runtimeOperation(operation, submission: submission, body)
     } catch let error as TeraRuntimeClientError {
       throw error
     } catch {

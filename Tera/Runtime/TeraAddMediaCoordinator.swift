@@ -27,21 +27,25 @@ protocol TeraAddMediaHandling: Sendable {
     job: TeraNativeUploadJob,
     media: TeraPreparedMedia
   ) async throws -> TeraAddBackgroundUploadReceipt
+  func uploadInBackground(transfer: TeraNativeTransferJob, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt
+  func reconcileBackgroundSubmissions(_ submissions: [TeraSubmissionStatus]) async throws
   func settleBackgroundUpload(identifier: String, accepted: Bool) async throws
   func reconcileBackgroundUploads(drafts: [TeraDraftStatus]) async throws
 }
 
 extension TeraAddMediaHandling {
-  func uploadInBackground(
-    job _: TeraNativeUploadJob,
-    media _: TeraPreparedMedia
-  ) async throws -> TeraAddBackgroundUploadReceipt {
+  func uploadInBackground(job: TeraNativeUploadJob, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt {
+    try await uploadInBackground(transfer: job.transfer, media: media)
+  }
+
+  func uploadInBackground(transfer _: TeraNativeTransferJob, media _: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt {
     throw TeraRuntimeFailure.local(
-      operation: "add.media.background",
-      code: "ios.add.background_transfer_unavailable",
+      operation: "add.media.background", code: "ios.add.background_transfer_unavailable",
       safeMessage: "Background photo upload is unavailable on this device."
     )
   }
+
+  func reconcileBackgroundSubmissions(_: [TeraSubmissionStatus]) async throws {}
 
   func settleBackgroundUpload(identifier _: String, accepted _: Bool) async throws {}
 
@@ -171,21 +175,21 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func uploadInBackground(
-    job: TeraNativeUploadJob,
+    transfer job: TeraNativeTransferJob,
     media: TeraPreparedMedia
   ) async throws -> TeraAddBackgroundUploadReceipt {
     try Task.checkCancellation()
-    guard activeUploadDrafts.insert(job.draft.id).inserted else {
+    guard activeUploadDrafts.insert(job.ownerID).inserted else {
       throw TeraBackgroundUploadRequest.operationInProgress
     }
-    defer { activeUploadDrafts.remove(job.draft.id) }
+    defer { activeUploadDrafts.remove(job.ownerID) }
     let request = try await TeraBackgroundUploadRequest.prepare(
       job: job, media: media, preparer: preparer
     )
     let identifier = request.identifier
     let persisted = try await matchingPersistedUpload(
-      draftID: job.draft.id,
-      expectedRevision: job.draft.revision,
+      draftID: job.ownerID,
+      expectedRevision: job.expectedRevision,
       request: request
     )
     let activeIdentifier: RadrootsBackgroundTransferIdentifier
@@ -203,8 +207,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     }
     return try await receipt(
       for: activeIdentifier,
-      draftID: job.draft.id,
-      expectedRevision: job.draft.revision,
+      draftID: job.ownerID,
+      expectedRevision: job.expectedRevision,
       request: request
     )
   }
@@ -235,36 +239,30 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func reconcileBackgroundUploads(drafts: [TeraDraftStatus]) async throws {
-    var draftsByID: [String: TeraDraftStatus] = [:]
-    for draft in drafts {
-      guard draftsByID.updateValue(draft, forKey: draft.id) == nil else {
-        throw Self.failure(
-          code: "ios.add.background_draft_ambiguous",
-          message: "The persisted draft inventory is ambiguous."
-        )
+    try await reconcile(drafts.map { TeraNativeUploadRecoveryOwner(
+      id: $0.id, revision: $0.revision, media: $0.form?.media ?? [],
+      verifiedURLs: Set($0.media.filter { $0.stage == .verified }.map(\.url)),
+      uploadURLs: uploadURLs($0.media)
+    ) })
+  }
+
+  func reconcileBackgroundSubmissions(_ submissions: [TeraSubmissionStatus]) async throws {
+    try await reconcile(submissions.map { TeraNativeUploadRecoveryOwner(
+      id: $0.intentID, revision: $0.revision, media: $0.preparedMedia,
+      verifiedURLs: Set($0.media.filter { $0.progress.stage == .verified }.map(\.progress.url)),
+      uploadURLs: uploadURLs($0.media.map(\.progress))
+    ) })
+  }
+
+  private func reconcile(_ owners: [TeraNativeUploadRecoveryOwner]) async throws {
+    try await TeraNativeUploadReconciliation.reconcile(owners, transfer: transfer)
+  }
+
+  private func uploadURLs(_ media: [TeraDraftMediaStatus]) -> [String: String] {
+    media.reduce(into: [:]) { urls, item in
+      if let uploadURL = item.uploadURL {
+        urls[item.url] = uploadURL
       }
-    }
-    for snapshot in try await transfer.snapshots()
-    where snapshot.state == .awaitingVerification {
-      try Task.checkCancellation()
-      guard let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
-        let draft = draftsByID[identity.draftID]
-      else { continue }
-      guard draft.revision > identity.revision,
-        let form = draft.form,
-        let media = form.media.first(where: {
-          $0.remoteURL == snapshot.request.remoteURL.absoluteString
-            && $0.sha256 == snapshot.request.expectedSourceSHA256
-        }),
-        draft.media.contains(where: { $0.url == media.remoteURL && $0.stage == .verified }),
-        try TeraBackgroundUploadRequest.persistedRequestMatchesMedia(snapshot.request, media: media)
-      else {
-        throw Self.failure(
-          code: "ios.add.background_upload_mismatch",
-          message: "The persisted photo upload does not match its verified draft."
-        )
-      }
-      try await transfer.settle(snapshot.identifier, verification: .accepted)
     }
   }
 

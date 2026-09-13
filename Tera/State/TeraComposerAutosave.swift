@@ -1,5 +1,13 @@
 import Foundation
 
+/// A transient write barrier; its token is never a durable submission identity.
+struct TeraComposerCapture: Sendable, Equatable {
+  let token: UUID
+  let scope: TeraComposerScope
+  let form: TeraComposerForm
+  let editSequence: UInt64
+}
+
 /// A single worker retains one attempted write and the newest edit. Receipts
 /// update acknowledgment metadata only; they never replace the editing form.
 @MainActor
@@ -28,6 +36,7 @@ final class TeraComposerAutosave {
   private var lastFailure: Error?
   private var paused = false
   private var exhausted = false
+  private var capture: TeraComposerCapture?
 
   init(
     persistence: TeraComposerPersistence,
@@ -46,6 +55,17 @@ final class TeraComposerAutosave {
     current != nil && (exhausted || acknowledged?.editSequence != editSequence || acknowledged?.form != current)
   }
 
+  private var needsWrite: Bool {
+    if let capture {
+      return !matchesCapture(acknowledged, capture)
+    }
+    return isDirty
+  }
+
+  private func matchesCapture(_ draft: TeraComposerDraft?, _ value: TeraComposerCapture) -> Bool {
+    draft?.scope == value.scope && draft?.editSequence == value.editSequence && draft?.form == value.form
+  }
+
   /// A replaced scope or New operation invalidates callbacks, but keeps the
   /// worker slot occupied until it exits, preventing abandoned task fan-out.
   func reset(scope: TeraComposerScope?) {
@@ -61,6 +81,7 @@ final class TeraComposerAutosave {
     lastFailure = nil
     editSequence = 0
     exhausted = false
+    capture = nil
     paused = false
     state = .idle
   }
@@ -124,6 +145,10 @@ final class TeraComposerAutosave {
   func save(_ form: TeraComposerForm) async throws -> TeraComposerDraft {
     guard !Task.isCancelled else { throw CancellationError() }
     change(form)
+    guard capture == nil else {
+      throw TeraRuntimeFailure.local(operation: "composer.save", code: "submission_capture_pending",
+                                     safeMessage: "The original submission must be reconciled before newer editing can be saved.")
+    }
     guard !paused, !exhausted, generation.isActive, scope != nil else {
       state = .failed
       throw TeraComposerAcknowledgment.unconfirmed
@@ -151,7 +176,7 @@ final class TeraComposerAutosave {
 
   private func startWorker() {
     guard worker == nil, !paused, !exhausted, generation.isActive, scope != nil,
-          isDirty, state != .failed else { return }
+          needsWrite, state != .failed else { return }
     let requested = generation
     lastFailure = nil
     worker = Task { [weak self] in
@@ -169,7 +194,7 @@ final class TeraComposerAutosave {
       startWorker()
     }
     do {
-      while isDirty {
+      while needsWrite {
         try ensureCurrent(requested)
         state = .saving
         try await coalesce(requested)
@@ -178,7 +203,7 @@ final class TeraComposerAutosave {
         try await persistCurrent(requested)
       }
       try ensureCurrent(requested)
-      state = .saved
+      state = isDirty ? .unsaved : .saved
     } catch {
       // A write may have committed before cancellation or a lost callback.
       // Keep its exact request for a read before any retry in this lifetime.
@@ -213,9 +238,9 @@ final class TeraComposerAutosave {
       }
       id = reserved
     }
-    guard isDirty, let id, let scope, let current else { return }
+    guard needsWrite, let id, let scope, let current else { return }
     let request = TeraComposerSaveRequest(scope: scope, id: id, expectedRevision: acknowledged?.revision,
-                                          editSequence: editSequence, form: current)
+                                          editSequence: capture?.editSequence ?? editSequence, form: capture?.form ?? current)
     attempted = request
     let receipt = try await persistence.save(request)
     try ensureCurrent(requested)
@@ -256,5 +281,77 @@ final class TeraComposerAutosave {
     guard generation == requested, generation.isActive, !paused, !exhausted, !Task.isCancelled else {
       throw CancellationError()
     }
+  }
+}
+
+/// Capture scheduling shares the private autosave worker; it owns no second persistence path.
+extension TeraComposerAutosave {
+  var hasSubmissionCapture: Bool {
+    capture != nil
+  }
+
+  /// Reserve synchronously with the tap, before either worker can await.
+  func beginSubmissionCapture(_ form: TeraComposerForm) throws -> TeraComposerCapture {
+    guard capture == nil, !paused, !exhausted, generation.isActive, let scope else {
+      throw TeraComposerAcknowledgment.unconfirmed
+    }
+    change(form)
+    guard !exhausted else { throw TeraComposerAcknowledgment.unconfirmed }
+    let value = TeraComposerCapture(token: UUID(), scope: scope, form: form, editSequence: editSequence)
+    capture = value
+    if state == .failed {
+      state = .unsaved
+    }
+    immediateSave = true
+    coalescingTask?.cancel()
+    startWorker()
+    return value
+  }
+
+  /// Reconcile an existing write, then persist only this captured edit. Later
+  /// edits remain visible and unsaved until the caller releases the barrier.
+  func saveSubmissionCapture(_ value: TeraComposerCapture) async throws -> TeraComposerDraft {
+    guard capture == value else { throw TeraComposerAcknowledgment.unconfirmed }
+    let requested = generation
+    try ensureCurrent(requested)
+    if state == .failed {
+      state = .unsaved
+    }
+    immediateSave = true
+    coalescingTask?.cancel()
+    startWorker()
+    while let task = worker {
+      await task.value
+      try ensureCurrent(requested)
+    }
+    guard capture == value, let acknowledged, matchesCapture(acknowledged, value) else {
+      throw lastFailure ?? TeraComposerAcknowledgment.unconfirmed
+    }
+    return acknowledged
+  }
+
+  /// Call only after submission commit/recovery is confirmed, or an explicit
+  /// decision abandons a request known not to have committed.
+  func releaseSubmissionCapture(_ value: TeraComposerCapture) {
+    guard capture == value else { return }
+    capture = nil
+    if isDirty {
+      state = .unsaved
+      immediateSave = true
+      startWorker()
+    }
+  }
+
+  /// A confirmed Rust reservation owns the original source head. Continue
+  /// editing through the same persistence worker under a fresh composer ID;
+  /// never overwrite the revision required by the original prepare CAS.
+  func continueEditing(after value: TeraComposerCapture, reserved: TeraComposerDraft) throws {
+    guard capture == value, acknowledged == reserved, matchesCapture(reserved, value),
+          let current, worker == nil, attempted == nil
+    else {
+      throw TeraComposerAcknowledgment.unconfirmed
+    }
+    reset(scope: value.scope)
+    change(current)
   }
 }

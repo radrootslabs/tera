@@ -49,6 +49,8 @@ pub use today_sync::{
 
 pub const MOBILE_FFI_SCHEMA_VERSION: u16 = 1;
 pub const PREPARED_MEDIA_FFI_SCHEMA_VERSION: u16 = 2;
+/// Upload outputs separate canonical blob references from transport destinations.
+pub const UPLOAD_OUTPUT_FFI_SCHEMA_VERSION: u16 = 2;
 const MEDIA_REFERENCE_MAX_BYTES: usize = 256;
 
 /// Final four-state trade-evidence coverage vocabulary.
@@ -1135,6 +1137,7 @@ pub struct FfiNativeUploadJobRecord {
     pub operation_id: String,
     pub draft: FfiDraftStatusRecord,
     pub remote_url: String,
+    pub upload_url: String,
     pub authorization_header: String,
     pub expected_sha256: String,
     pub media_type: String,
@@ -1358,6 +1361,24 @@ impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
 }
 
 impl PreparedMedia {
+    pub(crate) fn into_submission_bytes(self) -> std::sync::Arc<[u8]> {
+        self.bytes
+    }
+
+    pub(crate) fn into_submission_media(
+        self,
+        request: tera_core::runtime::product_surface::SubmissionReservationRequest,
+        expected_revision: u64,
+    ) -> Result<tera_core::runtime::product_surface::SubmissionMediaRequest, TeraAppError> {
+        tera_core::runtime::product_surface::SubmissionMediaRequest::new(
+            request,
+            expected_revision,
+            self.opaque_reference,
+            self.bytes,
+        )
+        .map_err(Into::into)
+    }
+
     pub(crate) fn into_authored_image(
         self,
         blossom: &radroots_sdk::transport::BlossomSlot,
@@ -1655,6 +1676,7 @@ impl From<Phase1MediaStage> for FfiMediaStage {
 pub struct FfiDraftMediaRecord {
     pub schema_version: u16,
     pub url: String,
+    pub upload_url: Option<String>,
     pub stage: FfiMediaStage,
     pub upload_attempts: u8,
     pub verified_at_unix_ms: Option<u64>,
@@ -1668,8 +1690,11 @@ impl From<&Phase1MediaPrerequisite> for FfiDraftMediaRecord {
     fn from(value: &Phase1MediaPrerequisite) -> Self {
         let orphan = value.orphan();
         Self {
-            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            schema_version: UPLOAD_OUTPUT_FFI_SCHEMA_VERSION,
             url: value.url().to_owned(),
+            upload_url: radroots_blossom::BlobUrl::parse(value.url())
+                .ok()
+                .map(|url| url.upload_url()),
             stage: value.stage().into(),
             upload_attempts: value.upload_attempts(),
             verified_at_unix_ms: value.verified_at_unix_ms(),

@@ -16,6 +16,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   @Published private(set) var composerState: TeraComposerSaveState = .idle
+  let submissions: TeraSubmissionStore
   let recovery: TeraDraftRecoveryStore
   let protection = TeraEditingProtection()
   @Published private(set) var mediaRecoveryMessage: String?
@@ -62,6 +63,7 @@ final class TeraAddStore: ObservableObject {
     self.runtimeClient = runtimeClient
     recovery = TeraDraftRecoveryStore(client: runtimeClient)
     composer = TeraComposerAutosave(persistence: TeraComposerPersistence(client: runtimeClient))
+    submissions = TeraSubmissionStore(client: runtimeClient, composer: composer, media: media)
     self.media = media
     self.identifier = identifier
     self.clock = clock
@@ -71,6 +73,7 @@ final class TeraAddStore: ObservableObject {
       identifier: identifier,
       clock: clock
     )
+    submissions.changed = { [weak self] in self?.objectWillChange.send() }
     composer.stateChanged = { [weak self] in self?.composerState = $0 }
     protection.cancelled = { [weak self] in guard let self else { return }; generation = generation.invalidated() }
   }
@@ -80,7 +83,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   func selectType(_ type: TeraAddCommandType) {
-    guard !isWorking, isFormEditable, form.commandType != type else { return }
+    guard !isWorking, !submissions.isWorking, isFormEditable, form.commandType != type else { return }
     newDraft(type: type)
   }
 
@@ -91,7 +94,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   func newDraft(type: TeraAddCommandType? = nil) {
-    guard !isWorking, !protection.isWorking, !protection.failed else { return }
+    guard !isWorking, !submissions.isWorking, !protection.isWorking, !protection.failed else { return }
     if needsEditingPreservation {
       protection.schedule(kind: .editing, save: preservation(), apply: replacement { store, _ in store.replaceWithNew(type: type) })
     } else {
@@ -100,6 +103,8 @@ final class TeraAddStore: ObservableObject {
   }
 
   private func replaceWithNew(type: TeraAddCommandType?) {
+    guard !submissions.isWorking else { return }
+    submissions.newAction()
     composer.reset(scope: composer.scope)
     generation = generation.invalidated()
     activeDraft = nil
@@ -110,7 +115,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   func reopen(_ draft: TeraDraftStatus) {
-    guard !isWorking, !protection.isWorking, !protection.failed else { return }
+    guard !isWorking, !submissions.isWorking, !protection.isWorking, !protection.failed else { return }
     if needsEditingPreservation {
       protection.schedule(kind: .reopen, save: preservation(), apply: replacement { store, _ in store.replaceWithLegacy(draft) })
     } else {
@@ -119,6 +124,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   private func replaceWithLegacy(_ draft: TeraDraftStatus) {
+    guard !submissions.isWorking else { return }
     guard let snapshot = draft.form else {
       message = "This operation has no editable Add form."
       return
@@ -246,53 +252,28 @@ final class TeraAddStore: ObservableObject {
   }
 
   func submit() async {
-    await perform { requestedGeneration in
-      var status: TeraDraftStatus =
-        if let active = self.activeDraft, !active.state.isEditable {
-          active
-        } else {
-          try await self.saveCurrentForm(generation: requestedGeneration)
-        }
-
-      try self.ensureCurrent(requestedGeneration)
-      if !status.media.isEmpty,
-        status.media.contains(where: { $0.stage != .verified })
-      {
-        status = try await self.uploadPendingMedia(status, generation: requestedGeneration)
-      }
-
-      try self.ensureCurrent(requestedGeneration)
-      if status.isRevision {
-        let revision = try await self.runtimeClient.advanceRevision(
-          operationID: self.revisionOperationID ?? status.id
-        )
-        try self.accept(revision, generation: requestedGeneration)
-        self.message = revision.honestSummary
-        return
-      }
-
-      if status.state.isEditable || status.state == .readyToSign {
-        do {
-          status = try await self.runtimeClient.queueAddIntent(
-            id: status.id,
-            expectedRevision: status.revision
-          )
-          try self.accept(status, generation: requestedGeneration)
-        } catch {
-          try self.ensureCurrent(requestedGeneration)
-          if TeraAddPresentation.failure(for: error)?.code == "writable_relay_unavailable" {
-            try self.accept(status, generation: requestedGeneration)
-            self.message =
-              status.media.isEmpty
-              ? "Draft saved. Configure a writable relay to publish."
-              : "Photo verified and draft saved. Configure a writable relay to publish."
-            return
+    if activeDraft == nil, revisionTarget == nil {
+      guard canSubmit else { return }
+      await submissions.submit(form: form)
+      return
+    }
+    await perform { requested in
+      let legacy = TeraLegacySubmission(
+        runtimeClient: self.runtimeClient, media: self.media,
+        revisionID: { self.revisionOperationID },
+        initial: {
+          if let active = self.activeDraft, !active.state.isEditable {
+            return active
           }
-          throw error
-        }
-      }
-
-      try await self.advanceSubmittedDraft(status, generation: requestedGeneration)
+          return try await self.saveCurrentForm(generation: requested)
+        },
+        ensure: { try self.ensureCurrent(requested) },
+        acceptDraft: { try self.accept($0, generation: requested) },
+        acceptRevision: { try self.accept($0, generation: requested) },
+        message: { self.message = $0 },
+        refreshMedia: { await self.refreshBlossomSnapshot() }
+      )
+      try await legacy.submit()
     }
   }
 
@@ -411,26 +392,6 @@ final class TeraAddStore: ObservableObject {
     }
   }
 
-  private func advanceSubmittedDraft(
-    _ initial: TeraDraftStatus, generation requestedGeneration: TeraSessionGeneration
-  ) async throws {
-    var status = initial
-    do {
-      if status.state.canAdvance {
-        status = try await runtimeClient.advanceDraft(
-          id: status.id,
-          expectedRevision: status.revision
-        )
-        try accept(status, generation: requestedGeneration)
-      }
-      message = status.honestSummary
-    } catch {
-      try ensureCurrent(requestedGeneration)
-      // Queueing is the commit point. A later retry must reuse this immutable snapshot.
-      message = "Saved for retry. \(TeraAddPresentation.message(for: error))"
-    }
-  }
-
   private func saveCurrentForm(generation requestedGeneration: TeraSessionGeneration) async throws -> TeraDraftStatus {
     guard isFormEditable else {
       throw TeraRuntimeFailure.local(
@@ -460,49 +421,6 @@ final class TeraAddStore: ObservableObject {
       expectedRevision: activeDraft?.isRevision == true ? nil : activeDraft?.revision
     )
     try accept(status, generation: requestedGeneration)
-    return status
-  }
-
-  private func uploadPendingMedia(_ initial: TeraDraftStatus, generation requestedGeneration: TeraSessionGeneration) async throws -> TeraDraftStatus {
-    guard let media else {
-      throw TeraRuntimeFailure.local(
-        operation: "add.media.upload",
-        code: "ios.add.media_unavailable",
-        safeMessage: "Prepared photos are unavailable on this device."
-      )
-    }
-    var status = initial
-    guard let form = status.form else { return status }
-    let opened = try await openedMedia(form.media)
-    defer { opened.close() }
-    try ensureCurrent(requestedGeneration)
-    for mediaStatus in status.media where mediaStatus.stage != .verified {
-      guard let persisted = form.media.first(where: { $0.remoteURL == mediaStatus.url }),
-        let handle = opened.handles.first(where: {
-          $0.media.opaqueReference == persisted.opaqueReference
-        })
-      else {
-        throw TeraRuntimeFailure.local(
-          operation: "add.media.upload",
-          code: "ios.add.media_missing",
-          safeMessage: "A prepared photo is unavailable."
-        )
-      }
-      let intent = TeraBlossomUploadIntent(
-        draftID: status.id,
-        expectedRevision: status.revision,
-        media: handle
-      )
-      let job = try await runtimeClient.prepareAddMediaBackground(input: intent)
-      try accept(job.draft, generation: requestedGeneration)
-      let receipt = try await media.uploadInBackground(job: job, media: persisted)
-      try ensureCurrent(requestedGeneration)
-      status = try await TeraAddUploadCompletion.complete(receipt, handle: handle, media: media, runtimeClient: runtimeClient)
-      try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
-      try accept(status, generation: requestedGeneration)
-      await refreshBlossomSnapshot()
-      try ensureCurrent(requestedGeneration)
-    }
     return status
   }
 
@@ -558,6 +476,7 @@ final class TeraAddStore: ObservableObject {
         guard let self else { return }
         let requested = generation
         if batch.contains(anyOf: [.drafts, .media]) {
+          submissions.inventory.start()
           await reloadDrafts()
         }
         guard isCurrent(requested) else { return }
@@ -653,6 +572,7 @@ extension TeraAddStore {
     let scope = TeraComposerScope(authorPublicKey: updated.publicKey, localNetworkID: updated.context.id)
     let scopeChanged = composer.scope != scope
     recovery.configure(scope: scope)
+    submissions.configure(scope: scope)
     if scopeChanged {
       composer.reset(scope: scope)
     }
@@ -682,6 +602,7 @@ extension TeraAddStore {
   func start() async {
     guard !observation.isActive, !Task.isCancelled else { return }
     composer.resume()
+    submissions.start()
     startObservation()
     guard operationGeneration == nil else { return }
     message = nil
@@ -717,6 +638,7 @@ extension TeraAddStore {
         mediaSupport = loaded.support
       }
       state = .ready
+      await submissions.refreshSelected()
     } catch {
       guard isCurrent(requestedGeneration) else { return }
       state = .failed(TeraAddPresentation.message(for: error))
@@ -724,6 +646,7 @@ extension TeraAddStore {
   }
 
   func stop() {
+    submissions.stop()
     protection.cancel()
     recovery.stop()
     composer.stop()
@@ -747,7 +670,7 @@ extension TeraAddStore {
 
 private extension TeraAddStore {
   var needsEditingPreservation: Bool {
-    revisionTarget != nil || (isFormEditable && composer.isDirty)
+    revisionTarget != nil || (isFormEditable && (composer.isDirty || submissions.hasAction))
   }
 
   func preservation() -> () async -> Bool {
@@ -756,8 +679,14 @@ private extension TeraAddStore {
       guard let self, composer.scope == scope else { return false }
       guard needsEditingPreservation else { return true }
       let editing = form
+      do {
+        try await submissions.preserveForReplacement(currentForm: { self.form })
+      } catch {
+        message = TeraAddPresentation.message(for: error)
+        return false
+      }
       await save()
-      return composer.scope == scope && form == editing && !needsEditingPreservation
+      return composer.scope == scope && form == editing && revisionTarget == nil && !composer.isDirty
     }
   }
 

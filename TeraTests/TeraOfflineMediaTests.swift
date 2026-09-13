@@ -33,7 +33,7 @@ final class TeraOfflineMediaTests: XCTestCase {
     XCTAssertEqual(saved.form.media.first?.alt, "")
     XCTAssertEqual(saved.form.media.first?.opaqueReference, photo.opaqueReference)
     await store.submit()
-    XCTAssertEqual(store.lastFailureCode, "invalid_media_reference")
+    XCTAssertEqual(store.submissions.failureCode, "invalid_media_reference")
     XCTAssertNil(store.activeDraft)
     let operations = try await client.legacyDraftPage()
     XCTAssertTrue(operations.entries.isEmpty)

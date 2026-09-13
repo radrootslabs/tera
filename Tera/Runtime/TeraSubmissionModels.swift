@@ -37,7 +37,7 @@ extension TeraRuntimeClient {
   }
 
   func reserveSubmission(request: TeraSubmissionRequest) async throws -> TeraSubmissionReservation {
-    try await addOperation("runtime.submission.reserve") { backend in
+    try await addOperation("runtime.submission.reserve", submission: true) { backend in
       try await backend.reserveSubmission(request: request)
     }
   }
