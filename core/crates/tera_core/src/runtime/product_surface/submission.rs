@@ -37,6 +37,8 @@ mod operation_recovery_tests;
 mod operation_test_support;
 #[cfg(test)]
 mod operation_tests;
+#[cfg(all(test, unix))]
+mod signed_artifact_tests;
 #[cfg(test)]
 mod signing_preparation_tests;
 #[cfg(test)]
