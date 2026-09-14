@@ -10,6 +10,7 @@ protocol TeraRuntimeBackend: Sendable {
   func prepareSubmission(request: TeraSubmissionRequest, media: [TeraPreparedMediaHandle]) async throws -> TeraSubmissionStatus
   func recoverSubmission(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus?
   func submissionStatus(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus
+  func reconcileSubmissionLocal(request: TeraSubmissionRequest, context: TeraLocalNetwork) async throws -> TeraSubmissionStatus
   func advanceSubmission(request: TeraSubmissionRequest, expectedRevision: UInt64) async throws -> TeraSubmissionStatus
   func listSubmissions(scope: TeraComposerScope, limit: UInt16, cursor: String?) async throws -> TeraSubmissionPage
   func prepareSubmissionUpload(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionUploadJob

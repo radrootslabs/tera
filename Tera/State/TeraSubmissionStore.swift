@@ -17,6 +17,7 @@ final class TeraSubmissionStore: ObservableObject {
   private let media: (any TeraAddMediaHandling)?
   private var capture: TeraComposerCapture?
   private var scope: TeraComposerScope?
+  private var context: TeraLocalNetwork?
   private var generation = TeraSessionGeneration.initial
   private var worker: Task<Void, Never>?
   private var paused = false
@@ -34,7 +35,8 @@ final class TeraSubmissionStore: ObservableObject {
     request != nil || capture != nil
   }
 
-  func configure(scope: TeraComposerScope) {
+  func configure(scope: TeraComposerScope, context: TeraLocalNetwork) {
+    self.context = context
     guard self.scope != scope else { return }
     stop()
     self.scope = scope
@@ -163,6 +165,7 @@ final class TeraSubmissionStore: ObservableObject {
         return
       }
       try accept(current, generation: requested)
+      try await reconcileLocal(current, generation: requested)
       if advancing {
         let effects = TeraSubmissionEffects(client: client, media: media,
                                             ensure: { try self.ensureCurrent(requested) },
@@ -172,6 +175,9 @@ final class TeraSubmissionStore: ObservableObject {
         try await media?.reconcileBackgroundSubmissions([current])
       }
       try ensureCurrent(requested)
+      if let status {
+        try await reconcileLocal(status, generation: requested)
+      }
       message = status?.summary
     } catch {
       guard generation == requested, !paused else { return }
@@ -180,6 +186,7 @@ final class TeraSubmissionStore: ObservableObject {
         // error, open newer form media, or create another operation on retry.
         if let recovered = try? await client.recoverSubmission(request: request) {
           try? accept(recovered, generation: requested)
+          try? await reconcileLocal(recovered, generation: requested)
         }
       }
       guard generation == requested, !paused else { return }
@@ -191,6 +198,14 @@ final class TeraSubmissionStore: ObservableObject {
     guard generation == requested, !paused else { return }
     changed()
     inventory.start()
+  }
+
+  private func reconcileLocal(_ current: TeraSubmissionStatus, generation requested: TeraSessionGeneration) async throws {
+    try ensureCurrent(requested)
+    guard current.settlement.signed > 0 else { return }
+    guard let context, context.id == current.request.scope.localNetworkID else { throw TeraComposerAcknowledgment.unconfirmed }
+    let reconciled = try await client.reconcileSubmissionLocal(request: current.request, context: context)
+    try accept(reconciled, generation: requested)
   }
 
   private func resolve(advancing: Bool, generation requested: TeraSessionGeneration) async throws -> TeraSubmissionStatus? {

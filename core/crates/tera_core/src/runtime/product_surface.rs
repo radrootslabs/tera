@@ -95,10 +95,10 @@ pub use submission::{
     SUBMISSION_RESERVATION_MAX_BYTES, SUBMISSION_RESERVATION_PAYLOAD_SCHEMA,
     SUBMISSION_RESERVATION_SCHEMA_SHA256, SUBMISSION_RESERVATION_SCHEMA_VERSION,
     SubmissionCaptureError, SubmissionCommandId, SubmissionCommitError, SubmissionListEntry,
-    SubmissionMediaRequest, SubmissionMediaResponse, SubmissionOperationError,
-    SubmissionOperationStatus, SubmissionPage, SubmissionReceipt, SubmissionReservationError,
-    SubmissionReservationReceipt, SubmissionReservationRequest, SubmissionSummary,
-    SubmissionSummaryState,
+    SubmissionLocalReceipt, SubmissionMediaRequest, SubmissionMediaResponse,
+    SubmissionOperationError, SubmissionOperationStatus, SubmissionPage, SubmissionReceipt,
+    SubmissionReservationError, SubmissionReservationReceipt, SubmissionReservationRequest,
+    SubmissionSummary, SubmissionSummaryState,
 };
 #[cfg(feature = "mobile-social")]
 pub use today::{

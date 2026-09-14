@@ -25,6 +25,8 @@ mod support;
 
 #[path = "local_mvp/calendar_wire_runtime.rs"]
 mod calendar_wire_runtime;
+#[path = "local_mvp/submission_local.rs"]
+mod submission_local;
 
 const AUTHORED_AT: u64 = 1_786_000_000;
 const AS_OF: u64 = 1_786_200_000;

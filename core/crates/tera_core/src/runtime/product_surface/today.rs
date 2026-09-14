@@ -87,6 +87,9 @@ pub use paging::TodayPageRequest;
 mod reconciliation;
 pub use reconciliation::TodayReconciliation;
 
+#[path = "today_submission_overlay.rs"]
+mod submission_overlay;
+
 #[cfg(test)]
 #[path = "today_reconciliation_tests.rs"]
 mod reconciliation_tests;
@@ -339,6 +342,7 @@ impl TeraRuntime {
         let overlays = prior
             .as_ref()
             .map_or_else(BTreeMap::new, |state| state.overlays.clone());
+        let overlay_sources = submission_overlay::sources(prior.as_ref());
         let media_cache =
             prior.map_or_else(Phase1MediaCacheIndex::default, |state| state.media_cache);
         let mut state = project_state(
@@ -348,6 +352,7 @@ impl TeraRuntime {
             visible,
             overlays,
         )?;
+        submission_overlay::retain_sources(&mut state, &overlay_sources);
         state.query_scope = Some(query_scope);
         state.visibility_digest = Some(visibility_digest);
         state.media_cache = media_cache;
@@ -943,6 +948,7 @@ impl TeraRuntime {
         overlay: Option<LocalAuthorOverlay>,
     ) -> Result<(), TodayError> {
         let _command = self.lifecycle.enter()?;
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()

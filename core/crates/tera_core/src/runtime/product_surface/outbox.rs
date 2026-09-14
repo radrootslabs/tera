@@ -3358,7 +3358,7 @@ fn parse_address(address: &str) -> Result<(u32, &str, &str), Phase1DraftError> {
     Ok((kind, author, identifier))
 }
 
-fn card_id(
+pub(super) fn card_id(
     command_type: AddCommandType,
     plan: &radroots_event_codec::authoring::AuthoredEventPlan,
 ) -> Result<CardId, Phase1DraftError> {

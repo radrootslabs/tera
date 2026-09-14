@@ -8,6 +8,26 @@ use tera_core::runtime::product_surface::{SubmissionOperationError, SubmissionRe
 
 #[cfg_attr(not(coverage_nightly), uniffi::export(async_runtime = "tokio"))]
 impl TeraRuntime {
+    /// Repairs local visibility from the original signed operation without signing or delivery.
+    pub async fn submission_reconcile_local(
+        &self,
+        request: FfiSubmissionReservationRequest,
+        context: crate::FfiLocalNetworkRecord,
+    ) -> Result<FfiSubmissionOperationRecord, TeraAppError> {
+        let request = request.try_into()?;
+        let context = self.local_network(context)?;
+        let receipt = self
+            .inner
+            .submission_reconcile_local(&request, &context)
+            .await?;
+        if receipt.changed() {
+            self.subscriptions.notify(FfiRuntimeChangeKind::Today, None);
+            self.subscriptions
+                .notify(FfiRuntimeChangeKind::Drafts, None);
+        }
+        Ok(receipt.status().into())
+    }
+
     /// Confirms the local immutable operation before any upload, signer or relay effect.
     /// Replays do not reopen media files or consult new publication settings.
     pub async fn submission_prepare(

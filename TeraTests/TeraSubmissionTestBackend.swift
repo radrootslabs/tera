@@ -213,6 +213,10 @@ actor SubmissionTestBackend {
 }
 
 extension AddBackend {
+  func reconcileSubmissionLocal(request: TeraSubmissionRequest, context _: TeraLocalNetwork) async throws -> TeraSubmissionStatus {
+    try await submissionBackend.status(request)
+  }
+
   func reserveSubmissionID() async -> String {
     await submissionBackend.reserveID()
   }

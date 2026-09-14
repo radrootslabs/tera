@@ -572,7 +572,7 @@ extension TeraAddStore {
     let scope = TeraComposerScope(authorPublicKey: updated.publicKey, localNetworkID: updated.context.id)
     let scopeChanged = composer.scope != scope
     recovery.configure(scope: scope)
-    submissions.configure(scope: scope)
+    submissions.configure(scope: scope, context: updated.context)
     if scopeChanged {
       composer.reset(scope: scope)
     }

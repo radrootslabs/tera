@@ -1,4 +1,10 @@
 extension TeraRuntimeClient {
+  func reconcileSubmissionLocal(request: TeraSubmissionRequest, context: TeraLocalNetwork) async throws -> TeraSubmissionStatus {
+    try await addOperation("runtime.submission.reconcile_local", submission: true) {
+      try await $0.reconcileSubmissionLocal(request: request, context: context)
+    }
+  }
+
   func prepareSubmission(request: TeraSubmissionRequest, media: [TeraPreparedMediaHandle]) async throws -> TeraSubmissionStatus {
     try await addOperation("runtime.submission.prepare", submission: true) { try await $0.prepareSubmission(request: request, media: media) }
   }
@@ -29,6 +35,10 @@ extension TeraRuntimeClient {
 }
 
 extension TeraRuntimeBackend {
+  func reconcileSubmissionLocal(request _: TeraSubmissionRequest, context _: TeraLocalNetwork) async throws -> TeraSubmissionStatus {
+    throw submissionUnavailable()
+  }
+
   func prepareSubmission(request _: TeraSubmissionRequest, media _: [TeraPreparedMediaHandle]) async throws -> TeraSubmissionStatus {
     throw submissionUnavailable()
   }

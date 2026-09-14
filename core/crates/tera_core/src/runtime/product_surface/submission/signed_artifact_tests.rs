@@ -55,12 +55,21 @@ async fn signed_artifact_child() {
     std::future::pending::<()>().await;
 }
 
-fn kill_after_signed_commit(root: &std::path::Path, relay: &str) {
+pub(super) fn kill_after_signed_commit(root: &std::path::Path, relay: &str) {
+    kill_at_barrier(root, relay, CHILD_TEST, DURABLE);
+}
+
+pub(super) fn kill_at_barrier(
+    root: &std::path::Path,
+    relay: &str,
+    child_test: &str,
+    barrier: &str,
+) {
     let mut child = ChildGuard(
         Command::new(std::env::current_exe().unwrap())
             .args([
                 "--exact",
-                CHILD_TEST,
+                child_test,
                 "--ignored",
                 "--nocapture",
                 "--test-threads=1",
@@ -76,10 +85,11 @@ fn kill_after_signed_commit(root: &std::path::Path, relay: &str) {
         serde_json::to_writer(&mut stdin, &(root.to_str().unwrap(), relay)).unwrap();
     }
     let stdout = child.0.stdout.take().unwrap();
+    let barrier = barrier.to_owned();
     let (send, receive) = std::sync::mpsc::sync_channel(1);
     let reader = std::thread::spawn(move || {
         for line in std::io::BufReader::new(stdout).lines() {
-            if line.unwrap().ends_with(DURABLE) {
+            if line.unwrap().ends_with(&barrier) {
                 let _ = send.send(());
                 break;
             }

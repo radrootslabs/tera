@@ -5,6 +5,10 @@ mod capture;
 mod commit;
 mod intent;
 mod inventory;
+mod local_admission;
+pub use local_admission::SubmissionLocalReceipt;
+#[cfg(all(test, unix))]
+mod local_admission_tests;
 mod media;
 mod operation;
 mod operation_load;

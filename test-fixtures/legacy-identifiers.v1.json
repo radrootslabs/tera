@@ -1899,6 +1899,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_submission_overlay.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_visibility_tests.rs",
           "count": 1
         },
@@ -4241,6 +4245,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/local_admission_tests.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 6
         },
@@ -4344,6 +4352,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/local_admission.rs",
           "count": 1
         },
         {
@@ -4807,6 +4819,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/local_admission_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
           "count": 9
         },
@@ -4937,6 +4953,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/local_admission_tests.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_recovery_tests.rs",
           "count": 1
         },
@@ -5048,6 +5068,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/local_admission.rs",
           "count": 1
         },
         {

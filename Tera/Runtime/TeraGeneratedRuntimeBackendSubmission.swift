@@ -2,6 +2,13 @@ import Foundation
 import TeraKitBindings
 
 extension TeraGeneratedRuntimeBackend {
+  func reconcileSubmissionLocal(request: TeraSubmissionRequest, context: TeraLocalNetwork) async throws -> TeraSubmissionStatus {
+    do {
+      let value = try await runtime.submissionReconcileLocal(request: request.generatedValue, context: context.generatedValue)
+      return try TeraGeneratedSubmission.operation(value, expected: request)
+    } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+
   func prepareSubmission(request: TeraSubmissionRequest, media: [TeraPreparedMediaHandle]) async throws -> TeraSubmissionStatus {
     do {
       let result = try await runtime.submissionPrepare(request: request.generatedValue, media: media.map(\.generatedValue))

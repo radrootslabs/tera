@@ -100,9 +100,28 @@ final class TeraLateSigningTests: XCTestCase {
     _ = try await client.start(configuration: configuration)
     let recovered = try await client.recoverSubmission(request: request)
     XCTAssertEqual(recovered, retained)
+    try await checkLocalReconciliation(client, request: request, retained: retained)
     let count = await signer.count()
     XCTAssertEqual(count, 1)
     _ = try await client.stop()
+  }
+
+  private func checkLocalReconciliation(_ client: TeraRuntimeClient, request: TeraSubmissionRequest, retained: TeraSubmissionStatus) async throws {
+    let context = TeraLocalNetwork(schemaVersion: 1, id: scope.localNetworkID, label: "Nearby",
+                                   relayURLs: ["ws://127.0.0.1:19999"], locality: nil, followedAuthors: [], generation: 1)
+    let local = try await client.reconcileSubmissionLocal(request: request, context: context)
+    XCTAssertEqual(local.captured, retained.captured)
+    XCTAssertEqual(local.operationID, retained.operationID)
+    XCTAssertEqual(local.settlement.signed, 1)
+    XCTAssertEqual(local.settlement.admitted, 1)
+    XCTAssertEqual(local.settlement.deliverySatisfied, 0)
+    let repeated = try await client.reconcileSubmissionLocal(request: request, context: context)
+    XCTAssertEqual(repeated, local)
+    let page = try await client.todayPage(request: .first(context: context, limit: 20,
+                                                          asOfUnixSeconds: TeraClock.system.unixMilliseconds(requirePositive: true) / 1000))
+    XCTAssertEqual(page.items.count, 1)
+    XCTAssertEqual(page.items.first?.localOperationID, local.operationID)
+    XCTAssertNotEqual(page.items.first?.localOperationState, "complete")
   }
 
   private func signedStatus(_ client: TeraRuntimeClient, request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus {
