@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use radroots_event::{SignedEvent, wire::v1::Nip01EventWire};
 use radroots_signing::{
-    Error, SignReceipt, SignRequest, Signer, SignerStatus,
+    AuthoredSignEvidence, Error, SignReceipt, SignRequest, Signer, SignerStatus,
     capability::{CancellationSupport, SignerCapability, SignerKind},
     error::Kind,
     recovery::ReplayCapability,
@@ -15,6 +15,9 @@ use radroots_signing::{
 use crate::MOBILE_FFI_SCHEMA_VERSION;
 
 const SIGNED_EVENT_MAX_BYTES: usize = 1_048_576;
+
+#[cfg(test)]
+mod evidence_tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
 pub enum SignerAvailabilityRecord {
@@ -75,6 +78,8 @@ pub struct HostSigningResult {
     pub public_key: String,
     pub purpose: HostSigningPurpose,
     pub signature_hex: Option<String>,
+    /// Host completion time, or zero when unavailable. Authored signed evidence
+    /// may be verified with a separate local observation; strict receipts require time.
     pub completed_at_unix_ms: u64,
 }
 
@@ -145,6 +150,36 @@ impl Signer for HostSignerAdapter {
             }
         })
     }
+
+    fn sign_authored_evidence(
+        &self,
+        request: SignRequest,
+    ) -> BoxFuture<'_, Result<AuthoredSignEvidence, Error>> {
+        Box::pin(async move {
+            if request.authored_plan().is_none() {
+                return Err(Error::new(Kind::InvalidArgument));
+            }
+            request.ensure_active(now_unix_ms())?;
+            let ffi_request = HostSigningRequest::from_request(&request)?;
+            let result = self.host.sign(ffi_request.clone()).await;
+            validate_result_identity(&ffi_request, &result)?;
+            match result.outcome {
+                HostSigningOutcome::Signed => AuthoredSignEvidence::from_signed_event(
+                    &request,
+                    signed_event(&request, result)?,
+                    now_unix_ms(),
+                ),
+                HostSigningOutcome::Locked | HostSigningOutcome::Unavailable => {
+                    Err(Error::new(Kind::SignerUnavailable))
+                }
+                HostSigningOutcome::Cancelled => Err(Error::new(Kind::SignerCancelled)),
+                HostSigningOutcome::Rejected => Err(Error::new(Kind::SignerRejected)),
+                HostSigningOutcome::TimedOut => Err(Error::new(Kind::SignerTimeout)),
+                HostSigningOutcome::Invalidated => Err(Error::new(Kind::SignerOutputInvalid)),
+                HostSigningOutcome::Failed => Err(Error::new(Kind::InternalError)),
+            }
+        })
+    }
 }
 
 impl HostSigningRequest {
@@ -179,12 +214,22 @@ fn validate_result_binding(
     request: &HostSigningRequest,
     result: &HostSigningResult,
 ) -> Result<(), Error> {
+    validate_result_identity(request, result)?;
+    if result.completed_at_unix_ms == 0 {
+        return Err(Error::new(Kind::SignerOutputInvalid));
+    }
+    Ok(())
+}
+
+fn validate_result_identity(
+    request: &HostSigningRequest,
+    result: &HostSigningResult,
+) -> Result<(), Error> {
     if result.schema_version != MOBILE_FFI_SCHEMA_VERSION
         || result.operation_id != request.operation_id
         || result.signer_request_id != request.signer_request_id
         || result.public_key != request.public_key
         || result.purpose != request.purpose
-        || result.completed_at_unix_ms == 0
         || (result.outcome == HostSigningOutcome::Signed) != result.signature_hex.is_some()
     {
         return Err(Error::new(Kind::SignerOutputInvalid));
@@ -193,6 +238,15 @@ fn validate_result_binding(
 }
 
 fn signed_receipt(request: &SignRequest, result: HostSigningResult) -> Result<SignReceipt, Error> {
+    let completed_at_unix_ms = result.completed_at_unix_ms;
+    SignReceipt::from_signed_event(
+        request,
+        signed_event(request, result)?,
+        completed_at_unix_ms,
+    )
+}
+
+fn signed_event(request: &SignRequest, result: HostSigningResult) -> Result<SignedEvent, Error> {
     let signature = result
         .signature_hex
         .filter(|value| {
@@ -216,9 +270,8 @@ fn signed_receipt(request: &SignRequest, result: HostSigningResult) -> Result<Si
     if raw_json.len() > SIGNED_EVENT_MAX_BYTES {
         return Err(Error::new(Kind::SignerOutputInvalid));
     }
-    let signed = SignedEvent::from_wire_verified_id(wire, raw_json)
-        .map_err(|_| Error::new(Kind::SignerOutputInvalid))?;
-    SignReceipt::from_signed_event(request, signed, result.completed_at_unix_ms)
+    SignedEvent::from_wire_verified_id(wire, raw_json)
+        .map_err(|_| Error::new(Kind::SignerOutputInvalid))
 }
 
 fn uuid_string(bytes: &[u8; 16]) -> String {

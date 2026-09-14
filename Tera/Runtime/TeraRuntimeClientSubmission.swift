@@ -8,7 +8,7 @@ extension TeraRuntimeClient {
   }
 
   func submissionStatus(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus {
-    try await addOperation("runtime.submission.status", submission: true) { try await $0.submissionStatus(request: request) }
+    try await addOperation("runtime.submission.status") { try await $0.submissionStatus(request: request) }
   }
 
   func advanceSubmission(request: TeraSubmissionRequest, expectedRevision: UInt64) async throws -> TeraSubmissionStatus {

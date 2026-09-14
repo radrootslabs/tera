@@ -1,0 +1,11 @@
+{
+  "schema": "tera.host-signing-evidence.v1",
+  "status": "approved",
+  "purpose": "Preserve already-created authored signatures across caller wait timeout, cancellation and host observation-clock failure.",
+  "authored": "Check request activity before invoking the host. After invocation, validate schema, operation ID, signer request ID, public key, purpose, outcome/signature consistency and the exact signed event cryptographically. Return AuthoredSignEvidence with a positive Rust-local observation time regardless of the caller's remaining wait.",
+  "host_time": "HostSigningResult.completed_at_unix_ms equal to zero represents unavailable host completion time. Only authored Signed evidence may be retained without it, using separate local observation; zero is never a fabricated signing or event timestamp. If Swift cannot read its post-sign clock, it preserves an existing NostrEvent signature with zero time. Pre-invocation clock failure still prevents the call.",
+  "strict_receipt": "Signer::sign remains strict before and after the callback and at host completion time. It requires a nonzero host time, active cancellation/deadline policy, exact binding and valid cryptography. Expiring Blossom upload authorization does not use the authored-evidence hook and retains its prior failure behavior.",
+  "durability": "The shared signing, storage and Sync owners persist evidence under the original durable claim, reload current status and preserve stopped/uncertain outcomes. Recovery queries the original operation before signing again; no replacement key, preimage or event timestamp is permitted.",
+  "lifetime": "The existing native runtime client retains operation admission until the generated async call settles. A waiter timeout or cancellation does not authorize another in-flight invocation. No additional worker or timer is introduced; direct destruction of a Rust future leaves durable attempt recovery rather than a promise of background completion.",
+  "scope": "No new FFI field, ABI type, storage authority, transport or credential owner. Global delivery-stop semantics remain separate. Native tests are simulator evidence, not physical-device or power-loss qualification."
+}

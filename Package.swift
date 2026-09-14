@@ -75,6 +75,7 @@ let package = Package(
         "Runtime/TeraGeneratedCalendarCards.swift",
         "Runtime/TeraGeneratedComposer.swift",
         "Runtime/TeraGeneratedDraftInventory.swift",
+        "Runtime/TeraGeneratedHostSigner.swift",
         "Runtime/TeraGeneratedRuntimeBackend.swift",
         "Runtime/TeraGeneratedRuntimeBackendComposer.swift",
         "Runtime/TeraGeneratedSubmission.swift",

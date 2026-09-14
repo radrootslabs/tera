@@ -905,6 +905,10 @@
           "count": 5
         },
         {
+          "path": "TeraTests/TeraLateSigningTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraSessionResourceTests.swift",
           "count": 1
         },
@@ -921,6 +925,10 @@
         {
           "path": "Tera/State/TeraIdentityStore.swift",
           "count": 4
+        },
+        {
+          "path": "TeraTests/TeraLateSigningTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraSessionResourceTests.swift",
@@ -995,6 +1003,10 @@
         {
           "path": "Tera/Views/RuntimeStatusView.swift",
           "count": 5
+        },
+        {
+          "path": "TeraTests/TeraLateSigningTests.swift",
+          "count": 1
         }
       ]
     },
@@ -1104,6 +1116,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLateSigningTests.swift",
           "count": 1
         },
         {
@@ -4119,6 +4135,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_ffi/src/signer/evidence_tests.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_ffi/tests/local_mvp_real_io.rs",
           "count": 1
         },
@@ -4274,6 +4294,10 @@
         },
         {
           "path": "core/crates/tera_ffi/src/signer.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/signer/evidence_tests.rs",
           "count": 1
         },
         {
@@ -4434,6 +4458,10 @@
       "occurrences": [
         {
           "path": "Tera/State/TeraIdentityStore.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLateSigningTests.swift",
           "count": 1
         },
         {
@@ -4729,6 +4757,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_ffi/src/signer/evidence_tests.rs",
+          "count": 1
+        },
+        {
           "path": "scripts/test_app_dependency_graph.py",
           "count": 1
         },
@@ -4789,6 +4821,10 @@
         {
           "path": "core/crates/tera_ffi/src/signer.rs",
           "count": 3
+        },
+        {
+          "path": "core/crates/tera_ffi/src/signer/evidence_tests.rs",
+          "count": 1
         }
       ]
     },
