@@ -46,6 +46,8 @@ use super::{
 use crate::runtime::TeraRuntime;
 
 mod advance;
+#[path = "outbox/configuration.rs"]
+mod configuration;
 #[path = "outbox/inventory.rs"]
 mod inventory;
 mod media;
@@ -1305,8 +1307,16 @@ impl TeraRuntime {
                 .phase1_queue_profile(draft_id, status.draft.revision().get())
                 .await?;
         } else if status.draft.stage() == AuthoredDraftStage::ReadyToSign {
+            let configuration = self.publication_configuration.read().await;
+            if !configuration.allowed {
+                return Err(Phase1DraftError::IdentityUnavailable);
+            }
             status = self
-                .finish_profile_queue(status.draft.clone(), phase1_operation_now_unix_ms()?)
+                .finish_profile_queue(
+                    &configuration,
+                    status.draft.clone(),
+                    phase1_operation_now_unix_ms()?,
+                )
                 .await?;
         }
         if status.draft.stage() != AuthoredDraftStage::Queued
@@ -1321,6 +1331,8 @@ impl TeraRuntime {
         }
         let request = profile_push_request(&status.draft)?;
         let operation_id = request.operation_id();
+        self.require_legacy_publication_running(operation_id)
+            .await?;
         let sync = self.sync()?;
         let mut push = sync
             .push_status(operation_id)
@@ -1452,11 +1464,12 @@ impl TeraRuntime {
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         let _command = self.lifecycle.enter()?;
         let now_unix_ms = phase1_operation_now_unix_ms()?;
-        let policy = self.active_queue_policy(now_unix_ms)?;
-        self.phase1_queue_draft(
+        let admission = self.mutations.draft(*intent.draft_id.as_bytes())?;
+        self.phase1_queue_draft_admitted(
+            &admission,
             *intent.draft_id.as_bytes(),
             intent.expected_revision.get(),
-            policy,
+            None,
             now_unix_ms,
         )
         .await
@@ -1770,7 +1783,7 @@ impl TeraRuntime {
                 &admission,
                 replacement_draft_id,
                 status.replacement.draft().revision().get(),
-                self.active_queue_policy(now_unix_ms)?,
+                None,
                 now_unix_ms,
             )
             .await?;
@@ -2355,7 +2368,7 @@ impl TeraRuntime {
             &admission,
             draft_id,
             expected_revision,
-            policy,
+            Some(policy),
             queued_at_unix_ms,
         )
         .await
@@ -2366,9 +2379,13 @@ impl TeraRuntime {
         _admission: &crate::runtime::mutation_admission::MutationPermit<'_>,
         draft_id: [u8; 16],
         expected_revision: u64,
-        policy: Phase1QueuePolicy,
+        policy: Option<Phase1QueuePolicy>,
         queued_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let configuration = self.publication_configuration.read().await;
+        if !configuration.allowed {
+            return Err(Phase1DraftError::IdentityUnavailable);
+        }
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
         let expected = AuthoredDraftRevision::new(expected_revision)
@@ -2383,6 +2400,10 @@ impl TeraRuntime {
             return Err(Phase1DraftError::RevisionConflict);
         }
         let mut payload = Phase1DraftPayload::decode(&head)?;
+        let policy = match policy.or_else(|| payload.queue.clone()) {
+            Some(policy) => policy,
+            None => self.active_queue_policy(queued_at_unix_ms)?,
+        };
         let ready = match head.stage() {
             AuthoredDraftStage::ReadyToSign => {
                 if payload.queue.as_ref() != Some(&policy) {
@@ -2428,7 +2449,8 @@ impl TeraRuntime {
                 ready
             }
         };
-        self.finish_queue(ready, queued_at_unix_ms).await
+        self.finish_queue(&configuration, ready, queued_at_unix_ms)
+            .await
     }
 
     /// Resumes a queue transition interrupted after its durable ready-to-sign
@@ -2440,6 +2462,10 @@ impl TeraRuntime {
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         let _command = self.lifecycle.enter()?;
         let _admission = self.mutations.draft(draft_id)?;
+        let configuration = self.publication_configuration.read().await;
+        if !configuration.allowed {
+            return Err(Phase1DraftError::IdentityUnavailable);
+        }
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
         let head = self
@@ -2449,7 +2475,10 @@ impl TeraRuntime {
             .map_err(|_| Phase1DraftError::Storage)?
             .ok_or(Phase1DraftError::NotFound)?;
         match head.stage() {
-            AuthoredDraftStage::ReadyToSign => self.finish_queue(head, recovered_at_unix_ms).await,
+            AuthoredDraftStage::ReadyToSign => {
+                self.finish_queue(&configuration, head, recovered_at_unix_ms)
+                    .await
+            }
             AuthoredDraftStage::Queued | AuthoredDraftStage::Cancelled => {
                 self.draft_status_from(head).await
             }
@@ -2484,6 +2513,8 @@ impl TeraRuntime {
         if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
             return Err(Phase1DraftError::RevisionConflict);
         }
+        self.require_legacy_publication_running(sync_id_for(&head)?)
+            .await?;
         self.sync()?
             .sign_prepared(push_request(&head)?)
             .await
@@ -2839,6 +2870,10 @@ impl TeraRuntime {
         draft_id: [u8; 16],
         expected_revision: u64,
     ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
+        let configuration = self.publication_configuration.read().await;
+        if !configuration.allowed {
+            return Err(Phase1DraftError::IdentityUnavailable);
+        }
         let now_unix_ms = phase1_operation_now_unix_ms()?;
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
@@ -2882,11 +2917,13 @@ impl TeraRuntime {
                 return Err(Phase1DraftError::Corrupt);
             }
         };
-        self.finish_profile_queue(ready, now_unix_ms).await
+        self.finish_profile_queue(&configuration, ready, now_unix_ms)
+            .await
     }
 
     async fn finish_profile_queue(
         &self,
+        _configuration: &super::PublicationConfiguration,
         ready: AuthoredDraft,
         queued_at_unix_ms: u64,
     ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
@@ -2942,6 +2979,7 @@ impl TeraRuntime {
 
     async fn finish_queue(
         &self,
+        _configuration: &super::PublicationConfiguration,
         ready: AuthoredDraft,
         queued_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
@@ -4198,6 +4236,97 @@ mod tests {
         let recovered = runtime.phase1_recover_draft_queue(id, 12).await.unwrap();
         assert_eq!(recovered.draft(), queued.draft());
         assert_eq!(recovered.push(), queued.push());
+    }
+
+    #[tokio::test]
+    async fn configuration_removal_stops_both_legacy_queue_preparation_crash_windows() {
+        for prepared in [false, true] {
+            let runtime = signing_runtime();
+            let id = [65; 16];
+            let saved = runtime
+                .phase1_save_draft(
+                    id,
+                    Phase1AddCommand::CreateUpdate(CreateUpdate::new("Interrupted queue").unwrap()),
+                    1_900_000_010,
+                    Vec::new(),
+                    None,
+                    40,
+                )
+                .await
+                .unwrap();
+            let mut payload = Phase1DraftPayload::decode(saved.draft()).unwrap();
+            payload.queue = Some(policy());
+            let bytes = payload.encode().unwrap();
+            let operation = operation_id(saved.draft().draft_id(), &bytes).unwrap();
+            let ready = saved
+                .draft()
+                .successor(
+                    bytes,
+                    AuthoredDraftStage::ReadyToSign,
+                    Some(OperationInstanceId::new(*operation.as_bytes()).unwrap()),
+                    41,
+                )
+                .unwrap();
+            runtime
+                .storage()
+                .unwrap()
+                .append_authored_draft(ready.clone(), Some(saved.draft().revision()))
+                .await
+                .unwrap();
+            if prepared {
+                runtime
+                    .sync()
+                    .unwrap()
+                    .prepare_push(push_request(&ready).unwrap())
+                    .await
+                    .unwrap();
+            }
+            runtime
+                .configure_simulator_relays(vec!["ws://127.0.0.1:19998".into()])
+                .await
+                .unwrap();
+            runtime
+                .configure_public_relays(policy().relay_urls)
+                .await
+                .unwrap();
+            let stopped = runtime
+                .sync()
+                .unwrap()
+                .push_status(operation)
+                .await
+                .unwrap()
+                .unwrap();
+            assert!(
+                stopped
+                    .delivery_plan()
+                    .stop_requested_at_unix_ms()
+                    .is_some()
+            );
+            assert!(stopped.artifact().signed().is_none());
+            let recovered = runtime.phase1_recover_draft_queue(id, 42).await.unwrap();
+            assert_eq!(recovered.draft().payload(), ready.payload());
+            assert_eq!(recovered.draft().operation_id(), ready.operation_id());
+            assert_eq!(recovered.push(), Some(&stopped));
+            assert_eq!(
+                runtime
+                    .phase1_advance_draft(id, recovered.draft().revision().get())
+                    .await
+                    .unwrap_err(),
+                Phase1DraftError::Terminal
+            );
+            assert!(
+                runtime
+                    .phase1_draft_status(id)
+                    .await
+                    .unwrap()
+                    .push()
+                    .unwrap()
+                    .artifact()
+                    .signed()
+                    .is_none()
+            );
+            runtime.shutdown().await.unwrap();
+        }
     }
 
     #[tokio::test]

@@ -83,7 +83,7 @@ async fn signing_preparation_sqlite_is_committed_and_unlocked_before_callback() 
     assert!(task.await.unwrap_err().is_cancelled());
     runtime.shutdown().await.unwrap();
     drop(runtime);
-    let reopened = self::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19998").await;
+    let reopened = self::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19999").await;
     let recovered = reopened
         .submission_operation_status(&request)
         .await
@@ -139,7 +139,7 @@ async fn signing_preparation_lock_and_denial_preserve_exact_request_across_resta
         runtime.shutdown().await.unwrap();
         drop(runtime);
         let reopened =
-            self::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19998").await;
+            self::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19999").await;
         let recovered = reopened
             .submission_operation_status(&request)
             .await

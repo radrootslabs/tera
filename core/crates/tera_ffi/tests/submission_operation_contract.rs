@@ -35,6 +35,7 @@ async fn native_operation_bridge_preserves_one_capture_across_duplicates_edits_a
     let (root, runtime) = support::runtime().await;
     runtime
         .configure_simulator_relays(vec!["ws://127.0.0.1:19999".into()])
+        .await
         .unwrap();
     let mut source = source();
     let saved = runtime.composer_save(source.clone()).await.unwrap();
@@ -100,17 +101,39 @@ async fn native_operation_bridge_preserves_one_capture_across_duplicates_edits_a
     .unwrap();
     runtime
         .configure_simulator_relays(vec!["ws://127.0.0.1:19998".into()])
+        .await
         .unwrap();
-    assert_eq!(
-        runtime.submission_recover(request.clone()).await.unwrap(),
-        Some(queued.clone())
-    );
+    let stopped = runtime
+        .submission_recover(request.clone())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(stopped.request, queued.request);
+    assert_eq!(stopped.operation_id, queued.operation_id);
+    assert_eq!(stopped.intent_id, queued.intent_id);
+    assert_eq!(stopped.captured, queued.captured);
+    assert_eq!(stopped.revision, queued.revision);
+    assert_eq!(stopped.media, queued.media);
+    assert_eq!(stopped.committed_at_unix_ms, queued.committed_at_unix_ms);
+    assert!(stopped.delivery.stop_requested_at_unix_ms.is_some());
+    assert_eq!(stopped.state, FfiOutboxState::Cancelled);
+    assert_eq!(stopped.settlement.signed, 0);
+    runtime
+        .configure_simulator_relays(vec!["ws://127.0.0.1:19999".into()])
+        .await
+        .unwrap();
     assert_eq!(
         runtime
             .submission_prepare(request.clone(), vec![])
             .await
             .unwrap(),
-        queued
+        stopped
+    );
+    assert!(
+        runtime
+            .submission_advance(request.clone(), stopped.revision)
+            .await
+            .is_err()
     );
     assert_eq!(
         runtime
@@ -208,6 +231,7 @@ async fn missing_policy_and_invalid_scoped_requests_cannot_acknowledge_an_operat
     ));
     runtime
         .configure_simulator_relays(vec!["ws://127.0.0.1:19999".into()])
+        .await
         .unwrap();
     let status = runtime
         .submission_prepare(request.clone(), vec![])

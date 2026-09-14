@@ -55,6 +55,7 @@ async fn subscriptions_are_independent_bounded_handles_and_stop_individually() {
 
     runtime
         .configure_public_relays(vec!["wss://write.example".to_owned()])
+        .await
         .expect("relay configuration");
     assert_eq!(receive(&second_receiver).kind, FfiRuntimeChangeKind::Relay);
     assert!(

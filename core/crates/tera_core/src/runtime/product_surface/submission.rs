@@ -3,6 +3,13 @@
 
 mod capture;
 mod commit;
+pub(crate) mod configuration;
+#[cfg(test)]
+mod configuration_effect_tests;
+#[cfg(test)]
+mod configuration_regression_tests;
+#[cfg(test)]
+mod configuration_tests;
 mod intent;
 mod inventory;
 mod local_admission;

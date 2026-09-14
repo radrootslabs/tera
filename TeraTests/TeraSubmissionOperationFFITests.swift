@@ -67,7 +67,7 @@ final class TeraSubmissionOperationFFITests: XCTestCase {
     let fixture = try MediaOwnershipFixture()
     defer { fixture.remove() }
     let runtime = try await fixture.runtime()
-    try runtime.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19999"])
+    try await runtime.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19999"])
     let backend = TeraGeneratedRuntimeBackend(runtime: runtime)
     let file = try fixture.original()
     defer { try? file.close() }
@@ -140,7 +140,7 @@ final class TeraSubmissionOperationFFITests: XCTestCase {
     let fixture = try MediaOwnershipFixture()
     defer { fixture.remove() }
     let runtime = try await fixture.runtime()
-    try runtime.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19999"])
+    try await runtime.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19999"])
     let source = try TeraComposerSaveRequest(scope: scope, id: composerReserveId().id,
                                              expectedRevision: nil, editSequence: 1, form: form(.createUpdate, media: fixture.media))
     _ = try await runtime.composerSave(request: source.generatedValue)
@@ -165,11 +165,28 @@ final class TeraSubmissionOperationFFITests: XCTestCase {
 
   private func assertReconstruction(_ fixture: MediaOwnershipFixture, committed: [TeraSubmissionStatus]) async throws {
     let reopened = try await fixture.runtime()
-    try reopened.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19998"])
+    try await reopened.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19998"])
     let recovered = TeraGeneratedRuntimeBackend(runtime: reopened)
     for original in committed {
-      let status = try await recovered.recoverSubmission(request: original.request)
-      XCTAssertEqual(status, original)
+      let recoveredStatus = try await recovered.recoverSubmission(request: original.request)
+      let status = try XCTUnwrap(recoveredStatus)
+      XCTAssertEqual(status.request, original.request)
+      XCTAssertEqual(status.operationID, original.operationID)
+      XCTAssertEqual(status.intentID, original.intentID)
+      XCTAssertEqual(status.captured, original.captured)
+      XCTAssertEqual(status.revision, original.revision)
+      XCTAssertEqual(status.media, original.media)
+      XCTAssertEqual(status.committedAtUnixMilliseconds, original.committedAtUnixMilliseconds)
+      XCTAssertTrue(status.delivery.isStopped)
+      XCTAssertEqual(status.state, .cancelled)
+      XCTAssertEqual(status.settlement.signed, 0)
+      try await reopened.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19999", "ws://127.0.0.1:19998"])
+      let afterReaddition = try await recovered.recoverSubmission(request: original.request)
+      XCTAssertEqual(afterReaddition, status)
+      do {
+        _ = try await recovered.advanceSubmission(request: original.request, expectedRevision: status.revision)
+        XCTFail("Re-adding a removed relay must not revive stopped work")
+      } catch {}
       let editing = try await recovered.loadComposer(scope: scope, id: original.captured.id)
       XCTAssertEqual(editing.form.content, "newer incomplete editing")
       XCTAssertEqual(editing.revision, 2)

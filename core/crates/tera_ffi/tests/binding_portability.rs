@@ -92,6 +92,7 @@ async fn invalid_contexts_fail_before_emitting_a_callback() {
     }
     runtime
         .configure_public_relays(vec!["wss://write.example".into()])
+        .await
         .unwrap();
     assert_eq!(
         receiver.recv_timeout(Duration::from_secs(5)).unwrap().kind,

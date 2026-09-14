@@ -119,7 +119,7 @@ impl TeraRuntime {
 
     /// Installs a validated public relay profile without probing it.
     #[cfg(feature = "mobile-social")]
-    pub fn configure_public_relays(
+    pub async fn configure_public_relays(
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
@@ -129,11 +129,12 @@ impl TeraRuntime {
             radroots_sdk::transport::RelayUrlPolicy::Public,
             writable_relays,
         )
+        .await
     }
 
     /// Installs an exact-loopback simulator profile without probing it.
     #[cfg(feature = "mobile-social")]
-    pub fn configure_simulator_relays(
+    pub async fn configure_simulator_relays(
         &self,
         loopback_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
@@ -143,11 +144,12 @@ impl TeraRuntime {
             radroots_sdk::transport::RelayUrlPolicy::Local,
             loopback_relays,
         )
+        .await
     }
 
     /// Installs an explicit physical-device TLS relay profile without probing it.
     #[cfg(feature = "mobile-social")]
-    pub fn configure_device_relays(
+    pub async fn configure_device_relays(
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
@@ -157,10 +159,11 @@ impl TeraRuntime {
             radroots_sdk::transport::RelayUrlPolicy::PrivateNetwork,
             writable_relays,
         )
+        .await
     }
 
     #[cfg(feature = "mobile-social")]
-    fn configure_relay_endpoints(
+    async fn configure_relay_endpoints(
         &self,
         kind: radroots_sdk::transport::RelayProfileKind,
         policy: radroots_sdk::transport::RelayUrlPolicy,
@@ -179,14 +182,19 @@ impl TeraRuntime {
             .map_err(|error| TeraAppError::runtime(error.to_string()))?;
         let profile = radroots_sdk::transport::RelayProfile::explicit(kind, endpoints)
             .map_err(|error| TeraAppError::runtime(error.to_string()))?;
-        self.configure_relay_profile(profile)
+        self.configure_relay_profile(profile).await
     }
 
     #[cfg(feature = "mobile-social")]
-    fn configure_relay_profile(
+    async fn configure_relay_profile(
         &self,
         profile: radroots_sdk::transport::RelayProfile,
     ) -> Result<(), TeraAppError> {
+        let mut configuration = self.publication_configuration.write().await;
+        configuration.invalidate_capture();
+        self.restrict_publications(Some(&profile), None, false)
+            .await
+            .map_err(|_| TeraAppError::runtime("publication_configuration_unconfirmed"))?;
         self.client
             .configure_nostr(profile)
             .map_err(TeraAppError::from_sdk)
@@ -194,7 +202,7 @@ impl TeraRuntime {
 
     /// Installs the exact validated relay preferences persisted by the mobile product.
     #[cfg(feature = "mobile-social")]
-    pub fn configure_relay_preferences(
+    pub async fn configure_relay_preferences(
         &self,
         preferences: &RelayPreferences,
     ) -> Result<(), TeraAppError> {
@@ -204,11 +212,12 @@ impl TeraRuntime {
                 .sdk_profile()
                 .map_err(|error| TeraAppError::runtime(error.code()))?,
         )
+        .await
     }
 
     /// Installs one canonical inert Blossom configuration without probing it.
     #[cfg(feature = "mobile-social")]
-    pub fn configure_blossom(
+    pub async fn configure_blossom(
         &self,
         host_kind: radroots_sdk::transport::BlossomHostKind,
         endpoint_authority: radroots_sdk::transport::BlossomEndpointAuthority,
@@ -225,23 +234,28 @@ impl TeraRuntime {
             )
             .map_err(|error| TeraAppError::runtime(error.code().to_owned()))?,
         )
+        .await
     }
 
     #[cfg(feature = "mobile-social")]
-    fn configure_blossom_profile(
+    async fn configure_blossom_profile(
         &self,
         profile: radroots_sdk::transport::BlossomProfile,
     ) -> Result<(), TeraAppError> {
+        let config = radroots_sdk::transport::BlossomConfig::from_profile(profile);
+        let mut configuration = self.publication_configuration.write().await;
+        configuration.invalidate_capture();
+        self.restrict_publications(None, Some(config.fingerprint()), false)
+            .await
+            .map_err(|_| TeraAppError::runtime("publication_configuration_unconfirmed"))?;
         self.client
-            .configure_blossom(radroots_sdk::transport::BlossomConfig::from_profile(
-                profile,
-            ))
+            .configure_blossom(config)
             .map_err(TeraAppError::from_sdk)
     }
 
     /// Installs the exact validated Blossom preferences persisted by the mobile product.
     #[cfg(feature = "mobile-social")]
-    pub fn configure_blossom_preferences(
+    pub async fn configure_blossom_preferences(
         &self,
         preferences: &BlossomPreferences,
     ) -> Result<(), TeraAppError> {
@@ -251,6 +265,7 @@ impl TeraRuntime {
                 .sdk_profile()
                 .map_err(|error| TeraAppError::runtime(error.code()))?,
         )
+        .await
     }
 
     /// Returns the configured adapter slot for Rust-owned media binding.

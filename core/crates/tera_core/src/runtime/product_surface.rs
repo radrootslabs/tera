@@ -24,6 +24,8 @@ mod ranking;
 mod settings;
 #[cfg(feature = "mobile-social")]
 mod submission;
+#[cfg(feature = "mobile-social")]
+pub(crate) use submission::configuration::PublicationConfiguration;
 mod today;
 mod viewer_calendar;
 pub use viewer_calendar::{

@@ -89,6 +89,22 @@ pub(super) fn commit_id(request: &SubmissionReservationRequest) -> AtomicCommitI
 }
 
 impl IntentPayload {
+    pub(super) fn queue_policy(&self) -> &Phase1QueuePolicy {
+        &self.policy
+    }
+
+    pub(super) async fn reservation_request(
+        &self,
+        store: &dyn radroots_storage::Storage,
+    ) -> Result<SubmissionReservationRequest, super::SubmissionOperationError> {
+        let reservation = store
+            .authored_draft_head(self.reservation_id)
+            .await?
+            .ok_or(super::SubmissionOperationError::Corrupt)?;
+        super::record::request_from(&reservation, &self.scope)
+            .map_err(|error| super::SubmissionOperationError::Submission(error.into()))
+    }
+
     pub(super) fn capture(value: &CapturedSubmission) -> Result<PrepareFromDraft, E> {
         let reservation = value.reservation();
         let payload = Self {

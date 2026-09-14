@@ -147,8 +147,8 @@ struct MediaOwnershipFixture: Sendable {
     let runtime = try await TeraRuntime(applicationSupportDirectory: root.path, publicKeyHex: publicKey,
                                         sourceGenerationHex: String(repeating: "04", count: 32),
                                         sourceGenerationCreatedAtUnixMs: 1_800_000_000_000, protectedData: .available)
-    try runtime.configureBlossom(hostKind: .simulator, endpointAuthority: .loopbackDevelopment,
-                                 primaryOrigin: "http://127.0.0.1:3000", fallbackOrigins: [])
+    try await runtime.configureBlossom(hostKind: .simulator, endpointAuthority: .loopbackDevelopment,
+                                       primaryOrigin: "http://127.0.0.1:3000", fallbackOrigins: [])
     return runtime
   }
 

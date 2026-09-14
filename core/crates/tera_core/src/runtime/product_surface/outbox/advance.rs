@@ -8,6 +8,8 @@ impl TeraRuntime {
         request: PushRequest,
     ) -> Result<(), Phase1DraftError> {
         let operation_id = request.operation_id();
+        self.require_legacy_publication_running(operation_id)
+            .await?;
         let sync = self.sync()?;
         let mut status = sync
             .push_status(operation_id)

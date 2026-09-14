@@ -214,40 +214,43 @@ impl TeraRuntime {
         self.subscriptions.subscribe(observer)
     }
 
-    pub fn configure_public_relays(
+    pub async fn configure_public_relays(
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
         self.inner
             .configure_public_relays(writable_relays)
+            .await
             .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Relay, None);
         Ok(())
     }
 
-    pub fn configure_simulator_relays(
+    pub async fn configure_simulator_relays(
         &self,
         loopback_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
         self.inner
             .configure_simulator_relays(loopback_relays)
+            .await
             .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Relay, None);
         Ok(())
     }
 
-    pub fn configure_device_relays(
+    pub async fn configure_device_relays(
         &self,
         writable_relays: Vec<String>,
     ) -> Result<(), TeraAppError> {
         self.inner
             .configure_device_relays(writable_relays)
+            .await
             .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Relay, None);
         Ok(())
     }
 
-    pub fn configure_blossom(
+    pub async fn configure_blossom(
         &self,
         host_kind: FfiBlossomHostKind,
         endpoint_authority: FfiBlossomEndpointAuthority,
@@ -261,6 +264,7 @@ impl TeraRuntime {
                 primary_origin,
                 fallback_origins,
             )
+            .await
             .map_err(TeraAppError::from)?;
         self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
         Ok(())
@@ -888,9 +892,11 @@ impl TeraRuntime {
         let settings = self.inner.phase1_settings().await?;
         self.inner
             .configure_relay_preferences(settings.relays())
+            .await
             .map_err(TeraAppError::from)?;
         self.inner
             .configure_blossom_preferences(settings.blossom())
+            .await
             .map_err(TeraAppError::from)?;
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Settings, None);

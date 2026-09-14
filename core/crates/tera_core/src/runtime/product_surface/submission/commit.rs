@@ -191,11 +191,23 @@ impl TeraRuntime {
             .enter()
             .map_err(SubmissionReservationError::from)?;
         self.validate_submission_owner(captured.reservation().request())?;
+        let configuration = self.publication_configuration.read().await;
         let store = self
             .client
             .storage()
             .map_err(|_| Error::BackendUnavailable)?;
-        SubmissionRepository { store }.commit(captured).await
+        let repository = SubmissionRepository { store };
+        // Existing receipts still require the full semantic replay comparison.
+        // Only a new local intent needs the process-local capture admission.
+        if repository
+            .recover(captured.reservation().request())
+            .await?
+            .is_none()
+            && (!configuration.allowed || captured.configuration_token != Some(configuration.token))
+        {
+            return Err(SubmissionCaptureError::PolicyUnavailable.into());
+        }
+        repository.commit(captured).await
     }
 
     /// Recovers committed work without consulting current settings or requiring local media.

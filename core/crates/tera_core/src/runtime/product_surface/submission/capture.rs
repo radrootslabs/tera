@@ -34,6 +34,7 @@ pub enum SubmissionCaptureError {
 /// It contains no secret, signer, transport handle or live form reference.
 #[derive(Clone)]
 pub struct CapturedSubmission {
+    pub(super) configuration_token: Option<[u8; 16]>,
     reservation: SubmissionReservationReceipt,
     command: Phase1AddCommand,
     plan: AuthoredEventPlan,
@@ -112,6 +113,7 @@ impl CapturedSubmission {
             })
             .collect::<Result<_, _>>()?;
         Ok(Self {
+            configuration_token: None,
             reservation,
             command,
             plan,
@@ -141,6 +143,10 @@ impl TeraRuntime {
             .into());
         }
         let reservation = self.submission_reserve(request).await?;
+        let configuration = self.publication_configuration.read().await;
+        if !configuration.allowed {
+            return Err(SubmissionCaptureError::PolicyUnavailable);
+        }
         let policy = self
             .active_queue_policy(reservation.reserved_at_unix_ms())
             .map_err(|_| SubmissionCaptureError::PolicyUnavailable)?;
@@ -148,6 +154,8 @@ impl TeraRuntime {
             .client
             .blossom()
             .map_err(|_| SubmissionCaptureError::PolicyUnavailable)?;
-        CapturedSubmission::capture(reservation, policy, blossom, media_bytes)
+        let mut captured = CapturedSubmission::capture(reservation, policy, blossom, media_bytes)?;
+        captured.configuration_token = Some(configuration.token);
+        Ok(captured)
     }
 }

@@ -39,12 +39,40 @@ impl TeraRuntime {
         &self,
         request: &SubmissionReservationRequest,
     ) -> Result<(), E> {
+        let configuration = self.publication_configuration.read().await;
+        if !configuration.allowed {
+            self.submission_request_stop(request).await?;
+            return Err(E::Stopped);
+        }
         let status = self.submission_operation_status(request).await?;
         if status
             .delivery_evidence()
             .stop_requested_at_unix_ms
             .is_some()
         {
+            return Err(E::Stopped);
+        }
+        let relays = self
+            .client
+            .nostr_status()
+            .map_err(|_| Phase1DraftError::OperationUnavailable)?;
+        let removed = status
+            .push()
+            .delivery_plan()
+            .intent()
+            .target_set()
+            .targets()
+            .iter()
+            .any(|target| {
+                !relays.as_ref().is_some_and(|profile| {
+                    profile.relays().iter().any(|relay| {
+                        relay.endpoint().access().can_write()
+                            && relay.endpoint().url().as_str() == target.uri().as_str()
+                    })
+                })
+            });
+        if removed {
+            self.submission_request_stop(request).await?;
             return Err(E::Stopped);
         }
         Ok(())

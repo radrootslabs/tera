@@ -5,6 +5,8 @@ use crate::{TeraAppError, TeraRuntime};
 pub struct RuntimeBuilder {
     store: MobileUserStoreConfig,
     #[cfg(feature = "mobile-social")]
+    explicit_publication_environment: bool,
+    #[cfg(feature = "mobile-social")]
     signer: Option<std::sync::Arc<dyn radroots_signing::Signer>>,
     #[cfg(feature = "mobile-social")]
     relay_profile: radroots_sdk::transport::RelayProfile,
@@ -17,6 +19,8 @@ impl RuntimeBuilder {
     pub fn new(store: MobileUserStoreConfig) -> Self {
         Self {
             store,
+            #[cfg(feature = "mobile-social")]
+            explicit_publication_environment: false,
             #[cfg(feature = "mobile-social")]
             signer: None,
             #[cfg(feature = "mobile-social")]
@@ -48,6 +52,7 @@ impl RuntimeBuilder {
     #[cfg(feature = "mobile-social")]
     #[must_use]
     pub fn relay_profile(mut self, relay_profile: radroots_sdk::transport::RelayProfile) -> Self {
+        self.explicit_publication_environment = true;
         self.relay_profile = relay_profile;
         self
     }
@@ -75,7 +80,14 @@ impl RuntimeBuilder {
         let builder = radroots_sdk::ClientBuilder::sqlite(options)
             .await
             .map_err(TeraAppError::from_sdk)?;
-        TeraRuntime::from_client_builder(
+        #[cfg(feature = "mobile-social")]
+        let initial_relays = self.relay_profile.clone();
+        #[cfg(feature = "mobile-social")]
+        let initial_media = self
+            .blossom_config
+            .as_ref()
+            .map(|config| config.fingerprint());
+        let runtime = TeraRuntime::from_client_builder(
             builder,
             Some(self.store.public_key()),
             #[cfg(feature = "mobile-social")]
@@ -86,7 +98,15 @@ impl RuntimeBuilder {
             Some(self.relay_profile),
             #[cfg(feature = "mobile-social")]
             self.blossom_config,
-        )
+        )?;
+        #[cfg(feature = "mobile-social")]
+        if self.explicit_publication_environment {
+            runtime
+                .restrict_publications(Some(&initial_relays), initial_media, false)
+                .await
+                .map_err(|_| TeraAppError::runtime("publication_configuration_unconfirmed"))?;
+        }
+        Ok(runtime)
     }
 }
 
@@ -160,6 +180,7 @@ mod tests {
         assert!(
             runtime
                 .configure_simulator_relays(vec!["ws://127.0.0.1:8080".to_owned()])
+                .await
                 .is_ok()
         );
         let report = runtime
@@ -172,6 +193,7 @@ mod tests {
         assert!(
             runtime
                 .configure_public_relays(vec!["ws://127.0.0.1:8080".to_owned()])
+                .await
                 .is_err()
         );
         assert_eq!(
@@ -189,6 +211,7 @@ mod tests {
                     "http://127.0.0.1:3000".to_owned(),
                     vec![],
                 )
+                .await
                 .is_ok()
         );
         assert_eq!(
@@ -218,6 +241,7 @@ mod tests {
                     "http://127.0.0.1:3000".to_owned(),
                     vec![],
                 )
+                .await
                 .is_err()
         );
         assert_eq!(

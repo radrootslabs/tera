@@ -18,7 +18,7 @@ async fn all_five_scoped_families_repair_local_visibility_without_republication(
     let root = tempfile::tempdir().unwrap();
     support::prepare(root.path());
     let runtime = runtime_with_signer(root.path()).await;
-    configure_simulator(&runtime, &relay_url, &blossom.origin);
+    configure_simulator(&runtime, &relay_url, &blossom.origin).await;
     let context = local_network(&relay_url);
     let mut operations = Vec::new();
     for input in [
@@ -51,6 +51,7 @@ async fn all_five_scoped_families_repair_local_visibility_without_republication(
     .unwrap();
     runtime
         .configure_simulator_relays(vec![relay_url.clone()])
+        .await
         .unwrap();
     for operation in &operations {
         assert_eq!(operation.settlement.signed, 1);

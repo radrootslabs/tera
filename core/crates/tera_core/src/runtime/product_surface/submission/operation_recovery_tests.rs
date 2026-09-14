@@ -33,7 +33,9 @@ async fn abandoned_signer_wait_keeps_exact_sqlite_operation_for_restart() {
     assert!(waiting.push().delivery_plan().attempts().is_empty());
     runtime.shutdown().await.unwrap();
     drop(runtime);
-    let reopened = self::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19998").await;
+    // Recover an abandoned wait under the same policy; configuration changes
+    // have separate tests requiring durable stop rather than unchanged state.
+    let reopened = self::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19999").await;
     let status = reopened
         .submission_operation_status(&request)
         .await

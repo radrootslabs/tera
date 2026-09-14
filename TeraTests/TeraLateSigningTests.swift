@@ -135,7 +135,7 @@ final class TeraLateSigningTests: XCTestCase {
         protectedData: .available,
         hostSigner: TeraGeneratedHostSigner(signer: configuration.signer, clock: TeraClock(now: { clock.now() }))
       )
-      try runtime.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19999"])
+      try await runtime.configureSimulatorRelays(loopbackRelays: ["ws://127.0.0.1:19999"])
       let backend = TeraGeneratedRuntimeBackend(runtime: runtime)
       return try await TeraRuntimeBackendStart(backend: backend, snapshot: backend.snapshot())
     }, deadlines: TeraRuntimeDeadlinePolicy(operationNanoseconds: 3_000_000_000))

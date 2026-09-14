@@ -49,7 +49,7 @@ final class TeraBindingPortabilityTests: XCTestCase {
         XCTAssertEqual(report.code, code)
       }
     }
-    try runtime.configurePublicRelays(writableRelays: ["wss://write.example"])
+    try await runtime.configurePublicRelays(writableRelays: ["wss://write.example"])
     let changed = try await next(pair.stream)
     XCTAssertEqual(changed.kind, .relay)
     _ = try await runtime.shutdown()

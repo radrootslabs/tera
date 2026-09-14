@@ -175,8 +175,11 @@ async fn memory_and_sqlite_pages_recover_scoped_operations_and_isolate_bad_recor
         if sqlite {
             runtime.shutdown().await.unwrap();
             drop(runtime);
+            // Keep publication configuration stable while proving cursor and
+            // repair continuity. Configuration regressions separately prove
+            // that a changed endpoint durably stops recovered operations.
             runtime =
-                operation::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19998").await;
+                operation::runtime(Some(root.path()), signer.clone(), "ws://127.0.0.1:19999").await;
         }
         let mut cursor = Some(cursor);
         while let Some(current) = cursor {

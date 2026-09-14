@@ -125,6 +125,7 @@ async fn run_case(completion_unavailable: bool) {
     );
     runtime
         .configure_simulator_relays(vec![relay_url.clone()])
+        .await
         .unwrap();
     let (request, prepared) = prepare(&runtime).await;
     let mut task = {
@@ -188,6 +189,7 @@ async fn run_case(completion_unavailable: bool) {
     .unwrap();
     recovered
         .configure_simulator_relays(vec![relay_url.clone()])
+        .await
         .unwrap();
     assert_eq!(
         recovered.submission_status(request.clone()).await.unwrap(),

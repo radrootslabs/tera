@@ -64,6 +64,7 @@ async fn actual_runtime_reads_admitted_bytes_after_close_before_first_poll() {
             "http://127.0.0.1:3000".to_owned(),
             vec![],
         )
+        .await
         .unwrap();
     let (original, input) = photo();
     let digest = input.media[0].sha256.clone();
@@ -95,6 +96,7 @@ async fn actual_runtime_ignores_reused_descriptor_before_first_poll() {
             "http://127.0.0.1:3000".to_owned(),
             vec![],
         )
+        .await
         .unwrap();
     let (mut original, input) = photo();
     let digest = input.media[0].sha256.clone();

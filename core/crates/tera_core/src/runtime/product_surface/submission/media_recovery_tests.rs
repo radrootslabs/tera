@@ -35,9 +35,15 @@ async fn pending_native_upload_recovers_after_policy_refusal_edits_and_sqlite_re
             .await,
         Err(SubmissionOperationError::MediaPolicyChanged)
     ));
-    assert_eq!(
-        runtime.submission_operation_status(&request).await.unwrap(),
-        uploading
+    let stopped = runtime.submission_operation_status(&request).await.unwrap();
+    assert_eq!(stopped.intent(), uploading.intent());
+    assert_eq!(stopped.media(), uploading.media());
+    assert_eq!(stopped.captured(), uploading.captured());
+    assert!(
+        stopped
+            .delivery_evidence()
+            .stop_requested_at_unix_ms
+            .is_some()
     );
     assert_eq!(signer.count(), 1);
     runtime.shutdown().await.unwrap();
@@ -46,7 +52,7 @@ async fn pending_native_upload_recovers_after_policy_refusal_edits_and_sqlite_re
     configure(&runtime, &origin).await;
     assert_eq!(
         runtime.submission_operation_status(&request).await.unwrap(),
-        uploading
+        stopped
     );
     let ready = runtime
         .submission_complete_native_upload(upload(&request, 2), response(&origin))
@@ -61,7 +67,18 @@ async fn pending_native_upload_recovers_after_policy_refusal_edits_and_sqlite_re
     );
     assert_eq!(
         ready.push().artifact().signing_state(),
-        SigningState::Planned
+        SigningState::Cancelled
+    );
+    assert_eq!(
+        ready.delivery_evidence().stop_requested_at_unix_ms,
+        stopped.delivery_evidence().stop_requested_at_unix_ms
+    );
+    assert_eq!(
+        runtime
+            .submission_advance(&request, ready.intent().revision().get())
+            .await
+            .unwrap_err(),
+        SubmissionOperationError::Stopped
     );
     assert_eq!(
         runtime

@@ -113,6 +113,7 @@ async fn untrusted_native_signatures_never_reach_delivery_or_survive_as_signed()
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         runtime
             .configure_simulator_relays(vec![format!("ws://{}", listener.local_addr().unwrap())])
+            .await
             .unwrap();
         let source = source();
         runtime.composer_save(source.clone()).await.unwrap();
@@ -144,6 +145,7 @@ async fn untrusted_native_signatures_never_reach_delivery_or_survive_as_signed()
         .unwrap();
         runtime
             .configure_simulator_relays(vec![format!("ws://{}", listener.local_addr().unwrap())])
+            .await
             .unwrap();
         assert_eq!(
             runtime.submission_status(request.clone()).await.unwrap(),

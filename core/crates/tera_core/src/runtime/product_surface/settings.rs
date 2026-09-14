@@ -1,5 +1,7 @@
 //! Versioned, secret-safe mobile identity and product configuration policy.
 
+mod publication;
+
 use std::collections::BTreeSet;
 
 use radroots_event::{
@@ -928,8 +930,7 @@ impl TeraRuntime {
     ) -> Result<SettingsTransition, SettingsError> {
         let _command = self.lifecycle.enter()?;
         let _guard = self.settings_lock.lock().await;
-        let storage = self.client.storage().map_err(|_| SettingsError::Storage)?;
-        let transition = replace_settings(storage, command).await?;
+        let transition = self.replace_settings_fenced(command).await?;
         *self.identity_session.write().await = None;
         Ok(transition)
     }
@@ -966,7 +967,7 @@ impl TeraRuntime {
         }
         let command =
             ReplaceMobileSettings::new(prior.revision, prior.with_identity(next_identity))?;
-        let transition = replace_settings(storage, command).await?;
+        let transition = self.replace_settings_fenced(command).await?;
         *self.identity_session.write().await = None;
         Ok(transition)
     }

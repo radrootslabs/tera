@@ -19,6 +19,7 @@ pub(super) async fn configure(runtime: &TeraRuntime, origin: &str) {
             origin.into(),
             vec![],
         )
+        .await
         .unwrap();
 }
 

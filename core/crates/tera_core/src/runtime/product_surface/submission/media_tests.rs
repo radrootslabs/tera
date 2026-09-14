@@ -99,13 +99,25 @@ async fn scoped_media_memory_and_sqlite_verify_before_original_operation_can_sig
                 .submission_operation_status(&request)
                 .await
                 .unwrap();
-            assert_eq!(recovered, done);
+            assert_eq!(recovered.intent(), done.intent());
+            assert_eq!(recovered.media(), done.media());
+            assert_eq!(recovered.push().artifact(), done.push().artifact());
+            assert_eq!(
+                recovered.delivery_evidence().state,
+                done.delivery_evidence().state
+            );
+            assert!(
+                recovered
+                    .delivery_evidence()
+                    .stop_requested_at_unix_ms
+                    .is_some()
+            );
             assert_eq!(
                 reopened
                     .submission_advance(&request, recovered.intent().revision().get())
                     .await
-                    .unwrap(),
-                done
+                    .unwrap_err(),
+                SubmissionOperationError::Stopped
             );
             assert_eq!(signer.count(), 2);
             reopened.shutdown().await.unwrap();
@@ -156,14 +168,35 @@ async fn scoped_media_wrong_bytes_policy_revision_and_scope_never_invoke_signer(
         runtime
             .submission_prepare_native_upload(upload(&request, 1))
             .await,
-        Err(SubmissionOperationError::MediaPolicyChanged)
+        Err(SubmissionOperationError::Stopped)
     ));
     assert_eq!(signer.count(), 0);
     assert_eq!(signer.statuses.load(Ordering::SeqCst), 0);
+    let stopped = runtime.submission_operation_status(&request).await.unwrap();
+    assert_eq!(stopped.intent(), initial.intent());
+    assert_eq!(stopped.captured(), initial.captured());
+    assert_eq!(stopped.media(), initial.media());
+    assert_eq!(
+        stopped.push().delivery_plan().intent(),
+        initial.push().delivery_plan().intent()
+    );
+    assert!(
+        stopped
+            .delivery_evidence()
+            .stop_requested_at_unix_ms
+            .is_some()
+    );
+    configure(&runtime, "http://127.0.0.1:3000").await;
     assert_eq!(
         runtime.submission_operation_status(&request).await.unwrap(),
-        initial
+        stopped
     );
+    assert!(matches!(
+        runtime
+            .submission_prepare_native_upload(upload(&request, 1))
+            .await,
+        Err(SubmissionOperationError::Stopped)
+    ));
     runtime.shutdown().await.unwrap();
 }
 

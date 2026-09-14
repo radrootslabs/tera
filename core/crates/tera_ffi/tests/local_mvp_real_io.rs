@@ -155,7 +155,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     let publisher_root = tempfile::tempdir().expect("publisher root");
     support::prepare(publisher_root.path());
     let publisher = runtime_with_signer(publisher_root.path()).await;
-    configure_simulator(&publisher, &relay_url, &blossom.origin);
+    configure_simulator(&publisher, &relay_url, &blossom.origin).await;
     let context = local_network(&relay_url);
 
     let update_id = draft_id(1);
@@ -189,7 +189,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
         .expect("shutdown before delivery");
 
     let publisher = runtime_with_signer(publisher_root.path()).await;
-    configure_simulator(&publisher, &relay_url, &blossom.origin);
+    configure_simulator(&publisher, &relay_url, &blossom.origin).await;
     let recovered = publisher
         .phase1_recover_draft_queue(update_id.clone(), 1_800_000_001_000)
         .await
@@ -285,6 +285,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     .expect("fresh reader runtime");
     reader
         .configure_simulator_relays(vec![relay_url.clone()])
+        .await
         .expect("reader relay profile");
     let first_sync = reader
         .phase1_sync_today(context.clone(), AS_OF, FfiTodayProjectionUpdate::Rebuild)
@@ -349,6 +350,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
             blossom.origin.clone(),
             vec![],
         )
+        .await
         .expect("reader Blossom profile");
     let artifact = reader
         .phase1_retrieve_media(
@@ -618,9 +620,10 @@ async fn runtime_with_signer(root: &std::path::Path) -> TeraRuntime {
     .expect("runtime with fixture host signer")
 }
 
-fn configure_simulator(runtime: &TeraRuntime, relay_url: &str, blossom_origin: &str) {
+async fn configure_simulator(runtime: &TeraRuntime, relay_url: &str, blossom_origin: &str) {
     runtime
         .configure_simulator_relays(vec![relay_url.to_owned()])
+        .await
         .expect("simulator relay profile");
     runtime
         .configure_blossom(
@@ -629,6 +632,7 @@ fn configure_simulator(runtime: &TeraRuntime, relay_url: &str, blossom_origin: &
             blossom_origin.to_owned(),
             vec![],
         )
+        .await
         .expect("simulator Blossom profile");
 }
 
@@ -892,6 +896,7 @@ async fn prove_corrupted_media_fails(
             corrupt.origin.clone(),
             vec![],
         )
+        .await
         .expect("corrupt test Blossom profile");
     let media = prepared_media(
         &corrupt.origin,

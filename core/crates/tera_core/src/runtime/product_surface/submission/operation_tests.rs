@@ -103,11 +103,26 @@ async fn scoped_operation_memory_and_sqlite_execute_original_preparation_once() 
             assert_eq!(recovered.state(), Phase1OutboxState::Complete);
             assert_eq!(recovered.receipt().operation_id().as_bytes(), &identity);
             assert_eq!(recovered.intent().payload(), frozen);
+            assert!(
+                recovered
+                    .delivery_evidence()
+                    .stop_requested_at_unix_ms
+                    .is_some()
+            );
+            assert_eq!(recovered.push().artifact(), done.push().artifact());
+            assert_eq!(
+                recovered.push().delivery_plan().intent(),
+                done.push().delivery_plan().intent()
+            );
+            assert_eq!(
+                recovered.delivery_evidence().state,
+                done.delivery_evidence().state
+            );
             let replay = reopened
                 .submission_advance(&request, recovered.intent().revision().get())
                 .await
-                .unwrap();
-            assert_eq!(replay, recovered);
+                .unwrap_err();
+            assert_eq!(replay, SubmissionOperationError::Stopped);
             assert_eq!(signer.count(), 1);
             reopened.shutdown().await.unwrap();
         }
@@ -210,8 +225,11 @@ async fn scoped_operation_queue_is_effect_free_and_uses_frozen_policy_after_sett
     prepare(&runtime, &request, false).await;
     let before = runtime.submission_operation_status(&request).await.unwrap();
     runtime
-        .client
-        .configure_nostr(profile("ws://127.0.0.1:19998"))
+        .configure_simulator_relays(vec![
+            "ws://127.0.0.1:19999".into(),
+            "ws://127.0.0.1:19998".into(),
+        ])
+        .await
         .unwrap();
     let queued = runtime.submission_queue(&request, 1).await.unwrap();
     assert_eq!(queued.state(), Phase1OutboxState::Queued);

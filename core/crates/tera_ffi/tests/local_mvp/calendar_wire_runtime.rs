@@ -87,7 +87,8 @@ async fn calendar_wire_survives_ffi_publication_fresh_admission_and_reopen() {
         &publisher,
         &relay_url,
         &format!("http://127.0.0.1:{}", unused_loopback_port().await),
-    );
+    )
+    .await;
     for (index, fixture) in fixtures[..2].iter().enumerate() {
         let id = draft_id(81 + index as u8);
         let saved = publisher
@@ -152,6 +153,7 @@ async fn calendar_wire_survives_ffi_publication_fresh_admission_and_reopen() {
     let reader = runtime_with_signer(reader_root.path()).await;
     reader
         .configure_simulator_relays(vec![relay_url.clone()])
+        .await
         .unwrap();
     let sync = reader
         .phase1_sync_today(context.clone(), AS_OF, FfiTodayProjectionUpdate::Rebuild)
@@ -180,6 +182,7 @@ async fn calendar_wire_survives_ffi_publication_fresh_admission_and_reopen() {
     let reopened = runtime_with_signer(reader_root.path()).await;
     reopened
         .configure_simulator_relays(vec![relay_url])
+        .await
         .unwrap();
     let cached = collect_pages(&reopened, &context, 1, AS_OF).await;
     assert_eq!(

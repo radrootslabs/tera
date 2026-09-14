@@ -54,6 +54,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
 
     runtime
         .configure_public_relays(vec!["wss://write.example".to_owned()])
+        .await
         .expect("public relays");
     let public = runtime
         .sdk_relay_status()
@@ -65,6 +66,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert!(
         runtime
             .configure_public_relays(vec!["ws://127.0.0.1:7447".to_owned()])
+            .await
             .is_err()
     );
 
@@ -124,6 +126,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
 
     runtime
         .configure_simulator_relays(vec!["ws://127.0.0.1:7447".to_owned()])
+        .await
         .expect("simulator relays");
     let simulator = runtime
         .sdk_relay_status()
@@ -148,11 +151,13 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert!(
         runtime
             .configure_simulator_relays(vec!["wss://relay.example".to_owned()])
+            .await
             .is_err()
     );
 
     runtime
         .configure_device_relays(vec!["wss://10.0.0.5:7447".to_owned()])
+        .await
         .expect("device relays");
     let device = runtime
         .sdk_relay_status()
@@ -165,6 +170,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     assert!(
         runtime
             .configure_device_relays(vec!["wss://127.0.0.1:7447".to_owned()])
+            .await
             .is_err()
     );
 
@@ -175,6 +181,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             "https://media.example".to_owned(),
             vec!["https://fallback.example".to_owned()],
         )
+        .await
         .expect("public Blossom");
     let blossom = runtime
         .sdk_blossom_configuration()
@@ -204,6 +211,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             "http://127.0.0.1:3100".to_owned(),
             vec![],
         )
+        .await
         .expect("simulator Blossom");
     runtime
         .configure_blossom(
@@ -212,6 +220,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             "http://127.0.0.1:1".to_owned(),
             vec![],
         )
+        .await
         .expect("unavailable simulator Blossom");
     assert!(runtime.probe_blossom().await.is_err());
     runtime
@@ -221,6 +230,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             "https://10.0.0.5:3100".to_owned(),
             vec![],
         )
+        .await
         .expect("device Blossom");
 
     assert_eq!(
@@ -858,7 +868,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         Err(TeraAppError::Failure { .. })
     ));
     assert!(matches!(
-        runtime.configure_public_relays(Vec::new()),
+        runtime.configure_public_relays(Vec::new()).await,
         Err(TeraAppError::Failure { .. })
     ));
 }
