@@ -6,6 +6,56 @@ import XCTest
 
 @MainActor
 final class TeraLateSigningTests: XCTestCase {
+  func testDurableStopCrossesGeneratedBridgeWhileSignerOwnsAdmission() async throws {
+    let fixture = try MediaOwnershipFixture()
+    defer { fixture.remove() }
+    let signer = try await LateNativeSigner.make()
+    let client = client(clock: LateSigningClock())
+    let configuration = configuration(fixture, signer: signer)
+    _ = try await client.start(configuration: configuration)
+    var form = TeraAddForm.empty(.createUpdate)
+    form.content = "Original stopped native capture"
+    let source = try await client.saveComposer(request: TeraComposerSaveRequest(
+      scope: scope, id: client.reserveComposerID(), expectedRevision: nil, editSequence: 1, form: TeraComposerForm(editing: form)
+    ))
+    let request = try await TeraSubmissionRequest(commandID: client.reserveSubmissionID(), scope: scope,
+                                                  composerID: source.draft.id, expectedRevision: 1)
+    let prepared = try await client.prepareSubmission(request: request, media: [])
+    let waiting = Task { try? await client.advanceSubmission(request: request, expectedRevision: prepared.revision) }
+    await signer.pause.entered.wait()
+    let stopped = try await client.requestSubmissionStop(request: request)
+    XCTAssertTrue(stopped.delivery.isStopped)
+    XCTAssertEqual(stopped.delivery.state, .notIssued)
+    let replay = try await client.requestSubmissionStop(request: request)
+    XCTAssertEqual(replay, stopped)
+    let whileHeld = try await client.submissionStatus(request: request)
+    XCTAssertEqual(whileHeld, stopped)
+    await signer.pause.resume.open()
+    _ = await waiting.value
+    let retained = try await signedStatus(client, request: request)
+    XCTAssertEqual(retained.delivery, stopped.delivery)
+    XCTAssertEqual(retained.settlement.signed, 1)
+    XCTAssertEqual(retained.settlement.admitted, 0)
+    XCTAssertEqual(retained.state, .cancelled)
+    let context = TeraLocalNetwork(schemaVersion: 1, id: scope.localNetworkID, label: "Nearby",
+                                   relayURLs: ["ws://127.0.0.1:19999"], locality: nil, followedAuthors: [], generation: 1)
+    let local = try await client.reconcileSubmissionLocal(request: request, context: context)
+    XCTAssertEqual(local, retained)
+    XCTAssertEqual(local.settlement.admitted, 0)
+    _ = try await client.stop()
+    await signer.disable()
+    _ = try await client.start(configuration: configuration)
+    let reopened = try await client.submissionStatus(request: request)
+    XCTAssertEqual(reopened, retained)
+    do {
+      _ = try await client.advanceSubmission(request: request, expectedRevision: retained.revision)
+      XCTFail("A retained stop cannot authorize another effect")
+    } catch { XCTAssertEqual(TeraAddPresentation.failure(for: error)?.code, "submission_stopped") }
+    let count = await signer.count()
+    XCTAssertEqual(count, 1)
+    _ = try await client.stop()
+  }
+
   func testCancelledNativeWaitRetainsLateSignatureAcrossRestart() async throws {
     try await checkLateSigning(cancelWait: true, failHostClock: false)
   }

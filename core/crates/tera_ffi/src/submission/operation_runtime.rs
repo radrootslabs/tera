@@ -8,6 +8,18 @@ use tera_core::runtime::product_surface::{SubmissionOperationError, SubmissionRe
 
 #[cfg_attr(not(coverage_nightly), uniffi::export(async_runtime = "tokio"))]
 impl TeraRuntime {
+    /// Stops new work while retaining the original operation and external facts.
+    pub async fn submission_request_stop(
+        &self,
+        request: FfiSubmissionReservationRequest,
+    ) -> Result<FfiSubmissionOperationRecord, TeraAppError> {
+        let request = request.try_into()?;
+        let result = self.inner.submission_request_stop(&request).await;
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, None);
+        Ok((&result?).into())
+    }
+
     /// Repairs local visibility from the original signed operation without signing or delivery.
     pub async fn submission_reconcile_local(
         &self,

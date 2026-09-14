@@ -96,7 +96,9 @@ actor SubmissionTestBackend {
       state: media.isEmpty ? .readyToSign : .mediaPreparing,
       committedAtUnixMilliseconds: 1_800_000_000_000, updatedAtUnixMilliseconds: 1_800_000_000_000,
       media: media.map { TeraSubmissionMedia(opaqueReference: $0.media.opaqueReference,
-                                             progress: progress($0.media, stage: .pending)) }, settlement: settlement(complete: false)
+                                             progress: progress($0.media, stage: .pending)) }, settlement: settlement(complete: false),
+      delivery: TeraPublicationEvidence(state: .notIssued, stopRequestedAtUnixMilliseconds: nil,
+                                        schedulingRevision: 1, retainedFacts: 0, recordedAttempts: 0, unresolvedClaims: false)
     )
     if delayedPhase == .queue, !delayed {
       delayed = true
@@ -114,6 +116,7 @@ actor SubmissionTestBackend {
 
   func advance(_ request: TeraSubmissionRequest, revision: UInt64) async throws -> TeraSubmissionStatus {
     let value = try status(request)
+    guard !value.delivery.isStopped else { throw failure("submission_stopped") }
     guard value.revision == revision else { throw failure("draft_revision_conflict") }
     advanceCount += 1
     let queued = replacing(value, state: .queued)
@@ -128,13 +131,14 @@ actor SubmissionTestBackend {
     if offline {
       throw failure("relay_offline")
     }
-    let complete = replacing(queued, state: .complete)
+    let complete = try replacing(status(request), state: .complete)
     operations[request.commandID] = complete
     return complete
   }
 
   func upload(_ input: TeraSubmissionMediaRequest) throws -> TeraSubmissionUploadJob {
     let value = try status(input.request)
+    guard !value.delivery.isStopped else { throw failure("submission_stopped") }
     guard value.revision == input.expectedRevision else { throw failure("draft_revision_conflict") }
     uploadCount += 1
     let current = replacing(value, state: .mediaUploading, media: value.media.map {
@@ -191,7 +195,28 @@ actor SubmissionTestBackend {
                          revision: value.revision + 1, captured: value.captured, state: state,
                          committedAtUnixMilliseconds: value.committedAtUnixMilliseconds,
                          updatedAtUnixMilliseconds: value.updatedAtUnixMilliseconds + 1, media: media ?? value.media,
-                         settlement: settlement(complete: state == .complete))
+                         settlement: settlement(complete: state == .complete),
+                         delivery: TeraPublicationEvidence(state: state == .complete ? .accepted : value.delivery.state,
+                                                           stopRequestedAtUnixMilliseconds: value.delivery.stopRequestedAtUnixMilliseconds,
+                                                           schedulingRevision: value.delivery.schedulingRevision + 1,
+                                                           retainedFacts: state == .complete ? 1 : value.delivery.retainedFacts,
+                                                           recordedAttempts: state == .complete ? 1 : value.delivery.recordedAttempts, unresolvedClaims: false))
+  }
+
+  func requestStop(_ request: TeraSubmissionRequest) throws -> TeraSubmissionStatus {
+    let value = try status(request)
+    if value.delivery.isStopped {
+      return value
+    }
+    let stopped = TeraSubmissionStatus(request: value.request, intentID: value.intentID, operationID: value.operationID,
+                                       revision: value.revision, captured: value.captured, state: value.state == .complete ? .complete : .cancelled,
+                                       committedAtUnixMilliseconds: value.committedAtUnixMilliseconds, updatedAtUnixMilliseconds: value.updatedAtUnixMilliseconds,
+                                       media: value.media, settlement: value.settlement,
+                                       delivery: TeraPublicationEvidence(state: value.delivery.state, stopRequestedAtUnixMilliseconds: 1_800_000_000_100,
+                                                                         schedulingRevision: value.delivery.schedulingRevision + 1, retainedFacts: value.delivery.retainedFacts,
+                                                                         recordedAttempts: value.delivery.recordedAttempts, unresolvedClaims: value.delivery.unresolvedClaims))
+    operations[request.commandID] = stopped
+    return stopped
   }
 
   private func progress(_ media: TeraPreparedMedia, stage: TeraDraftMediaStage) -> TeraDraftMediaStatus {
@@ -213,6 +238,10 @@ actor SubmissionTestBackend {
 }
 
 extension AddBackend {
+  func requestSubmissionStop(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus {
+    try await submissionBackend.requestStop(request)
+  }
+
   func reconcileSubmissionLocal(request: TeraSubmissionRequest, context _: TeraLocalNetwork) async throws -> TeraSubmissionStatus {
     try await submissionBackend.status(request)
   }

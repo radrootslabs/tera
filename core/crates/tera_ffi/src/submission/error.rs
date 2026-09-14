@@ -71,6 +71,11 @@ impl From<SubmissionOperationError> for TeraAppError {
                 false,
                 &["complete_submission_media"],
             ),
+            E::Stopped => (
+                "submission_stopped",
+                false,
+                &["recover_original_submission"],
+            ),
             E::Corrupt => (
                 "submission_record_corrupt",
                 false,

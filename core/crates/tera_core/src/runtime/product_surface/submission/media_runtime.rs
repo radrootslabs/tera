@@ -17,6 +17,7 @@ impl TeraRuntime {
         let id = super::super::intent::intent_id(&input.submission)?;
         let _admission = self.mutations.draft(*id.as_bytes())?;
         let (mut loaded, _) = self.load_submission_operation(&input.submission).await?;
+        self.require_submission_running(&input.submission).await?;
         let transaction = self.materialize_submission_media(&loaded, &input, false)?;
         // Validate the exact transition before invoking a potentially interactive signer.
         loaded
@@ -29,6 +30,7 @@ impl TeraRuntime {
             phase1_new_operation_id()?,
         )?;
         let job = self.authorize_native_upload(&transaction, &plan).await?;
+        self.require_submission_running(&input.submission).await?;
         let blossom = self
             .client
             .blossom()

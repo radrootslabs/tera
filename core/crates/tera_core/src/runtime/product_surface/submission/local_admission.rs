@@ -44,6 +44,19 @@ impl TeraRuntime {
             .mutations
             .draft(*intent::intent_id(request)?.as_bytes())?;
         let status = self.submission_operation_status(request).await?;
+        if status
+            .delivery_evidence()
+            .stop_requested_at_unix_ms
+            .is_some()
+            && !status.push().artifact().admission_state().is_admitted()
+        {
+            // Preserve the shared stop fence. Reading retained signed evidence
+            // remains available; stop does not authorize a new local admission.
+            return Ok(SubmissionLocalReceipt {
+                status,
+                changed: false,
+            });
+        }
         let Some(signed) = status.push().artifact().signed() else {
             return Ok(SubmissionLocalReceipt {
                 status,

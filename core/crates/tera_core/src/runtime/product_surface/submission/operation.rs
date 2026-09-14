@@ -27,6 +27,8 @@ pub enum SubmissionOperationError {
     NotFound,
     #[error("submission prerequisites are incomplete")]
     PrerequisitesPending,
+    #[error("submission stop is retained; new work is not authorized")]
+    Stopped,
     #[error("submission operation requires repair")]
     Corrupt,
     #[error("submission media does not match its captured input")]
@@ -76,8 +78,17 @@ impl SubmissionOperationStatus {
         &self.media
     }
     pub fn state(&self) -> Phase1OutboxState {
+        if self.delivery_evidence().stop_requested_at_unix_ms.is_some() {
+            return outbox::aggregate_state(&self.intent, Some(&self.push));
+        }
         let push = (self.intent.stage() == AuthoredDraftStage::Queued).then_some(&self.push);
         outbox::aggregate_state(&self.intent, push)
+    }
+
+    pub fn delivery_evidence(
+        &self,
+    ) -> crate::runtime::product_surface::PublicationDeliveryEvidence {
+        crate::runtime::product_surface::PublicationDeliveryEvidence::from_push(&self.push)
     }
 }
 
@@ -111,6 +122,7 @@ impl TeraRuntime {
             .mutations
             .draft(*intent::intent_id(request)?.as_bytes())?;
         let (mut loaded, _) = self.load_submission_operation(request).await?;
+        self.require_submission_running(request).await?;
         self.queue_submission_loaded(&mut loaded, expected_revision)
             .await?;
         self.submission_operation_status(request).await
@@ -128,6 +140,7 @@ impl TeraRuntime {
             .mutations
             .draft(*intent::intent_id(request)?.as_bytes())?;
         let (mut loaded, _) = self.load_submission_operation(request).await?;
+        self.require_submission_running(request).await?;
         self.queue_submission_loaded(&mut loaded, expected_revision)
             .await?;
         self.advance_push_request(loaded.request).await?;

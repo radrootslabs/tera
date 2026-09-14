@@ -6,6 +6,10 @@ struct TeraSubmissionStatusView: View {
   var body: some View {
     if store.hasAction {
       Section("Submission") {
+        if store.status?.delivery.isStopped != true {
+          Button("Stop publication") { Task { await store.requestStop() } }
+            .accessibilityIdentifier("tera.add.submission.stop")
+        }
         if store.isWorking {
           ProgressView("Working on the captured submission…")
             .accessibilityIdentifier("tera.add.submission.progress")

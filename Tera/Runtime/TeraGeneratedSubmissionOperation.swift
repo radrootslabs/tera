@@ -43,11 +43,12 @@ extension TeraGeneratedSubmission {
             !progress.progress.url.isEmpty else { throw mismatch() }
       return TeraSubmissionMedia(opaqueReference: progress.opaqueReference, progress: progress.progress.appValue)
     }
-    return TeraSubmissionStatus(request: actualRequest, intentID: value.intentId, operationID: value.operationId,
-                                revision: value.revision, captured: captured, state: value.state.appValue,
-                                committedAtUnixMilliseconds: value.committedAtUnixMs,
-                                updatedAtUnixMilliseconds: value.updatedAtUnixMs,
-                                media: media, settlement: value.settlement.appValue)
+    return try TeraSubmissionStatus(request: actualRequest, intentID: value.intentId, operationID: value.operationId,
+                                    revision: value.revision, captured: captured, state: value.state.appValue,
+                                    committedAtUnixMilliseconds: value.committedAtUnixMs,
+                                    updatedAtUnixMilliseconds: value.updatedAtUnixMs,
+                                    media: media, settlement: value.settlement.appValue,
+                                    delivery: TeraPublicationEvidence.decode(value.delivery))
   }
 
   static func page(_ value: FfiSubmissionPageRecord, scope: TeraComposerScope, limit: UInt16) throws -> TeraSubmissionPage {

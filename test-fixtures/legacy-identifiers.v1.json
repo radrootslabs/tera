@@ -499,11 +499,19 @@
           "count": 3
         },
         {
+          "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
+          "count": 2
+        },
+        {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 3
         },
         {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraStoppedUploadRecovery.swift",
           "count": 1
         },
         {
@@ -582,11 +590,15 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 3
+          "count": 2
         },
         {
           "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 4
+        },
+        {
+          "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
@@ -599,12 +611,12 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 2
-        },
-        {
           "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 7
+        },
+        {
+          "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
+          "count": 2
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
@@ -647,7 +659,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
           "count": 1
         },
         {
@@ -663,6 +675,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
+        },
+        {
+          "path": "TeraTests/TeraStoppedUploadTests.swift",
+          "count": 2
         }
       ]
     },
@@ -1075,11 +1091,19 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 1
         },
         {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraStoppedUploadRecovery.swift",
           "count": 1
         },
         {
@@ -1148,6 +1172,10 @@
         },
         {
           "path": "TeraTests/TeraStateTestFixtures.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraStoppedUploadTests.swift",
           "count": 1
         },
         {
@@ -2119,11 +2147,15 @@
       "category": "native_ui_contract",
       "occurrences": [
         {
-          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 1
         },
         {
-          "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraStoppedUploadRecovery.swift",
           "count": 1
         },
         {
@@ -4909,6 +4941,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
           "count": 3
         },
@@ -5067,6 +5103,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
           "count": 1
         },
@@ -5118,6 +5158,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication.rs",
           "count": 1
         },
         {

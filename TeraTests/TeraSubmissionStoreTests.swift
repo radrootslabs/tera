@@ -27,7 +27,7 @@ final class TeraSubmissionStoreTests: XCTestCase {
         media: [TeraSubmissionMedia(opaqueReference: item.opaqueReference, progress: TeraDraftMediaStatus(
           url: "https://blossom.example/\(item.sha256).png", stage: .pending, uploadAttempts: 0,
           verifiedAtUnixMilliseconds: nil, possibleOrphan: false, orphanReasonCode: nil, orphanRecordedAtUnixMilliseconds: nil
-        ))], settlement: original.settlement
+        ))], settlement: original.settlement, delivery: original.delivery
       )
       let before = await backend.submissionBackend.advanceCount
       let effects = TeraSubmissionEffects(client: client, media: media, ensure: {},
@@ -234,5 +234,111 @@ final class TeraSubmissionStoreTests: XCTestCase {
     await fulfillment(of: [reached], timeout: 3)
     await pause.entered.open()
     await observer.value
+  }
+}
+
+extension TeraSubmissionStoreTests {
+  func testStopBeforeIntentCommitStaysUnconfirmedUntilOriginalPreparationReturns() async throws {
+    let backend = AddBackend()
+    let client = try await TeraAddStoreTests.startedClient(backend)
+    let pause = ResourceTestPause()
+    let media = AddMediaHarness(openPause: pause)
+    let store = TeraAddStore(runtimeClient: client, media: media)
+    await store.configure(snapshot: backend.snapshot())
+    await store.start()
+    store.selectType(.createPhotoUpdate)
+    store.updateForm(\.content, "Stop before commit")
+    await store.importPhotos()
+    let task = Task { await store.submit() }
+    await entered(pause)
+    let original = try XCTUnwrap(store.submissions.request)
+    await store.submissions.requestStop()
+    XCTAssertNil(store.submissions.status)
+    XCTAssertTrue(store.submissions.message?.contains("not yet confirmed") == true)
+    await pause.resume.open()
+    await task.value
+    XCTAssertTrue(store.submissions.status?.delivery.isStopped == true)
+    XCTAssertEqual(store.submissions.request, original)
+    let prepared = await backend.submissionBackend.prepareCount
+    let uploads = await backend.submissionBackend.uploadCount
+    let advances = await backend.submissionBackend.advanceCount
+    XCTAssertEqual(prepared, 1)
+    XCTAssertEqual(uploads + advances, 0)
+    store.stop()
+    _ = try await client.stop()
+  }
+
+  func testStopWhilePrepareCallbackIsHeldRetainsStopAndDoesNotAdvanceOldCallback() async throws {
+    let backend = AddBackend()
+    let client = try await TeraAddStoreTests.startedClient(backend)
+    let store = await make(client, backend: backend)
+    let pause = ResourceTestPause()
+    await backend.submissionBackend.pausePrepare(pause)
+    store.updateForm(\.content, "Original stop request")
+    let task = Task { await store.submit() }
+    await entered(pause)
+    await store.submissions.requestStop()
+    let stopped = try XCTUnwrap(store.submissions.status)
+    XCTAssertTrue(stopped.delivery.isStopped)
+    XCTAssertTrue(store.submissions.isWorking)
+    await store.submissions.requestStop()
+    XCTAssertEqual(store.submissions.status, stopped)
+    await pause.resume.open()
+    await task.value
+    XCTAssertEqual(store.submissions.status, stopped)
+    let advances = await backend.submissionBackend.advanceCount
+    XCTAssertEqual(advances, 0)
+    await store.submit()
+    XCTAssertEqual(store.submissions.status, stopped)
+    let prepared = await backend.submissionBackend.prepareCount
+    XCTAssertEqual(prepared, 1)
+    store.stop()
+    _ = try await client.stop()
+  }
+
+  func testStopRemainsVisibleWhenAlreadyIssuedWorkReturnsAccepted() async throws {
+    let backend = AddBackend()
+    let client = try await TeraAddStoreTests.startedClient(backend)
+    let store = await make(client, backend: backend)
+    let pause = ResourceTestPause()
+    await backend.submissionBackend.pauseAdvance(pause)
+    store.updateForm(\.content, "Already issued")
+    let task = Task { await store.submit() }
+    await entered(pause)
+    await store.submissions.requestStop()
+    let stopped = try XCTUnwrap(store.submissions.status)
+    XCTAssertTrue(stopped.delivery.isStopped)
+    await pause.resume.open()
+    await task.value
+    let accepted = try XCTUnwrap(store.submissions.status)
+    XCTAssertEqual(accepted.delivery.state, .accepted)
+    XCTAssertEqual(accepted.delivery.stopRequestedAtUnixMilliseconds, stopped.delivery.stopRequestedAtUnixMilliseconds)
+    XCTAssertEqual(accepted.operationID, stopped.operationID)
+    XCTAssertTrue(accepted.summary.contains("accepted"))
+    let advances = await backend.submissionBackend.advanceCount
+    XCTAssertEqual(advances, 1)
+    store.stop()
+    _ = try await client.stop()
+  }
+
+  func testUnconfirmedStopDoesNotClaimPersistenceAndRetryUsesOriginalRequest() async throws {
+    let backend = AddBackend()
+    let client = try await TeraAddStoreTests.startedClient(backend)
+    let store = await make(client, backend: backend)
+    store.updateForm(\.content, "Original")
+    await store.submit()
+    let original = try XCTUnwrap(store.submissions.status)
+    await backend.submissionBackend.unreadable(true)
+    await store.submissions.requestStop()
+    XCTAssertEqual(store.submissions.status, original)
+    XCTAssertTrue(store.submissions.message?.contains("not yet confirmed") == true)
+    await backend.submissionBackend.unreadable(false)
+    await store.submissions.refreshSelected()
+    XCTAssertTrue(store.submissions.status?.delivery.isStopped == true)
+    XCTAssertEqual(store.submissions.request, original.request)
+    let advances = await backend.submissionBackend.advanceCount
+    XCTAssertEqual(advances, 1)
+    store.stop()
+    _ = try await client.stop()
   }
 }

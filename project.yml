@@ -50,6 +50,8 @@ targets:
       - path: TeraTests/TeraSubmissionFormTests.swift
       - path: TeraTests/TeraSubmissionAdmissionTests.swift
       - path: TeraTests/TeraSubmissionStoreTests.swift
+      - path: TeraTests/TeraPublicationEvidenceTests.swift
+      - path: TeraTests/TeraStoppedUploadTests.swift
       - path: TeraTests/TeraSubmissionOperationFFITests.swift
       - path: TeraTests/TeraLateSigningTests.swift
       - path: TeraTests/TeraAddSignerFixture.swift

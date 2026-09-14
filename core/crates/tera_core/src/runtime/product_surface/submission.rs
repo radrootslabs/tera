@@ -14,6 +14,11 @@ mod operation;
 mod operation_load;
 mod record;
 mod repository;
+mod stop;
+#[cfg(test)]
+mod stop_effect_tests;
+#[cfg(test)]
+mod stop_tests;
 pub use capture::{CapturedSubmission, SubmissionCaptureError};
 pub use commit::{SubmissionCommitError, SubmissionReceipt};
 pub use intent::{

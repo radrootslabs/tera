@@ -16,6 +16,7 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
   let updatedAtUnixMilliseconds: UInt64
   let media: [TeraSubmissionMedia]
   let settlement: TeraOperationSettlement
+  let delivery: TeraPublicationEvidence
 
   var id: String {
     operationID
@@ -30,6 +31,9 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
   }
 
   var summary: String {
+    if delivery.isStopped {
+      return delivery.stoppedSummary
+    }
     if media.contains(where: \.progress.possibleOrphan) {
       return "Photo delivery needs attention. A remote copy may exist."
     }
@@ -52,7 +56,11 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
   var mediaSummary: String {
     let verified = media.filter { $0.progress.stage == .verified }.count
     let orphans = media.filter(\.progress.possibleOrphan).count
+    let uncertain = media.filter { $0.progress.stage == .uploading }.count
     let summary = "\(verified) of \(media.count) photos verified"
+    if delivery.isStopped, uncertain > 0 {
+      return "\(summary); \(uncertain) upload outcome remains uncertain. Remote copies may exist."
+    }
     return orphans > 0 ? "\(summary); \(orphans) possible orphan" : summary
   }
 

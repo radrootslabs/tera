@@ -17,6 +17,8 @@ mod model;
 #[cfg(feature = "mobile-social")]
 mod outbox;
 mod projection;
+#[cfg(feature = "mobile-social")]
+mod publication;
 mod ranking;
 #[cfg(feature = "mobile-social")]
 mod settings;
@@ -77,6 +79,8 @@ pub use outbox::{
     phase1_operation_now_unix_ms,
 };
 pub use projection::{ProductEventClassification, ProductEventExclusion, classify_admitted_event};
+#[cfg(feature = "mobile-social")]
+pub use publication::{PublicationDeliveryEvidence, PublicationDeliveryState};
 pub use ranking::{RankError, TODAY_RANK_SCHEMA_VERSION, TimeRelevance, TodayRank, TodayRankInput};
 #[cfg(feature = "mobile-social")]
 pub use settings::{

@@ -21,6 +21,7 @@ final class TeraSubmissionStore: ObservableObject {
   private var generation = TeraSessionGeneration.initial
   private var worker: Task<Void, Never>?
   private var paused = false
+  private let stopControl = TeraSubmissionStopControl()
 
   init(client: TeraRuntimeClient, composer: TeraComposerAutosave, media: (any TeraAddMediaHandling)?) {
     self.client = client
@@ -43,6 +44,7 @@ final class TeraSubmissionStore: ObservableObject {
     capture = nil
     request = nil
     status = nil
+    stopControl.reset()
     message = nil
     failureCode = nil
     inventory.configure(scope: scope)
@@ -75,6 +77,24 @@ final class TeraSubmissionStore: ObservableObject {
     changed()
   }
 
+  func requestStop() async {
+    guard !paused else { return }
+    stopControl.request()
+    let requested = generation
+    message = "Stop is pending confirmation. The original request and its effects are retained."
+    changed()
+    guard let request else { return }
+    do {
+      let stopped = try await client.requestSubmissionStop(request: request)
+      try accept(stopped, generation: requested)
+      message = status?.summary
+    } catch {
+      guard generation == requested, !paused, self.request == request else { return }
+      message = "Stop is not yet confirmed. Reconcile the original request to retain the stop."
+    }
+    changed()
+  }
+
   func submit(form: TeraAddForm) async {
     guard !paused, !Task.isCancelled else { return }
     if let worker {
@@ -102,6 +122,7 @@ final class TeraSubmissionStore: ObservableObject {
     }
     request = summary.request
     status = nil
+    stopControl.reset()
     await run(advancing: false)
   }
 
@@ -129,6 +150,7 @@ final class TeraSubmissionStore: ObservableObject {
     capture = nil
     request = nil
     status = nil
+    stopControl.reset()
     message = nil
     failureCode = nil
     changed()
@@ -159,20 +181,26 @@ final class TeraSubmissionStore: ObservableObject {
     do {
       try ensureCurrent(requested)
       let current = try await resolve(advancing: advancing, generation: requested)
-      guard let current else {
+      guard var current else {
         message = "The original submission is reserved. Retry it to finish local preparation."
         changed()
         return
       }
       try accept(current, generation: requested)
+      if stopControl.requested, !current.delivery.isStopped {
+        let stopped = try await client.requestSubmissionStop(request: current.request)
+        try accept(stopped, generation: requested)
+      }
+      current = status ?? current
       try await reconcileLocal(current, generation: requested)
       if advancing {
         let effects = TeraSubmissionEffects(client: client, media: media,
                                             ensure: { try self.ensureCurrent(requested) },
-                                            accept: { try self.accept($0, generation: requested) })
+                                            accept: { try self.accept($0, generation: requested) },
+                                            mayStart: { !self.stopControl.requested }, stopControl: stopControl)
         try await effects.advance(current)
       } else {
-        try await media?.reconcileBackgroundSubmissions([current])
+        try await reconcileBackground(current, generation: requested)
       }
       try ensureCurrent(requested)
       if let status {
@@ -208,6 +236,32 @@ final class TeraSubmissionStore: ObservableObject {
     try accept(reconciled, generation: requested)
   }
 
+  private func accept(_ value: TeraSubmissionStatus, generation requested: TeraSessionGeneration) throws {
+    try ensureCurrent(requested)
+    guard value.request == request, value.request.scope == scope,
+          status == nil || (status?.operationID == value.operationID && status?.intentID == value.intentID
+            && status?.captured == value.captured)
+    else {
+      throw TeraComposerAcknowledgment.unconfirmed
+    }
+    if let status, value.revision < status.revision || !value.delivery.follows(status.delivery)
+      || value.settlement.signed < status.settlement.signed || value.settlement.admitted < status.settlement.admitted {
+        return
+      }
+    status = value
+    if let capture {
+      composer.releaseSubmissionCapture(capture)
+      self.capture = nil
+    }
+    changed()
+  }
+
+  private func ensureCurrent(_ requested: TeraSessionGeneration) throws {
+    guard requested == generation, generation.isActive, !paused, !Task.isCancelled else { throw CancellationError() }
+  }
+}
+
+private extension TeraSubmissionStore {
   private func resolve(advancing: Bool, generation requested: TeraSessionGeneration) async throws -> TeraSubmissionStatus? {
       if request == nil {
         guard let capture else { throw TeraComposerAcknowledgment.unconfirmed }
@@ -245,23 +299,13 @@ final class TeraSubmissionStore: ObservableObject {
       return current
   }
 
-  private func accept(_ value: TeraSubmissionStatus, generation requested: TeraSessionGeneration) throws {
-    try ensureCurrent(requested)
-    guard value.request == request, value.request.scope == scope,
-          status == nil || (status?.operationID == value.operationID && status?.intentID == value.intentID
-            && status?.captured == value.captured && value.revision >= (status?.revision ?? 0))
-    else {
-      throw TeraComposerAcknowledgment.unconfirmed
+  private func reconcileBackground(_ current: TeraSubmissionStatus, generation requested: TeraSessionGeneration) async throws {
+    if current.delivery.isStopped {
+      try await TeraSubmissionEffects(client: client, media: media,
+                                      ensure: { try self.ensureCurrent(requested) },
+                                      accept: { try self.accept($0, generation: requested) }).reconcileStopped(current)
+    } else {
+      try await media?.reconcileBackgroundSubmissions([current])
     }
-    status = value
-    if let capture {
-      composer.releaseSubmissionCapture(capture)
-      self.capture = nil
-    }
-    changed()
-  }
-
-  private func ensureCurrent(_ requested: TeraSessionGeneration) throws {
-    guard requested == generation, generation.isActive, !paused, !Task.isCancelled else { throw CancellationError() }
   }
 }

@@ -22,7 +22,7 @@ use radroots_signing::{
 };
 use radroots_storage::{
     authored::{AdmissionState, SigningState},
-    authored_delivery::{AuthoredDeliveryState, DeliveryAttemptOutcome},
+    authored_delivery::AuthoredDeliveryState,
     authored_draft::{
         AuthoredDraft, AuthoredDraftId, AuthoredDraftRevision, AuthoredDraftStage,
         AuthoredDraftStore,
@@ -33,7 +33,6 @@ use radroots_storage::{
 use radroots_sync::{PushRequest, PushStatus, policy::SyncId};
 use radroots_transport::{
     Target, TargetSet,
-    outcome::DeliveryOutcomeKind,
     policy::{SatisfactionClass, SatisfactionPolicy, TargetPolicy},
 };
 use serde::{Deserialize, Serialize};
@@ -3200,9 +3199,6 @@ pub(super) fn aggregate_state(
     draft: &AuthoredDraft,
     push: Option<&PushStatus>,
 ) -> Phase1OutboxState {
-    if draft.stage() == AuthoredDraftStage::Cancelled {
-        return Phase1OutboxState::Cancelled;
-    }
     let Some(push) = push else {
         return match draft.stage() {
             AuthoredDraftStage::Draft => Phase1OutboxState::Draft,
@@ -3213,6 +3209,19 @@ pub(super) fn aggregate_state(
             AuthoredDraftStage::Cancelled => Phase1OutboxState::Cancelled,
         };
     };
+    let evidence = super::PublicationDeliveryEvidence::from_push(push);
+    if evidence.state == super::PublicationDeliveryState::Accepted {
+        return Phase1OutboxState::Complete;
+    }
+    if evidence.stop_requested_at_unix_ms.is_some()
+        || draft.stage() == AuthoredDraftStage::Cancelled
+    {
+        return if has_delivery_success(push) {
+            Phase1OutboxState::PartiallyDelivered
+        } else {
+            Phase1OutboxState::Cancelled
+        };
+    }
     if push.settlement().is_successful() {
         return Phase1OutboxState::Complete;
     }
@@ -3270,18 +3279,7 @@ pub(super) fn aggregate_state(
 }
 
 fn has_delivery_success(push: &PushStatus) -> bool {
-    push.delivery_plan().attempts().iter().any(|attempt| {
-        let evidence = match attempt.outcome() {
-            DeliveryAttemptOutcome::Receipt(receipt) => receipt.target_receipts(),
-            DeliveryAttemptOutcome::SinkFailure(failure) => failure.partial_evidence(),
-        };
-        evidence.iter().any(|receipt| {
-            matches!(
-                receipt.outcome().kind(),
-                DeliveryOutcomeKind::Accepted | DeliveryOutcomeKind::Delivered
-            )
-        })
-    })
+    super::publication::has_accepted_delivery(push)
 }
 
 fn revision_phase(

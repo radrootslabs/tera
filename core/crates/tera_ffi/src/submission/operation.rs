@@ -4,7 +4,47 @@ use crate::{
     FfiComposerDraftRecord, FfiDraftMediaRecord, FfiOperationSettlementRecord, FfiOutboxState,
     FfiPreparedMediaInput, FfiSubmissionReservationRequest, MOBILE_FFI_SCHEMA_VERSION,
 };
-use tera_core::runtime::product_surface::SubmissionOperationStatus;
+use tera_core::runtime::product_surface::{PublicationDeliveryState, SubmissionOperationStatus};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
+pub enum FfiPublicationDeliveryState {
+    NotIssued,
+    Unknown,
+    PartiallyAccepted,
+    Accepted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiPublicationDeliveryEvidence {
+    pub state: FfiPublicationDeliveryState,
+    pub stop_requested_at_unix_ms: Option<u64>,
+    pub scheduling_revision: u64,
+    pub retained_facts: u32,
+    pub recorded_attempts: u32,
+    pub unresolved_claims: bool,
+}
+
+impl From<tera_core::runtime::product_surface::PublicationDeliveryEvidence>
+    for FfiPublicationDeliveryEvidence
+{
+    fn from(value: tera_core::runtime::product_surface::PublicationDeliveryEvidence) -> Self {
+        Self {
+            state: match value.state {
+                PublicationDeliveryState::NotIssued => FfiPublicationDeliveryState::NotIssued,
+                PublicationDeliveryState::Unknown => FfiPublicationDeliveryState::Unknown,
+                PublicationDeliveryState::PartiallyAccepted => {
+                    FfiPublicationDeliveryState::PartiallyAccepted
+                }
+                PublicationDeliveryState::Accepted => FfiPublicationDeliveryState::Accepted,
+            },
+            stop_requested_at_unix_ms: value.stop_requested_at_unix_ms,
+            scheduling_revision: value.scheduling_revision,
+            retained_facts: value.retained_facts,
+            recorded_attempts: value.recorded_attempts,
+            unresolved_claims: value.unresolved_claims,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiSubmissionMediaRecord {
@@ -25,6 +65,7 @@ pub struct FfiSubmissionOperationRecord {
     pub updated_at_unix_ms: u64,
     pub media: Vec<FfiSubmissionMediaRecord>,
     pub settlement: FfiOperationSettlementRecord,
+    pub delivery: FfiPublicationDeliveryEvidence,
 }
 
 impl std::fmt::Debug for FfiSubmissionOperationRecord {
@@ -57,6 +98,7 @@ impl From<&SubmissionOperationStatus> for FfiSubmissionOperationRecord {
                 })
                 .collect(),
             settlement: value.push().settlement().into(),
+            delivery: value.delivery_evidence().into(),
         }
     }
 }
