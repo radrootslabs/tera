@@ -2,10 +2,10 @@
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
     "ffi_api_sha256": "a161a5f49b55fc2256e2241f601ef6da33c262b4e66edfc09c0f9256b043dd0d",
-    "ffi_provenance_sha256": "65de247abe531170b27fb17b12def1581677c8dc241d89db63aeee44d4d4484d",
+    "ffi_provenance_sha256": "7832e814ef12f7c94cf244242752cfac1aa7bed1c5ad4e919218ab3a065118f6",
     "info_plist_sha256": "15ef08b1cdd1096cfb9eeaf5be5bf8f814807a7ca9350bbbb47860fa72ec13ef",
     "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
-    "sbom_sha256": "b039645576cb342f3e2ef76fc0d3ddd51e42b8f3676e13bbee91263569003116",
+    "sbom_sha256": "4f84bd240f5d8588035785abfc51c4ed77da5983c97965603087aff16b214432",
     "xcode_project_sha256": "a76bdeeecaf4d992b7be8ead90dcddfe8d1e22e547f17fc06460ecd446b4b9d3"
   },
   "disposition": "unsigned",
@@ -17,12 +17,12 @@
   "repository": "https://github.com/radrootslabs/tera",
   "schema": "tera.release-provenance.v1",
   "source": {
-    "cargo_lock_sha256": "ef6dba164299dc28990d220d4e62cd587ea25c2a56c584c1b056ab22741bcc6b",
-    "consumer_source_lock_sha256": "6ff184d3eb8b646d5d9b18685351e95b01f28a31c87802347a3bdc76ffa8291b",
-    "lib_revision": "f578069cf894b34695bdf0ed2298e0aa162b5c13",
+    "cargo_lock_sha256": "5a0274ff035b2f86fa8d80aaffa52a3c18acc9ebd9cb64f1276de884c5c78932",
+    "consumer_source_lock_sha256": "4f29dcbbea43f6f8701f788c6ab1434b1a742f9b01a7182252ece10e1f4760ac",
+    "lib_revision": "c9d75ca260a9191dd91a44581c1daa0460e366ab",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "9b831ccdd3a6c697d142f1e865913eeed9553cb2dc97b492b229771c7669571f",
-    "tera_ffi_source_tree": "53ceadd6ff6f746561db1c0592c3cf94594f7dab",
+    "tera_ffi_source_tree": "c0e0c78951cbe891f594e1cb48db8c6b286713f2",
     "xcode_package_lock_sha256": "1a703864d2eb2f4fcb23e78c8552cfe93036af255de866e49756fa59381e730c"
   },
   "version": "0.1.0-alpha"

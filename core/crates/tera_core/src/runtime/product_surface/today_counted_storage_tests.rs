@@ -438,6 +438,12 @@ impl AtomicStorage for CountedStorage {
 }
 
 impl AuthoredAtomicStorage for CountedStorage {
+    fn authored_delivery_history(
+        &self,
+        plan_id: AuthoredDeliveryPlanId,
+    ) -> BoxFuture<'_, Result<Option<AuthoredDeliveryHistory>, Error>> {
+        AuthoredAtomicStorage::authored_delivery_history(self.storage(), plan_id)
+    }
     fn execute_authored(
         &self,
         command: AuthoredAtomicCommand,

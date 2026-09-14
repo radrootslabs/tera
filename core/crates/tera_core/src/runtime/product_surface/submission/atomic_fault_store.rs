@@ -6,12 +6,18 @@ use radroots_storage::{
     authored_atomic::{
         AuthoredAtomicCommand, AuthoredAtomicOutcome, AuthoredAtomicReceipt, AuthoredAtomicStorage,
     },
-    authored_delivery::{AuthoredDeliveryPlan, AuthoredDeliveryPlanId},
+    authored_delivery::{AuthoredDeliveryHistory, AuthoredDeliveryPlan, AuthoredDeliveryPlanId},
     event::BoxFuture,
     journal::OperationInstanceId,
 };
 
 impl<S: AuthoredAtomicStorage + ?Sized> AuthoredAtomicStorage for FaultStore<'_, S> {
+    fn authored_delivery_history(
+        &self,
+        id: AuthoredDeliveryPlanId,
+    ) -> BoxFuture<'_, Result<Option<AuthoredDeliveryHistory>, Error>> {
+        self.inner.authored_delivery_history(id)
+    }
     fn execute_authored(
         &self,
         command: AuthoredAtomicCommand,
