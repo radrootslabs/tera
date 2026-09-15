@@ -106,6 +106,13 @@ struct TeraLegacySubmission {
         expectedRevision: status.revision,
         media: handle
       )
+      if try await media.prefersSharedForegroundUpload(ownerID: status.id) {
+        status = try await uploadForeground(intent, progress: mediaStatus)
+        try acceptDraft(status)
+        await refreshMedia()
+        try ensure()
+        continue
+      }
       let job = try await runtimeClient.prepareAddMediaBackground(input: intent)
       try acceptDraft(job.draft)
       let receipt = try await media.uploadInBackground(job: job, media: persisted)
@@ -117,5 +124,14 @@ struct TeraLegacySubmission {
       try ensure()
     }
     return status
+  }
+
+  private func uploadForeground(_ intent: TeraBlossomUploadIntent, progress: TeraDraftMediaStatus) async throws -> TeraDraftStatus {
+    try ensure()
+    guard progress.stage != .uploading, !progress.possibleOrphan else {
+      throw TeraRuntimeFailure.local(operation: "add.media.upload", code: "ios.add.media_recovery_required",
+                                     safeMessage: "The previous photo upload must be checked before trying again.")
+    }
+    return try await Task { try await runtimeClient.uploadAddMediaIntent(input: intent) }.value
   }
 }

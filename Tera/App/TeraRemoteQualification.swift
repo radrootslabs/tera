@@ -123,9 +123,9 @@ struct TeraRemoteQualificationEnvironment: Sendable, Equatable {
   static func applicationFileRoots(appIdentifier: String) throws -> RadrootsAppleFileRoots {
     let base = try RadrootsAppleFileRoots.appContainer(appIdentifier: appIdentifier)
     #if DEBUG
-      return try current()?.isolatedFileRoots(from: base) ?? base
+      return try TeraDurableMediaRoots.selectingStaging(in: current()?.isolatedFileRoots(from: base) ?? base)
     #else
-      return base
+      return try TeraDurableMediaRoots.selectingStaging(in: base)
     #endif
   }
 

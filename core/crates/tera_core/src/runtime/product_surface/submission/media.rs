@@ -15,6 +15,8 @@ use crate::{
     runtime::product_surface::{Phase1DraftError, Phase1MediaStage},
 };
 
+#[path = "media_foreground.rs"]
+mod foreground;
 #[path = "media_runtime.rs"]
 mod runtime;
 

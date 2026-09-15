@@ -173,11 +173,25 @@
       ]
     },
     {
+      "identifier": "RadrootsAppleBackgroundTransferAdapters.supportsNewEnqueue",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
       "identifier": "RadrootsAppleFileAccess",
       "category": "shared_apple_api",
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 2
+        },
+        {
+          "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
           "count": 2
         },
         {
@@ -187,6 +201,10 @@
         {
           "path": "Tera/State/TeraConfigurationStore.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraDurableMediaRootsTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
@@ -241,6 +259,10 @@
           "count": 4
         },
         {
+          "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
+          "count": 5
+        },
+        {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 1
         },
@@ -254,6 +276,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraDurableMediaRootsTests.swift",
           "count": 2
         },
         {
@@ -1095,6 +1121,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 1
         },
@@ -1140,6 +1170,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraDurableMediaRootsTests.swift",
           "count": 1
         },
         {
@@ -1353,6 +1387,16 @@
       ]
     },
     {
+      "identifier": "RadrootsMediaSource",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
       "identifier": "RadrootsMultiplexTelemetry",
       "category": "shared_apple_api",
       "occurrences": [
@@ -1501,8 +1545,16 @@
           "count": 2
         },
         {
+          "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraDurableMediaRootsTests.swift",
+          "count": 2
         }
       ]
     },
@@ -2146,6 +2198,10 @@
       "identifier": "radroots.add",
       "category": "native_ui_contract",
       "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
         {
           "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
           "count": 1
@@ -4147,6 +4203,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_foreground_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_test_support.rs",
           "count": 1
         },
@@ -4706,7 +4766,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/native_upload.rs",
-          "count": 1
+          "count": 3
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
@@ -4749,6 +4809,14 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_foreground.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_foreground_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_runtime.rs",
           "count": 1
         },
@@ -4758,7 +4826,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
-          "count": 2
+          "count": 3
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/repository_tests.rs",
@@ -5295,16 +5363,6 @@
         {
           "path": "scripts/test_package_contract.py",
           "count": 2
-        }
-      ]
-    },
-    {
-      "identifier": "RadrootsMediaSource",
-      "category": "shared_apple_api",
-      "occurrences": [
-        {
-          "path": "TeraTests/TeraOfflineMediaTests.swift",
-          "count": 1
         }
       ]
     }

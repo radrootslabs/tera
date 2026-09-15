@@ -19,6 +19,7 @@ struct TeraAddBackgroundUploadReceipt: Sendable, Equatable {
 }
 
 protocol TeraAddMediaHandling: Sendable {
+  func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool
   func support() async throws -> TeraAddMediaSupport
   func importImages(limit: Int) async throws -> [TeraPreparedMedia]
   func captureImage() async throws -> TeraPreparedMedia
@@ -35,6 +36,10 @@ protocol TeraAddMediaHandling: Sendable {
 }
 
 extension TeraAddMediaHandling {
+  func prefersSharedForegroundUpload(ownerID _: String) async throws -> Bool {
+    false
+  }
+
   func uploadInBackground(job: TeraNativeUploadJob, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt {
     try await uploadInBackground(transfer: job.transfer, media: media)
   }
@@ -66,6 +71,16 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   /// Reserve before request preparation or native callbacks. A cancelled waiter
   /// releases this caller's admission; OS transfer state remains authoritative.
   private var activeUploadDrafts: Set<String> = []
+
+  func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool {
+    guard !RadrootsAppleBackgroundTransferAdapters.supportsNewEnqueue(for: .publicHTTPS) else { return false }
+    // Preserve an existing native attempt for its own reconciliation path.
+    // An uncertain native result never authorizes a second foreground PUT.
+    let prefix = "radroots.add.\(ownerID)."
+    return try await !transfer.snapshots().contains {
+      $0.identifier.rawValue.hasPrefix(prefix) && $0.state != .completed
+    }
+  }
 
   init(
     roots: RadrootsAppleFileRoots,
@@ -161,6 +176,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
           mediaType: item.mediaType,
           filenameHint: "\(item.sha256).png"
         )
+        try TeraDurableMediaRoots.restoreLegacyBlob(blob, roots: roots)
         let file = try FileHandle(forReadingFrom: roots.stagedBlobURL(for: blob))
         files.append(file)
         try handles.append(

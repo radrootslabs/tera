@@ -6,6 +6,7 @@ actor AddMediaHarness: TeraAddMediaHandling {
   private let delaySettlement: Bool
   private let openPause: ResourceTestPause?
   private let failOpen: Bool
+  private let foreground: Bool
   private var uploadAttempts = 0
   private var settlementStarted = false
   private var settlements: [Bool] = []
@@ -25,12 +26,17 @@ actor AddMediaHarness: TeraAddMediaHandling {
   )
 
   init(delayFirstUpload: Bool = false, delaySettlement: Bool = false,
-       openPause: ResourceTestPause? = nil, failOpen: Bool = false)
+       openPause: ResourceTestPause? = nil, failOpen: Bool = false, foreground: Bool = false)
   {
     self.delayFirstUpload = delayFirstUpload
     self.delaySettlement = delaySettlement
     self.openPause = openPause
     self.failOpen = failOpen
+    self.foreground = foreground
+  }
+
+  func prefersSharedForegroundUpload(ownerID _: String) -> Bool {
+    foreground
   }
 
   func support() -> TeraAddMediaSupport {

@@ -103,6 +103,15 @@ pub(super) async fn runtime(
 ) -> Arc<TeraRuntime> {
     let blossom =
         radroots_sdk::transport::BlossomConfig::from_profile(blossom().profile().unwrap());
+    runtime_with_blossom(root, signer, relay, blossom).await
+}
+
+pub(super) async fn runtime_with_blossom(
+    root: Option<&std::path::Path>,
+    signer: Arc<CountingSigner>,
+    relay: &str,
+    blossom: radroots_sdk::transport::BlossomConfig,
+) -> Arc<TeraRuntime> {
     Arc::new(if let Some(root) = root {
         let config = MobileUserStoreConfig::from_encoded(
             root,

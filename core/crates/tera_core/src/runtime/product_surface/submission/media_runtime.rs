@@ -95,7 +95,10 @@ impl TeraRuntime {
         }
     }
 
-    async fn save_submission_media(&self, loaded: &mut LoadedOperation) -> Result<(), E> {
+    pub(super) async fn save_submission_media(
+        &self,
+        loaded: &mut LoadedOperation,
+    ) -> Result<(), E> {
         let stage = loaded.payload.stage();
         let next = loaded.head.successor(
             loaded.payload.encode()?,

@@ -1,7 +1,7 @@
 schema = "tera.installed-source.v1"
 repository = "https://github.com/radrootslabs/tera"
-source_tree = "b07f52e82dd11e5e1c768ebcba3e842a3aa7d5f7"
-manifest_sha256 = "e315cdf497dd7e9366b6cbb32b0871f2e41ba1f4f8511a07d0ba00e1a839713c"
+source_tree = "ed0cfde826cbbf8e8cc31c6a7e31f32abbf03405"
+manifest_sha256 = "a0404373b46709690e4a15bf027a4f0dfc304a3e6ae04858209fe65029a49662"
 source_date_epoch = 1787871027
 
 [foundation]

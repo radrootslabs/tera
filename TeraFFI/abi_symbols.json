@@ -154,6 +154,7 @@
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_request_stop",
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_reserve",
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_status",
+    "uniffi_tera_ffi_checksum_method_teraruntime_submission_upload_media",
     "uniffi_tera_ffi_checksum_method_teraruntime_subscribe_changes",
     "uniffi_tera_ffi_checksum_method_teraruntime_uptime_millis",
     "uniffi_tera_ffi_checksum_method_teraruntimeobserver_on_change",
@@ -262,6 +263,7 @@
     "uniffi_tera_ffi_fn_method_teraruntime_submission_request_stop",
     "uniffi_tera_ffi_fn_method_teraruntime_submission_reserve",
     "uniffi_tera_ffi_fn_method_teraruntime_submission_status",
+    "uniffi_tera_ffi_fn_method_teraruntime_submission_upload_media",
     "uniffi_tera_ffi_fn_method_teraruntime_subscribe_changes",
     "uniffi_tera_ffi_fn_method_teraruntime_uptime_millis"
   ],
@@ -420,6 +422,7 @@
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_request_stop",
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_reserve",
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_status",
+    "uniffi_tera_ffi_checksum_method_teraruntime_submission_upload_media",
     "uniffi_tera_ffi_checksum_method_teraruntime_subscribe_changes",
     "uniffi_tera_ffi_checksum_method_teraruntime_uptime_millis",
     "uniffi_tera_ffi_checksum_method_teraruntimeobserver_on_change",
@@ -528,6 +531,7 @@
     "uniffi_tera_ffi_fn_method_teraruntime_submission_request_stop",
     "uniffi_tera_ffi_fn_method_teraruntime_submission_reserve",
     "uniffi_tera_ffi_fn_method_teraruntime_submission_status",
+    "uniffi_tera_ffi_fn_method_teraruntime_submission_upload_media",
     "uniffi_tera_ffi_fn_method_teraruntime_subscribe_changes",
     "uniffi_tera_ffi_fn_method_teraruntime_uptime_millis"
   ],
@@ -686,6 +690,7 @@
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_request_stop",
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_reserve",
     "uniffi_tera_ffi_checksum_method_teraruntime_submission_status",
+    "uniffi_tera_ffi_checksum_method_teraruntime_submission_upload_media",
     "uniffi_tera_ffi_checksum_method_teraruntime_subscribe_changes",
     "uniffi_tera_ffi_checksum_method_teraruntime_uptime_millis",
     "uniffi_tera_ffi_checksum_method_teraruntimeobserver_on_change",
@@ -794,6 +799,7 @@
     "uniffi_tera_ffi_fn_method_teraruntime_submission_request_stop",
     "uniffi_tera_ffi_fn_method_teraruntime_submission_reserve",
     "uniffi_tera_ffi_fn_method_teraruntime_submission_status",
+    "uniffi_tera_ffi_fn_method_teraruntime_submission_upload_media",
     "uniffi_tera_ffi_fn_method_teraruntime_subscribe_changes",
     "uniffi_tera_ffi_fn_method_teraruntime_uptime_millis"
   ]

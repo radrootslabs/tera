@@ -52,6 +52,15 @@ struct TeraSubmissionEffects {
       else {
         throw TeraComposerAcknowledgment.unconfirmed
       }
+      if try await media.prefersSharedForegroundUpload(ownerID: current.intentID) {
+        let input = TeraSubmissionMediaRequest(request: current.request, expectedRevision: current.revision, media: handle)
+        // View cancellation does not cancel the effect. The client retains
+        // admission and Rust file ownership through any late deadline callback.
+        current = try await Task { try await client.uploadSubmissionMedia(input: input) }.value
+        try accept(current)
+        try ensure()
+        continue
+      }
       let job = try await client.prepareSubmissionUpload(input: TeraSubmissionMediaRequest(
         request: current.request, expectedRevision: current.revision, media: handle
       ))

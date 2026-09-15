@@ -22,6 +22,17 @@ impl TryFrom<FfiSubmissionMediaInput> for SubmissionMediaRequest {
 
 #[cfg_attr(not(coverage_nightly), uniffi::export(async_runtime = "tokio"))]
 impl TeraRuntime {
+    pub async fn submission_upload_media(
+        &self,
+        input: FfiSubmissionMediaInput,
+    ) -> Result<FfiSubmissionOperationRecord, TeraAppError> {
+        let result = self.inner.submission_upload_media(input.try_into()?).await;
+        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, None);
+        Ok((&result?).into())
+    }
+
     pub async fn submission_prepare_upload(
         &self,
         input: FfiSubmissionMediaInput,

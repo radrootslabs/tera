@@ -14,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/radrootslabs/apple_kit.git",
-      revision: "c254f3740126527e95340c41f6d2650770893e9c"
+      revision: "ad5659709df6ca19a8e5517caf6c5f8396d1539e"
     ),
   ],
   targets: [
@@ -74,6 +74,7 @@ let package = Package(
         "Runtime/TeraCheckedTime.swift",
         "Runtime/TeraComposerModels.swift",
         "Runtime/TeraDraftInventoryModels.swift",
+        "Runtime/TeraDurableMediaRoots.swift",
         "Runtime/TeraErrorRecovery.swift",
         "Runtime/TeraGeneratedCalendarCards.swift",
         "Runtime/TeraGeneratedComposer.swift",

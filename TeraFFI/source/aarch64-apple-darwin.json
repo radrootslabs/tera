@@ -843,10 +843,10 @@
         "sha256": "3c048e44551d04e607597761481c24e9bbe55f6b20358047d18c8013c093fb8f"
       },
       "core/crates/tera_core/src/runtime/product_surface/outbox/native_upload.rs": {
-        "bytes": 1921,
-        "git_blob": "5f1f8620df52a756aff136a3e5059e3b3dc2c3b7",
+        "bytes": 2213,
+        "git_blob": "a4dbf19b42c42bbc6d67b63daec76fceeafe8b6a",
         "mode": "100644",
-        "sha256": "a331d8f77b32085bb8d6a086fda5b695ec6201c1e6a3f6ad31f0778a5837a701"
+        "sha256": "e8228c7bb7addc45330cfee47849ed2c67aac7b99d92f3781db5e67b70cfa25b"
       },
       "core/crates/tera_core/src/runtime/product_surface/projection.rs": {
         "bytes": 23423,
@@ -879,10 +879,10 @@
         "sha256": "9b830c7db167db51e6c193c3ddd1fac3bdcaf48b8546be8497d823aec0869f12"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission.rs": {
-        "bytes": 6197,
-        "git_blob": "7c3941debe18b599ccf139d0b532de92a8bff7b8",
+        "bytes": 6238,
+        "git_blob": "b2aa98ed019ae34e780a47d4a4397cefdf05927e",
         "mode": "100644",
-        "sha256": "481de6f1f6f919e29ccf8f19f6b3d2620323944aad49c7e05767b410c10f1be5"
+        "sha256": "c178bd2ee3dfb9e630ab31a1e863ec0645c8d2477ca9dd86c09c8b58161485ec"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/atomic_fault_store.rs": {
         "bytes": 3427,
@@ -1017,10 +1017,22 @@
         "sha256": "89245c05cf6717aad83658eb77ed1bd42d1adb35d466a467041f8cb3fd0b9aba"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/media.rs": {
-        "bytes": 4702,
-        "git_blob": "f8899c770131df84d5ef4c04adc58303babca898",
+        "bytes": 4750,
+        "git_blob": "a36ba548f4e977f2d83b7924078fa733b0495b04",
         "mode": "100644",
-        "sha256": "c1a495ecd8930805268a2536c692d428c1f1f3de08730cb60e6792324a268417"
+        "sha256": "9793fd4e67b178e77cb344b44213a829211bb2d51101dc6a2b2e72642402e5be"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/media_foreground.rs": {
+        "bytes": 3262,
+        "git_blob": "880d765e78b190e701a4b4afdec2cf7cd1c7834c",
+        "mode": "100644",
+        "sha256": "a87707030a182b54de78dafdcbba29cc9943a53a98d462e7da77fa1bc77211b2"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/media_foreground_tests.rs": {
+        "bytes": 7623,
+        "git_blob": "b614326b5ab7f72a78521de8c27fef0086edd7e1",
+        "mode": "100644",
+        "sha256": "6fbe6bcb7b086ea1a3dc90c404a08364cbb673d9b0059ebcf51db967534295a5"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/media_recovery_tests.rs": {
         "bytes": 5308,
@@ -1029,10 +1041,10 @@
         "sha256": "02039ae3261f42c89f10748ef212d5558f91e649e3948a02e320d191ad31e000"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/media_runtime.rs": {
-        "bytes": 5157,
-        "git_blob": "10be8a00ed9780a8179c0c128fa6dc78714a7ea6",
+        "bytes": 5191,
+        "git_blob": "a9d721ae71127f4b9db69fb5316d864e98f95e11",
         "mode": "100644",
-        "sha256": "4b9dfbfaa9d1d93564165540cc2424e72dbb0fb837890f8bf7a5afa5bb939fe4"
+        "sha256": "57b05d3644243ed1b0ca33a83359961c720ae7592d52d45fea5adbcff230c7f3"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/media_test_support.rs": {
         "bytes": 2670,
@@ -1065,10 +1077,10 @@
         "sha256": "279467dfba7628620d6909d0417b8320beb2c54df0c8b2e6f7585c2d2e054705"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs": {
-        "bytes": 6891,
-        "git_blob": "6a0a792fc2dec4ae04f83ab818024275db55e8e6",
+        "bytes": 7160,
+        "git_blob": "a57be84ee09cde0347c062fbf02b60ec5797d5e3",
         "mode": "100644",
-        "sha256": "ba8e0fd8b4c85437d89049c3652ce2ba8f05771c114c91a8c4c638bf59aa7ce6"
+        "sha256": "34c1e5aea66dc8be7568ca7fac63fefd8997a4d2332f25210cc1eadbe40339e4"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/operation_tests.rs": {
         "bytes": 10995,
@@ -1479,10 +1491,10 @@
         "sha256": "55e0d9cfda1889dec2203a8ae25ff4acc5494224984cfb7d094668b398f938b1"
       },
       "core/crates/tera_ffi/src/submission/media_runtime.rs": {
-        "bytes": 3057,
-        "git_blob": "d93b5ff9c6105293d5b8b4e1e8955e8c69df9c2c",
+        "bytes": 3489,
+        "git_blob": "17e1c7a26fca0e209e8dc7eafd6bb3f2541720bc",
         "mode": "100644",
-        "sha256": "b0057d508a703461d96fe37b0b18b6a478920c1783e131fddb5bc2eedbe4bb05"
+        "sha256": "3126a937237c944658213f65cdfda0f25e6f40a3367143abc4a41a75c9ef3405"
       },
       "core/crates/tera_ffi/src/submission/operation.rs": {
         "bytes": 4841,
@@ -2121,13 +2133,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 138328,
-        "git_blob": "d0cb2196cae3f3275df032643421f09b29dde9b2",
+        "bytes": 139987,
+        "git_blob": "8abe63f158fb94da5299a2a90d337110e92a7aaf",
         "mode": "100644",
-        "sha256": "f81025a0ec7be836192ee52ab571d121e543ae099b8fdcb587e085b704a6d497"
+        "sha256": "71ec0936fb41b90ed277259beb600f1456a20ca0871668052cc7a383fd564ffe"
       }
     },
     "policy": "staged_inputs",
-    "tree": "b07f52e82dd11e5e1c768ebcba3e842a3aa7d5f7"
+    "tree": "ed0cfde826cbbf8e8cc31c6a7e31f32abbf03405"
   }
 }

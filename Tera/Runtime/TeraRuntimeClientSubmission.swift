@@ -1,4 +1,8 @@
 extension TeraRuntimeClient {
+  func uploadSubmissionMedia(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
+    try await addOperation("runtime.submission.upload", submission: true) { try await $0.uploadSubmissionMedia(input: input) }
+  }
+
   func requestSubmissionStop(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus {
     try await addOperation("runtime.submission.stop") { try await $0.requestSubmissionStop(request: request) }
   }
@@ -39,6 +43,10 @@ extension TeraRuntimeClient {
 }
 
 extension TeraRuntimeBackend {
+  func uploadSubmissionMedia(input _: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
+    throw submissionUnavailable()
+  }
+
   func requestSubmissionStop(request _: TeraSubmissionRequest) async throws -> TeraSubmissionStatus {
     throw submissionUnavailable()
   }

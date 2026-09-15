@@ -42,6 +42,8 @@ mod fault_store;
 #[cfg(test)]
 mod inventory_tests;
 #[cfg(test)]
+mod media_foreground_tests;
+#[cfg(test)]
 mod media_recovery_tests;
 #[cfg(test)]
 mod media_test_support;

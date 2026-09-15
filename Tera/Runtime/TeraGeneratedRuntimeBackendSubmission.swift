@@ -2,6 +2,13 @@ import Foundation
 import TeraKitBindings
 
 extension TeraGeneratedRuntimeBackend {
+  func uploadSubmissionMedia(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
+    do {
+      let value = try await runtime.submissionUploadMedia(input: input.generatedValue)
+      return try TeraGeneratedSubmission.operation(value, expected: input.request)
+    } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+
   func requestSubmissionStop(request: TeraSubmissionRequest) async throws -> TeraSubmissionStatus {
     do {
       let value = try await runtime.submissionRequestStop(request: request.generatedValue)

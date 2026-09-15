@@ -13,6 +13,8 @@ actor SubmissionTestBackend {
   private(set) var prepareCount = 0
   private(set) var advanceCount = 0
   private(set) var uploadCount = 0
+  private(set) var foregroundCount = 0
+  private var foregroundPause: ResourceTestPause?
   private(set) var completionPersisted = false
   private var reservations: [String: TeraSubmissionReservation] = [:]
   private var operations: [String: TeraSubmissionStatus] = [:]
@@ -41,6 +43,24 @@ actor SubmissionTestBackend {
 
   func pauseAdvance(_ pause: ResourceTestPause) {
     advancePause = pause
+  }
+
+  func pauseForeground(_ pause: ResourceTestPause) {
+    foregroundPause = pause
+  }
+
+  func foreground(_ input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
+    let value = try status(input.request)
+    guard !value.delivery.isStopped, value.revision == input.expectedRevision else { throw failure("submission_stopped") }
+    foregroundCount += 1
+    await foregroundPause?.wait()
+    let current = try replacing(status(input.request), state: .readyToSign, media: value.media.map {
+      $0.opaqueReference == input.media.media.opaqueReference
+        ? TeraSubmissionMedia(opaqueReference: $0.opaqueReference, progress: progress(input.media.media, stage: .verified)) : $0
+    })
+    operations[input.request.commandID] = current
+    completionPersisted = true
+    return current
   }
 
   func unreadable(_ value: Bool) {
@@ -276,6 +296,10 @@ extension AddBackend {
 
   func prepareSubmissionUpload(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionUploadJob {
     try await submissionBackend.upload(input)
+  }
+
+  func uploadSubmissionMedia(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
+    try await submissionBackend.foreground(input)
   }
 
   func completeSubmissionUpload(input: TeraSubmissionMediaRequest, response: TeraAddBackgroundUploadReceipt) async throws -> TeraSubmissionStatus {
