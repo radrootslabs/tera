@@ -191,6 +191,10 @@
           "count": 2
         },
         {
+          "path": "Tera/Runtime/TeraComposerMediaOwnership.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
           "count": 2
         },
@@ -259,6 +263,10 @@
           "count": 4
         },
         {
+          "path": "Tera/Runtime/TeraComposerMediaOwnership.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
           "count": 5
         },
@@ -277,6 +285,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraComposerMediaOwnershipTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraDurableMediaRootsTests.swift",
@@ -1121,6 +1133,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraComposerMediaOwnership.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
           "count": 1
         },
@@ -1170,6 +1186,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraComposerMediaOwnershipTests.swift",
           "count": 1
         },
         {
@@ -1542,6 +1562,10 @@
         },
         {
           "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
+          "count": 2
+        },
+        {
+          "path": "Tera/Runtime/TeraComposerMediaOwnership.swift",
           "count": 2
         },
         {

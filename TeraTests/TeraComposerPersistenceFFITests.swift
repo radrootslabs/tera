@@ -153,14 +153,14 @@ final class TeraComposerPersistenceFFITests: XCTestCase {
 
   @MainActor
   func testStartupRecoveryPagesBeyondOneHundredAndReopensExactIncompleteRevision() async throws {
-    let fixture = try MediaOwnershipFixture()
+    let fixture = try OfflineMediaFixture()
     defer { fixture.remove() }
     let signer = ComposerForbiddenSigner()
-    let configuration = configuration(fixture, signer: signer)
+    let configuration = configuration(fixture.runtime, signer: signer)
     let client = TeraRuntimeClient.production()
     _ = try await client.start(configuration: configuration)
     let scope = TeraComposerScope(authorPublicKey: scope.authorPublicKey, localNetworkID: "default")
-    let form = partialForm(fixture)
+    let form = try await durablePartialForm(fixture)
     var ids = Set<String>()
     var saved: TeraComposerDraft?
     for _ in 0 ..< 101 {
@@ -173,7 +173,7 @@ final class TeraComposerPersistenceFFITests: XCTestCase {
     let selected = try XCTUnwrap(saved)
     _ = try await client.stop()
     let snapshot = try await client.start(configuration: configuration)
-    let store = TeraAddStore(runtimeClient: client)
+    let store = TeraAddStore(runtimeClient: client, media: fixture.coordinator())
     store.configure(snapshot: snapshot)
     await store.start()
     try await assertRecoveryPages(store.recovery, ids: ids)
@@ -198,6 +198,15 @@ final class TeraComposerPersistenceFFITests: XCTestCase {
     _ = try await client.stop()
     let signingRequests = await signer.requests
     XCTAssertEqual(signingRequests, 0)
+  }
+
+  @MainActor
+  private func durablePartialForm(_ fixture: OfflineMediaFixture) async throws -> TeraComposerForm {
+    var form = partialForm(fixture.runtime)
+    var editing = TeraAddForm(commandType: .createEvent)
+    editing.media = try await fixture.coordinator().importImages(limit: 1)
+    form.media = TeraComposerForm(editing: editing).media
+    return form
   }
 
   @MainActor

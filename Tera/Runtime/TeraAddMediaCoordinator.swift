@@ -19,6 +19,7 @@ struct TeraAddBackgroundUploadReceipt: Sendable, Equatable {
 }
 
 protocol TeraAddMediaHandling: Sendable {
+  func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) async throws
   func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool
   func support() async throws -> TeraAddMediaSupport
   func importImages(limit: Int) async throws -> [TeraPreparedMedia]
@@ -36,6 +37,10 @@ protocol TeraAddMediaHandling: Sendable {
 }
 
 extension TeraAddMediaHandling {
+  func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) async throws {
+    guard media.isEmpty else { throw TeraComposerAcknowledgment.unconfirmed }
+  }
+
   func prefersSharedForegroundUpload(ownerID _: String) async throws -> Bool {
     false
   }
@@ -71,6 +76,10 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   /// Reserve before request preparation or native callbacks. A cancelled waiter
   /// releases this caller's admission; OS transfer state remains authoritative.
   private var activeUploadDrafts: Set<String> = []
+
+  func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) throws {
+    try TeraComposerMediaOwnership.confirm(media, roots: roots)
+  }
 
   func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool {
     guard !RadrootsAppleBackgroundTransferAdapters.supportsNewEnqueue(for: .publicHTTPS) else { return false }

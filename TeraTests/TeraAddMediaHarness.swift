@@ -2,6 +2,9 @@ import Foundation
 @testable import TeraApp
 
 actor AddMediaHarness: TeraAddMediaHandling {
+  /// Metadata-only fake backend tests; real file durability has separate fixtures.
+  func confirmDurableComposerMedia(_: [TeraComposerMedia]) {}
+
   private let delayFirstUpload: Bool
   private let delaySettlement: Bool
   private let openPause: ResourceTestPause?

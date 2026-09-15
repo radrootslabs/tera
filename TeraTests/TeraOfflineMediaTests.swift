@@ -178,7 +178,7 @@ final class TeraOfflineMediaTests: XCTestCase {
 }
 
 @MainActor
-private struct OfflineMediaFixture {
+struct OfflineMediaFixture {
   let runtime: MediaOwnershipFixture
   let roots: RadrootsAppleFileRoots
   let picker: OfflineMediaPicker
@@ -186,10 +186,10 @@ private struct OfflineMediaFixture {
 
   init() throws {
     runtime = try MediaOwnershipFixture()
-    roots = try RadrootsAppleFileRoots(appIdentifier: "test.offline-media",
-                                       dataRoot: runtime.root.appendingPathComponent("media/data"),
-                                       cacheRoot: runtime.root.appendingPathComponent("media/cache"),
-                                       temporaryRoot: runtime.root.appendingPathComponent("media/temporary"))
+    roots = try TeraDurableMediaRoots.selectingStaging(in: RadrootsAppleFileRoots(appIdentifier: "test.offline-media",
+                                                                                  dataRoot: runtime.root.appendingPathComponent("media/data"),
+                                                                                  cacheRoot: runtime.root.appendingPathComponent("media/cache"),
+                                                                                  temporaryRoot: runtime.root.appendingPathComponent("media/temporary")))
     try FileManager.default.createDirectory(at: roots.cacheRoot, withIntermediateDirectories: true)
     let bytes = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).pngData { context in
       UIColor.green.setFill()
@@ -220,7 +220,7 @@ private struct OfflineMediaFixture {
   }
 }
 
-private actor OfflineMediaPicker: RadrootsMediaPicker {
+actor OfflineMediaPicker: RadrootsMediaPicker {
   let byteSize: UInt64
   private var denied = false
   private var available = true

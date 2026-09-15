@@ -52,6 +52,7 @@ targets:
       - path: TeraTests/TeraSubmissionStoreTests.swift
       - path: TeraTests/TeraForegroundSubmissionTests.swift
       - path: TeraTests/TeraDurableMediaRootsTests.swift
+      - path: TeraTests/TeraComposerMediaOwnershipTests.swift
       - path: TeraTests/TeraPublicationEvidenceTests.swift
       - path: TeraTests/TeraStoppedUploadTests.swift
       - path: TeraTests/TeraSubmissionOperationFFITests.swift

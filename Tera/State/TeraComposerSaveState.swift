@@ -28,6 +28,7 @@ enum TeraComposerSaveState: Equatable {
 }
 
 struct TeraComposerPersistence: Sendable {
+  var confirm: @Sendable (TeraComposerDraft) async throws -> Void = { _ in }
   var reserve: @Sendable () async throws -> String
   var save: @Sendable (TeraComposerSaveRequest) async throws -> TeraComposerSaveReceipt
   var load: @Sendable (TeraComposerScope, String) async throws -> TeraComposerDraft
@@ -46,6 +47,27 @@ struct TeraComposerPersistence: Sendable {
     self.reserve = reserve
     self.save = save
     self.load = load
+  }
+
+  func protectingMedia(_ media: (any TeraAddMediaHandling)?) -> Self {
+    var guarded = Self(reserve: reserve, save: { request in
+      try await Self.confirm(request.form.media, using: media)
+      let receipt = try await save(request)
+      try await Self.confirm(receipt.draft.form.media, using: media)
+      return receipt
+    }, load: { scope, id in
+      let draft = try await load(scope, id)
+      try await Self.confirm(draft.form.media, using: media)
+      return draft
+    })
+    guarded.confirm = { try await Self.confirm($0.form.media, using: media) }
+    return guarded
+  }
+
+  private static func confirm(_ references: [TeraComposerMedia], using media: (any TeraAddMediaHandling)?) async throws {
+    guard !references.isEmpty else { return }
+    guard let media else { throw TeraComposerAcknowledgment.unconfirmed }
+    try await media.confirmDurableComposerMedia(references)
   }
 }
 

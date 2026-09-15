@@ -75,6 +75,7 @@ let package = Package(
         "Runtime/TeraComposerModels.swift",
         "Runtime/TeraDraftInventoryModels.swift",
         "Runtime/TeraDurableMediaRoots.swift",
+        "Runtime/TeraComposerMediaOwnership.swift",
         "Runtime/TeraErrorRecovery.swift",
         "Runtime/TeraGeneratedCalendarCards.swift",
         "Runtime/TeraGeneratedComposer.swift",

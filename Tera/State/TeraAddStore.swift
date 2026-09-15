@@ -61,8 +61,8 @@ final class TeraAddStore: ObservableObject {
       TeraRuntimeObservationBackoff.sleep
   ) {
     self.runtimeClient = runtimeClient
-    recovery = TeraDraftRecoveryStore(client: runtimeClient)
-    composer = TeraComposerAutosave(persistence: TeraComposerPersistence(client: runtimeClient))
+    recovery = TeraDraftRecoveryStore(client: runtimeClient, media: media)
+    composer = TeraComposerAutosave(persistence: TeraComposerPersistence(client: runtimeClient).protectingMedia(media))
     submissions = TeraSubmissionStore(client: runtimeClient, composer: composer, media: media)
     self.media = media
     self.identifier = identifier

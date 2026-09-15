@@ -171,6 +171,8 @@ final class TeraComposerAutosave {
       try ensureCurrent(requested)
     }
     guard !isDirty, let acknowledged else { throw lastFailure ?? TeraComposerAcknowledgment.unconfirmed }
+    try await confirmSaved(acknowledged, generation: requested)
+    guard !isDirty else { throw TeraComposerAcknowledgment.unconfirmed }
     return acknowledged
   }
 
@@ -286,6 +288,23 @@ final class TeraComposerAutosave {
 
 /// Capture scheduling shares the private autosave worker; it owns no second persistence path.
 extension TeraComposerAutosave {
+  private func confirmSaved(_ draft: TeraComposerDraft, generation requested: TeraSessionGeneration) async throws {
+    do {
+      try await persistence.confirm(draft)
+      try ensureCurrent(requested)
+      guard acknowledged == draft else { throw TeraComposerAcknowledgment.unconfirmed }
+      if !isDirty {
+        state = .saved
+      }
+    } catch {
+      if generation == requested {
+        state = .failed
+        lastFailure = error
+      }
+      throw error
+    }
+  }
+
   var hasSubmissionCapture: Bool {
     capture != nil
   }
@@ -327,6 +346,7 @@ extension TeraComposerAutosave {
     guard capture == value, let acknowledged, matchesCapture(acknowledged, value) else {
       throw lastFailure ?? TeraComposerAcknowledgment.unconfirmed
     }
+    try await confirmSaved(acknowledged, generation: requested)
     return acknowledged
   }
 

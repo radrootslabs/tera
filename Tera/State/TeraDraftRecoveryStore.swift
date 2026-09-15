@@ -14,14 +14,16 @@ final class TeraDraftRecoveryStore: ObservableObject {
   @Published private(set) var isLoading = false
   private(set) var scope: TeraComposerScope?
   private let client: TeraRuntimeClient
+  private let composer: TeraComposerPersistence
   private var generation = TeraSessionGeneration.initial
   private var task: Task<Void, Never>?
   private var pending: Request?
 
   private enum Request { case first, composers(String), legacy(String) }
 
-  init(client: TeraRuntimeClient) {
+  init(client: TeraRuntimeClient, media: (any TeraAddMediaHandling)? = nil) {
     self.client = client
+    composer = TeraComposerPersistence(client: client).protectingMedia(media)
   }
 
   deinit { task?.cancel() }
@@ -55,7 +57,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
     let result: TeraRecoveredDraft
     switch selection {
     case let .composer(id):
-      let draft = try await client.loadComposer(scope: scope, id: id)
+      let draft = try await composer.load(scope, id)
       guard draft.scope == scope, draft.id == id else { throw TeraComposerAcknowledgment.unconfirmed }
       result = .composer(draft)
     case let .legacy(id):
