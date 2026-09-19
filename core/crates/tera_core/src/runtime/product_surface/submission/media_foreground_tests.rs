@@ -1,6 +1,9 @@
 use std::{sync::atomic::Ordering, time::Duration};
 
 use radroots_blossom::{BlobDescriptor, BlobUrl, MediaType, Sha256};
+use radroots_sdk::transport::{
+    BlossomConfig, BlossomEndpointAuthority, BlossomHostKind, BlossomProfile,
+};
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     net::{TcpListener, TcpStream},
@@ -43,9 +46,6 @@ async fn foreground_upload_preserves_frozen_parent_and_verifies_exact_bytes_afte
         runtime.shutdown().await.unwrap();
         drop(runtime);
         if sqlite {
-            use radroots_sdk::transport::{
-                BlossomConfig, BlossomEndpointAuthority, BlossomHostKind, BlossomProfile,
-            };
             let config = BlossomConfig::from_profile(
                 BlossomProfile::new(
                     BlossomHostKind::Simulator,
@@ -126,6 +126,68 @@ async fn foreground_does_not_replace_an_unreconciled_native_attempt() {
         uploading
     );
     assert_eq!(signer.count(), 1);
+    runtime.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn offline_foreground_preserves_parent_without_hidden_replacement_or_publication() {
+    // Reserve an endpoint without a listener so another process cannot acquire it.
+    // A bounded fixture timeout covers platforms that drop rather than refuse SYNs.
+    let unavailable = tokio::net::TcpSocket::new_v4().unwrap();
+    unavailable.bind("127.0.0.1:0".parse().unwrap()).unwrap();
+    let origin = format!("http://{}", unavailable.local_addr().unwrap());
+    let signer = CountingSigner::new();
+    let config = BlossomConfig::from_profile(
+        BlossomProfile::new(
+            BlossomHostKind::Simulator,
+            BlossomEndpointAuthority::LoopbackDevelopment,
+            &origin,
+            std::iter::empty::<&str>(),
+        )
+        .unwrap(),
+    )
+    .with_network_policy(
+        Duration::from_millis(100),
+        Duration::from_secs(1),
+        1,
+        Duration::from_millis(1),
+    )
+    .unwrap();
+    let runtime = runtime_with_blossom(None, signer.clone(), "ws://127.0.0.1:19999", config).await;
+    let request = request();
+    prepare(&runtime, &request, true).await;
+    let original = runtime.submission_operation_status(&request).await.unwrap();
+    assert!(
+        runtime
+            .submission_upload_media(upload(&request, 1))
+            .await
+            .is_err()
+    );
+    let paused = runtime.submission_operation_status(&request).await.unwrap();
+    assert_eq!(paused.captured(), original.captured());
+    assert_eq!(paused.push(), original.push());
+    assert_eq!(paused.receipt(), original.receipt());
+    assert_eq!(paused.media()[0].stage(), Phase1MediaStage::Failed);
+    assert!(paused.media()[0].orphan().is_some());
+    assert_eq!(*signer.kinds.lock().unwrap(), [24242]);
+    let revision = paused.intent().revision().get();
+    assert!(
+        runtime
+            .submission_upload_media(upload(&request, revision))
+            .await
+            .is_err()
+    );
+    assert!(
+        runtime
+            .submission_prepare_native_upload(upload(&request, revision))
+            .await
+            .is_err()
+    );
+    assert_eq!(signer.count(), 1);
+    assert_eq!(
+        runtime.submission_operation_status(&request).await.unwrap(),
+        paused
+    );
     runtime.shutdown().await.unwrap();
 }
 

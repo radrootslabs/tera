@@ -42,7 +42,9 @@ extension TeraAddMediaHandling {
   }
 
   func prefersSharedForegroundUpload(ownerID _: String) async throws -> Bool {
-    false
+    // A conformer must explicitly establish native capability before selecting it.
+    // The shared uploader retains the required destination enforcement by default.
+    true
   }
 
   func uploadInBackground(job: TeraNativeUploadJob, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt {
