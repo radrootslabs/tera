@@ -1169,10 +1169,10 @@
         "sha256": "ec18505ac5efb7bfa1b6c351178aa7f6b15d8272d87dc567711acdd65ca372b7"
       },
       "core/crates/tera_core/src/runtime/product_surface/today.rs": {
-        "bytes": 141339,
-        "git_blob": "5dfa0eb946df781b7f75fc12fc95b69ee999f255",
+        "bytes": 133627,
+        "git_blob": "ad2bc57a5823079b49036f80a17a480fd070f318",
         "mode": "100644",
-        "sha256": "a9bd67c9787018560a2a99200e0bcb87714fb4fd62f7423bf146e37659eb7e44"
+        "sha256": "2eddec5f72e483f09498f8252abf3f558b064e2f80b8ed0aa4594a516a18fe56"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs": {
         "bytes": 13548,
@@ -1215,6 +1215,24 @@
         "git_blob": "57ec50f9f50037aa2e630cb48febb5355d3ab47e",
         "mode": "100644",
         "sha256": "d5da0dc2e13a5a72731c3efc1b4fd02459acc542a94c5a38380dfa1b9e9520da"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/today_media_retrieval.rs": {
+        "bytes": 8538,
+        "git_blob": "df5a02041a03f2ccfc9b34ec4e46b77d6f1366a3",
+        "mode": "100644",
+        "sha256": "fe2f479a3130c23bfebfa9db38febe79a67383fb7a1dda899c195b43cc83472e"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/today_media_visibility.rs": {
+        "bytes": 1125,
+        "git_blob": "70eb543db2055dd67df53c47dee5b6841b787876",
+        "mode": "100644",
+        "sha256": "8007c774ae9b9505a0aa632bf51d16606a3846ebf94d74cc3e0b22bb9702f04b"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/today_media_visibility_tests.rs": {
+        "bytes": 10250,
+        "git_blob": "ff72b95943c453da26fbfac65ac772bb97045d2e",
+        "mode": "100644",
+        "sha256": "7aa4ed5c05dddde1921c2ad601807daecbfb6ba38b4a50ef14ab4994244e1f74"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_paging.rs": {
         "bytes": 6207,
@@ -2141,13 +2159,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 141516,
-        "git_blob": "46db8eded2880dd4ba156dd1fbcd655ed0666e0d",
+        "bytes": 141951,
+        "git_blob": "9f8976ef731b206d2b7699640d400cfa08f8e9e9",
         "mode": "100644",
-        "sha256": "a665ec09cd62714e9227b3849d813b08b07efdc047cd4ea7b714c2b53fbb70ee"
+        "sha256": "80bdf7c1efc05d83260c08201b8d05ecf2d8780ae477239ec05fddc1bb5024a4"
       }
     },
     "policy": "staged_inputs",
-    "tree": "f1bd4bd0656de8a67a9602889c0655fb3bdadc56"
+    "tree": "e8bc8e378ae5db8ad84891b9262670a1aaf4e395"
   }
 }

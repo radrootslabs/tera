@@ -90,6 +90,13 @@ pub use reconciliation::TodayReconciliation;
 #[path = "today_submission_overlay.rs"]
 mod submission_overlay;
 
+#[cfg(feature = "mobile-social")]
+#[path = "today_media_retrieval.rs"]
+mod media_retrieval;
+
+#[path = "today_media_visibility.rs"]
+mod media_visibility;
+
 #[cfg(test)]
 #[path = "today_reconciliation_tests.rs"]
 mod reconciliation_tests;
@@ -555,14 +562,13 @@ impl TeraRuntime {
         pending: Phase1InboundMediaPending,
     ) -> Result<bool, TodayError> {
         let _command = self.lifecycle.enter()?;
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
         let generation = projection_generation()?;
-        let mut state = load_state(storage, context, generation)
-            .await?
-            .ok_or(TodayError::ProjectionMissing)?;
+        let mut state = media_visibility::current_state(self, context).await?;
         let mut trial = state.clone();
         let prior_configuration = trial.media_cache.status()?.configuration;
         if prior_configuration.is_some_and(|value| value != pending.configuration()) {
@@ -589,14 +595,13 @@ impl TeraRuntime {
         failure: Phase1InboundMediaFailure,
     ) -> Result<bool, TodayError> {
         let _command = self.lifecycle.enter()?;
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
         let generation = projection_generation()?;
-        let mut state = load_state(storage, context, generation)
-            .await?
-            .ok_or(TodayError::ProjectionMissing)?;
+        let mut state = media_visibility::current_state(self, context).await?;
         let changed = mutate_matching_media(&mut state, reference_fingerprint, |media| {
             media.fail(failure.clone())
         })?;
@@ -618,14 +623,13 @@ impl TeraRuntime {
         policy: Phase1MediaCachePolicy,
         cached_at_unix_ms: u64,
     ) -> Result<Vec<Phase1MediaArtifactId>, TodayError> {
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
         let generation = projection_generation()?;
-        let mut state = load_state(storage, context, generation)
-            .await?
-            .ok_or(TodayError::ProjectionMissing)?;
+        let mut state = media_visibility::current_state(self, context).await?;
         let mut trial = state.clone();
         let changed = mutate_matching_media(&mut trial, reference_fingerprint, |media| {
             media.verify(operation_id, receipt.clone())
@@ -652,6 +656,7 @@ impl TeraRuntime {
         observed_at_unix_ms: u64,
     ) -> Result<bool, TodayError> {
         let _command = self.lifecycle.enter()?;
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()
@@ -676,6 +681,7 @@ impl TeraRuntime {
         let _command = self.lifecycle.enter()?;
         #[cfg(feature = "mobile-social")]
         let _guard = self.inbound_media_lock.lock().await;
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()
@@ -706,6 +712,7 @@ impl TeraRuntime {
         let _command = self.lifecycle.enter()?;
         #[cfg(feature = "mobile-social")]
         let _guard = self.inbound_media_lock.lock().await;
+        let _projection = self.today_projection_lock.lock().await;
         let storage = self
             .client
             .storage()
@@ -744,200 +751,6 @@ impl TeraRuntime {
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
         state.media_cache.status().map_err(TodayError::from)
-    }
-
-    /// Resolves one renderable artifact only after rechecking the exact local
-    /// file. Missing or corrupt bytes atomically revoke all matching receipts.
-    #[cfg(feature = "mobile-social")]
-    pub async fn phase1_verified_media_artifact(
-        &self,
-        context: &LocalNetwork,
-        artifact_id: Phase1MediaArtifactId,
-        observed_at_unix_ms: u64,
-    ) -> Result<Option<Phase1LocalMediaArtifact>, TodayError> {
-        let _command = self.lifecycle.enter()?;
-        let _guard = self.inbound_media_lock.lock().await;
-        let directory = self
-            .inbound_media_directory
-            .as_deref()
-            .ok_or(Phase1InboundMediaError::CacheUnavailable)?;
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let generation = projection_generation()?;
-        let mut state = load_state(storage, context, generation)
-            .await?
-            .ok_or(TodayError::ProjectionMissing)?;
-        let Some(receipt) = verified_receipt(&state, artifact_id) else {
-            return Ok(None);
-        };
-        match super::media::verified_artifact(directory, &receipt).await {
-            Ok(artifact) => {
-                if state.media_cache.touch(artifact_id, observed_at_unix_ms)? {
-                    persist_media_state(storage, context, generation, &mut state).await?;
-                }
-                Ok(Some(artifact))
-            }
-            Err(error) => {
-                state.media_cache.invalidate_artifact(artifact_id);
-                invalidate_artifact_references(&mut state, artifact_id);
-                persist_media_state(storage, context, generation, &mut state).await?;
-                let _ = super::media::remove_artifact_files(directory, artifact_id).await;
-                Err(error.into())
-            }
-        }
-    }
-
-    /// Completes one bounded BUD-01 retrieval, exact-byte verification, and
-    /// atomic content-addressed cache commit under the configured Blossom slot.
-    #[cfg(feature = "mobile-social")]
-    pub async fn phase1_retrieve_media(
-        &self,
-        context: &LocalNetwork,
-        reference_fingerprint: [u8; 32],
-        operation_id: [u8; 16],
-        policy: Phase1MediaCachePolicy,
-        cancellation: BlossomCancellation,
-    ) -> Result<Phase1LocalMediaArtifact, TodayError> {
-        let _command = self.lifecycle.enter()?;
-        let _guard = self.inbound_media_lock.lock().await;
-        let directory = self
-            .inbound_media_directory
-            .as_deref()
-            .ok_or(Phase1InboundMediaError::CacheUnavailable)?;
-        let blossom = self
-            .client
-            .blossom()
-            .map_err(|_| TodayError::RuntimeUnavailable)?
-            .cloned()
-            .ok_or(TodayError::RuntimeUnavailable)?;
-        let sdk_configuration = blossom
-            .config_fingerprint()
-            .ok_or(TodayError::RuntimeUnavailable)?;
-        let configuration =
-            Phase1MediaConfigurationFingerprint::new(*sdk_configuration.as_bytes())?;
-        let structural = load_structural_reference(self, context, reference_fingerprint).await?;
-        let started_at_unix_ms = inbound_now_unix_ms()?;
-        self.phase1_begin_media_retrieval(
-            context,
-            reference_fingerprint,
-            Phase1InboundMediaPending::new(operation_id, configuration, started_at_unix_ms)?,
-        )
-        .await?;
-        let request = match inbound_request(&structural) {
-            Ok(request) => request,
-            Err(error) => {
-                record_inbound_failure(
-                    self,
-                    context,
-                    reference_fingerprint,
-                    operation_id,
-                    "invalid_reference",
-                    false,
-                )
-                .await;
-                return Err(error);
-            }
-        };
-        let sdk_receipt = match blossom.retrieve(request, cancellation).await {
-            Ok(receipt) => receipt,
-            Err(error) => {
-                record_inbound_failure(
-                    self,
-                    context,
-                    reference_fingerprint,
-                    operation_id,
-                    error.code().trim_start_matches("blossom_"),
-                    error.retryable(),
-                )
-                .await;
-                return Err(error.into());
-            }
-        };
-        if sdk_receipt.config_fingerprint() != sdk_configuration {
-            record_inbound_failure(
-                self,
-                context,
-                reference_fingerprint,
-                operation_id,
-                "configuration_changed",
-                false,
-            )
-            .await;
-            return Err(Phase1InboundMediaError::ConfigurationMismatch.into());
-        }
-        let dimensions = sdk_receipt.dimensions();
-        let receipt = match Phase1VerifiedMediaReceipt::from_commitment(
-            &structural,
-            sdk_receipt.final_url().clone(),
-            sdk_receipt.commitment(),
-            dimensions.width(),
-            dimensions.height(),
-            configuration,
-            sdk_receipt.verified_at_unix_ms(),
-        ) {
-            Ok(receipt) => receipt,
-            Err(error) => {
-                record_inbound_failure(
-                    self,
-                    context,
-                    reference_fingerprint,
-                    operation_id,
-                    "verification_failed",
-                    false,
-                )
-                .await;
-                return Err(error.into());
-            }
-        };
-        let artifact =
-            match super::media::write_verified_artifact(directory, &receipt, sdk_receipt.bytes())
-                .await
-            {
-                Ok(artifact) => artifact,
-                Err(error) => {
-                    record_inbound_failure(
-                        self,
-                        context,
-                        reference_fingerprint,
-                        operation_id,
-                        "cache_write_failed",
-                        true,
-                    )
-                    .await;
-                    return Err(error.into());
-                }
-            };
-        let evicted = match self
-            .phase1_commit_media_receipt(
-                context,
-                reference_fingerprint,
-                operation_id,
-                receipt,
-                policy,
-                sdk_receipt.verified_at_unix_ms(),
-            )
-            .await
-        {
-            Ok(evicted) => evicted,
-            Err(error) => {
-                record_inbound_failure(
-                    self,
-                    context,
-                    reference_fingerprint,
-                    operation_id,
-                    "cache_commit_failed",
-                    true,
-                )
-                .await;
-                return Err(error);
-            }
-        };
-        for artifact_id in evicted {
-            super::media::remove_artifact_files(directory, artifact_id).await?;
-        }
-        Ok(artifact)
     }
 
     /// Persists active-author delivery state as a local-only Today overlay.
@@ -986,34 +799,6 @@ impl TeraRuntime {
         state.content_generation = content_generation(&state)?;
         store_state(storage, context, generation, &state).await
     }
-}
-
-#[cfg(feature = "mobile-social")]
-async fn load_structural_reference(
-    runtime: &TeraRuntime,
-    context: &LocalNetwork,
-    reference_fingerprint: [u8; 32],
-) -> Result<Phase1StructuralMediaReference, TodayError> {
-    let storage = runtime
-        .client
-        .storage()
-        .map_err(|_| TodayError::RuntimeUnavailable)?;
-    let state = load_state(storage, context, projection_generation()?)
-        .await?
-        .ok_or(TodayError::ProjectionMissing)?;
-    state
-        .cards
-        .iter()
-        .flat_map(|projected| projected.card.media.iter())
-        .chain(
-            state
-                .profiles
-                .values()
-                .flat_map(|profile| [&profile.picture, &profile.banner].into_iter().flatten()),
-        )
-        .find(|media| media.structural().fingerprint() == &reference_fingerprint)
-        .map(|media| media.structural().clone())
-        .ok_or(TodayError::InvalidRequest)
 }
 
 #[cfg(feature = "mobile-social")]
