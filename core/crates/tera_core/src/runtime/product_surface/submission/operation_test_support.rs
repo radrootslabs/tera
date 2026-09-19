@@ -184,6 +184,10 @@ pub(super) async fn relay() -> (String, tokio::task::JoinHandle<serde_json::Valu
                     let value: serde_json::Value = serde_json::from_str(&text).unwrap();
                     if value[0] == "EVENT" {
                         let event = value[1].clone();
+                        assert_ne!(
+                            event["kind"], 24242,
+                            "HTTP authority must never reach a relay"
+                        );
                         socket
                             .send(Message::Text(
                                 serde_json::json!(["OK", event["id"], true, ""])

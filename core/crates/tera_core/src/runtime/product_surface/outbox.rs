@@ -52,9 +52,12 @@ mod configuration;
 mod inventory;
 mod media;
 mod native_upload;
+mod upload_attempt;
 pub use inventory::{
     Phase1DraftListEntry, Phase1DraftPage, Phase1DraftRepairReason, Phase1DraftSummary,
 };
+pub use native_upload::Phase1UploadPlan;
+use upload_attempt::UploadAttempt;
 
 const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
 const PROFILE_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-profile.v1";
@@ -209,6 +212,8 @@ pub struct Phase1MediaPrerequisite {
     upload_attempts: u8,
     verified_at_unix_ms: Option<u64>,
     orphan: Option<Phase1MediaOrphanRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    authorization_attempt: Option<UploadAttempt>,
 }
 
 /// Durable, secret-safe evidence that a remote blob may be unreferenced.
@@ -245,6 +250,7 @@ impl Phase1MediaPrerequisite {
             upload_attempts: 0,
             verified_at_unix_ms: None,
             orphan: None,
+            authorization_attempt: None,
         };
         value.validate()?;
         Ok(value)
@@ -253,6 +259,15 @@ impl Phase1MediaPrerequisite {
     pub(super) fn validate(&self) -> Result<(), Phase1DraftError> {
         let blob = BlobUrl::parse(self.url.as_str()).map_err(|_| Phase1DraftError::InvalidMedia)?;
         let hash = blob.hash_path().hash().to_string();
+        if let Some(attempt) = &self.authorization_attempt {
+            attempt.validate()?;
+            if matches!(
+                self.stage,
+                Phase1MediaStage::Pending | Phase1MediaStage::Preparing
+            ) {
+                return Err(Phase1DraftError::InvalidMedia);
+            }
+        }
         if self.local_reference.is_empty()
             || self.local_reference.len() > DRAFT_LOCAL_REFERENCE_MAX_BYTES
             || self.local_reference != self.local_reference.trim()
@@ -561,19 +576,6 @@ impl Phase1UploadIntent {
     }
 }
 
-/// Immutable Rust-derived policy for one upload attempt.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Phase1UploadPlan {
-    pub authorization_content: String,
-    pub authorization_created_at_unix_s: u64,
-    pub authorization_lifetime_seconds: u64,
-    pub operation_id: SigningOperationId,
-    pub artifact_id: AuthoredArtifactId,
-    pub signing_deadline_unix_ms: u64,
-    pub cancellation: Phase1CancellationPolicy,
-    pub updated_at_unix_ms: u64,
-}
-
 /// Immutable Rust-authorized upload job handed to a native background
 /// transfer implementation after the durable draft enters `media_uploading`.
 #[derive(Clone)]
@@ -866,34 +868,6 @@ impl Phase1RevisionStatus {
 
     pub const fn phase(&self) -> Phase1RevisionPhase {
         self.phase
-    }
-}
-
-impl Phase1UploadPlan {
-    pub(super) fn derive(
-        now_unix_ms: u64,
-        operation_id: [u8; 16],
-        artifact_id: [u8; 16],
-    ) -> Result<Self, Phase1DraftError> {
-        let now_unix_s = now_unix_ms / 1_000;
-        if now_unix_s == 0 {
-            return Err(Phase1DraftError::ClockUnavailable);
-        }
-        Ok(Self {
-            authorization_content: BLOSSOM_AUTHORIZATION_CONTENT.to_owned(),
-            authorization_created_at_unix_s: now_unix_s
-                .saturating_sub(BLOSSOM_AUTHORIZATION_BACKDATE_SECONDS),
-            authorization_lifetime_seconds: BLOSSOM_AUTHORIZATION_LIFETIME_SECONDS,
-            operation_id: SigningOperationId::new(operation_id)
-                .map_err(|_| Phase1DraftError::InvalidDraft)?,
-            artifact_id: AuthoredArtifactId::new(artifact_id)
-                .map_err(|_| Phase1DraftError::InvalidDraft)?,
-            signing_deadline_unix_ms: now_unix_ms
-                .checked_add(BLOSSOM_SIGNING_TIMEOUT_MS)
-                .ok_or(Phase1DraftError::DeadlineOverflow)?,
-            cancellation: Phase1CancellationPolicy::LocalCooperative,
-            updated_at_unix_ms: now_unix_ms,
-        })
     }
 }
 
@@ -1577,19 +1551,17 @@ impl TeraRuntime {
         let transaction = blossom
             .prepare_upload(request)
             .map_err(|_| Phase1DraftError::Operation)?;
-        let job = self.authorize_native_upload(&transaction, &plan).await?;
-        let remote_url = job.remote_url();
         let uploading = self
-            .phase1_update_draft_media_admitted(
+            .update_draft_media(
                 &admission,
                 *intent.draft_id.as_bytes(),
                 intent.expected_revision.get(),
-                remote_url,
-                Phase1MediaStage::Uploading,
-                None,
+                transaction.expected_url().as_str(),
                 now_unix_ms,
+                |media| media.reserve_upload(&plan, &transaction),
             )
             .await?;
+        let job = self.authorize_native_upload(&transaction, &plan).await?;
         Ok((uploading, job))
     }
 
@@ -2177,41 +2149,15 @@ impl TeraRuntime {
         failure_code: Option<String>,
         updated_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
-        let draft_id =
-            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
-        let expected = AuthoredDraftRevision::new(expected_revision)
-            .map_err(|_| Phase1DraftError::RevisionConflict)?;
-        let storage = self.storage()?;
-        let head = storage
-            .authored_draft_head(draft_id)
-            .await
-            .map_err(|_| Phase1DraftError::Storage)?
-            .ok_or(Phase1DraftError::NotFound)?;
-        if head.revision() != expected
-            || head.stage().is_terminal()
-            || matches!(
-                head.stage(),
-                AuthoredDraftStage::ReadyToSign | AuthoredDraftStage::Queued
-            )
-        {
-            return Err(Phase1DraftError::RevisionConflict);
-        }
-        let mut payload = Phase1DraftPayload::decode(&head)?;
-        let media = payload
-            .media
-            .iter_mut()
-            .find(|media| media.url == url)
-            .ok_or(Phase1DraftError::InvalidMedia)?;
-        media.transition_requested(stage, failure_code)?;
-        let next_stage = draft_stage_for_media(&payload.media);
-        let next = head
-            .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
-            .map_err(|_| Phase1DraftError::RevisionConflict)?;
-        let receipt = storage
-            .append_authored_draft(next, Some(expected))
-            .await
-            .map_err(map_draft_storage_error)?;
-        self.draft_status_from(receipt.draft().clone()).await
+        self.update_draft_media(
+            _admission,
+            draft_id,
+            expected_revision,
+            url,
+            updated_at_unix_ms,
+            |media| media.transition_requested(stage, failure_code),
+        )
+        .await
     }
 
     /// Records the only proof that can advance media to remote-byte-verified.
@@ -2635,15 +2581,26 @@ impl TeraRuntime {
             .prepare_upload(request)
             .map_err(|_| Phase1DraftError::Operation)?;
         let url = transaction.expected_url().as_str().to_owned();
+        let plan = Phase1UploadPlan {
+            authorization_content: authorization_content.as_str().to_owned(),
+            authorization_created_at_unix_s,
+            authorization_lifetime_seconds,
+            operation_id: SigningOperationId::new(operation_id)
+                .map_err(|_| Phase1DraftError::InvalidMedia)?,
+            artifact_id: AuthoredArtifactId::new(artifact_id)
+                .map_err(|_| Phase1DraftError::InvalidMedia)?,
+            signing_deadline_unix_ms,
+            cancellation: signing_cancellation,
+            updated_at_unix_ms,
+        };
         let uploading = self
-            .phase1_update_draft_media_admitted(
+            .update_draft_media(
                 &admission,
                 draft_id,
                 expected_revision,
                 url.as_str(),
-                Phase1MediaStage::Uploading,
-                None,
                 updated_at_unix_ms,
+                |media| media.reserve_upload(&plan, &transaction),
             )
             .await?;
         let revision = uploading.draft().revision().get();

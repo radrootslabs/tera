@@ -83,6 +83,16 @@
       ]
     },
     {
+      "identifier": "RADROOTS_BLOSSOM_AUTH_MAX_HORIZON_SECONDS",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/upload_attempt.rs",
+          "count": 2
+        }
+      ]
+    },
+    {
       "identifier": "RADROOTS_LIB_REVISION",
       "category": "shared_foundation_api",
       "occurrences": [
@@ -4219,12 +4229,20 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/upload_attempt.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/media.rs",
           "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/media.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_authorization_tests.rs",
+          "count": 4
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_foreground_tests.rs",
@@ -4701,6 +4719,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_authorization_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
           "count": 1
         }
@@ -4791,6 +4813,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/native_upload.rs",
           "count": 3
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/upload_attempt.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",

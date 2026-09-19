@@ -20,18 +20,19 @@ impl TeraRuntime {
         let (mut loaded, _) = self.load_submission_operation(&input.submission).await?;
         self.require_submission_running(&input.submission).await?;
         let transaction = self.materialize_submission_media(&loaded, &input, false)?;
-        let media = loaded.payload.media_mut(&input.reference)?;
-        // Neither an interrupted transfer nor a possible remote effect grants
-        // permission for another PUT. Reconcile that attempt before renewal.
-        if media.stage() == Phase1MediaStage::Uploading || media.orphan().is_some() {
-            return Err(E::InvalidMedia);
-        }
-        media.transition_requested(Phase1MediaStage::Uploading, None)?;
         let plan = Phase1UploadPlan::derive(
             phase1_operation_now_unix_ms()?,
             phase1_new_operation_id()?,
             phase1_new_operation_id()?,
         )?;
+        loaded
+            .payload
+            .media_mut(&input.reference)?
+            .reserve_upload(&plan, &transaction)
+            .map_err(|_| E::InvalidMedia)?;
+        // Commit the exact attempt before the first possibly interactive await.
+        self.save_submission_media(&mut loaded).await?;
+        self.require_submission_running(&input.submission).await?;
         let authorization = self
             .authorize_upload_transaction(&transaction, &plan)
             .await?;
@@ -44,7 +45,6 @@ impl TeraRuntime {
         if blossom.config_fingerprint() != Some(transaction.config_fingerprint()) {
             return Err(E::MediaPolicyChanged);
         }
-        self.save_submission_media(&mut loaded).await?;
         self.require_submission_running(&input.submission).await?;
         match blossom
             .upload(

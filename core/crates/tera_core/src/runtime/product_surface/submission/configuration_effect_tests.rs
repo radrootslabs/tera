@@ -211,6 +211,17 @@ async fn configuration_change_during_upload_authorization_retains_stop_without_i
     tokio::time::timeout(Duration::from_secs(5), signer.entered.notified())
         .await
         .unwrap();
+    let reserved = runtime.submission_operation_status(&request).await.unwrap();
+    assert_eq!(
+        reserved.intent().revision().get(),
+        before.intent().revision().get() + 1
+    );
+    assert_eq!(
+        reserved.media()[0].stage(),
+        crate::runtime::product_surface::Phase1MediaStage::Uploading
+    );
+    assert_eq!(reserved.captured(), before.captured());
+    assert_eq!(reserved.push(), before.push());
     tokio::time::timeout(
         Duration::from_secs(2),
         configure(&runtime, "http://127.0.0.1:3001"),
@@ -224,8 +235,8 @@ async fn configuration_change_during_upload_authorization_retains_stop_without_i
         Err(SubmissionOperationError::Stopped)
     ));
     let stopped = runtime.submission_operation_status(&request).await.unwrap();
-    assert_eq!(stopped.intent(), before.intent());
-    assert_eq!(stopped.media(), before.media());
+    assert_eq!(stopped.intent(), reserved.intent());
+    assert_eq!(stopped.media(), reserved.media());
     assert_eq!(stopped.captured(), before.captured());
     assert!(
         stopped

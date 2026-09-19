@@ -75,3 +75,55 @@ impl Phase1MediaPrerequisite {
             && self.byte_size == other.byte_size
     }
 }
+
+impl TeraRuntime {
+    #[allow(clippy::too_many_arguments)]
+    pub(super) async fn update_draft_media(
+        &self,
+        _admission: &crate::runtime::mutation_admission::MutationPermit<'_>,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+        url: &str,
+        updated_at_unix_ms: u64,
+        update: impl FnOnce(&mut Phase1MediaPrerequisite) -> Result<(), Phase1DraftError>,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        let draft_id =
+            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
+        let expected = AuthoredDraftRevision::new(expected_revision)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let storage = self.storage()?;
+        let head = storage
+            .authored_draft_head(draft_id)
+            .await
+            .map_err(|_| Phase1DraftError::Storage)?
+            .ok_or(Phase1DraftError::NotFound)?;
+        if head.revision() != expected
+            || head.stage().is_terminal()
+            || matches!(
+                head.stage(),
+                AuthoredDraftStage::ReadyToSign | AuthoredDraftStage::Queued
+            )
+        {
+            return Err(Phase1DraftError::RevisionConflict);
+        }
+        let mut payload = Phase1DraftPayload::decode(&head)?;
+        let media = payload
+            .media
+            .iter_mut()
+            .find(|media| media.url == url)
+            .ok_or(Phase1DraftError::InvalidMedia)?;
+        update(media)?;
+        let next_stage = draft_stage_for_media(&payload.media);
+        let next = head
+            .successor(payload.encode()?, next_stage, None, updated_at_unix_ms)
+            .map_err(|_| Phase1DraftError::RevisionConflict)?;
+        let receipt = storage
+            .append_authored_draft(next.clone(), Some(expected))
+            .await
+            .map_err(map_draft_storage_error)?;
+        if receipt.draft() != &next {
+            return Err(Phase1DraftError::Storage);
+        }
+        self.draft_status_from(receipt.draft().clone()).await
+    }
+}
