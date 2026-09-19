@@ -164,3 +164,28 @@ fn exact_size_limit_is_admitted_and_changes_are_rechecked() {
         "media_size_mismatch"
     );
 }
+
+#[test]
+fn mutation_during_read_and_partial_reads_never_return_a_valid_prefix() {
+    for new_size in [3, 9] {
+        let original = fixture(b"original");
+        let admitted = owner(original.as_file());
+        let error = admitted
+            .read_with(8, |file, bytes| {
+                file.read_exact_at(bytes, 0)?;
+                original.as_file().set_len(new_size)
+            })
+            .unwrap_err();
+        assert_eq!(error.report().code, "media_size_mismatch");
+    }
+    let original = fixture(b"original");
+    let admitted = owner(original.as_file());
+    let error = admitted
+        .read_with(8, |file, bytes| {
+            file.read_exact_at(&mut bytes[..3], 0)?;
+            Err(std::io::ErrorKind::UnexpectedEof.into())
+        })
+        .unwrap_err();
+    assert_eq!(error.report().code, "media_read_failed");
+    assert_eq!(admitted.read(8).unwrap(), b"original");
+}

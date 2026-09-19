@@ -145,3 +145,46 @@ async fn cancellation_before_first_poll_releases_only_admitted_owner() {
     assert!(runtime.phase1_draft_status("33".repeat(16)).await.is_err());
     runtime.shutdown().await.unwrap();
 }
+
+#[tokio::test]
+async fn actual_runtime_rejects_metadata_and_file_mutation_before_persistence() {
+    let (_root, runtime) = support::runtime().await;
+    runtime
+        .configure_blossom(
+            FfiBlossomHostKind::Simulator,
+            FfiBlossomEndpointAuthority::LoopbackDevelopment,
+            "http://127.0.0.1:3000".to_owned(),
+            vec![],
+        )
+        .await
+        .unwrap();
+    for mutation in 0..7 {
+        let (original, mut input) = photo();
+        let media = &mut input.media[0];
+        match mutation {
+            0 => media.byte_size += 1,
+            1 => media.sha256 = Sha256::digest(b"wrong").to_hex(),
+            2 => media.media_type = "image/jpeg".into(),
+            3 => media.width += 1,
+            4 => media.height += 1,
+            5 => {
+                use std::os::unix::fs::FileExt;
+                original.as_file().write_all_at(b"BAD", 0).unwrap();
+            }
+            _ => original.as_file().set_len(3).unwrap(),
+        }
+        let id = format!("{:032x}", mutation + 100);
+        let error = runtime
+            .phase1_save_draft(id.clone(), input, 1_800_000_000, None, 1_800_000_000_000)
+            .await
+            .unwrap_err();
+        let expected = if mutation == 0 || mutation == 6 {
+            "media_size_mismatch"
+        } else {
+            "media_verification_failed"
+        };
+        assert_eq!(error.report().code, expected, "mutation {mutation}");
+        assert!(runtime.phase1_draft_status(id).await.is_err());
+    }
+    runtime.shutdown().await.unwrap();
+}

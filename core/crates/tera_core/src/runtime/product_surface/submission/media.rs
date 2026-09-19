@@ -15,6 +15,9 @@ use crate::{
     runtime::product_surface::{Phase1DraftError, Phase1MediaStage},
 };
 
+/// Match the existing native prepared-derivative bound before any upload work.
+const PREPARED_MEDIA_MAX_BYTES: usize = 10 * 1024 * 1024;
+
 #[path = "media_foreground.rs"]
 mod foreground;
 #[path = "media_runtime.rs"]
@@ -41,6 +44,7 @@ impl SubmissionMediaRequest {
             || reference.trim() != reference
             || reference.chars().any(char::is_control)
             || bytes.is_empty()
+            || bytes.len() > PREPARED_MEDIA_MAX_BYTES
         {
             return Err(E::InvalidMedia);
         }

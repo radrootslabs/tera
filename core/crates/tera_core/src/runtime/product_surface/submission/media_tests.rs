@@ -206,3 +206,63 @@ fn native_media_response_bounds_include_body_and_headers() {
     assert!(SubmissionMediaResponse::new(200, Some("a".into()), None, vec![0; 16_384]).is_err());
     assert!(SubmissionMediaResponse::new(200, None, None, vec![0; 16_385]).is_err());
 }
+
+#[test]
+fn submission_media_bounds_match_native_derivative_admission() {
+    for size in [0, 10 * 1024 * 1024 + 1] {
+        assert!(
+            SubmissionMediaRequest::new(
+                request(),
+                1,
+                photo().0.opaque_reference,
+                vec![0; size].into()
+            )
+            .is_err()
+        );
+    }
+    assert!(
+        SubmissionMediaRequest::new(
+            request(),
+            1,
+            photo().0.opaque_reference,
+            vec![0; 10 * 1024 * 1024].into()
+        )
+        .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn captured_media_identity_rejects_same_size_mutation_and_wrong_reference() {
+    let signer = CountingSigner::new();
+    let runtime = runtime(None, signer.clone(), "ws://127.0.0.1:19999").await;
+    let request = request();
+    prepare(&runtime, &request, true).await;
+    let initial = runtime.submission_operation_status(&request).await.unwrap();
+    for wrong_reference in [false, true] {
+        let (photo, bytes) = photo();
+        let mut bytes = bytes.to_vec();
+        if !wrong_reference {
+            bytes[23] ^= 1;
+        }
+        let reference = if wrong_reference {
+            "media:another-owner".into()
+        } else {
+            photo.opaque_reference
+        };
+        let input =
+            SubmissionMediaRequest::new(request.clone(), 1, reference, bytes.into()).unwrap();
+        assert!(
+            runtime
+                .submission_prepare_native_upload(input)
+                .await
+                .is_err()
+        );
+        assert_eq!(
+            runtime.submission_operation_status(&request).await.unwrap(),
+            initial
+        );
+        assert_eq!(signer.count(), 0);
+        assert_eq!(signer.statuses.load(Ordering::SeqCst), 0);
+    }
+    runtime.shutdown().await.unwrap();
+}

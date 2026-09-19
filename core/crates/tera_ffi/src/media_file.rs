@@ -50,6 +50,15 @@ impl FfiMediaFile {
 impl FfiMediaFile {
     #[cfg(unix)]
     pub(crate) fn read(&self, expected_size: u64) -> Result<Vec<u8>, TeraAppError> {
+        self.read_with(expected_size, |file, bytes| file.read_exact_at(bytes, 0))
+    }
+
+    #[cfg(unix)]
+    fn read_with(
+        &self,
+        expected_size: u64,
+        read: impl FnOnce(&File, &mut [u8]) -> std::io::Result<()>,
+    ) -> Result<Vec<u8>, TeraAppError> {
         // File contents can change through another descriptor. Recheck the
         // exact size and retain the existing downstream digest/image validation.
         if expected_size != self.byte_size {
@@ -59,9 +68,12 @@ impl FfiMediaFile {
         let count = usize::try_from(expected_size)
             .map_err(|_| TeraAppError::invalid_argument("media_size_mismatch"))?;
         let mut bytes = vec![0; count];
-        self.file
-            .read_exact_at(&mut bytes, 0)
+        read(&self.file, &mut bytes)
             .map_err(|_| TeraAppError::invalid_argument("media_read_failed"))?;
+        // A concurrent append must not turn a valid prefix into an admitted
+        // complete file. Downstream hashing binds the retained exact bytes;
+        // this second size check also rejects growth/shrink during the read.
+        validate_size(&self.file, expected_size)?;
         Ok(bytes)
     }
 
