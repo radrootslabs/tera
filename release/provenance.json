@@ -5,8 +5,8 @@
     "ffi_provenance_sha256": "ead80b55a42cc0e4d83933566bfeb7ca7e5e795b072ebb82afe20589c6b69af5",
     "info_plist_sha256": "15ef08b1cdd1096cfb9eeaf5be5bf8f814807a7ca9350bbbb47860fa72ec13ef",
     "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
-    "sbom_sha256": "a6f222a102d669d3567eba0c27747ead9f4ca4da75a3cf0e7037dd30b0e90666",
-    "xcode_project_sha256": "5fab6b9f96515ddb472927b7972af9f01a2a2d2218daed46129a22eb98769bea"
+    "sbom_sha256": "25cc4090e97caeddfadec9aa45d6a1fb1235a18033c1e9af70cfe6599302dcb5",
+    "xcode_project_sha256": "e3d0c74ec465bae1e14312be80eef0dd1cae47cf5a1959504fb7e2e0b989fab1"
   },
   "disposition": "unsigned",
   "platforms": [
@@ -21,9 +21,9 @@
     "consumer_source_lock_sha256": "8d3ce593c764a1756aecc81807c8ae63f654eb34e8cc7e01fff3287ad04d37a1",
     "lib_revision": "4a2285ea896cfc361f539c74c467a3fd5591ec74",
     "source_date_epoch": 1787871027,
-    "swift_package_lock_sha256": "1be7382cef5e337d1a65005657e5a40d46e6d9023004a3d84a2ecf3447d0f161",
+    "swift_package_lock_sha256": "29d68f2242a7725bc38381520ec196803893bf689c8e6b848647e664d6262316",
     "tera_ffi_source_tree": "e56e06e366f9d471881a036289136ad4cf070f1b",
-    "xcode_package_lock_sha256": "f5b071859f22e57f05afbeb0e93efeea68e3dfdff4497b0a88c9ba8461912b86"
+    "xcode_package_lock_sha256": "c468f2b0469438387c519e1b2de424a118dfa9145ea07dcfd2bc5cc714ec8559"
   },
   "version": "0.1.0-alpha"
 }

@@ -1,12 +1,12 @@
 {
-  "originHash" : "68f466c92ca7e586b8c5eefbd30b77327eeca9dcdade1c51ab6860394b866c1c",
+  "originHash" : "af1e4801441368b16f3a5881b4211a2a61e1dc8260fc679374e19a250f41ecbb",
   "pins" : [
     {
       "identity" : "apple_kit",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/radrootslabs/apple_kit.git",
       "state" : {
-        "revision" : "8898507a58491950da93ec73ebd78888717618a6"
+        "revision" : "bf6eff1ebb4c854983a651b333d00d622714199b"
       }
     },
     {
