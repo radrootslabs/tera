@@ -179,6 +179,20 @@
         {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionTests.swift",
+          "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleBackgroundTransferAdapters",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
+          "count": 1
         }
       ]
     },
@@ -199,6 +213,10 @@
         {
           "path": "Tera/Runtime/TeraMediaCleanup.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 2
         },
         {
           "path": "TeraTests/TeraMediaCleanupTests.swift",
@@ -647,6 +665,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraNativeUploadExecution.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
           "count": 2
         },
@@ -657,6 +679,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
+          "count": 1
         }
       ]
     },
@@ -670,6 +696,10 @@
         },
         {
           "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionTests.swift",
           "count": 2
         }
       ]
@@ -707,6 +737,10 @@
           "count": 3
         },
         {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
+          "count": 6
+        },
+        {
           "path": "TeraTests/TeraUserMessagesTests.swift",
           "count": 1
         }
@@ -729,6 +763,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 4
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
+          "count": 2
         }
       ]
     },
@@ -738,7 +776,7 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 2
+          "count": 1
         },
         {
           "path": "Tera/Runtime/TeraBackgroundUploadRequest.swift",
@@ -750,6 +788,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 6
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
           "count": 6
         },
         {
@@ -785,8 +827,16 @@
           "count": 2
         },
         {
+          "path": "Tera/Runtime/TeraNativeUploadExecution.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 9
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
+          "count": 3
         }
       ]
     },
@@ -807,6 +857,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionTests.swift",
+          "count": 1
         }
       ]
     },
@@ -826,11 +880,11 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
-          "count": 1
+          "count": 2
         },
         {
           "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
-          "count": 1
+          "count": 3
         },
         {
           "path": "Tera/Runtime/TeraMediaCleanup.swift",
@@ -839,6 +893,10 @@
         {
           "path": "Tera/Runtime/TeraNativeRecoveryInventory.swift",
           "count": 4
+        },
+        {
+          "path": "Tera/Runtime/TeraNativeUploadExecution.swift",
+          "count": 1
         },
         {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
@@ -854,6 +912,14 @@
         },
         {
           "path": "TeraTests/TeraMediaCleanupTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionTests.swift",
           "count": 1
         }
       ]
@@ -898,6 +964,10 @@
       "occurrences": [
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
           "count": 1
         }
       ]
@@ -1379,6 +1449,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraNativeUploadExecution.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
           "count": 1
         },
@@ -1452,6 +1526,14 @@
         },
         {
           "path": "TeraTests/TeraMutationAdmissionTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionFixture.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeExecutionTests.swift",
           "count": 1
         },
         {

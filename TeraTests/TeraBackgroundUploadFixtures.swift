@@ -47,6 +47,10 @@ final class BackgroundUploadFixture: @unchecked Sendable {
     roots.stagedBlobsRoot.appendingPathComponent(media.sha256)
   }
 
+  var nativeStore: RadrootsAppleBackgroundTransferStore {
+    RadrootsAppleBackgroundTransferStore(roots: roots)
+  }
+
   func coordinator(transfer: any RadrootsBackgroundTransfer) -> TeraAddMediaCoordinator {
     TeraAddMediaCoordinator(
       roots: roots,

@@ -63,52 +63,66 @@ enum TeraBackgroundUploadWaiter {
     for identifier: RadrootsBackgroundTransferIdentifier,
     draftID: String,
     expectedRevision: UInt64,
-    request: RadrootsBackgroundTransferRequest
+    request: RadrootsBackgroundTransferRequest,
+    baseline: RadrootsBackgroundTransferSnapshot? = nil,
+    waitNanoseconds: UInt64 = TeraRuntimeDeadlinePolicy.production.operationNanoseconds
   ) async throws -> TeraAddBackgroundUploadReceipt {
+    guard waitNanoseconds > 0, waitNanoseconds <= TeraRuntimeDeadlinePolicy.production.operationNanoseconds,
+      let identity = TeraBackgroundUploadRequest.transferIdentity(identifier),
+      identity.draftID == draftID, identity.revision <= expectedRevision
+    else { throw TeraNativeUploadExecution.unknown }
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .nanoseconds(Int64(waitNanoseconds)))
+    var observed = baseline
     while true {
       try Task.checkCancellation()
+      guard clock.now < deadline else { throw TeraNativeUploadExecution.unknown }
       guard let snapshot = try await transfer.snapshot(for: identifier) else {
         throw failure(
           code: "ios.add.background_upload_missing",
           message: "The background photo upload could not be recovered."
         )
       }
-      guard TeraBackgroundUploadRequest.persistedRequestMatches(snapshot.request, request: request) else {
+      try Task.checkCancellation()
+      guard clock.now < deadline else { throw TeraNativeUploadExecution.unknown }
+      guard snapshot.identifier == identifier,
+        TeraBackgroundUploadRequest.persistedRequestMatches(snapshot.request, request: request),
+        observed == nil || observed?.executionID == snapshot.executionID
+      else {
         throw Self.failure(
           code: "ios.add.background_upload_mismatch",
           message: "The persisted photo upload no longer matches its request."
         )
       }
+      observed = snapshot
       switch snapshot.state {
       case .awaitingVerification, .completed:
         try Task.checkCancellation()
-        guard let response = snapshot.response,
-          let statusCode = UInt16(exactly: response.statusCode),
-          let body = response.body
-        else {
-          throw Self.failure(
-            code: "ios.add.background_response_invalid",
-            message: "The photo service returned an invalid response."
-          )
-        }
-        return TeraAddBackgroundUploadReceipt(
-          identifier: identifier.rawValue,
-          draftID: draftID,
-          expectedRevision: expectedRevision,
-          statusCode: statusCode,
-          mediaType: response.mediaType,
-          contentEncoding: response.contentEncoding,
-          body: body
-        )
+        return try completedReceipt(snapshot, identity: identity)
       case .failed, .interrupted, .cancelled, .expired:
         throw Self.failure(
           code: snapshot.failure?.rawValue ?? "ios.add.background_upload_failed",
           message: TeraUserMessages.text(.backgroundTransferFailed)
         )
       case .queued, .running:
-        try await Task.sleep(for: .milliseconds(100))
+        try await clock.sleep(until: min(deadline, clock.now.advanced(by: .milliseconds(100))))
       }
     }
+  }
+
+  private static func completedReceipt(_ snapshot: RadrootsBackgroundTransferSnapshot,
+                                       identity: TeraNativeTransferIdentity) throws -> TeraAddBackgroundUploadReceipt
+  {
+    guard let response = snapshot.response,
+      let statusCode = UInt16(exactly: response.statusCode), let body = response.body
+    else {
+      throw failure(code: "ios.add.background_response_invalid",
+                    message: "The photo service returned an invalid response.")
+    }
+    return TeraAddBackgroundUploadReceipt(identifier: snapshot.identifier.rawValue,
+                                          draftID: identity.draftID, expectedRevision: identity.revision,
+                                          statusCode: statusCode, mediaType: response.mediaType,
+                                          contentEncoding: response.contentEncoding, body: body)
   }
 
   private static func failure(code: String, message: String) -> TeraRuntimeFailure {

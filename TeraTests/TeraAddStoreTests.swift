@@ -28,7 +28,7 @@ final class TeraAddStoreTests: XCTestCase {
       media: fixture.media
     )
     XCTAssertEqual(replayed.identifier, first.identifier)
-    XCTAssertEqual(replayed.expectedRevision, 3)
+    XCTAssertEqual(replayed.expectedRevision, 2)
     counts = await transfer.counts
     XCTAssertEqual(counts.enqueue, 1)
 

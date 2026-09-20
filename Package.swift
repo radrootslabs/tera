@@ -14,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/radrootslabs/apple_kit.git",
-      revision: "bf6eff1ebb4c854983a651b333d00d622714199b"
+      revision: "75a4a63149adb55b6a07f94686ef74b5446f1136"
     ),
   ],
   targets: [
@@ -59,6 +59,7 @@ let package = Package(
         "Runtime/TeraStoppedUploadRecovery.swift",
         "Runtime/TeraPublicationEvidence.swift",
         "Runtime/TeraBackgroundUploadWaiter.swift",
+        "Runtime/TeraNativeUploadExecution.swift",
         "Runtime/TeraGeneratedRuntimeBackendSubmission.swift",
         "Runtime/TeraGeneratedSubmissionOperation.swift",
         "Runtime/TeraNativeTransferJob.swift",

@@ -241,29 +241,28 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     let request = try await TeraBackgroundUploadRequest.prepare(
       job: job, media: media, preparer: preparer
     )
-    let identifier = request.identifier
     let persisted = try await TeraBackgroundUploadWaiter.matchingPersistedUpload(transfer: transfer,
                                                                                  draftID: job.ownerID,
                                                                                  expectedRevision: job.expectedRevision,
                                                                                  request: request)
-    let activeIdentifier: RadrootsBackgroundTransferIdentifier
+    let active: RadrootsBackgroundTransferSnapshot
     if let persisted {
-      activeIdentifier = persisted.identifier
       if [.failed, .interrupted, .cancelled, .expired].contains(persisted.state) {
-        let retry = try TeraBackgroundUploadRequest.replacingIdentifier(in: request, with: activeIdentifier)
+        let retry = try TeraBackgroundUploadRequest.replacingIdentifier(in: request, with: persisted.identifier)
         try Task.checkCancellation()
-        _ = try await transfer.retry(retry)
+        active = try await TeraNativeUploadExecution.start(transfer: transfer, request: retry, retrying: true)
+      } else {
+        active = persisted
       }
     } else {
       try Task.checkCancellation()
-      _ = try await transfer.enqueue(request)
-      activeIdentifier = identifier
+      active = try await TeraNativeUploadExecution.start(transfer: transfer, request: request, retrying: false)
     }
     return try await TeraBackgroundUploadWaiter.receipt(transfer: transfer,
-                                                        for: activeIdentifier,
+                                                        for: active.identifier,
                                                         draftID: job.ownerID,
                                                         expectedRevision: job.expectedRevision,
-                                                        request: request)
+                                                        request: request, baseline: active)
   }
 
   func settleBackgroundUpload(identifier: String, accepted: Bool) async throws {
