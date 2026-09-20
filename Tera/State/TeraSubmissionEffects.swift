@@ -80,6 +80,7 @@ struct TeraSubmissionEffects {
       ), response: receipt)
       try accept(current)
       try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
+      _ = await TeraNativeRecoveryClassification.report(receipt.identifier, reason: .resolved, client: client)
       try ensure()
       if current.delivery.isStopped || !mayStart() {
         return current
@@ -103,6 +104,7 @@ struct TeraSubmissionEffects {
       ), response: receipt)
       try accept(current)
       try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
+      _ = await TeraNativeRecoveryClassification.report(receipt.identifier, reason: .resolved, client: client)
     }
     // Pending, missing or unreadable native responses remain uncertain.
   }

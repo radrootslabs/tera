@@ -119,6 +119,7 @@ struct TeraLegacySubmission {
       try ensure()
       status = try await TeraAddUploadCompletion.complete(receipt, handle: handle, media: media, runtimeClient: runtimeClient)
       try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
+      _ = await TeraNativeRecoveryClassification.report(receipt.identifier, reason: .resolved, client: runtimeClient)
       try acceptDraft(status)
       await refreshMedia()
       try ensure()

@@ -665,6 +665,10 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
+          "path": "Tera/Runtime/TeraNativeRecoveryStatus.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
           "count": 2
         }
@@ -684,6 +688,10 @@
       "identifier": "RadrootsBackgroundTransferError.persistenceFailure",
       "category": "shared_apple_api",
       "occurrences": [
+        {
+          "path": "TeraTests/TeraNativeRepairTests.swift",
+          "count": 1
+        },
         {
           "path": "TeraTests/TeraUserMessagesTests.swift",
           "count": 1
@@ -743,6 +751,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
+        },
+        {
+          "path": "TeraTests/TeraNativeRepairTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraRecoveryInventoryTests.swift",
@@ -826,7 +838,7 @@
         },
         {
           "path": "Tera/Runtime/TeraNativeRecoveryInventory.swift",
-          "count": 1
+          "count": 4
         },
         {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
@@ -1363,6 +1375,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraNativeRecoveryStatus.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
           "count": 1
         },
@@ -1436,6 +1452,10 @@
         },
         {
           "path": "TeraTests/TeraMutationAdmissionTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeRepairTests.swift",
           "count": 1
         },
         {
@@ -2514,6 +2534,10 @@
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraNativeRepairTests.swift",
           "count": 1
         },
         {
@@ -5517,6 +5541,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/recovery_reconciliation.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/recovery_status.rs",
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",

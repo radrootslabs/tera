@@ -36,7 +36,7 @@ struct TeraAddView: View {
         EmptyView()
       }
 
-      TeraAddSaveStatus(message: store.message, symbol: statusSymbol, state: store.composerState, mediaMessage: store.mediaRecoveryMessage, protection: store.protection)
+      TeraAddSaveStatus(message: store.message, symbol: statusSymbol, state: store.composerState, mediaMessage: store.mediaRecoveryMessage, protection: store.protection, repairs: store.recovery.transfers)
       TeraSubmissionStatusView(store: store.submissions)
 
       if store.activeDraft?.kind == .retraction {

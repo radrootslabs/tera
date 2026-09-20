@@ -5,6 +5,8 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 }
 
 protocol TeraRuntimeBackend: Sendable {
+  func nativeRecoveryStatus(key: String) async throws -> TeraNativeRecoveryStatus?
+  func reportNativeRecoveryStatus(key: String, reason: TeraNativeRecoveryReason) async throws -> TeraNativeRecoveryStatus?
   func recoveryPage(limit: UInt16, cursor: String?) async throws -> TeraRecoveryPage
   func recoverNativeUpload(_ receipt: TeraRecoveryUploadReceipt, media: TeraPreparedMediaHandle) async throws -> TeraRecoveryCompletionReceipt
   func recoveryParent(key: String) async throws -> TeraRecoveryEntry?

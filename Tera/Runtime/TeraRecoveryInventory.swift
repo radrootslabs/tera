@@ -23,6 +23,8 @@ struct TeraNativeRecoveryProgress: Sendable, Equatable {
   let visited: Int
   let remaining: Int
   let needsAttention: Bool
+  var issues: [TeraNativeRecoveryIssue] = []
+  var pause: TeraNativeRecoveryPause?
 }
 
 extension TeraRuntimeClient {
@@ -45,7 +47,7 @@ extension TeraRuntimeClient {
         let value = try await backend.submissionStatus(request: request)
         guard value.intentID == key, value.request == request, value.revision >= entry.revision else { throw TeraComposerAcknowledgment.unconfirmed }
         return TeraNativeUploadRecoveryOwner(submission: value)
-      case .repair: throw TeraComposerAcknowledgment.unconfirmed
+      case .repair: throw TeraNativeRecoveryFault.invalidParent
       }
     }
   }

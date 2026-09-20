@@ -40,7 +40,7 @@ final class TeraComposerStartupTests: XCTestCase {
     await store.start()
     XCTAssertEqual(store.state, .ready)
     XCTAssertTrue(store.canSave)
-    XCTAssertEqual(store.mediaRecoveryMessage, "Photo recovery needs attention. Saved editing is still available.")
+    XCTAssertEqual(store.recovery.transfers.message, "Photo recovery needs attention. Saved editing is still available.")
     XCTAssertNil(store.message)
     store.stop()
     _ = try await client.stop()

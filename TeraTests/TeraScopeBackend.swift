@@ -2,6 +2,7 @@ import Foundation
 @testable import TeraApp
 
 actor TeraScopeBackend: TeraRuntimeBackend {
+  var nativeRepairValues: [String: TeraNativeRecoveryStatus] = [:]
   enum Call: Hashable { case snapshot, schemas, drafts, save, composer, composerLoad, composerList, legacyPage, draftStatus, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate }
   struct Pending {
     let pause: ResourceTestPause

@@ -623,11 +623,8 @@ extension TeraAddStore {
       if serviceConfiguration == configuration {
         mediaRecoveryMessage = loaded.mediaMessage
       }
-      let mediaMessage = await TeraAddStartupSnapshot.reconcile(media: media, client: runtimeClient)
+      await recovery.transfers.reconcile()
       try ensureCurrent(requestedGeneration)
-      if let mediaMessage {
-        mediaRecoveryMessage = mediaMessage
-      }
       schemas = loaded.schemas
       if draftRequest == appliedDraftsGeneration {
         appliedDraftsGeneration = try appliedDraftsGeneration.next()

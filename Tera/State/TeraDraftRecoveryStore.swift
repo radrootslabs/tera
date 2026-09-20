@@ -4,6 +4,7 @@ import Foundation
 /// composer and legacy pages are retained; continuation never grows an archive.
 @MainActor
 final class TeraDraftRecoveryStore: ObservableObject {
+  let transfers: TeraNativeRepairStore
   static let pageSize: UInt16 = 100
   @Published private(set) var composers: [TeraComposerListEntry] = []
   @Published private(set) var legacy: [TeraLegacyDraftListEntry] = []
@@ -22,6 +23,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
   private enum Request { case first, composers(String), legacy(String) }
 
   init(client: TeraRuntimeClient, media: (any TeraAddMediaHandling)? = nil) {
+    transfers = TeraNativeRepairStore(client: client, media: media)
     self.client = client
     composer = TeraComposerPersistence(client: client).protectingMedia(media)
   }
@@ -32,6 +34,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
     guard self.scope != scope else { return }
     stop()
     self.scope = scope
+    transfers.configure(author: scope.authorPublicKey)
     composers = []
     legacy = []
     composerCursor = nil
@@ -41,6 +44,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
   }
 
   func stop() {
+    transfers.stop()
     generation = generation.invalidated()
     pending = nil
     task?.cancel()

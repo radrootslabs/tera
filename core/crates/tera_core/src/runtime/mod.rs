@@ -39,6 +39,8 @@ pub struct TeraRuntime {
     #[cfg(feature = "mobile-social")]
     pub(crate) settings_lock: tokio::sync::Mutex<()>,
     #[cfg(feature = "mobile-social")]
+    recovery_status_lock: tokio::sync::Mutex<()>,
+    #[cfg(feature = "mobile-social")]
     pub(crate) publication_configuration:
         tokio::sync::RwLock<product_surface::PublicationConfiguration>,
     #[cfg(feature = "mobile-social")]
@@ -102,6 +104,8 @@ impl TeraRuntime {
             mutations: mutation_admission::MutationAdmission::default(),
             #[cfg(feature = "mobile-social")]
             settings_lock: tokio::sync::Mutex::new(()),
+            #[cfg(feature = "mobile-social")]
+            recovery_status_lock: tokio::sync::Mutex::new(()),
             #[cfg(feature = "mobile-social")]
             publication_configuration: Default::default(),
             #[cfg(feature = "mobile-social")]

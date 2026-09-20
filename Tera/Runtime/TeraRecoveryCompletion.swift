@@ -25,7 +25,7 @@ struct TeraRecoveryUploadReceipt: Sendable {
           body.count <= 16384, (response.mediaType?.utf8.count ?? 0) <= 8192,
           (response.contentEncoding?.utf8.count ?? 0) <= 8192,
           body.count + (response.mediaType?.utf8.count ?? 0) + (response.contentEncoding?.utf8.count ?? 0) <= 16384
-    else { throw TeraComposerAcknowledgment.unconfirmed }
+    else { throw TeraNativeRecoveryFault.associationMismatch }
     parent = identity.draftID
     revision = identity.revision
     attempt = identity.attempt

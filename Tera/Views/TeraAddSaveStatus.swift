@@ -6,6 +6,7 @@ struct TeraAddSaveStatus: View {
   let state: TeraComposerSaveState
   var mediaMessage: String?
   let protection: TeraEditingProtection
+  @ObservedObject var repairs: TeraNativeRepairStore
 
   var body: some View {
     Section {
@@ -22,5 +23,6 @@ struct TeraAddSaveStatus: View {
       }
     }
     TeraEditingProtectionActions(protection: protection)
+    TeraNativeRepairView(store: repairs)
   }
 }

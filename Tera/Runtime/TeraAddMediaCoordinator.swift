@@ -64,7 +64,7 @@ extension TeraAddMediaHandling {
   }
 
   func reconcileBackgroundSubmissions(_: [TeraSubmissionStatus], client: TeraRuntimeClient) async throws {
-    _ = try await recoverNativeUploads(client: client)
+    _ = try? await recoverNativeUploads(client: client)
   }
 
   func retainedSubmissionUpload(_: TeraSubmissionStatus, media _: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt? {
@@ -74,7 +74,7 @@ extension TeraAddMediaHandling {
   func settleBackgroundUpload(identifier _: String, accepted _: Bool) async throws {}
 
   func reconcileBackgroundUploads(drafts _: [TeraDraftStatus], client: TeraRuntimeClient) async throws {
-    _ = try await recoverNativeUploads(client: client)
+    _ = try? await recoverNativeUploads(client: client)
   }
 }
 
@@ -336,6 +336,8 @@ extension TeraAddMediaCoordinator {
       try Task.checkCancellation()
       try receipt.confirm(input)
       try await self.settleRecoveredUpload(snapshot, input: input, receipt: receipt)
+    }, report: { snapshot, reason in
+      await TeraNativeRecoveryClassification.report(snapshot.identifier.rawValue, reason: reason, client: client)
     }, lookup: { key in try await client.recoveryUploadOwner(key: key) })
     recoveryCursor = result.cursor
     return result.progress
