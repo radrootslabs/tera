@@ -20,9 +20,15 @@ struct TeraAddStartupSnapshot {
                 mediaMessage: support == nil ? "Photo support is unavailable. Saved editing is still available." : nil)
   }
 
-  static func reconcile(media: (any TeraAddMediaHandling)?, drafts: [TeraDraftStatus]) async -> String? {
+  static func reconcile(media: (any TeraAddMediaHandling)?, client: TeraRuntimeClient) async -> String? {
     do {
-      try await media?.reconcileBackgroundUploads(drafts: drafts)
+      guard let progress = try await media?.recoverNativeUploads(client: client) else { return nil }
+      if progress.remaining > 0 {
+        return "More saved photo recovery remains. Saved editing is still available."
+      }
+      if progress.needsAttention {
+        return "Photo recovery needs attention. Saved editing is still available."
+      }
       return nil
     } catch {
       return "Photo recovery needs attention. Saved editing is still available."

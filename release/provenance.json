@@ -1,12 +1,12 @@
 {
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
-    "ffi_api_sha256": "2606b0b158c260c6168a8c6b3f4b5867b46242c8249ae40b511e0aaa60c4e3b8",
-    "ffi_provenance_sha256": "7a0b4edbc6276378f9e0f900b336d6e5383fb9af69fc6b90dd3b03f0369084d5",
+    "ffi_api_sha256": "12c54595ac3ebcb6aa22c7e968b019f67e1bc0606782ef4b71c601df6a54e764",
+    "ffi_provenance_sha256": "6a1a360e7a13afc89008544a964c4d747bc563c6af28f19fb2ddeea301416d0c",
     "info_plist_sha256": "15ef08b1cdd1096cfb9eeaf5be5bf8f814807a7ca9350bbbb47860fa72ec13ef",
     "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
     "sbom_sha256": "3670c97ee6ffc2c2abd3249885c89bd7c20ec43fedcb66442501a2f42d74fc2a",
-    "xcode_project_sha256": "c8ac366e915c6ac19f6f51f87e9e645ecaa61b6cff4d0a9f78bdb8bc475de20d"
+    "xcode_project_sha256": "167ebf2b8573be6a59bbc0bec07251bdedd31bf9ab1fb2875f1d8a0d295fffe5"
   },
   "disposition": "unsigned",
   "platforms": [
@@ -22,7 +22,7 @@
     "lib_revision": "91006304a47ff335c6f36fbbcfcb68ecfc76f6c7",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "29d68f2242a7725bc38381520ec196803893bf689c8e6b848647e664d6262316",
-    "tera_ffi_source_tree": "3454e7f59be62e24ed26886cc5a43eec7addb153",
+    "tera_ffi_source_tree": "207953b663237a6397cdd564c488e1491dbfde76",
     "xcode_package_lock_sha256": "c468f2b0469438387c519e1b2de424a118dfa9145ea07dcfd2bc5cc714ec8559"
   },
   "version": "0.1.0-alpha"

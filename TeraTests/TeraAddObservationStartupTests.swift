@@ -23,14 +23,14 @@ final class TeraAddObservationStartupTests: XCTestCase {
     XCTAssertEqual(store.drafts.first?.form?.content, "old")
     XCTAssertEqual(store.mediaSupport, .init(library: true, camera: true))
     XCTAssertEqual(store.state, .ready)
-    let inventories = await media.inventories
-    XCTAssertEqual(inventories.map { $0.first?.revision }, [1])
+    let recoveryPasses = await media.recoveryPasses
+    XCTAssertEqual(recoveryPasses, 1)
     await observerDrafts.resume.open()
     store.stop()
     _ = try await client.stop()
   }
 
-  func testStartupReconcilesTheAppliedObserverInventoryAndKeepsMediaSupport() async throws {
+  func testStartupRecoversIndependentlyOfAppliedObserverInventoryAndKeepsMediaSupport() async throws {
     let backend = try TeraScopeBackend()
     let client = try await TeraScopeFixtures.client(backend)
     let media = ObservationStartupMedia()
@@ -52,8 +52,8 @@ final class TeraAddObservationStartupTests: XCTestCase {
     await startup.value
     XCTAssertEqual(store.drafts.first?.revision, 2)
     XCTAssertEqual(store.mediaSupport, .init(library: true, camera: true))
-    let inventories = await media.inventories
-    XCTAssertEqual(inventories.map { $0.first?.revision }, [2])
+    let recoveryPasses = await media.recoveryPasses
+    XCTAssertEqual(recoveryPasses, 1)
     store.stop()
     _ = try await client.stop()
   }
@@ -61,15 +61,16 @@ final class TeraAddObservationStartupTests: XCTestCase {
 
 private actor ObservationStartupMedia: TeraAddMediaHandling {
   let supportPause = ResourceTestPause()
-  private(set) var inventories: [[TeraDraftStatus]] = []
+  private(set) var recoveryPasses = 0
 
   func support() async -> TeraAddMediaSupport {
     await supportPause.wait()
     return .init(library: true, camera: true)
   }
 
-  func reconcileBackgroundUploads(drafts: [TeraDraftStatus]) {
-    inventories.append(drafts)
+  func recoverNativeUploads(client _: TeraRuntimeClient) -> TeraNativeRecoveryProgress {
+    recoveryPasses += 1
+    return .init(visited: 0, remaining: 0, needsAttention: false)
   }
 
   func importImages(limit _: Int) throws -> [TeraPreparedMedia] {

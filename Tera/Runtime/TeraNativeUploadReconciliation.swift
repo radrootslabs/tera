@@ -18,7 +18,17 @@ enum TeraNativeUploadReconciliation {
       guard let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
         let draft = draftsByID[identity.draftID]
       else { continue }
-      guard draft.revision > identity.revision,
+      try await reconcile(snapshot, owner: draft, transfer: transfer)
+    }
+  }
+
+  static func reconcile(
+    _ snapshot: RadrootsBackgroundTransferSnapshot, owner draft: TeraNativeUploadRecoveryOwner,
+    transfer: any RadrootsBackgroundTransfer
+  ) async throws {
+      guard let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
+        snapshot.state == .awaitingVerification, draft.id == identity.draftID,
+        draft.revision > identity.revision,
         let media = draft.media.first(where: {
           $0.sha256 == snapshot.request.expectedSourceSHA256
             && ($0.remoteURL == snapshot.request.remoteURL.absoluteString
@@ -35,7 +45,6 @@ enum TeraNativeUploadReconciliation {
         )
       }
       try await transfer.settle(snapshot.identifier, verification: .accepted)
-    }
   }
 
   private static func failure(code: String, message: String) -> TeraRuntimeFailure {

@@ -4,6 +4,8 @@ use std::sync::Arc;
 mod composer;
 #[path = "draft_inventory/runtime.rs"]
 mod draft_inventory;
+#[path = "recovery_inventory/runtime.rs"]
+mod recovery_inventory;
 #[path = "submission/runtime.rs"]
 mod submission;
 

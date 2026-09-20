@@ -643,8 +643,12 @@
           "count": 3
         },
         {
-          "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
+          "path": "Tera/Runtime/TeraNativeRecoveryInventory.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
+          "count": 2
         },
         {
           "path": "Tera/Runtime/TeraStoppedUploadRecovery.swift",
@@ -739,6 +743,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
+        },
+        {
+          "path": "TeraTests/TeraRecoveryInventoryTests.swift",
+          "count": 1
         }
       ]
     },
@@ -810,6 +818,10 @@
         },
         {
           "path": "Tera/Runtime/TeraMediaCleanup.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
           "count": 1
         },
         {
@@ -1335,6 +1347,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraNativeRecoveryInventory.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
           "count": 1
         },
@@ -1408,6 +1424,10 @@
         },
         {
           "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRecoveryInventoryTests.swift",
           "count": 1
         },
         {
@@ -2471,6 +2491,10 @@
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRecoveryInventoryTests.swift",
+          "count": 1
         }
       ]
     },
@@ -3461,6 +3485,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/recovery_inventory.rs",
+          "count": 1
         }
       ]
     },
@@ -3474,6 +3502,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/recovery_inventory.rs",
           "count": 1
         }
       ]
@@ -5379,6 +5411,14 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/recovery_inventory.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/recovery_inventory/tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/settings.rs",
           "count": 3
         },
@@ -5465,6 +5505,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/record.rs",
           "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/recovery_inventory.rs",
+          "count": 3
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/reference_inventory.rs",

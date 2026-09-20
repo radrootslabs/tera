@@ -73,7 +73,7 @@ private actor RecoveryMediaFailure: TeraAddMediaHandling {
     throw TeraScopeFixtures.failure()
   }
 
-  func reconcileBackgroundUploads(drafts _: [TeraDraftStatus]) throws {
+  func recoverNativeUploads(client _: TeraRuntimeClient) throws -> TeraNativeRecoveryProgress {
     throw TeraScopeFixtures.failure()
   }
 

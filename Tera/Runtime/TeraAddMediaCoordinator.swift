@@ -19,6 +19,7 @@ struct TeraAddBackgroundUploadReceipt: Sendable, Equatable {
 }
 
 protocol TeraAddMediaHandling: Sendable {
+  func recoverNativeUploads(client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) async throws
   func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool
   func support() async throws -> TeraAddMediaSupport
@@ -37,6 +38,10 @@ protocol TeraAddMediaHandling: Sendable {
 }
 
 extension TeraAddMediaHandling {
+  func recoverNativeUploads(client _: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
+    throw TeraComposerAcknowledgment.unconfirmed
+  }
+
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) async throws {
     guard media.isEmpty else { throw TeraComposerAcknowledgment.unconfirmed }
   }
@@ -78,6 +83,20 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   /// Reserve before request preparation or native callbacks. A cancelled waiter
   /// releases this caller's admission; OS transfer state remains authoritative.
   private var activeUploadDrafts: Set<String> = []
+  private var recoveryCursor: String?
+  private var recoveryActive = false
+
+  func recoverNativeUploads(client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
+    guard !recoveryActive else { throw TeraBackgroundUploadRequest.operationInProgress }
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    recoveryActive = true
+    defer { recoveryActive = false; withExtendedLifetime(mediaUse) {} }
+    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: recoveryCursor) { key in
+      try await client.recoveryUploadOwner(key: key)
+    }
+    recoveryCursor = result.cursor
+    return result.progress
+  }
 
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) throws {
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
@@ -283,19 +302,11 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func reconcileBackgroundUploads(drafts: [TeraDraftStatus]) async throws {
-    try await reconcile(drafts.map { TeraNativeUploadRecoveryOwner(
-      id: $0.id, revision: $0.revision, media: $0.form?.media ?? [],
-      verifiedURLs: Set($0.media.filter { $0.stage == .verified }.map(\.url)),
-      uploadURLs: uploadURLs($0.media)
-    ) })
+    try await reconcile(drafts.map(TeraNativeUploadRecoveryOwner.init(draft:)))
   }
 
   func reconcileBackgroundSubmissions(_ submissions: [TeraSubmissionStatus]) async throws {
-    try await reconcile(submissions.map { TeraNativeUploadRecoveryOwner(
-      id: $0.intentID, revision: $0.revision, media: $0.preparedMedia,
-      verifiedURLs: Set($0.media.filter { $0.progress.stage == .verified }.map(\.progress.url)),
-      uploadURLs: uploadURLs($0.media.map(\.progress))
-    ) })
+    try await reconcile(submissions.map(TeraNativeUploadRecoveryOwner.init(submission:)))
   }
 
   func retainedSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt? {
@@ -308,14 +319,6 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
     defer { withExtendedLifetime(mediaUse) {} }
     try await TeraNativeUploadReconciliation.reconcile(owners, transfer: transfer)
-  }
-
-  private func uploadURLs(_ media: [TeraDraftMediaStatus]) -> [String: String] {
-    media.reduce(into: [:]) { urls, item in
-      if let uploadURL = item.uploadURL {
-        urls[item.url] = uploadURL
-      }
-    }
   }
 
   private func prepare(_ asset: RadrootsMediaAsset) async throws -> TeraPreparedMedia {

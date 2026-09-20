@@ -90,8 +90,9 @@ actor AddMediaHarness: TeraAddMediaHandling {
     settlements.append(accepted)
   }
 
-  func reconcileBackgroundUploads(drafts _: [TeraDraftStatus]) {
+  func recoverNativeUploads(client _: TeraRuntimeClient) -> TeraNativeRecoveryProgress {
     reconciliations += 1
+    return .init(visited: 0, remaining: 0, needsAttention: false)
   }
 
   func reconcileBackgroundSubmissions(_: [TeraSubmissionStatus]) {

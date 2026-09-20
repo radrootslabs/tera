@@ -620,11 +620,10 @@ extension TeraAddStore {
         self.recovery.start()
       }
       guard isCurrent(requestedGeneration) else { return }
-      let inventory = draftRequest == appliedDraftsGeneration ? loaded.drafts : drafts
       if serviceConfiguration == configuration {
         mediaRecoveryMessage = loaded.mediaMessage
       }
-      let mediaMessage = await TeraAddStartupSnapshot.reconcile(media: media, drafts: inventory)
+      let mediaMessage = await TeraAddStartupSnapshot.reconcile(media: media, client: runtimeClient)
       try ensureCurrent(requestedGeneration)
       if let mediaMessage {
         mediaRecoveryMessage = mediaMessage
