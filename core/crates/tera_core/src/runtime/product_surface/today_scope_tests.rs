@@ -398,6 +398,7 @@ async fn corrupt_snapshot_order_and_legacy_unbound_cache_fail_closed() {
     );
     assert_eq!(decode_state(&old_bytes).unwrap(), unbound);
     store_state(
+        &runtime,
         runtime.client.storage().unwrap(),
         &selected,
         projection_generation().unwrap(),

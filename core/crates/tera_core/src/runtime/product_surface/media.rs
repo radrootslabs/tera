@@ -1126,25 +1126,35 @@ pub(crate) async fn write_verified_artifact(
 }
 
 #[cfg(feature = "mobile-social")]
-pub(crate) async fn remove_artifact_files(
+pub(crate) fn remove_artifact_files(
     directory: &Path,
     artifact_id: Phase1MediaArtifactId,
 ) -> Result<(), Phase1InboundMediaError> {
-    ensure_cache_directory(directory).await?;
+    // Complete physical deletion while the caller still owns its mutation
+    // guards. Tokio filesystem workers may outlive a cancelled caller; do not
+    // dispatch unlink or sync to a worker that could escape that fence.
+    match std::fs::symlink_metadata(directory) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(Phase1InboundMediaError::CorruptArtifact);
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+    }
     for extension in MEDIA_CACHE_EXTENSIONS {
         let path = artifact_path(directory, artifact_id, extension)?;
-        match tokio::fs::symlink_metadata(&path).await {
+        match std::fs::symlink_metadata(&path) {
             Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
                 return Err(Phase1InboundMediaError::CorruptArtifact);
             }
-            Ok(_) => tokio::fs::remove_file(path)
-                .await
-                .map_err(|_| Phase1InboundMediaError::CacheIo)?,
+            Ok(_) => std::fs::remove_file(path).map_err(|_| Phase1InboundMediaError::CacheIo)?,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(_) => return Err(Phase1InboundMediaError::CacheIo),
         }
     }
-    sync_cache_directory(directory).await
+    std::fs::File::open(directory)
+        .and_then(|directory| directory.sync_all())
+        .map_err(|_| Phase1InboundMediaError::CacheIo)
 }
 
 #[cfg(feature = "mobile-social")]

@@ -8,6 +8,7 @@ mod mutation_admission;
 pub mod product_surface;
 pub mod sdk;
 pub mod store;
+mod today_projection;
 
 use chrono::Utc;
 use radroots_identity::PublicKey;
@@ -32,7 +33,7 @@ pub struct TeraRuntime {
     lifecycle: lifecycle::RuntimeLifecycle,
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
     pub(crate) store_public_key: Option<PublicKey>,
-    today_projection_lock: tokio::sync::Mutex<()>,
+    today_projection_lock: today_projection::TodayProjectionFence,
     #[cfg(feature = "mobile-social")]
     mutations: mutation_admission::MutationAdmission,
     #[cfg(feature = "mobile-social")]

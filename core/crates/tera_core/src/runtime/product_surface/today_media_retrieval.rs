@@ -30,7 +30,7 @@ impl TeraRuntime {
             Ok(artifact) => {
                 state = media_visibility::current_state(self, context).await?;
                 if state.media_cache.touch(artifact_id, observed_at_unix_ms)? {
-                    persist_media_state(storage, context, generation, &mut state).await?;
+                    persist_media_state(self, storage, context, generation, &mut state).await?;
                 }
                 Ok(Some(artifact))
             }
@@ -38,8 +38,15 @@ impl TeraRuntime {
                 state = media_visibility::current_state(self, context).await?;
                 state.media_cache.invalidate_artifact(artifact_id);
                 invalidate_artifact_references(&mut state, artifact_id);
-                persist_media_state(storage, context, generation, &mut state).await?;
-                let _ = super::super::media::remove_artifact_files(directory, artifact_id).await;
+                persist_media_state(self, storage, context, generation, &mut state).await?;
+                let _ = media_collection::collect(
+                    self,
+                    directory,
+                    &[artifact_id],
+                    &_guard,
+                    &_projection,
+                )
+                .await;
                 Err(error.into())
             }
         }
@@ -202,9 +209,8 @@ impl TeraRuntime {
                 return Err(error);
             }
         };
-        for artifact_id in evicted {
-            super::super::media::remove_artifact_files(directory, artifact_id).await?;
-        }
+        let _projection = self.today_projection_lock.lock().await;
+        media_collection::collect(self, directory, &evicted, &_guard, &_projection).await?;
         Ok(artifact)
     }
 }

@@ -78,7 +78,7 @@ impl TeraRuntime {
         }
         state.overlays.insert(key, overlay);
         state.content_generation = content_generation(&state)?;
-        store_state(storage, context, generation, &state).await?;
+        store_state(self, storage, context, generation, &state).await?;
         Ok(true)
     }
 }

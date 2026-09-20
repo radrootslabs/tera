@@ -94,6 +94,10 @@ mod submission_overlay;
 #[path = "today_media_retrieval.rs"]
 mod media_retrieval;
 
+#[cfg(feature = "mobile-social")]
+#[path = "today_media_collection.rs"]
+mod media_collection;
+
 #[path = "today_media_visibility.rs"]
 mod media_visibility;
 
@@ -374,13 +378,16 @@ impl TeraRuntime {
         )
         .await?
         .is_none_or(|document| document.value() != encoded);
+        let document = ProjectionDocument::new(key, encoded)?;
+        let write = self.today_projection_lock.begin_write();
         ProjectionStore::put_projection_document(
             storage,
             projection_id.clone(),
             generation,
-            ProjectionDocument::new(key, encoded)?,
+            document,
         )
         .await?;
+        write.complete();
 
         let source_position = if event_status.raw_events() == 0 {
             None
@@ -582,7 +589,7 @@ impl TeraRuntime {
         })?;
         if changed {
             state = trial;
-            persist_media_state(storage, context, generation, &mut state).await?;
+            persist_media_state(self, storage, context, generation, &mut state).await?;
         }
         Ok(changed)
     }
@@ -606,7 +613,7 @@ impl TeraRuntime {
             media.fail(failure.clone())
         })?;
         if changed {
-            persist_media_state(storage, context, generation, &mut state).await?;
+            persist_media_state(self, storage, context, generation, &mut state).await?;
         }
         Ok(changed)
     }
@@ -644,7 +651,7 @@ impl TeraRuntime {
             invalidate_artifact_references(&mut trial, *artifact_id);
         }
         state = trial;
-        persist_media_state(storage, context, generation, &mut state).await?;
+        persist_media_state(self, storage, context, generation, &mut state).await?;
         Ok(evicted)
     }
 
@@ -667,7 +674,7 @@ impl TeraRuntime {
             .ok_or(TodayError::ProjectionMissing)?;
         let changed = state.media_cache.touch(artifact_id, observed_at_unix_ms)?;
         if changed {
-            persist_media_state(storage, context, generation, &mut state).await?;
+            persist_media_state(self, storage, context, generation, &mut state).await?;
         }
         Ok(changed)
     }
@@ -693,11 +700,12 @@ impl TeraRuntime {
         let cache_changed = state.media_cache.invalidate_artifact(artifact_id);
         let references_changed = invalidate_artifact_references(&mut state, artifact_id);
         if cache_changed || references_changed {
-            persist_media_state(storage, context, generation, &mut state).await?;
+            persist_media_state(self, storage, context, generation, &mut state).await?;
         }
         #[cfg(feature = "mobile-social")]
         if let Some(directory) = self.inbound_media_directory.as_deref() {
-            super::media::remove_artifact_files(directory, artifact_id).await?;
+            media_collection::collect(self, directory, &[artifact_id], &_guard, &_projection)
+                .await?;
         }
         Ok(cache_changed || references_changed)
     }
@@ -727,13 +735,11 @@ impl TeraRuntime {
             for_each_media_mut(&mut state, |media| {
                 media.invalidate();
             });
-            persist_media_state(storage, context, generation, &mut state).await?;
+            persist_media_state(self, storage, context, generation, &mut state).await?;
         }
         #[cfg(feature = "mobile-social")]
         if let Some(directory) = self.inbound_media_directory.as_deref() {
-            for artifact_id in &removed {
-                super::media::remove_artifact_files(directory, *artifact_id).await?;
-            }
+            media_collection::collect(self, directory, &removed, &_guard, &_projection).await?;
         }
         Ok(removed)
     }
@@ -797,7 +803,7 @@ impl TeraRuntime {
             state.overlays.remove(&key);
         }
         state.content_generation = content_generation(&state)?;
-        store_state(storage, context, generation, &state).await
+        store_state(self, storage, context, generation, &state).await
     }
 }
 
@@ -1054,6 +1060,7 @@ fn verified_receipt(
 }
 
 async fn persist_media_state(
+    runtime: &TeraRuntime,
     storage: &dyn radroots_storage::Storage,
     context: &LocalNetwork,
     generation: ProjectionGeneration,
@@ -1062,7 +1069,7 @@ async fn persist_media_state(
     refresh_thread_profiles(state);
     validate_media_state(state)?;
     state.content_generation = content_generation(state)?;
-    store_state(storage, context, generation, state).await
+    store_state(runtime, storage, context, generation, state).await
 }
 
 fn refresh_thread_profiles(state: &mut TodayProjectionState) {
@@ -1489,24 +1496,34 @@ async fn load_state(
     };
     let (state, migrated) = decode_state_document(document.value())?;
     if migrated {
-        store_state(storage, context, generation, &state).await?;
+        // Legacy migration creates an empty cache and cannot introduce file
+        // ownership. Keep that invariant explicit for this unfenced read repair.
+        if state.media_cache.status()?.artifacts != 0 {
+            return Err(TodayError::CorruptProjection);
+        }
+        ProjectionStore::put_projection_document(
+            storage,
+            projection_id()?,
+            generation,
+            ProjectionDocument::new(projection_document_key(context), encode(&state)?)?,
+        )
+        .await?;
     }
     Ok(Some(state))
 }
 
 async fn store_state(
+    runtime: &TeraRuntime,
     storage: &dyn radroots_storage::Storage,
     context: &LocalNetwork,
     generation: ProjectionGeneration,
     state: &TodayProjectionState,
 ) -> Result<(), TodayError> {
-    ProjectionStore::put_projection_document(
-        storage,
-        projection_id()?,
-        generation,
-        ProjectionDocument::new(projection_document_key(context), encode(state)?)?,
-    )
-    .await?;
+    let id = projection_id()?;
+    let document = ProjectionDocument::new(projection_document_key(context), encode(state)?)?;
+    let write = runtime.today_projection_lock.begin_write();
+    ProjectionStore::put_projection_document(storage, id, generation, document).await?;
+    write.complete();
     Ok(())
 }
 
