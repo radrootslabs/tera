@@ -95,7 +95,7 @@ actor AddMediaHarness: TeraAddMediaHandling {
     return .init(visited: 0, remaining: 0, needsAttention: false)
   }
 
-  func reconcileBackgroundSubmissions(_: [TeraSubmissionStatus]) {
+  func reconcileBackgroundSubmissions(_: [TeraSubmissionStatus], client _: TeraRuntimeClient) {
     submissionReconciliations += 1
   }
 

@@ -168,6 +168,11 @@ actor BackgroundTransferHarness: RadrootsBackgroundTransfer {
   private(set) var cancelCount = 0
   private(set) var acceptedSettlementCount = 0
   private(set) var snapshotCount = 0
+  private var settlementFailure: Bool?
+
+  func failNextSettlement(afterWrite: Bool) {
+    settlementFailure = afterWrite
+  }
 
   init(
     enqueueState: RadrootsBackgroundTransferState = .awaitingVerification,
@@ -269,8 +274,16 @@ actor BackgroundTransferHarness: RadrootsBackgroundTransfer {
     }
     switch verification {
     case .accepted:
+      let failure = settlementFailure
+      settlementFailure = nil
+      if failure == false {
+        throw RadrootsBackgroundTransferError.transferFailure
+      }
       acceptedSettlementCount += 1
       values[identifier] = try snapshot(request: value.request, state: .completed)
+      if failure == true {
+        throw RadrootsBackgroundTransferError.transferFailure
+      }
     case let .rejected(failure):
       values[identifier] = try RadrootsBackgroundTransferSnapshot(
         request: value.request,

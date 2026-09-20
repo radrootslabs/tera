@@ -305,7 +305,7 @@ private extension TeraSubmissionStore {
                                       ensure: { try self.ensureCurrent(requested) },
                                       accept: { try self.accept($0, generation: requested) }).reconcileStopped(current)
     } else {
-      try await media?.reconcileBackgroundSubmissions([current])
+      try await media?.reconcileBackgroundSubmissions([current], client: client)
     }
   }
 }

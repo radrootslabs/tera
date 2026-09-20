@@ -191,41 +191,6 @@ final class TeraAddStoreTests: XCTestCase {
     XCTAssertEqual(counts.enqueue, 1)
   }
 
-  func testVerifiedRustDraftReconcilesAwaitingReceiptAfterRelaunch() async throws {
-    for legacyPath in [false, true] {
-    let fixture = try BackgroundUploadFixture()
-    defer { fixture.remove() }
-    let transfer = BackgroundTransferHarness()
-    let coordinator = fixture.coordinator(transfer: transfer)
-    let job = fixture.job(revision: 2, operation: String(repeating: "a", count: 32))
-    try await transfer.seed(request: fixture.request(job: job, remoteURL: legacyPath ? job.remoteURL : nil),
-                            state: .awaitingVerification)
-
-    try await coordinator.reconcileBackgroundUploads(
-      drafts: [fixture.draft(revision: 3, stage: .verified)]
-    )
-
-    let counts = await transfer.counts
-    let state = await transfer.state
-    XCTAssertEqual(counts.acceptedSettlement, 1)
-    XCTAssertEqual(state, .completed)
-    }
-  }
-
-  func testBackgroundReconciliationRejectsDuplicateDraftInventory() async throws {
-    let fixture = try BackgroundUploadFixture()
-    defer { fixture.remove() }
-    let coordinator = fixture.coordinator(transfer: BackgroundTransferHarness())
-    let draft = fixture.draft(revision: 3, stage: .verified)
-
-    do {
-      try await coordinator.reconcileBackgroundUploads(drafts: [draft, draft])
-      XCTFail("expected duplicate draft rejection")
-    } catch let failure as TeraRuntimeFailure {
-      XCTAssertEqual(failure.code, "ios.add.background_draft_ambiguous")
-    }
-  }
-
   @MainActor
   func testProductSurfaceSnapshotAndSchemaInventoryAreExact() async throws {
     XCTAssertEqual(

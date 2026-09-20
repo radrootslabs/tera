@@ -59,7 +59,7 @@ final class TeraRecoveryInventoryTests: XCTestCase {
     var visited = 0
     var passes = 0
     repeat {
-      let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: cursor) { key in
+      let result = try await RecoverySettlementFixture.run(transfer: transfer, cursor: cursor) { key in
         await seen.append(key)
         if key == Self.key(1) {
           return nil
@@ -83,7 +83,7 @@ final class TeraRecoveryInventoryTests: XCTestCase {
     XCTAssertEqual(counts.acceptedSettlement, 999)
     XCTAssertEqual(counts.enqueue, 0)
     XCTAssertEqual(counts.retry, 0)
-    let fresh = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: nil) { key in
+    let fresh = try await RecoverySettlementFixture.run(transfer: transfer, cursor: nil) { key in
       Self.owner(key: key, template: verified)
     }
     XCTAssertEqual(fresh.progress, .init(visited: 1, remaining: 0, needsAttention: false))
@@ -100,7 +100,7 @@ final class TeraRecoveryInventoryTests: XCTestCase {
     let pause = ResourceTestPause()
     let owner = TeraNativeUploadRecoveryOwner(draft: fixture.draft(revision: 3, stage: .verified))
     let task = Task {
-      try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: nil) { _ in
+      try await RecoverySettlementFixture.run(transfer: transfer, cursor: nil) { _ in
         await pause.wait()
         return owner
       }
@@ -111,7 +111,7 @@ final class TeraRecoveryInventoryTests: XCTestCase {
     do { _ = try await task.value; XCTFail("Cancelled pass must not settle") } catch is CancellationError {}
     let counts = await transfer.counts
     XCTAssertEqual(counts.acceptedSettlement, 0)
-    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: nil) { _ in owner }
+    let result = try await RecoverySettlementFixture.run(transfer: transfer, cursor: nil) { _ in owner }
     XCTAssertEqual(result.progress, .init(visited: 1, remaining: 0, needsAttention: false))
   }
 
@@ -121,7 +121,7 @@ final class TeraRecoveryInventoryTests: XCTestCase {
     let transfer = BackgroundTransferHarness()
     try await transfer.seed(request: fixture.request(job: fixture.job(revision: 2, operation: String(repeating: "a", count: 32))), state: .awaitingVerification)
     let owner = TeraNativeUploadRecoveryOwner(draft: fixture.draft(revision: 3, stage: .verified))
-    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: nil) { _ in
+    let result = try await RecoverySettlementFixture.run(transfer: transfer, cursor: nil) { _ in
       Self.owner(key: Self.key(7), template: owner)
     }
     XCTAssertTrue(result.progress.needsAttention)

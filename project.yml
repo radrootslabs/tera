@@ -55,6 +55,7 @@ targets:
       - path: TeraTests/TeraMediaCleanupTests.swift
       - path: TeraTests/TeraRecoveryInventoryTests.swift
       - path: TeraTests/TeraRecoveryCompletionTests.swift
+      - path: TeraTests/TeraRecoverySettlementTests.swift
       - path: TeraTests/TeraComposerMediaOwnershipTests.swift
       - path: TeraTests/TeraPublicationEvidenceTests.swift
       - path: TeraTests/TeraStoppedUploadTests.swift

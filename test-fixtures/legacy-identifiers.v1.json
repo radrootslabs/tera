@@ -696,7 +696,7 @@
       "occurrences": [
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
-          "count": 1
+          "count": 3
         },
         {
           "path": "TeraTests/TeraUserMessagesTests.swift",
@@ -813,6 +813,10 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
+          "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraBackgroundUploadWaiter.swift",
           "count": 1
         },
@@ -826,7 +830,7 @@
         },
         {
           "path": "Tera/Runtime/TeraNativeUploadReconciliation.swift",
-          "count": 1
+          "count": 3
         },
         {
           "path": "Tera/Runtime/TeraRecoveryCompletion.swift",
@@ -1444,6 +1448,10 @@
         },
         {
           "path": "TeraTests/TeraRecoveryInventoryTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRecoverySettlementTests.swift",
           "count": 1
         },
         {

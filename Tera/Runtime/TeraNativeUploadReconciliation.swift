@@ -1,53 +1,43 @@
 import Foundation
 import RadrootsKit
 
+/// Rust has already confirmed the exact attempt. Native settlement cannot
+/// create or advance that completion, including after a lost native reply.
 enum TeraNativeUploadReconciliation {
-  static func reconcile(_ owners: [TeraNativeUploadRecoveryOwner], transfer: any RadrootsBackgroundTransfer) async throws {
-    var draftsByID: [String: TeraNativeUploadRecoveryOwner] = [:]
-    for draft in owners {
-      guard draftsByID.updateValue(draft, forKey: draft.id) == nil else {
-        throw failure(
-          code: "ios.add.background_draft_ambiguous",
-          message: "The persisted draft inventory is ambiguous."
-        )
-      }
+  static func settle(_ expected: RadrootsBackgroundTransferSnapshot, input: TeraRecoveryUploadReceipt,
+                     receipt: TeraRecoveryCompletionReceipt, transfer: any RadrootsBackgroundTransfer) async throws
+  {
+    try receipt.confirm(input)
+    guard input.response.identifier == expected.identifier.rawValue,
+          input.uploadURL == expected.request.remoteURL.absoluteString,
+          input.media.sha256 == expected.request.expectedSourceSHA256 else { throw TeraComposerAcknowledgment.unconfirmed }
+    let current = try await matchingSnapshot(expected, transfer: transfer)
+    try Task.checkCancellation()
+    if current.state == .completed {
+      return
     }
-    for snapshot in try await transfer.snapshots()
-    where snapshot.state == .awaitingVerification {
+    guard current.state == .awaitingVerification else { throw TeraComposerAcknowledgment.unconfirmed }
+    do {
+      try await transfer.settle(expected.identifier, verification: .accepted)
+    } catch {
       try Task.checkCancellation()
-      guard let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
-        let draft = draftsByID[identity.draftID]
-      else { continue }
-      try await reconcile(snapshot, owner: draft, transfer: transfer)
+      // A storage or transport reply can be lost after its state is committed.
+      // Only matching durable native success makes this success-equivalent.
+      let recovered = try await matchingSnapshot(expected, transfer: transfer)
+      guard recovered.state == .completed else { throw error }
+      return
     }
+    let confirmed = try await matchingSnapshot(expected, transfer: transfer)
+    guard confirmed.state == .completed else { throw TeraComposerAcknowledgment.unconfirmed }
   }
 
-  static func reconcile(
-    _ snapshot: RadrootsBackgroundTransferSnapshot, owner draft: TeraNativeUploadRecoveryOwner,
-    transfer: any RadrootsBackgroundTransfer
-  ) async throws {
-      guard let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
-        snapshot.state == .awaitingVerification, draft.id == identity.draftID,
-        draft.revision > identity.revision,
-        let media = draft.media.first(where: {
-          $0.sha256 == snapshot.request.expectedSourceSHA256
-            && ($0.remoteURL == snapshot.request.remoteURL.absoluteString
-              || $0.remoteURL.flatMap { draft.uploadURLs[$0] } == snapshot.request.remoteURL.absoluteString)
-        }),
-        let canonicalURL = media.remoteURL, draft.verifiedURLs.contains(canonicalURL),
-        try TeraBackgroundUploadRequest.persistedRequestMatchesMedia(
-          snapshot.request, media: media, uploadURL: draft.uploadURLs[canonicalURL]
-        )
-      else {
-        throw failure(
-          code: "ios.add.background_upload_mismatch",
-          message: "The persisted photo upload does not match its verified draft."
-        )
-      }
-      try await transfer.settle(snapshot.identifier, verification: .accepted)
-  }
-
-  private static func failure(code: String, message: String) -> TeraRuntimeFailure {
-    .local(operation: "add.media.background", code: code, safeMessage: message)
+  private static func matchingSnapshot(_ expected: RadrootsBackgroundTransferSnapshot,
+                                       transfer: any RadrootsBackgroundTransfer) async throws -> RadrootsBackgroundTransferSnapshot
+  {
+    guard let current = try await transfer.snapshot(for: expected.identifier),
+          current.identifier == expected.identifier, current.request == expected.request,
+          current.response == expected.response, current.executionID == expected.executionID,
+          current.uploadLease == expected.uploadLease else { throw TeraComposerAcknowledgment.unconfirmed }
+    return current
   }
 }

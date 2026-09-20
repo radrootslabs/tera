@@ -17,7 +17,8 @@ struct TeraRecoveryUploadReceipt: Sendable {
           let media = owner.media.first(where: { $0.sha256 == hash }),
           owner.media.filter({ $0.sha256 == hash }).count == 1,
           let url = media.remoteURL, let uploadURL = owner.uploadURLs[url],
-          snapshot.request.remoteURL.absoluteString == uploadURL,
+          snapshot.request.remoteURL.absoluteString == uploadURL
+          || (owner.verifiedURLs.contains(url) && snapshot.request.remoteURL.absoluteString == url),
           try TeraBackgroundUploadRequest.persistedRequestMatchesMedia(snapshot.request, media: media, uploadURL: uploadURL),
           let response = snapshot.response, let status = UInt16(exactly: response.statusCode),
           let body = response.body,
@@ -28,7 +29,7 @@ struct TeraRecoveryUploadReceipt: Sendable {
     parent = identity.draftID
     revision = identity.revision
     attempt = identity.attempt
-    self.uploadURL = uploadURL
+    self.uploadURL = snapshot.request.remoteURL.absoluteString
     self.media = media
     self.response = .init(identifier: snapshot.identifier.rawValue, draftID: parent, expectedRevision: revision,
                           statusCode: status, mediaType: response.mediaType, contentEncoding: response.contentEncoding, body: body)

@@ -25,11 +25,8 @@ enum TeraNativeRecoveryInventory {
               let owner = try await lookup(identity.draftID), owner.id == identity.draftID
         else { throw TeraComposerAcknowledgment.unconfirmed }
         try Task.checkCancellation()
-        if owner.media.contains(where: { $0.sha256 == snapshot.request.expectedSourceSHA256 && $0.remoteURL.map(owner.verifiedURLs.contains) == true }) {
-          try await TeraNativeUploadReconciliation.reconcile(snapshot, owner: owner, transfer: transfer)
-        } else {
-          try await complete(snapshot, owner)
-        }
+        // A presentation status never substitutes for exact durable Rust proof.
+        try await complete(snapshot, owner)
       } catch {
         try Task.checkCancellation()
         // Keep this receipt unchanged. One missing/ambiguous parent never

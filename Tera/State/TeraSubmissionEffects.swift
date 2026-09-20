@@ -18,7 +18,7 @@ struct TeraSubmissionEffects {
     }
     guard mayStart() else { return }
     if [.complete, .terminal, .cancelled].contains(initial.state) {
-      try await media?.reconcileBackgroundSubmissions([initial])
+      try await media?.reconcileBackgroundSubmissions([initial], client: client)
       try ensure()
       return
     }
@@ -31,7 +31,7 @@ struct TeraSubmissionEffects {
       current = try await client.advanceSubmission(request: current.request, expectedRevision: current.revision)
       try accept(current)
     }
-    try await media?.reconcileBackgroundSubmissions([current])
+    try await media?.reconcileBackgroundSubmissions([current], client: client)
     try ensure()
   }
 

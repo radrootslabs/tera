@@ -31,10 +31,10 @@ protocol TeraAddMediaHandling: Sendable {
     media: TeraPreparedMedia
   ) async throws -> TeraAddBackgroundUploadReceipt
   func uploadInBackground(transfer: TeraNativeTransferJob, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt
-  func reconcileBackgroundSubmissions(_ submissions: [TeraSubmissionStatus]) async throws
+  func reconcileBackgroundSubmissions(_ submissions: [TeraSubmissionStatus], client: TeraRuntimeClient) async throws
   func retainedSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt?
   func settleBackgroundUpload(identifier: String, accepted: Bool) async throws
-  func reconcileBackgroundUploads(drafts: [TeraDraftStatus]) async throws
+  func reconcileBackgroundUploads(drafts: [TeraDraftStatus], client: TeraRuntimeClient) async throws
 }
 
 extension TeraAddMediaHandling {
@@ -63,7 +63,9 @@ extension TeraAddMediaHandling {
     )
   }
 
-  func reconcileBackgroundSubmissions(_: [TeraSubmissionStatus]) async throws {}
+  func reconcileBackgroundSubmissions(_: [TeraSubmissionStatus], client: TeraRuntimeClient) async throws {
+    _ = try await recoverNativeUploads(client: client)
+  }
 
   func retainedSubmissionUpload(_: TeraSubmissionStatus, media _: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt? {
     nil
@@ -71,7 +73,9 @@ extension TeraAddMediaHandling {
 
   func settleBackgroundUpload(identifier _: String, accepted _: Bool) async throws {}
 
-  func reconcileBackgroundUploads(drafts _: [TeraDraftStatus]) async throws {}
+  func reconcileBackgroundUploads(drafts _: [TeraDraftStatus], client: TeraRuntimeClient) async throws {
+    _ = try await recoverNativeUploads(client: client)
+  }
 }
 
 actor TeraAddMediaCoordinator: TeraAddMediaHandling {
@@ -289,24 +293,10 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     }
   }
 
-  func reconcileBackgroundUploads(drafts: [TeraDraftStatus]) async throws {
-    try await reconcile(drafts.map(TeraNativeUploadRecoveryOwner.init(draft:)))
-  }
-
-  func reconcileBackgroundSubmissions(_ submissions: [TeraSubmissionStatus]) async throws {
-    try await reconcile(submissions.map(TeraNativeUploadRecoveryOwner.init(submission:)))
-  }
-
   func retainedSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt? {
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
     defer { withExtendedLifetime(mediaUse) {} }
     return try await TeraStoppedUploadRecovery.receipt(submission, media: media, transfer: transfer)
-  }
-
-  private func reconcile(_ owners: [TeraNativeUploadRecoveryOwner]) async throws {
-    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
-    defer { withExtendedLifetime(mediaUse) {} }
-    try await TeraNativeUploadReconciliation.reconcile(owners, transfer: transfer)
   }
 
   private func prepare(_ asset: RadrootsMediaAsset) async throws -> TeraPreparedMedia {
@@ -345,9 +335,15 @@ extension TeraAddMediaCoordinator {
       let receipt = try await client.recoverNativeUpload(input, media: handle)
       try Task.checkCancellation()
       try receipt.confirm(input)
-      try await self.settleBackgroundUpload(identifier: snapshot.identifier.rawValue, accepted: true)
+      try await self.settleRecoveredUpload(snapshot, input: input, receipt: receipt)
     }, lookup: { key in try await client.recoveryUploadOwner(key: key) })
     recoveryCursor = result.cursor
     return result.progress
+  }
+
+  private func settleRecoveredUpload(_ snapshot: RadrootsBackgroundTransferSnapshot, input: TeraRecoveryUploadReceipt,
+                                     receipt: TeraRecoveryCompletionReceipt) async throws
+  {
+    try await TeraNativeUploadReconciliation.settle(snapshot, input: input, receipt: receipt, transfer: transfer)
   }
 }

@@ -107,6 +107,19 @@ async fn legacy_recovery_completion_binds_saved_attempt_and_replays_without_curr
     };
     let source =
         || RecoveryMedia::new("media:legacy".into(), bytes.clone(), kind.clone(), 2, 2).unwrap();
+    let canonical_native = || {
+        let mut value = native();
+        value.identity.upload_url = descriptor.url().as_str().into();
+        value
+    };
+    // Compatibility with a historical canonical destination is evidence-only;
+    // it cannot authorize the first durable completion.
+    assert!(
+        runtime
+            .recover_native_upload(canonical_native(), source())
+            .await
+            .is_err()
+    );
     let remote = bytes.clone();
     let server = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.unwrap();
@@ -131,6 +144,11 @@ async fn legacy_recovery_completion_binds_saved_attempt_and_replays_without_curr
         .unwrap();
     server.await.unwrap();
     let committed = runtime.phase1_draft_status([91; 16]).await.unwrap();
+    for invalid_time in [0, u64::MAX] {
+        let mut corrupted = committed.media()[0].clone();
+        corrupted.verified_at_unix_ms = Some(invalid_time);
+        assert!(RecoveryCompletionReceipt::durable(&native(), &corrupted).is_err());
+    }
     runtime
         .configure_blossom(
             radroots_sdk::transport::BlossomHostKind::Simulator,
@@ -143,6 +161,13 @@ async fn legacy_recovery_completion_binds_saved_attempt_and_replays_without_curr
     assert_eq!(
         runtime
             .recover_native_upload(native(), source())
+            .await
+            .unwrap(),
+        proof
+    );
+    assert_eq!(
+        runtime
+            .recover_native_upload(canonical_native(), source())
             .await
             .unwrap(),
         proof
