@@ -159,3 +159,20 @@ pub(super) fn request_from(
     decode(stored, &request)?;
     Ok(request)
 }
+
+pub(super) fn inventory_request(
+    stored: &AuthoredDraft,
+    author: [u8; 32],
+) -> Result<SubmissionReservationRequest, E> {
+    if stored.payload().len() > SUBMISSION_RESERVATION_MAX_BYTES {
+        return Err(E::CorruptRecord);
+    }
+    let wire: ReservationWire =
+        serde_json::from_slice(stored.payload()).map_err(|_| E::CorruptRecord)?;
+    if wire.scope.author().as_bytes() != &author
+        || serde_json::to_vec(&wire).map_err(|_| E::CorruptRecord)? != stored.payload()
+    {
+        return Err(E::CorruptRecord);
+    }
+    request_from(stored, &wire.scope)
+}

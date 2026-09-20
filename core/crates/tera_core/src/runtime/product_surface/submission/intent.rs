@@ -27,6 +27,9 @@ use crate::runtime::product_surface::{
 
 #[path = "intent_media.rs"]
 mod media;
+#[path = "intent_inventory.rs"]
+mod reference_inventory;
+pub(super) use reference_inventory::{inventory_reservation, validate_inventory};
 
 pub const SUBMISSION_INTENT_PAYLOAD_SCHEMA: &str = "tera.publication_intent.v1";
 pub const SUBMISSION_INTENT_SCHEMA_VERSION: u64 = 1;
@@ -220,6 +223,14 @@ impl IntentPayload {
         &self,
         reservation: &SubmissionReservationReceipt,
     ) -> Result<PushRequest, E> {
+        self.validated_request(reservation, true)
+    }
+
+    fn validated_request(
+        &self,
+        reservation: &SubmissionReservationReceipt,
+        require_pending: bool,
+    ) -> Result<PushRequest, E> {
         let request = reservation.request();
         let input = reservation.captured().form().input();
         if self.command_id != request.command_id()
@@ -234,7 +245,7 @@ impl IntentPayload {
         }
         for (media, input) in self.media.iter().zip(&input.media) {
             media.validate().map_err(|_| E::CorruptRecord)?;
-            if media.stage() != Phase1MediaStage::Pending
+            if (require_pending && media.stage() != Phase1MediaStage::Pending)
                 || media.local_reference() != input.opaque_reference
                 || media.sha256() != input.sha256
                 || media.media_type() != input.media_type

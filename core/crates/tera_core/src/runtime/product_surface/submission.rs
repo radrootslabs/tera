@@ -20,7 +20,9 @@ mod media;
 mod operation;
 mod operation_load;
 mod record;
+mod reference_inventory;
 mod repository;
+pub(super) use reference_inventory::media_references;
 mod stop;
 #[cfg(test)]
 mod stop_effect_tests;

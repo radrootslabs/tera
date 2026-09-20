@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import RadrootsKit
+import UIKit
 
 actor TeraBackgroundEventRouter {
   typealias Handler =
@@ -178,6 +179,7 @@ actor TeraLifecycleCoordinator {
   private let fileAccess: RadrootsAppleFileAccess?
   private let transfer: (any RadrootsBackgroundTransfer)?
   private let transferIdentifier: String?
+  private var mediaMaintenance: Task<TeraMediaCleanupResult, Never>?
   private var backgroundEventsAttached = false
 
   init(
@@ -257,13 +259,26 @@ actor TeraLifecycleCoordinator {
     )
   }
 
-  func attachBackgroundEvents() async {
+  @discardableResult
+  func attachBackgroundEvents() async -> Bool {
     guard !backgroundEventsAttached,
       let transfer,
-      let transferIdentifier
+      let transferIdentifier,
+      let roots = fileAccess?.roots
     else {
-      return
+      return true
     }
+    guard await MainActor.run(body: { UIApplication.shared.isProtectedDataAvailable }) else { return false }
+    if mediaMaintenance == nil {
+      // Explicit host-owned startup work; concurrent lifecycle callers await the
+      // same bounded pass. Cancellation of a waiter does not abandon its fence.
+      mediaMaintenance = Task { await TeraMediaCleanup.run(roots: roots) }
+    }
+    _ = await mediaMaintenance?.value
+    guard await MainActor.run(body: { UIApplication.shared.isProtectedDataAvailable }) else { return false }
+    guard !backgroundEventsAttached else { return true }
+    guard let mediaUse = try? TeraMediaProcessUse.admit(root: roots.dataRoot) else { return false }
+    defer { withExtendedLifetime(mediaUse) {} }
     backgroundEventsAttached = true
     await TeraBackgroundEventRouter.shared.attach(identifier: transferIdentifier) {
       identifier,
@@ -273,6 +288,7 @@ actor TeraLifecycleCoordinator {
         completionHandler: completion
       )
     }
+    return true
   }
 
   func record(
@@ -309,6 +325,8 @@ actor TeraLifecycleCoordinator {
         safeMessage: "Diagnostics export is unavailable."
       )
     }
+    let mediaUse = try TeraMediaProcessUse.admit(root: fileAccess.roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     let records = await buffer.records()
     let document = TeraDiagnosticsDocument(
       schema: "radroots.ios.diagnostics.v1",
@@ -345,55 +363,5 @@ actor TeraLifecycleCoordinator {
   func releaseDiagnostics(_ export: RadrootsPreparedExportDocument) {
     guard let fileAccess else { return }
     try? fileAccess.releasePreparedExport(export)
-  }
-}
-
-@MainActor
-final class TeraDiagnosticsStore: ObservableObject {
-  @Published var preparedExport: RadrootsPreparedExportDocument?
-  @Published private(set) var isPreparing = false
-  @Published private(set) var message: String?
-
-  private let coordinator: TeraLifecycleCoordinator
-  private var activeExport: RadrootsPreparedExportDocument?
-
-  init(coordinator: TeraLifecycleCoordinator) {
-    self.coordinator = coordinator
-  }
-
-  func prepare(snapshot: TeraRuntimeSnapshot, bundle: Bundle = .main) async {
-    guard !isPreparing, preparedExport == nil, activeExport == nil else { return }
-    isPreparing = true
-    message = nil
-    defer { isPreparing = false }
-    do {
-      let export = try await coordinator.prepareDiagnostics(
-        snapshot: snapshot,
-        appVersion: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-          ?? "0",
-        appBuild: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0",
-        phase: "running"
-      )
-      activeExport = export
-      preparedExport = export
-    } catch {
-      activeExport = nil
-      preparedExport = nil
-      message = TeraUserMessages.text(.diagnosticsPrepareFailed)
-    }
-  }
-
-  func completeExport(_ result: Result<RadrootsExportDocumentResult, Error>) {
-    let export = activeExport
-    activeExport = nil
-    preparedExport = nil
-    switch result {
-    case .success:
-      message = TeraUserMessages.text(.diagnosticsExportSucceeded)
-    case .failure:
-      message = TeraUserMessages.text(.diagnosticsExportFailed)
-    }
-    guard let export else { return }
-    Task { await coordinator.releaseDiagnostics(export) }
   }
 }

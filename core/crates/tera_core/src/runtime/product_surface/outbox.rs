@@ -50,6 +50,8 @@ mod advance;
 mod configuration;
 #[path = "outbox/inventory.rs"]
 mod inventory;
+mod reference_inventory;
+pub(super) use reference_inventory::media_references;
 mod media;
 mod native_upload;
 mod upload_attempt;

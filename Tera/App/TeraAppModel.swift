@@ -310,8 +310,9 @@ extension TeraAppModel {
 
   private func ensureLifecycleRegistration() async {
     guard !lifecycleRegistered else { return }
+    guard await lifecycleCoordinator.attachBackgroundEvents() else { return }
+    guard !lifecycleRegistered else { return }
     lifecycleRegistered = true
-    await lifecycleCoordinator.attachBackgroundEvents()
     await TeraLifecycleBridge.shared.register { @Sendable [weak self] in
       await self?.shutdown() ?? true
     }

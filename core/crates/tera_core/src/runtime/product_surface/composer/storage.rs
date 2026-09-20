@@ -230,6 +230,32 @@ fn validate_time(value: u64) -> Result<(), ComposerStorageError> {
     Ok(())
 }
 
+/// Decode every context using the independently known account, not a UI scope.
+pub(in crate::runtime::product_surface) fn media_references(
+    stored: AuthoredDraft,
+    author: [u8; 32],
+) -> Result<Vec<String>, super::super::media_gc::MediaInventoryIncomplete> {
+    use super::super::media_gc::MediaInventoryIncomplete as E;
+    if stored.payload().len() > COMPOSER_FORM_MAX_BYTES {
+        return Err(E);
+    }
+    let wire: StoredComposerV1 = serde_json::from_slice(stored.payload()).map_err(|_| E)?;
+    if wire.scope.author().as_bytes() != &author
+        || serde_json::to_vec(&wire).map_err(|_| E)? != stored.payload()
+    {
+        return Err(E);
+    }
+    let record = ComposerStorageRecord::decode(stored, &wire.scope).map_err(|_| E)?;
+    Ok(record
+        .draft()
+        .form()
+        .input()
+        .media
+        .iter()
+        .map(|media| media.sha256.clone())
+        .collect())
+}
+
 #[cfg(test)]
 #[path = "storage_tests.rs"]
 mod tests;

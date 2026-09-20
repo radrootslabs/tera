@@ -1,0 +1,18 @@
+{
+  "schema": "tera.media-cleanup.policy.v1",
+  "orphan_grace_ms": 604800000,
+  "account_limit": 64,
+  "page_limit": 32,
+  "page_budget": 128,
+  "record_budget": 4096,
+  "payload_byte_budget": 67108864,
+  "reference_budget": 65536,
+  "directory_entry_budget": 8192,
+  "removal_budget": 64,
+  "candidate_root": "staged_blobs",
+  "excluded_roots": ["staged_blob_leases", "prepared_exports", "backups"],
+  "admission": "Cold start only, under an exclusive same-root maintenance reservation before runtime or native session activation. Live or uncertain process-use markers prevent collection.",
+  "references": "Union of every admitted account and context, current authored heads, exact reserved historical composers, native transfers and receipts. Unknown schema, corruption, incomplete enumeration, failed close or exhausted inventory budget retains every candidate.",
+  "deletion": "Only canonical content hashes or exact producer scratch names, after seven days, absent from the complete inventory, with unchanged native file identity. Future or invalid timestamps retain. Any ambiguous unlink ends the pass; the next pass rebuilds all proof.",
+  "pressure": "Evict reconstructable caches first. Never delete authored references, pending intents, ambiguous receipts, or backup/export leases to satisfy a quota. No remote deletion."
+}

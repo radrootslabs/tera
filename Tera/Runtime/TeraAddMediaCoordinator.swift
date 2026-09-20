@@ -80,10 +80,14 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   private var activeUploadDrafts: Set<String> = []
 
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) throws {
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     try TeraComposerMediaOwnership.confirm(media, roots: roots)
   }
 
   func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool {
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     guard !RadrootsAppleBackgroundTransferAdapters.supportsNewEnqueue(for: .publicHTTPS) else { return false }
     // Preserve an existing native attempt for its own reconciliation path.
     // An uncertain native result never authorizes a second foreground PUT.
@@ -145,6 +149,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func importImages(limit: Int) async throws -> [TeraPreparedMedia] {
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     let result = try await picker.importMedia(
       RadrootsMediaImportRequest(
         allowedMediaKinds: [.image],
@@ -160,6 +166,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func captureImage() async throws -> TeraPreparedMedia {
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     let result = try await picker.captureMedia(
       RadrootsMediaCaptureRequest(mediaKind: .image, destinationScope: .cache)
     )
@@ -167,6 +175,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func open(_ media: [TeraPreparedMedia]) throws -> TeraOpenedMedia {
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     var files: [FileHandle] = []
     var handles: [TeraPreparedMediaHandle] = []
     do {
@@ -211,6 +221,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     media: TeraPreparedMedia
   ) async throws -> TeraAddBackgroundUploadReceipt {
     try Task.checkCancellation()
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     guard activeUploadDrafts.insert(job.ownerID).inserted else {
       throw TeraBackgroundUploadRequest.operationInProgress
     }
@@ -244,6 +256,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func settleBackgroundUpload(identifier: String, accepted: Bool) async throws {
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     do {
       let value = try RadrootsBackgroundTransferIdentifier(identifier)
       if let snapshot = try await transfer.snapshot(for: value),
@@ -285,10 +299,14 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func retainedSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia) async throws -> TeraAddBackgroundUploadReceipt? {
-    try await TeraStoppedUploadRecovery.receipt(submission, media: media, transfer: transfer)
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
+    return try await TeraStoppedUploadRecovery.receipt(submission, media: media, transfer: transfer)
   }
 
   private func reconcile(_ owners: [TeraNativeUploadRecoveryOwner]) async throws {
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    defer { withExtendedLifetime(mediaUse) {} }
     try await TeraNativeUploadReconciliation.reconcile(owners, transfer: transfer)
   }
 
@@ -321,64 +339,3 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     .local(operation: "add.media.background", code: code, safeMessage: message)
   }
 }
-
-#if DEBUG
-  private actor TeraRemoteQualificationMediaPicker: RadrootsMediaPicker {
-    private let roots: RadrootsAppleFileRoots
-    private let file: RadrootsFileReference
-
-    init(roots: RadrootsAppleFileRoots, file: RadrootsFileReference) {
-      self.roots = roots
-      self.file = file
-    }
-
-    func currentSupport() async throws -> RadrootsMediaPickerSupport {
-      try RadrootsMediaPickerSupport(
-        importAvailable: true,
-        cameraCaptureAvailable: false,
-        supportedImportKinds: [.image],
-        supportedCaptureKinds: [],
-        multipleSelectionSupported: false
-      )
-    }
-
-    func importMedia(
-      _ request: RadrootsMediaImportRequest
-    ) async throws -> RadrootsMediaImportResult {
-      guard request.allowedMediaKinds == [.image], request.selectionLimit >= 1 else {
-        throw RadrootsCaptureIntakeError.invalidRequest
-      }
-      try RadrootsAppleFileAccess(roots: roots).write(
-        .inline(TeraRemoteQualificationEnvironment.mediaFixtureData()),
-        to: file
-      )
-      let url = try roots.resolvedURL(for: file)
-      let values = try url.resourceValues(
-        forKeys: [.fileSizeKey, .isRegularFileKey, .isSymbolicLinkKey]
-      )
-      guard values.isRegularFile == true,
-        values.isSymbolicLink != true,
-        let size = values.fileSize,
-        (1 ... 40 * 1024 * 1024).contains(size)
-      else {
-        throw RadrootsCaptureIntakeError.unavailable
-      }
-      let asset = try RadrootsMediaAsset(
-        source: .libraryImport,
-        kind: .image,
-        file: file,
-        mediaType: "image/png",
-        suggestedFilename: "input.png",
-        sizeBytes: UInt64(size),
-        capturedAt: Date()
-      )
-      return try RadrootsMediaImportResult(items: [asset])
-    }
-
-    func captureMedia(
-      _: RadrootsMediaCaptureRequest
-    ) async throws -> RadrootsMediaCaptureResult {
-      throw RadrootsCaptureIntakeError.unavailable
-    }
-  }
-#endif

@@ -4,6 +4,7 @@ mod form;
 mod identity;
 mod repository;
 mod storage;
+pub(super) use storage::media_references;
 
 pub use form::{
     COMPOSER_CONTENT_MAX_BYTES, COMPOSER_FORM_MAX_BYTES, COMPOSER_MEDIA_MAX,

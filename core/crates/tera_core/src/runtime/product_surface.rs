@@ -13,6 +13,8 @@ mod cursor;
 mod identity;
 mod local_network_id;
 mod media;
+#[cfg(feature = "mobile-social")]
+pub mod media_gc;
 mod model;
 #[cfg(feature = "mobile-social")]
 mod outbox;
