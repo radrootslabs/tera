@@ -17,6 +17,11 @@ async fn stopped_socket_retains_unknown_then_late_ok_across_sqlite_reopen() {
         let root = tempfile::tempdir().unwrap();
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("ws://{}", listener.local_addr().unwrap());
+        // Database and draft setup must not consume the relay scenario's budget.
+        let signer = CountingSigner::new();
+        let runtime = runtime(sqlite.then_some(root.path()), signer.clone(), &url).await;
+        let request = request();
+        prepare(&runtime, &request, false).await;
         let entered = Arc::new(Notify::new());
         let resume = Arc::new(Notify::new());
         let server = {
@@ -50,10 +55,6 @@ async fn stopped_socket_retains_unknown_then_late_ok_across_sqlite_reopen() {
                 .unwrap()
             })
         };
-        let signer = CountingSigner::new();
-        let runtime = runtime(sqlite.then_some(root.path()), signer.clone(), &url).await;
-        let request = request();
-        prepare(&runtime, &request, false).await;
         let task = {
             let runtime = runtime.clone();
             let request = request.clone();
