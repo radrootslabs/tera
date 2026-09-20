@@ -186,36 +186,36 @@
       "proc-macro2 v1.0.107|default,proc-macro (*)",
       "quote v1.0.47|default,proc-macro",
       "quote v1.0.47|default,proc-macro (*)",
-      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std",
-      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std (*)",
-      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std",
-      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std (*)",
-      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std",
-      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std (*)",
-      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|json,serde,std",
-      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|json,serde,std (*)",
-      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std",
-      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std (*)",
-      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|blossom,events,std",
-      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|blossom,events,std (*)",
-      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std",
-      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std (*)",
-      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|blossom,nostr,sqlite,sync",
-      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|blossom,nostr,sqlite,sync (*)",
-      "radroots_secrets v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|",
-      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std",
-      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std (*)",
-      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde",
-      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde (*)",
-      "radroots_storage_sqlite v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|",
-      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|",
-      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)| (*)",
-      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|json,serde,std",
-      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|json,serde,std (*)",
-      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std",
-      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|serde,std (*)",
-      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)|",
-      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6667541b08b4e578199c6612cf51b7402071f5e#b6667541)| (*)",
+      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std",
+      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std (*)",
+      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std",
+      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std (*)",
+      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std",
+      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std (*)",
+      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|json,serde,std",
+      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|json,serde,std (*)",
+      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std",
+      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std (*)",
+      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|blossom,events,std",
+      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|blossom,events,std (*)",
+      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std",
+      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std (*)",
+      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|blossom,nostr,sqlite,sync",
+      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|blossom,nostr,sqlite,sync (*)",
+      "radroots_secrets v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|",
+      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std",
+      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std (*)",
+      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde",
+      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde (*)",
+      "radroots_storage_sqlite v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|",
+      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|",
+      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)| (*)",
+      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|json,serde,std",
+      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|json,serde,std (*)",
+      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std",
+      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|serde,std (*)",
+      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)|",
+      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=4a2285ea896cfc361f539c74c467a3fd5591ec74#4a2285ea)| (*)",
       "rand v0.8.7|alloc,getrandom,libc,rand_chacha,std,std_rng",
       "rand v0.9.5|alloc,default,os_rng,small_rng,std,std_rng,thread_rng",
       "rand_chacha v0.3.1|std",
@@ -385,15 +385,15 @@
     "symbol_reader": "llvm-nm, compatible with GNU nm\nLLVM (http://llvm.org/):\n  LLVM version 22.1.6-rust-1.97.1-stable\n  Optimized build.",
     "target": "aarch64-apple-darwin"
   },
-  "cargo_lock_sha256": "483f37423da62eb73be902fd44fb7f66f09e96d7a38825ce9c8b75536b790de3",
+  "cargo_lock_sha256": "a45676c13eb5a329503a18288d6f637d5367b0a200fba2967ffa0ea5a7c43ac1",
   "disposition": "local_staged_source_only",
   "foundation": {
     "architecture": "radroots.crates.release.v2",
-    "lockfile_sha256": "483f37423da62eb73be902fd44fb7f66f09e96d7a38825ce9c8b75536b790de3",
+    "lockfile_sha256": "a45676c13eb5a329503a18288d6f637d5367b0a200fba2967ffa0ea5a7c43ac1",
     "repository": "https://github.com/radrootslabs/lib",
-    "revision": "b6667541b08b4e578199c6612cf51b7402071f5e",
+    "revision": "4a2285ea896cfc361f539c74c467a3fd5591ec74",
     "schema": "radroots.lib.source-lock.v1",
-    "source_archive_sha256": "778b364863f52891b2ee1f074446d0dda4ccf3f2af86e51116fcedc37da6c158",
+    "source_archive_sha256": "bb9fcbafe08b109f1fa98794c7806dff0a909ce3e71aa210114dfc1ca1f208df",
     "version": "0.1.0-alpha",
     "workspace_catalog_sha256": "ee295f2352e2577a4052d980624415aec9871197d4fc9910a4c21c83a9179200"
   },
@@ -502,15 +502,15 @@
     "files": {
       "Cargo.lock": {
         "bytes": 94853,
-        "git_blob": "6a7e618174f0c78c841fd14da290c14436fc3e91",
+        "git_blob": "0d07f3eac7da0abae59216b43a1216e826115289",
         "mode": "100644",
-        "sha256": "483f37423da62eb73be902fd44fb7f66f09e96d7a38825ce9c8b75536b790de3"
+        "sha256": "a45676c13eb5a329503a18288d6f637d5367b0a200fba2967ffa0ea5a7c43ac1"
       },
       "Cargo.toml": {
         "bytes": 4442,
-        "git_blob": "6f6ed42792b823effd6420c144b0ee761f0fe0cb",
+        "git_blob": "416fbb8630046196c43a2f4c188737723f833928",
         "mode": "100644",
-        "sha256": "00aa286666fac8f8bf9ab37861bae616c2608f459168f7773f8cb34eab864348"
+        "sha256": "8f1e6238db01042bc9b7e83b8710587a645f8344de87fd915f7cb7a4e181d037"
       },
       "Makefile": {
         "bytes": 3934,
@@ -1864,9 +1864,9 @@
       },
       "radroots.lib.source-lock.v1.toml": {
         "bytes": 482,
-        "git_blob": "2542be58506ede0d8e8a08d9c07de1132d2267d4",
+        "git_blob": "5608b18b1c5a2c8dfe43c730fab477b0df8f02b2",
         "mode": "100644",
-        "sha256": "6918dda9bfb4fd890e77b630625313de3cf8f42e830974b6cf2c41afe435e5f2"
+        "sha256": "8d3ce593c764a1756aecc81807c8ae63f654eb34e8cc7e01fff3287ad04d37a1"
       },
       "rust-toolchain.toml": {
         "bytes": 79,
@@ -2194,6 +2194,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "6661f9a8c9bd760a3f24a90125c05450b1c7d530"
+    "tree": "e56e06e366f9d471881a036289136ad4cf070f1b"
   }
 }
