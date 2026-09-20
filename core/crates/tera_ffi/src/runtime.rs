@@ -4,8 +4,11 @@ use std::sync::Arc;
 mod composer;
 #[path = "draft_inventory/runtime.rs"]
 mod draft_inventory;
+#[path = "recovery_completion.rs"]
+mod recovery_completion;
 #[path = "recovery_inventory/runtime.rs"]
 mod recovery_inventory;
+pub use recovery_completion::{FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt};
 #[path = "submission/runtime.rs"]
 mod submission;
 

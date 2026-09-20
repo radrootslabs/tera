@@ -4,7 +4,7 @@ enum TeraAddUploadCompletion {
   static func complete(
     _ receipt: TeraAddBackgroundUploadReceipt,
     handle: TeraPreparedMediaHandle,
-    media: any TeraAddMediaHandling,
+    media _: any TeraAddMediaHandling,
     runtimeClient: TeraRuntimeClient
   ) async throws -> TeraDraftStatus {
     do {
@@ -29,7 +29,8 @@ enum TeraAddUploadCompletion {
         // completion became durable. Preserve the receipt for reconciliation.
         throw CancellationError()
       }
-      try? await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: false)
+      // Storage failure, timeout, and response rejection cannot establish that
+      // the native attempt is safe to discard. Exact recovery owns that decision.
       throw error
     }
   }

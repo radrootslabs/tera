@@ -3,6 +3,27 @@
 use super::*;
 
 impl Phase1MediaPrerequisite {
+    /// Reconcile only an existing admitted attempt, without authorizing another
+    /// upload. A prior failed verification may still have a valid native receipt.
+    pub(in crate::runtime::product_surface) fn complete_recovered_transfer(
+        &mut self,
+        receipt: &radroots_sdk::transport::BlossomUploadReceipt,
+    ) -> Result<(), Phase1DraftError> {
+        self.recovery_attempt()?;
+        if !matches!(
+            self.stage,
+            Phase1MediaStage::Uploading | Phase1MediaStage::Failed
+        ) || !self.matches_receipt(receipt)
+        {
+            return Err(Phase1DraftError::InvalidMedia);
+        }
+        let mut next = self.clone();
+        next.stage = Phase1MediaStage::Uploading;
+        next.complete_transfer(receipt)?;
+        *self = next;
+        Ok(())
+    }
+
     pub(in crate::runtime::product_surface) fn transition_requested(
         &mut self,
         stage: Phase1MediaStage,

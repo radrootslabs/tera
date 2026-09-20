@@ -62,6 +62,17 @@ impl UploadAttempt {
 }
 
 impl Phase1MediaPrerequisite {
+    pub(in crate::runtime::product_surface) fn recovery_attempt(
+        &self,
+    ) -> Result<SigningOperationId, Phase1DraftError> {
+        let attempt = self
+            .authorization_attempt
+            .as_ref()
+            .ok_or(Phase1DraftError::InvalidMedia)?;
+        attempt.validate()?;
+        SigningOperationId::new(attempt.operation_id).map_err(|_| Phase1DraftError::InvalidMedia)
+    }
+
     pub(in crate::runtime::product_surface) fn reserve_upload(
         &mut self,
         plan: &Phase1UploadPlan,

@@ -8,6 +8,7 @@ enum TeraNativeRecoveryInventory {
 
   static func run(
     transfer: any RadrootsBackgroundTransfer, cursor: String?,
+    complete: @Sendable (RadrootsBackgroundTransferSnapshot, TeraNativeUploadRecoveryOwner) async throws -> Void = { _, _ in throw TeraComposerAcknowledgment.unconfirmed },
     lookup: @Sendable (String) async throws -> TeraNativeUploadRecoveryOwner?
   ) async throws -> (progress: TeraNativeRecoveryProgress, cursor: String?) {
     let snapshots = try await transfer.snapshots()
@@ -24,7 +25,11 @@ enum TeraNativeRecoveryInventory {
               let owner = try await lookup(identity.draftID), owner.id == identity.draftID
         else { throw TeraComposerAcknowledgment.unconfirmed }
         try Task.checkCancellation()
-        try await TeraNativeUploadReconciliation.reconcile(snapshot, owner: owner, transfer: transfer)
+        if owner.media.contains(where: { $0.sha256 == snapshot.request.expectedSourceSHA256 && $0.remoteURL.map(owner.verifiedURLs.contains) == true }) {
+          try await TeraNativeUploadReconciliation.reconcile(snapshot, owner: owner, transfer: transfer)
+        } else {
+          try await complete(snapshot, owner)
+        }
       } catch {
         try Task.checkCancellation()
         // Keep this receipt unchanged. One missing/ambiguous parent never

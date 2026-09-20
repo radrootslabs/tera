@@ -20,6 +20,9 @@ mod media;
 mod operation;
 mod operation_load;
 mod record;
+mod recovery_completion;
+#[cfg(test)]
+mod recovery_completion_tests;
 mod recovery_inventory;
 mod reference_inventory;
 pub(super) use recovery_inventory::recovery_request;

@@ -24,6 +24,30 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   private var meCards = [TeraScopeFixtures.card("old")]
   private var revision: UInt64 = 0
   private var syncReceipt: TeraTodaySyncReceipt?
+  var recoveryCompletion: (@Sendable (TeraRecoveryUploadReceipt, TeraPreparedMediaHandle) async throws -> TeraRecoveryCompletionReceipt)?
+  private var legacyCompletionFailure: TeraRuntimeFailure?
+
+  func failLegacyCompletion(with error: TeraRuntimeFailure) {
+    legacyCompletionFailure = error
+  }
+
+  func completeAddMediaBackground(input _: TeraNativeUploadCompletion) throws -> TeraDraftStatus {
+    throw legacyCompletionFailure ?? TeraComposerAcknowledgment.unconfirmed
+  }
+
+  func setRecoveryCompletion(_ value: @escaping @Sendable (TeraRecoveryUploadReceipt, TeraPreparedMediaHandle) async throws -> TeraRecoveryCompletionReceipt) {
+    recoveryCompletion = value
+  }
+
+  func recoveryParent(key: String) -> TeraRecoveryEntry? {
+    drafts.first(where: { $0.id == key }).map { .init(key: $0.id, revision: $0.revision, owner: .legacy) }
+  }
+
+  func recoverNativeUpload(_ receipt: TeraRecoveryUploadReceipt, media: TeraPreparedMediaHandle) async throws -> TeraRecoveryCompletionReceipt {
+    guard let recoveryCompletion else { throw TeraComposerAcknowledgment.unconfirmed }
+    return try await recoveryCompletion(receipt, media)
+  }
+
   private var reconciliationCards: [TeraTodayCard]?
   private var reconciliationGeneration: UInt64 = 1
   private(set) var reconciliationRequests: [TeraTodayReconcileRequest] = []

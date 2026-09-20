@@ -97,7 +97,7 @@ impl TeraRuntime {
         }
     }
 
-    pub(super) async fn save_submission_media(
+    pub(in crate::runtime::product_surface::submission) async fn save_submission_media(
         &self,
         loaded: &mut LoadedOperation,
     ) -> Result<(), E> {

@@ -1361,6 +1361,20 @@ impl TryFrom<FfiPreparedMediaInput> for PreparedMedia {
 }
 
 impl PreparedMedia {
+    pub(crate) fn into_recovery_media(
+        self,
+    ) -> Result<tera_core::runtime::product_surface::recovery_completion::RecoveryMedia, TeraAppError>
+    {
+        tera_core::runtime::product_surface::recovery_completion::RecoveryMedia::new(
+            self.opaque_reference,
+            self.bytes,
+            self.media_type,
+            self.width,
+            self.height,
+        )
+        .map_err(Into::into)
+    }
+
     pub(crate) fn into_submission_bytes(self) -> std::sync::Arc<[u8]> {
         self.bytes
     }

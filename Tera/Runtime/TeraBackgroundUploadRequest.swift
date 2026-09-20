@@ -118,7 +118,7 @@ enum TeraBackgroundUploadRequest {
 
   static func transferIdentity(
     _ identifier: RadrootsBackgroundTransferIdentifier
-  ) -> (draftID: String, revision: UInt64)? {
+  ) -> TeraNativeTransferIdentity? {
     let components = identifier.rawValue.split(separator: ".", omittingEmptySubsequences: false)
     guard components.count == 5,
       components[0] == "radroots",
@@ -128,6 +128,12 @@ enum TeraBackgroundUploadRequest {
       String(revision) == components[3],
       components[4].range(of: "^[0-9a-f]{32}$", options: .regularExpression) != nil
     else { return nil }
-    return (String(components[2]), revision)
+    return TeraNativeTransferIdentity(draftID: String(components[2]), revision: revision, attempt: String(components[4]))
   }
+}
+
+struct TeraNativeTransferIdentity: Sendable, Equatable {
+  let draftID: String
+  let revision: UInt64
+  let attempt: String
 }

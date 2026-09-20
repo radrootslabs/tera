@@ -31,7 +31,9 @@ pub use media_inventory::*;
 pub use operations::*;
 pub use recovery::*;
 pub use recovery_inventory::*;
-pub use runtime::{ProtectedDataAvailability, TeraRuntime};
+pub use runtime::{
+    FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt, ProtectedDataAvailability, TeraRuntime,
+};
 pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,
     SignerAvailabilityRecord, SignerStatusRecord, TeraHostSigner,

@@ -66,6 +66,17 @@ pub struct SubmissionMediaResponse {
 }
 
 impl SubmissionMediaResponse {
+    pub(in crate::runtime::product_surface) fn parts(
+        &self,
+    ) -> (u16, Option<&str>, Option<&str>, &[u8]) {
+        (
+            self.status_code,
+            self.media_type.as_deref(),
+            self.content_encoding.as_deref(),
+            &self.body,
+        )
+    }
+
     pub fn new(
         status_code: u16,
         media_type: Option<String>,

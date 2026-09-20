@@ -63,6 +63,8 @@ let package = Package(
         "Runtime/TeraGeneratedSubmissionOperation.swift",
         "Runtime/TeraNativeTransferJob.swift",
         "Runtime/TeraRecoveryInventory.swift",
+        "Runtime/TeraRecoveryCompletion.swift",
+        "Runtime/TeraGeneratedRecoveryCompletion.swift",
         "Runtime/TeraGeneratedRecoveryInventory.swift",
         "Runtime/TeraNativeRecoveryInventory.swift",
         "Runtime/TeraRuntimeClientSubmission.swift",

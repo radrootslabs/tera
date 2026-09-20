@@ -23,6 +23,8 @@ mod projection;
 mod publication;
 mod ranking;
 #[cfg(feature = "mobile-social")]
+pub mod recovery_completion;
+#[cfg(feature = "mobile-social")]
 pub mod recovery_inventory;
 #[cfg(feature = "mobile-social")]
 pub mod recovery_reconciliation;

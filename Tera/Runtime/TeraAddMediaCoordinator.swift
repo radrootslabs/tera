@@ -86,18 +86,6 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   private var recoveryCursor: String?
   private var recoveryActive = false
 
-  func recoverNativeUploads(client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
-    guard !recoveryActive else { throw TeraBackgroundUploadRequest.operationInProgress }
-    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
-    recoveryActive = true
-    defer { recoveryActive = false; withExtendedLifetime(mediaUse) {} }
-    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: recoveryCursor) { key in
-      try await client.recoveryUploadOwner(key: key)
-    }
-    recoveryCursor = result.cursor
-    return result.progress
-  }
-
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) throws {
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
     defer { withExtendedLifetime(mediaUse) {} }
@@ -340,5 +328,26 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
 
   private static func failure(code: String, message: String) -> TeraRuntimeFailure {
     .local(operation: "add.media.background", code: code, safeMessage: message)
+  }
+}
+
+extension TeraAddMediaCoordinator {
+  func recoverNativeUploads(client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
+    guard !recoveryActive else { throw TeraBackgroundUploadRequest.operationInProgress }
+    let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+    recoveryActive = true
+    defer { recoveryActive = false; withExtendedLifetime(mediaUse) {} }
+    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: recoveryCursor, complete: { snapshot, owner in
+      let input = try TeraRecoveryUploadReceipt(snapshot: snapshot, owner: owner)
+      let opened = try await self.open([input.media])
+      defer { opened.close() }
+      guard let handle = opened.handles.first else { throw TeraComposerAcknowledgment.unconfirmed }
+      let receipt = try await client.recoverNativeUpload(input, media: handle)
+      try Task.checkCancellation()
+      try receipt.confirm(input)
+      try await self.settleBackgroundUpload(identifier: snapshot.identifier.rawValue, accepted: true)
+    }, lookup: { key in try await client.recoveryUploadOwner(key: key) })
+    recoveryCursor = result.cursor
+    return result.progress
   }
 }

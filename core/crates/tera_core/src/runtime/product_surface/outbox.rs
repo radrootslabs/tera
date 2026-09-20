@@ -54,6 +54,7 @@ mod reference_inventory;
 pub(super) use reference_inventory::media_references;
 mod media;
 mod native_upload;
+mod recovery_completion;
 mod upload_attempt;
 pub use inventory::{
     Phase1DraftListEntry, Phase1DraftPage, Phase1DraftRepairReason, Phase1DraftSummary,
@@ -3428,6 +3429,7 @@ fn phase1_random_id() -> Result<[u8; 16], Phase1DraftError> {
 
 #[cfg(test)]
 mod tests {
+    mod recovery_completion_tests;
     use super::*;
     use crate::runtime::product_surface::{
         CANONICAL_ADD_COMMAND_TYPES, CreateAsk, CreateEvent, CreateFoodAvailability,
