@@ -7856,7 +7856,7 @@
       "version": "1.0.23"
     },
     {
-      "bom-ref": "swift:apple_kit@ad5659709df6ca19a8e5517caf6c5f8396d1539e?source=https://github.com/radrootslabs/apple_kit.git",
+      "bom-ref": "swift:apple_kit@8898507a58491950da93ec73ebd78888717618a6?source=https://github.com/radrootslabs/apple_kit.git",
       "name": "apple_kit",
       "properties": [
         {
@@ -7869,11 +7869,11 @@
         },
         {
           "name": "radroots.package.revision",
-          "value": "ad5659709df6ca19a8e5517caf6c5f8396d1539e"
+          "value": "8898507a58491950da93ec73ebd78888717618a6"
         }
       ],
       "type": "library",
-      "version": "ad5659709df6ca19a8e5517caf6c5f8396d1539e"
+      "version": "8898507a58491950da93ec73ebd78888717618a6"
     },
     {
       "bom-ref": "swift:swift-secp256k1@e70a10e036a55fffea31568f0af92d69b6d449cd?source=https://github.com/21-DOT-DEV/swift-secp256k1.git",
@@ -10767,14 +10767,14 @@
         "cargo:tera_core@0.1.0-alpha?source=workspace",
         "cargo:tera_ffi@0.1.0-alpha?source=workspace",
         "cargo:tera_wasm@0.1.0-alpha?source=workspace",
-        "swift:apple_kit@ad5659709df6ca19a8e5517caf6c5f8396d1539e?source=https://github.com/radrootslabs/apple_kit.git",
+        "swift:apple_kit@8898507a58491950da93ec73ebd78888717618a6?source=https://github.com/radrootslabs/apple_kit.git",
         "swift:swift-secp256k1@e70a10e036a55fffea31568f0af92d69b6d449cd?source=https://github.com/21-DOT-DEV/swift-secp256k1.git"
       ],
       "ref": "pkg:generic/tera@0.1.0-alpha"
     },
     {
       "dependsOn": [],
-      "ref": "swift:apple_kit@ad5659709df6ca19a8e5517caf6c5f8396d1539e?source=https://github.com/radrootslabs/apple_kit.git"
+      "ref": "swift:apple_kit@8898507a58491950da93ec73ebd78888717618a6?source=https://github.com/radrootslabs/apple_kit.git"
     },
     {
       "dependsOn": [],
