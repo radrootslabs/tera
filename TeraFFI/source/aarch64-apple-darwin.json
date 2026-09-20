@@ -645,10 +645,10 @@
         "sha256": "dff55e46521c26f5f0ece024453b55c15f132fa94f78e2cba3d141f123d4eca0"
       },
       "core/crates/tera_core/src/runtime/product_surface.rs": {
-        "bytes": 8364,
-        "git_blob": "76c094ffe07eb95958c3559e13a6e8569ed51985",
+        "bytes": 8431,
+        "git_blob": "7fe0757ff6467b31fa087c25485e46b280b29ac6",
         "mode": "100644",
-        "sha256": "adcde8696fd8144f13213388f68f1c3d6cc19c31f08121f024281a99e9e05ec8"
+        "sha256": "67351a02a9d45f216212aa05e52ac0d5c36b74d7787731fb1bcfaecc69b1cec2"
       },
       "core/crates/tera_core/src/runtime/product_surface/authoring.rs": {
         "bytes": 11282,
@@ -907,6 +907,18 @@
         "git_blob": "44973e1c26859dabd8277990169519c5b363d81d",
         "mode": "100644",
         "sha256": "8e0c1fedaa2ae6ceab717b5d44918be49683ac23a75a6c931fbca15013a36322"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/recovery_reconciliation.rs": {
+        "bytes": 6212,
+        "git_blob": "63647bd304a3fd9dd51bc0930b7826eb96efe62e",
+        "mode": "100644",
+        "sha256": "655b9e8405a9a53c0e1657648a5d9d7a6a223a9d99c788c21afe5b6a8fc8242b"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/recovery_reconciliation/tests.rs": {
+        "bytes": 6878,
+        "git_blob": "6d0d08c446de5fc16598de6475020d270de77aa5",
+        "mode": "100644",
+        "sha256": "dab08b5c62c89ab3f178b859c6229aef16d4cf844f6990f5c087481b773dfa85"
       },
       "core/crates/tera_core/src/runtime/product_surface/settings.rs": {
         "bytes": 57049,
@@ -2271,13 +2283,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 151542,
-        "git_blob": "854f586ecad54a22665f64d44d4843b39c66a50c",
+        "bytes": 152102,
+        "git_blob": "9801e3a668e27cf4b8e934599ae2d89b2535a9e4",
         "mode": "100644",
-        "sha256": "66dec6eb2296cee4c29333a58645ab3686442c34577c36bd2b8344b0bf5c32f2"
+        "sha256": "b39f1ef08ee92d472f63327675b46de673f3386d77ce93c1afe23c2f1214ee47"
       }
     },
     "policy": "staged_inputs",
-    "tree": "207953b663237a6397cdd564c488e1491dbfde76"
+    "tree": "3e612b493a705f30a2e9ad8ae12a8e320b5f884c"
   }
 }
