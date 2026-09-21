@@ -7,7 +7,18 @@ enum TeraNativeRecoveryReason: Sendable, Equatable {
 }
 
 enum TeraNativeRecoveryPause: Sendable, Equatable {
-  case protectedData, storageUnavailable
+  case protectedData, storageUnavailable, quota, credentials, runtimeUnavailable
+
+  var message: String {
+    let reason = switch self {
+    case .protectedData: "Photo recovery is paused until this device is unlocked."
+    case .storageUnavailable: "Photo recovery is paused until local storage is available."
+    case .quota: "Photo recovery is paused because local storage is full. Free space, then check again."
+    case .credentials: "Photo recovery is paused until this account’s credentials are available."
+    case .runtimeUnavailable: "Photo recovery is paused until this account’s runtime is available."
+    }
+    return "\(reason) Saved editing is still available."
+  }
 }
 
 enum TeraNativeRecoveryFault: Error {
@@ -37,10 +48,16 @@ struct TeraNativeRecoveryIssue: Sendable, Equatable, Identifiable {
 
 enum TeraNativeRecoveryClassification {
   static func pause(_ error: Error) -> TeraNativeRecoveryPause? {
+    if let client = error as? TeraRuntimeClientError, case .notRunning = client {
+      return .runtimeUnavailable
+    }
     if let failure = TeraRuntimeFailure.from(error) {
       switch failure.recovery.disposition {
       case .protectedDataUnavailable: return .protectedData
-      case .storageFailure, .quotaExhausted, .runtimeUnavailable, .identityUnavailable: return .storageUnavailable
+      case .storageFailure: return .storageUnavailable
+      case .quotaExhausted: return .quota
+      case .identityUnavailable: return .credentials
+      case .runtimeUnavailable: return .runtimeUnavailable
       default: break
       }
     }
@@ -63,9 +80,19 @@ enum TeraNativeRecoveryClassification {
                      client: TeraRuntimeClient) async -> TeraNativeRecoveryIssue?
   {
     let key = TeraNativeRecoveryIssue.key(identifier)
-    let status = try? await client.reportNativeRecoveryStatus(key: key, reason: reason)
-    guard reason != .resolved else { return nil }
-    return .init(key: key, reason: reason, status: status)
+    do {
+      let status = try await client.reportNativeRecoveryStatus(key: key, reason: reason)
+      return .init(key: key, reason: reason, status: status)
+    } catch {
+      guard reason == .resolved else { return .init(key: key, reason: reason, status: nil) }
+      // A new store may have no transient notice. Read back a retained advisory
+      // after a failed resolution write; only durable resolved state clears it.
+      do {
+        return try await client.nativeRecoveryStatus(key: key).map { .init(key: key, reason: $0.reason, status: $0) }
+      } catch {
+        return .init(key: key, reason: .outcomeUnconfirmed, status: nil)
+      }
+    }
   }
 }
 

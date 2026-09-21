@@ -61,7 +61,9 @@ struct TeraRootShell: View {
           TeraAddView(store: stores.add)
         } else {
           #if DEBUG
-            if ProcessInfo.processInfo.environment["TERA_IOS_UI_TEST_EDITING_PROTECTION"] == "1" {
+            if ProcessInfo.processInfo.environment["TERA_IOS_UI_TEST_RECOVERY"] == "1" {
+              TeraRecoveryUITestSurface()
+            } else if ProcessInfo.processInfo.environment["TERA_IOS_UI_TEST_EDITING_PROTECTION"] == "1" {
               TeraEditingProtectionUITestSurface()
             } else {
               TeraAddUnavailable()

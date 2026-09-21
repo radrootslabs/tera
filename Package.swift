@@ -168,6 +168,7 @@ let package = Package(
         "Views/TeraDraftsSheet.swift",
         "Views/TeraEditingProtectionActions.swift",
         "Views/TeraEditingProtectionUITestSurface.swift",
+        "Views/TeraRecoveryUITestSurface.swift",
         "Views/TeraSupportingViews.swift",
         "Views/TeraContextPicker.swift",
         "Views/TeraTodayDiscoveryView.swift",

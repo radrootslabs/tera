@@ -1631,6 +1631,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraOperationRecoveryTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraRecoveryCompletionTests.swift",
           "count": 1
         },

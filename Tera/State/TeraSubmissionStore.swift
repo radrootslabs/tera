@@ -62,6 +62,13 @@ final class TeraSubmissionStore: ObservableObject {
     }
   }
 
+  /// Explicit continuation uses only the retained original request/capture.
+  /// The runtime remains authoritative for every effect and retry admission.
+  func continueSelected() async {
+    guard hasAction, status?.canOfferContinuation != false else { return }
+    await run(advancing: true)
+  }
+
   func stop() {
     generation = generation.invalidated()
     paused = true

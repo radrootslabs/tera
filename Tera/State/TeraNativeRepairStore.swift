@@ -14,7 +14,8 @@ final class TeraNativeRepairStore: ObservableObject {
   private var author: String?
   private var generation = TeraSessionGeneration.initial
   private var task: Task<Void, Never>?
-  private var pending = false
+  private enum Request { case sweep, transfer(String) }
+  private var pending: Request?
 
   init(client: TeraRuntimeClient, media: (any TeraAddMediaHandling)?) {
     self.client = client
@@ -34,27 +35,36 @@ final class TeraNativeRepairStore: ObservableObject {
 
   func stop() {
     generation = generation.invalidated()
-    pending = false
+    pending = nil
     task?.cancel()
   }
 
   func retry() {
+    enqueue(.sweep)
+  }
+
+  func check(_ issue: TeraNativeRecoveryIssue) {
+    guard issues.contains(where: { $0.key == issue.key }) else { return }
+    enqueue(.transfer(issue.key))
+  }
+
+  private func enqueue(_ request: Request) {
     guard !Task.isCancelled, generation.isActive else { return }
     // Coalesce live requests. A request after stop is retained until the old
     // worker actually returns, so cancellation cannot release its ownership.
     guard task == nil || task?.isCancelled == true else { return }
-    pending = true
+    pending = request
     startWorker()
   }
 
   private func startWorker() {
-    guard task == nil, pending, generation.isActive else { return }
-    pending = false
+    guard task == nil, let request = pending, generation.isActive else { return }
+    pending = nil
     let requested = generation
     isRunning = true
     task = Task { [weak self] in
       guard let self else { return }
-      await run(requested)
+      await run(requested, request: request)
       isRunning = false
       task = nil
       startWorker()
@@ -78,10 +88,13 @@ final class TeraNativeRepairStore: ObservableObject {
     return true
   }
 
-  private func run(_ requested: TeraSessionGeneration) async {
+  private func run(_ requested: TeraSessionGeneration, request: Request) async {
     for _ in 0 ..< Self.batchLimit {
       guard requested == generation, !Task.isCancelled else { return }
-      await batch(requested)
+      await batch(requested, request: request)
+      if case .transfer = request {
+        return
+      }
       guard requested == generation, !Task.isCancelled,
             let progress, progress.pause == nil, progress.remaining > 0, progress.visited > 0
       else { return }
@@ -89,9 +102,12 @@ final class TeraNativeRepairStore: ObservableObject {
     }
   }
 
-  private func batch(_ requested: TeraSessionGeneration) async {
+  private func batch(_ requested: TeraSessionGeneration, request: Request) async {
     do {
-      let result = try await media?.recoverNativeUploads(client: client)
+      let result: TeraNativeRecoveryProgress? = switch request {
+      case .sweep: try await media?.recoverNativeUploads(client: client)
+      case let .transfer(key): try await media?.recoverNativeUpload(key: key, client: client)
+      }
       guard requested == generation, !Task.isCancelled else { return }
       if let result {
         guard (0 ... TeraNativeRecoveryInventory.passLimit).contains(result.visited), result.remaining >= 0,
@@ -100,12 +116,18 @@ final class TeraNativeRepairStore: ObservableObject {
       let refreshed = await Self.refresh(issues, incoming: result?.issues ?? [], client: client)
       guard requested == generation, !Task.isCancelled else { return }
       issues = refreshed
-      progress = result
-      message = Self.message(result, retained: !issues.isEmpty)
+      if case .transfer = request, let result {
+        // A selected check does not advance the persistent sweep cursor.
+        progress = .init(visited: result.visited, remaining: progress?.remaining ?? 0,
+                         needsAttention: result.needsAttention, issues: result.issues, pause: result.pause)
+      } else {
+        progress = result
+      }
+      message = Self.message(progress, retained: !issues.isEmpty)
     } catch {
       guard requested == generation, !Task.isCancelled else { return }
       let pause = TeraNativeRecoveryClassification.pause(error)
-      progress = .init(visited: 0, remaining: 0, needsAttention: pause == nil, pause: pause)
+      progress = .init(visited: 0, remaining: progress?.remaining ?? 0, needsAttention: pause == nil, pause: pause)
       message = Self.message(progress, retained: !issues.isEmpty)
     }
   }
@@ -114,7 +136,8 @@ final class TeraNativeRepairStore: ObservableObject {
                               client: TeraRuntimeClient) async -> [TeraNativeRecoveryIssue]
   {
     var values: [String: TeraNativeRecoveryIssue] = [:]
-    for issue in previous + incoming where issue.reason != .resolved {
+    let resolved = Set(incoming.filter { $0.reason == .resolved }.map(\.key))
+    for issue in previous + incoming where issue.reason != .resolved && !resolved.contains(issue.key) {
       if values.count < previewLimit || values[issue.key] != nil {
         values[issue.key] = issue
       }
@@ -135,10 +158,8 @@ final class TeraNativeRepairStore: ObservableObject {
 
   private static func message(_ progress: TeraNativeRecoveryProgress?, retained: Bool) -> String? {
     guard let progress else { return nil }
-    switch progress.pause {
-    case .protectedData: return "Photo recovery is paused until this device is unlocked. Saved editing is still available."
-    case .storageUnavailable: return "Photo recovery is paused until local storage is available. Saved editing is still available."
-    case nil: break
+    if let pause = progress.pause {
+      return pause.message
     }
     if progress.needsAttention || retained {
       return "Photo recovery needs attention. Saved editing is still available."

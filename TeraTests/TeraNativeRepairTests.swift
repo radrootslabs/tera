@@ -36,7 +36,7 @@ final class TeraNativeRepairTests: XCTestCase {
     XCTAssertTrue(first.progress.issues.contains { $0.reason == .associationMismatch })
     XCTAssertTrue(first.progress.issues.allSatisfy { $0.status?.revision == 1 })
     let replay = try await run()
-    XCTAssertEqual(replay.progress.visited, 2)
+    XCTAssertEqual(replay.progress.visited, 3, "Completed positions are visited without repeating settlement")
     XCTAssertEqual(replay.progress.issues, first.progress.issues)
     let counts = await transfer.counts
     XCTAssertEqual(counts.acceptedSettlement, 1)

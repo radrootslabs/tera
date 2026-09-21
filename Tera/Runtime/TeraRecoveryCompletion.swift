@@ -10,7 +10,7 @@ struct TeraRecoveryUploadReceipt: Sendable {
   let response: TeraAddBackgroundUploadReceipt
 
   init(snapshot: RadrootsBackgroundTransferSnapshot, owner: TeraNativeUploadRecoveryOwner) throws {
-    guard snapshot.state == .awaitingVerification,
+    guard snapshot.state == .awaitingVerification || snapshot.state == .completed,
           let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
           identity.draftID == owner.id, identity.revision <= owner.revision,
           let hash = snapshot.request.expectedSourceSHA256,

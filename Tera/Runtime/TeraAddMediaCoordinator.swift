@@ -21,6 +21,7 @@ struct TeraAddBackgroundUploadReceipt: Sendable, Equatable {
 protocol TeraAddMediaHandling: Sendable {
   func renewSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia, client: TeraRuntimeClient) async throws -> TeraSubmissionStatus
   func recoverNativeUploads(client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress
+  func recoverNativeUpload(key: String, client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) async throws
   func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool
   func support() async throws -> TeraAddMediaSupport
@@ -39,6 +40,10 @@ protocol TeraAddMediaHandling: Sendable {
 }
 
 extension TeraAddMediaHandling {
+  func recoverNativeUpload(key _: String, client _: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
+    throw TeraComposerAcknowledgment.unconfirmed
+  }
+
   func renewSubmissionUpload(_: TeraSubmissionStatus, media _: TeraPreparedMedia, client _: TeraRuntimeClient) async throws -> TeraSubmissionStatus {
     throw TeraComposerAcknowledgment.unconfirmed
   }
@@ -341,14 +346,29 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
 
 extension TeraAddMediaCoordinator {
   func recoverNativeUploads(client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
+    try await recoverNativeUploads(selectedKey: nil, client: client)
+  }
+
+  func recoverNativeUpload(key: String, client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
+    guard key.utf8.count == 64, key.utf8.allSatisfy({ (48 ... 57).contains($0) || (97 ... 102).contains($0) }) else {
+      throw TeraComposerAcknowledgment.unconfirmed
+    }
+    return try await recoverNativeUploads(selectedKey: key, client: client)
+  }
+
+  private func recoverNativeUploads(selectedKey: String?, client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
     guard !recoveryActive else { throw TeraBackgroundUploadRequest.operationInProgress }
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
     recoveryActive = true
     defer { recoveryActive = false; withExtendedLifetime(mediaUse) {} }
-    let schedule = try await client.nativeRecoverySchedule()
-    let continuation = TeraNativeRecoveryContinuation(schedule, client: client)
-    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: schedule.after, checkpoint: { key in
-      try await continuation.advance(key)
+    let schedule = selectedKey == nil ? try await client.nativeRecoverySchedule() : nil
+    let continuation = schedule.map { TeraNativeRecoveryContinuation($0, client: client) }
+    let inspection = TeraNativeRecoveryInspection(selectedKey: selectedKey, completedNeedsRepair: { key in
+      guard let status = try await client.nativeRecoveryStatus(key: key) else { return false }
+      return status.reason != .resolved
+    })
+    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: schedule?.after, inspection: inspection, checkpoint: { key in
+      try await continuation?.advance(key)
     }, complete: { snapshot, owner in
       let input = try TeraRecoveryUploadReceipt(snapshot: snapshot, owner: owner)
       let opened = try await self.open([input.media])

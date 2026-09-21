@@ -194,8 +194,13 @@ final class TeraSubmissionStoreTests: XCTestCase {
     XCTAssertEqual(after, before)
     XCTAssertEqual(replacement.submissions.status, saved)
     XCTAssertEqual(replacement.form.content, "reopened editing")
-    await replacement.submit()
+    await replacement.submissions.refreshSelected()
+    let checked = await backend.submissionBackend.advanceCount
+    XCTAssertEqual(checked, before, "Checking status must not begin a publication effect")
+    await replacement.submissions.continueSelected()
     XCTAssertEqual(replacement.submissions.status?.operationID, saved.operationID)
+    XCTAssertEqual(replacement.submissions.request, saved.request)
+    XCTAssertEqual(replacement.form.content, "reopened editing")
     _ = try await client.stop()
   }
 

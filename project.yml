@@ -56,6 +56,7 @@ targets:
       - path: TeraTests/TeraRecoveryInventoryTests.swift
       - path: TeraTests/TeraNativeRecoveryScheduleTestStorage.swift
       - path: TeraTests/TeraRecoveryContinuationTests.swift
+      - path: TeraTests/TeraOperationRecoveryTests.swift
       - path: TeraTests/TeraRecoverySchedulingTests.swift
       - path: TeraTests/TeraRecoveryCompletionTests.swift
       - path: TeraTests/TeraRecoverySettlementTests.swift
@@ -165,6 +166,7 @@ targets:
     sources:
       - path: TeraUITests/TeraRootShellUITests.swift
       - path: TeraUITests/TeraEditingProtectionUITests.swift
+      - path: TeraUITests/TeraRecoveryUITests.swift
       - path: TeraUITests/TeraPhotoQualificationInput.swift
       - path: TeraUITests/TeraRemoteQualificationUITests.swift
       - path: TeraUITests/TeraSubmissionQualificationSupport.swift

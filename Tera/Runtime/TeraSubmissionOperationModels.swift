@@ -50,6 +50,12 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
     if media.contains(where: \.progress.possibleOrphan) {
       return "Photo delivery needs attention. A remote copy may exist."
     }
+    if delivery.state == .unknown {
+      return "Relay delivery outcome is unknown. Check the original request before continuing."
+    }
+    if delivery.state == .partiallyAccepted {
+      return "Some saved relays accepted this publication. Remaining delivery is not confirmed."
+    }
     switch state {
     case .draft: return "Saved on this device."
     case .mediaPreparing: return "Preparing photo."
@@ -64,6 +70,11 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
     case .cancelled: return "Local work stopped. Recorded remote effects are retained."
     case .complete: return "Delivery completed for the saved relay policy."
     }
+  }
+
+  /// Presentation of an explicit action, never authority to bypass Rust policy.
+  var canOfferContinuation: Bool {
+    !delivery.isStopped && state != .complete && state != .cancelled && state != .terminal
   }
 
   var mediaSummary: String {

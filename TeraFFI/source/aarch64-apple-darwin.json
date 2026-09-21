@@ -2391,13 +2391,13 @@
         "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 161704,
-        "git_blob": "32c6c8f0f55d9fb463540c5791791b1235d8a5f2",
+        "bytes": 161810,
+        "git_blob": "0ebd8ff76767a4e1fbd137c15439c4084f88efc1",
         "mode": "100644",
-        "sha256": "b3c115274b049c56a74f4598abde14c8f3569b06abb0e06202888866f5140be2"
+        "sha256": "4f7f1f2b033105e73bcaf426642042a19ca756ffc36d2bf357acdb32f68fd509"
       }
     },
     "policy": "staged_inputs",
-    "tree": "ce639f8191f2b9bf2ac577da0e185cdd18413c5d"
+    "tree": "c3a6e381147c2d7e7f4ef11c74aad825fbceb30f"
   }
 }

@@ -83,12 +83,25 @@ final class TeraRecoveryInventoryTests: XCTestCase {
     XCTAssertEqual(counts.acceptedSettlement, 999)
     XCTAssertEqual(counts.enqueue, 0)
     XCTAssertEqual(counts.retry, 0)
-    let fresh = try await RecoverySettlementFixture.run(transfer: transfer, cursor: nil) { key in
-      Self.owner(key: key, template: verified)
-    }
-    XCTAssertEqual(fresh.progress, .init(visited: 1, remaining: 0, needsAttention: false))
+    let revisited = try await Self.revisit(transfer: transfer, verified: verified)
+    XCTAssertEqual(revisited, 1000, "Completed positions remain part of the bounded live sweep")
     let finalCounts = await transfer.counts
     XCTAssertEqual(finalCounts.acceptedSettlement, 1000)
+  }
+
+  private static func revisit(transfer: BackgroundTransferHarness, verified: TeraNativeUploadRecoveryOwner) async throws -> Int {
+    var cursor: String?
+    var revisited = 0
+    repeat {
+      let fresh = try await RecoverySettlementFixture.run(transfer: transfer, cursor: cursor) { key in
+        Self.owner(key: key, template: verified)
+      }
+      XCTAssertLessThanOrEqual(fresh.progress.visited, 64)
+      XCTAssertFalse(fresh.progress.needsAttention)
+      revisited += fresh.progress.visited
+      cursor = fresh.cursor
+    } while cursor != nil
+    return revisited
   }
 
   func testCancelledExactLookupRetainsReceiptAndFreshPassRecovers() async throws {

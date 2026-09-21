@@ -44,6 +44,26 @@ final class TeraNativeRepairPreviewTests: XCTestCase {
     _ = try await client.stop()
   }
 
+  func testSelectedCheckClearsOnlyAcknowledgedKeyAndRetainsOtherNotice() async throws {
+    let backend = try TeraScopeBackend()
+    let client = try await TeraScopeFixtures.client(backend)
+    let first = Self.issue(1), second = Self.issue(2)
+    let pages = NativeRepairPages([.init(visited: 0, remaining: 12, needsAttention: true, issues: [first, second], pause: .protectedData)])
+    let store = TeraNativeRepairStore(client: client, media: pages)
+    await store.reconcile()
+    store.check(Self.issue(3))
+    XCTAssertFalse(store.isRunning, "Unretained keys cannot be admitted by a stale UI action")
+    store.check(first)
+    await TeraScopeFixtures.eventually { !store.isRunning }
+    let keys = await pages.selectedKeys
+    XCTAssertEqual(keys, [first.key])
+    XCTAssertEqual(store.issues, [second])
+    XCTAssertEqual(store.progress?.remaining, 12, "Selected check preserves the unvisited sweep positions")
+    XCTAssertNotNil(store.message)
+    store.stop()
+    _ = try await client.stop()
+  }
+
   private static func issue(_ index: Int) -> TeraNativeRecoveryIssue {
     .init(key: String(format: "%064x", index), reason: .missingParent, status: nil)
   }
@@ -61,6 +81,7 @@ extension TeraScopeBackend {
 
 private actor NativeRepairPages: TeraAddMediaHandling {
   var pages: [TeraNativeRecoveryProgress]
+  private(set) var selectedKeys: [String] = []
   init(_ pages: [TeraNativeRecoveryProgress]) {
     self.pages = pages
   }
@@ -71,6 +92,11 @@ private actor NativeRepairPages: TeraAddMediaHandling {
 
   func recoverNativeUploads(client _: TeraRuntimeClient) -> TeraNativeRecoveryProgress {
     pages.isEmpty ? .init(visited: 0, remaining: 0, needsAttention: false) : pages.removeFirst()
+  }
+
+  func recoverNativeUpload(key: String, client _: TeraRuntimeClient) -> TeraNativeRecoveryProgress {
+    selectedKeys.append(key)
+    return .init(visited: 1, remaining: 0, needsAttention: false, issues: [.init(key: key, reason: .resolved, status: nil)])
   }
 
   func importImages(limit _: Int) throws -> [TeraPreparedMedia] {

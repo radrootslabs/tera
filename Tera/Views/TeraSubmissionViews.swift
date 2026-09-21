@@ -11,10 +11,20 @@ struct TeraSubmissionStatusView: View {
             .accessibilityIdentifier("tera.add.submission.stop")
         }
         if store.isWorking {
-          ProgressView("Working on the captured submission…")
+          ProgressView(store.status?.summary ?? "Checking the original submission request…")
             .accessibilityIdentifier("tera.add.submission.progress")
           Button("Stop waiting") { store.stopWaiting() }
             .accessibilityIdentifier("tera.add.submission.stop_waiting")
+        }
+        if !store.isWorking {
+          if store.request != nil {
+            Button("Check saved submission status") { Task { await store.refreshSelected() } }
+              .accessibilityIdentifier("tera.add.submission.check")
+          }
+          if store.status?.canOfferContinuation != false {
+            Button("Continue original submission") { Task { await store.continueSelected() } }
+              .accessibilityIdentifier("tera.add.submission.continue")
+          }
         }
         if let status = store.status {
           Text(status.summary)

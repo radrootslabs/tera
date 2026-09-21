@@ -24,6 +24,7 @@ struct TeraDraftsSheet: View {
         TeraEditingProtectionActions(protection: protection)
         composerSection
         TeraSubmissionInventoryView(store: store.submissions)
+        TeraNativeRepairView(store: recovery.transfers)
         legacySection
         Section {
           Button("Reload from first page") { recovery.start() }
