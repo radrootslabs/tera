@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 final class TeraDraftRecoveryStore: ObservableObject {
   let transfers: TeraNativeRepairStore
+  let revisions: TeraRevisionDetailStore
   static let pageSize: UInt16 = 100
   @Published private(set) var composers: [TeraComposerListEntry] = []
   @Published private(set) var legacy: [TeraLegacyDraftListEntry] = []
@@ -25,6 +26,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
   init(client: TeraRuntimeClient, media: (any TeraAddMediaHandling)? = nil) {
     transfers = TeraNativeRepairStore(client: client, media: media)
     self.client = client
+    revisions = TeraRevisionDetailStore(client: client)
     composer = TeraComposerPersistence(client: client).protectingMedia(media)
   }
 
@@ -35,6 +37,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
     stop()
     self.scope = scope
     transfers.configure(author: scope.authorPublicKey)
+    revisions.configure(author: scope.authorPublicKey)
     composers = []
     legacy = []
     composerCursor = nil
@@ -45,6 +48,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
 
   func stop() {
     transfers.stop()
+    revisions.stop()
     generation = generation.invalidated()
     pending = nil
     task?.cancel()

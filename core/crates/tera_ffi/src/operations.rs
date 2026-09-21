@@ -4,15 +4,14 @@ use tera_core::runtime::product_surface::{
     AddCommandType, BlossomEndpointAuthorityPreference, BlossomPreferences, IdentityCommand,
     IdentityLockState, IdentityRecord, IdentityState, LocalStoragePolicy, MediaNetworkPolicy,
     MobileNetworkEnvironment, MobileSettings, Phase1LocalMediaArtifact, Phase1MediaCacheStatus,
-    Phase1ProfileStatus, Phase1RevisionPhase, Phase1RevisionPolicy, Phase1RevisionStatus,
-    Phase1RevisionTarget, ProfileMetadataCommand, RelayAccessPreference, RelayEndpointPreference,
-    RelayPreferences, SettingsTransition, phase1_new_operation_id,
+    Phase1ProfileStatus, Phase1RevisionTarget, ProfileMetadataCommand, RelayAccessPreference,
+    RelayEndpointPreference, RelayPreferences, SettingsTransition, phase1_new_operation_id,
 };
 
 use crate::dto::PreparedMedia;
 use crate::{
-    FfiAddDraftInput, FfiDraftStatusRecord, FfiOperationSettlementRecord, FfiOutboxState,
-    FfiPreparedMediaInput, MOBILE_FFI_SCHEMA_VERSION, TeraAppError,
+    FfiAddDraftInput, FfiOperationSettlementRecord, FfiOutboxState, FfiPreparedMediaInput,
+    MOBILE_FFI_SCHEMA_VERSION, TeraAppError,
 };
 
 impl From<crate::FfiAddCommandType> for AddCommandType {
@@ -507,60 +506,6 @@ impl FfiRevisionInputRecord {
             self.author_public_key.clone(),
         )
         .map_err(Into::into)
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
-pub enum FfiRevisionPolicy {
-    ReplaceThenRetract,
-    AddressableReplacement,
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, uniffi::Enum)]
-pub enum FfiRevisionPhase {
-    ReplacementPending,
-    ReplacementFailed,
-    RetractionPending,
-    Complete,
-    PartialEffect,
-    Cancelled,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
-pub struct FfiRevisionStatusRecord {
-    pub schema_version: u16,
-    pub operation_id: String,
-    pub replacement: FfiDraftStatusRecord,
-    pub retraction: Option<FfiDraftStatusRecord>,
-    pub policy: FfiRevisionPolicy,
-    pub phase: FfiRevisionPhase,
-}
-
-impl From<Phase1RevisionStatus> for FfiRevisionStatusRecord {
-    fn from(value: Phase1RevisionStatus) -> Self {
-        let operation_id = hex::encode(value.replacement().draft().draft_id().as_bytes());
-        let retraction = value.retraction().cloned().map(Into::into);
-        let replacement = value.replacement().clone().into();
-        Self {
-            schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            operation_id,
-            replacement,
-            retraction,
-            policy: match value.policy() {
-                Phase1RevisionPolicy::ReplaceThenRetract => FfiRevisionPolicy::ReplaceThenRetract,
-                Phase1RevisionPolicy::AddressableReplacement => {
-                    FfiRevisionPolicy::AddressableReplacement
-                }
-            },
-            phase: match value.phase() {
-                Phase1RevisionPhase::ReplacementPending => FfiRevisionPhase::ReplacementPending,
-                Phase1RevisionPhase::ReplacementFailed => FfiRevisionPhase::ReplacementFailed,
-                Phase1RevisionPhase::RetractionPending => FfiRevisionPhase::RetractionPending,
-                Phase1RevisionPhase::Complete => FfiRevisionPhase::Complete,
-                Phase1RevisionPhase::PartialEffect => FfiRevisionPhase::PartialEffect,
-                Phase1RevisionPhase::Cancelled => FfiRevisionPhase::Cancelled,
-            },
-        }
     }
 }
 

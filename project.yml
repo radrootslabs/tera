@@ -69,6 +69,7 @@ targets:
       - path: TeraTests/TeraPublicationTargetTests.swift
       - path: TeraTests/TeraPublicationRetryTests.swift
       - path: TeraTests/TeraRevisionPreparationTests.swift
+      - path: TeraTests/TeraRevisionDetailTests.swift
       - path: TeraTests/TeraRevisionTestBackend.swift
       - path: TeraTests/TeraStoppedUploadTests.swift
       - path: TeraTests/TeraUploadRenewalTests.swift

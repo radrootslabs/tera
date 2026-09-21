@@ -20,6 +20,7 @@ pub struct Phase1DraftSummary {
     state: Phase1OutboxState,
     has_form: bool,
     is_revision: bool,
+    revision_parent_draft_id: Option<[u8; 16]>,
     created_at_unix_ms: u64,
     updated_at_unix_ms: u64,
     media_count: u64,
@@ -46,6 +47,9 @@ impl Phase1DraftSummary {
     }
     pub const fn has_form(&self) -> bool {
         self.has_form
+    }
+    pub const fn revision_parent_draft_id(&self) -> Option<[u8; 16]> {
+        self.revision_parent_draft_id
     }
     pub const fn is_revision(&self) -> bool {
         self.is_revision
@@ -80,6 +84,7 @@ impl From<Phase1DraftStatus> for Phase1DraftSummary {
             state: value.state,
             has_form: value.form.is_some(),
             is_revision: value.revision_policy.is_some(),
+            revision_parent_draft_id: value.revision_parent_draft_id,
             created_at_unix_ms: value.draft.created_at_unix_ms(),
             updated_at_unix_ms: value.draft.updated_at_unix_ms(),
             media_count: value.media.len() as u64,

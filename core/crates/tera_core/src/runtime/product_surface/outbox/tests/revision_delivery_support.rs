@@ -14,6 +14,7 @@ use tokio_tungstenite::{accept_async, tungstenite::Message};
 pub(super) struct Relay {
     pub(super) url: String,
     pub(super) accept_replacement: Arc<AtomicBool>,
+    pub(super) accept_retraction: Arc<AtomicBool>,
     pub(super) events: Arc<Mutex<Vec<serde_json::Value>>>,
     task: tokio::task::JoinHandle<()>,
 }
@@ -25,6 +26,8 @@ impl Relay {
         let accept_replacement = Arc::new(AtomicBool::new(accept_replacement));
         let events = Arc::new(Mutex::new(Vec::new()));
         let accepted = accept_replacement.clone();
+        let accept_retraction = Arc::new(AtomicBool::new(true));
+        let retracted = accept_retraction.clone();
         let captured = events.clone();
         let task = tokio::spawn(async move {
             loop {
@@ -43,6 +46,9 @@ impl Relay {
                     if frame[1]["kind"] == 1 && !accepted.load(Ordering::SeqCst) {
                         break;
                     }
+                    if frame[1]["kind"] == 5 && !retracted.load(Ordering::SeqCst) {
+                        break;
+                    }
                     socket
                         .send(Message::Text(
                             serde_json::json!(["OK", frame[1]["id"], true, ""])
@@ -59,6 +65,7 @@ impl Relay {
         Self {
             url,
             accept_replacement,
+            accept_retraction,
             events,
             task,
         }

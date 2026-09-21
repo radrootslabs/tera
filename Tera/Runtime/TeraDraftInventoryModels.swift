@@ -25,9 +25,16 @@ struct TeraLegacyDraftSummary: Sendable, Equatable, Identifiable {
   let verifiedMediaCount: UInt64
   let possibleOrphanCount: UInt64
   let settlement: TeraOperationSettlement?
+  var revisionParentID: String?
 
   var honestSummary: String {
-    settlement?.summary ?? state.label
+    if isRevision {
+      return "Saved revision; open details for current relay outcomes."
+    }
+    if revisionParentID != nil {
+      return "Retraction belongs to a saved revision."
+    }
+    return settlement?.summary ?? state.label
   }
 
   var mediaSummary: String {

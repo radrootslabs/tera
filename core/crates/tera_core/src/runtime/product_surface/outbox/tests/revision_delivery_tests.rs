@@ -30,6 +30,8 @@ async fn aggregate_any_acceptance_never_authorizes_the_other_relay() {
         .unwrap();
     let status = runtime.phase1_advance_revision(id).await.unwrap();
     assert_eq!(status.replacement().state(), Phase1OutboxState::Complete);
+    assert_eq!(status.phase(), Phase1RevisionPhase::PartialEffect);
+    assert!(!status.can_resume()); // Any policy is satisfied; B was never accepted.
     assert_eq!(
         status
             .retraction()
@@ -100,6 +102,7 @@ async fn per_target_revision_freezes_policy_and_reopens_one_signed_child() {
         2
     );
     let raw = raw_child(&partial);
+    assert_eq!(partial.phase(), Phase1RevisionPhase::PartialEffect);
     let attempts = child.push().unwrap().delivery_plan().attempt_count();
     wait_retry(&runtime, child).await;
     let held = runtime
@@ -123,6 +126,7 @@ async fn per_target_revision_freezes_policy_and_reopens_one_signed_child() {
     wait_retry(&runtime, recovered.retraction().unwrap()).await;
     let complete = runtime.phase1_advance_revision(id).await.unwrap();
     assert_eq!(complete.replacement().state(), Phase1OutboxState::Complete);
+    assert_eq!(complete.phase(), Phase1RevisionPhase::Complete);
     assert_eq!(
         complete.retraction().unwrap().state(),
         Phase1OutboxState::Complete
@@ -158,6 +162,8 @@ async fn cancellation_stops_both_partial_branches_and_direct_child_after_reopen(
     let raw = raw_child(&partial);
     let child_id = *partial.retraction().unwrap().draft().draft_id().as_bytes();
     let stopped = runtime.phase1_cancel_revision(id).await.unwrap();
+    assert_eq!(stopped.phase(), Phase1RevisionPhase::PartialEffect);
+    assert!(!stopped.can_resume() && !stopped.can_cancel());
     assert_eq!(
         stopped.replacement().draft().stage(),
         AuthoredDraftStage::Cancelled

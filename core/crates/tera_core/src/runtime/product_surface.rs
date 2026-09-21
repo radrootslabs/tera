@@ -91,9 +91,9 @@ pub use outbox::{
     Phase1DraftPage, Phase1DraftRepairReason, Phase1DraftStatus, Phase1DraftSummary,
     Phase1ExistingDraft, Phase1MediaOrphanRecord, Phase1MediaPrerequisite, Phase1MediaStage,
     Phase1NativeUploadJob, Phase1OutboxState, Phase1ProfileStatus, Phase1QueueIntent,
-    Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1ReviseIntent, Phase1RevisionPhase,
-    Phase1RevisionPolicy, Phase1RevisionStatus, Phase1RevisionTarget, Phase1UploadIntent,
-    Phase1UploadPlan, UploadAttemptIdentity, phase1_new_addressable_identifier,
+    Phase1QueuePolicy, Phase1RelaySatisfaction, Phase1ReviseIntent, Phase1RevisionBranchStatus,
+    Phase1RevisionPhase, Phase1RevisionPolicy, Phase1RevisionStatus, Phase1RevisionTarget,
+    Phase1UploadIntent, Phase1UploadPlan, UploadAttemptIdentity, phase1_new_addressable_identifier,
     phase1_new_operation_id, phase1_operation_now_unix_ms,
 };
 pub use projection::{ProductEventClassification, ProductEventExclusion, classify_admitted_event};

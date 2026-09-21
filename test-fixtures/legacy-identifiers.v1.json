@@ -4987,6 +4987,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_ffi/tests/revision_status_contract.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_ffi/tests/runtime_delegation.rs",
           "count": 1
         }

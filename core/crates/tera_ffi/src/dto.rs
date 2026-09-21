@@ -1882,6 +1882,7 @@ pub struct FfiDraftStatusRecord {
     pub media: Vec<FfiDraftMediaRecord>,
     pub settlement: Option<FfiOperationSettlementRecord>,
     pub is_revision: bool,
+    pub revision_parent_draft_id: Option<String>,
 }
 
 #[cfg_attr(coverage_nightly, coverage(off))]
@@ -1905,6 +1906,7 @@ impl From<Phase1DraftStatus> for FfiDraftStatusRecord {
             media: value.media().iter().map(Into::into).collect(),
             settlement: settlement.map(Into::into),
             is_revision: value.revision_policy().is_some(),
+            revision_parent_draft_id: value.revision_parent_draft_id().map(hex::encode),
         }
     }
 }

@@ -960,61 +960,6 @@ extension FfiDraftFormRecord {
   }
 }
 
-extension FfiDraftStatusRecord {
-  var appValue: TeraDraftStatus {
-    TeraDraftStatus(
-      id: draftId,
-      revision: revision,
-      authorPublicKey: authorPublicKey,
-      kind: kind.appValue,
-      commandType: commandType.appValue,
-      form: form?.appValue,
-      state: state.appValue,
-      cardID: cardId,
-      operationID: operationId,
-      createdAtUnixMilliseconds: createdAtUnixMs,
-      updatedAtUnixMilliseconds: updatedAtUnixMs,
-      media: media.map(\.appValue),
-      settlement: settlement?.appValue,
-      isRevision: isRevision
-    )
-  }
-}
-
-extension FfiRevisionStatusRecord {
-  var appValue: TeraRevisionStatus {
-    TeraRevisionStatus(
-      operationID: operationId,
-      replacement: replacement.appValue,
-      retraction: retraction?.appValue,
-      policy: policy.appValue,
-      phase: phase.appValue
-    )
-  }
-}
-
-extension FfiRevisionPolicy {
-  fileprivate var appValue: TeraRevisionPolicy {
-    switch self {
-    case .replaceThenRetract: .replaceThenRetract
-    case .addressableReplacement: .addressableReplacement
-    }
-  }
-}
-
-extension FfiRevisionPhase {
-  fileprivate var appValue: TeraRevisionPhase {
-    switch self {
-    case .replacementPending: .replacementPending
-    case .replacementFailed: .replacementFailed
-    case .retractionPending: .retractionPending
-    case .complete: .complete
-    case .partialEffect: .partialEffect
-    case .cancelled: .cancelled
-    }
-  }
-}
-
 extension FfiRelayAccessRecord {
   fileprivate var appValue: TeraRelayAccess {
     switch self {

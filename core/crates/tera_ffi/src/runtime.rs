@@ -27,13 +27,14 @@ use tera_core::runtime::product_surface::{
     phase1_new_addressable_identifier, phase1_operation_now_unix_ms,
 };
 
+use crate::FfiRevisionStatusRecord;
 use crate::dto::PreparedMedia;
 use crate::operations::{
     FfiIdentityCommandRecord, FfiMediaCacheStatusRecord, FfiMediaOperation,
     FfiMobileSettingsRecord, FfiProfileMetadataInputRecord, FfiProfileStatusRecord,
-    FfiReplaceSettingsRecord, FfiRevisionInputRecord, FfiRevisionStatusRecord,
-    FfiSettingsTransitionRecord, FfiVerifiedMediaArtifactRecord, decode_artifact_id,
-    decode_configuration, decode_reference_fingerprint,
+    FfiReplaceSettingsRecord, FfiRevisionInputRecord, FfiSettingsTransitionRecord,
+    FfiVerifiedMediaArtifactRecord, decode_artifact_id, decode_configuration,
+    decode_reference_fingerprint,
 };
 use crate::signer::HostSignerAdapter;
 use crate::subscription::SubscriptionHub;

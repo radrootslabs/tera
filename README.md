@@ -290,3 +290,11 @@ reopen. Historical revision children without an exact parent link remain held;
 their signed bytes and operation identities are never rewritten or rebound to a
 guessed replacement. This restriction also holds historical independent deletions
 using the reserved revision reason. Other independent retractions remain separate.
+
+Saved revisions expose their original event, replacement and linked retraction
+in Drafts & outbox. Selected details reconstruct per-relay observations and local
+stop state from durable records, including uncertain acknowledgments and partial
+effects after restart. Resume and stop actions are checked against current Rust
+policy; inspecting or acting on a revision does not replace composer editing.
+Meeting an Any relay policy does not imply completion at every saved destination,
+and even a fully accepted retraction remains a request, not proof of erasure.

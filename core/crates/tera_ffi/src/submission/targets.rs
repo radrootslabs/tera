@@ -10,7 +10,7 @@ pub enum FfiPublicationTargetPolicy {
     Required { fingerprints: Vec<String> },
 }
 
-#[derive(Clone, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiPublicationTargetEvidence {
     pub fingerprint: String,
     pub endpoint: String,
@@ -22,7 +22,7 @@ pub struct FfiPublicationTargetEvidence {
     pub read_back_observed_at_unix_ms: Option<u64>,
 }
 
-#[derive(Clone, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiPublicationTargetDetails {
     pub requires_delivery: bool,
     pub policy: FfiPublicationTargetPolicy,

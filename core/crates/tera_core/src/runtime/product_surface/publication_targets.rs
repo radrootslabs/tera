@@ -12,7 +12,7 @@ use radroots_transport::{
 };
 
 /// Historical facts may coexist: a refusal does not erase an earlier acceptance.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PublicationTargetEvidence {
     pub fingerprint: String,
     pub endpoint: String,
@@ -25,7 +25,7 @@ pub struct PublicationTargetEvidence {
     pub read_back_observed_at_unix_ms: Option<u64>,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PublicationTargetDetails {
     pub requires_delivery: bool,
     pub policy: PublicationTargetPolicy,

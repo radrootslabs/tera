@@ -48,6 +48,8 @@ use crate::runtime::TeraRuntime;
 mod advance;
 #[path = "outbox/revision_coordinator.rs"]
 mod revision_coordinator;
+mod revision_status;
+pub use revision_status::Phase1RevisionBranchStatus;
 #[path = "outbox/revision_delivery.rs"]
 mod revision_delivery;
 use revision_delivery::RevisionDelivery;
@@ -842,6 +844,10 @@ pub struct Phase1RevisionStatus {
     target: Phase1RevisionTarget,
     policy: Phase1RevisionPolicy,
     phase: Phase1RevisionPhase,
+    replacement_progress: Phase1RevisionBranchStatus,
+    retraction_progress: Option<Phase1RevisionBranchStatus>,
+    can_resume: bool,
+    can_cancel: bool,
 }
 
 /// Durable kind-0 profile publication state. The profile fields remain inside
@@ -939,6 +945,7 @@ pub struct Phase1DraftStatus {
     card_id: CardId,
     push: Option<PushStatus>,
     revision_policy: Option<Phase1RevisionPolicy>,
+    revision_parent_draft_id: Option<[u8; 16]>,
 }
 
 impl Phase1DraftStatus {
@@ -965,6 +972,9 @@ impl Phase1DraftStatus {
     }
     pub const fn push(&self) -> Option<&PushStatus> {
         self.push.as_ref()
+    }
+    pub const fn revision_parent_draft_id(&self) -> Option<[u8; 16]> {
+        self.revision_parent_draft_id
     }
     pub const fn revision_policy(&self) -> Option<Phase1RevisionPolicy> {
         self.revision_policy
@@ -1675,43 +1685,6 @@ impl TeraRuntime {
     ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
         self.prepare_revision_intent(phase1_random_id()?, intent)
             .await
-    }
-
-    /// Reconstructs the complete ordered revision from durable replacement and
-    /// optional retraction child state after any process boundary.
-    pub async fn phase1_revision_status(
-        &self,
-        replacement_draft_id: [u8; 16],
-    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
-        let _command = self.lifecycle.enter()?;
-        let replacement = self.phase1_draft_status(replacement_draft_id).await?;
-        let payload = Phase1DraftPayload::decode(replacement.draft())?;
-        let revision = payload.revision.ok_or(Phase1DraftError::InvalidRevision)?;
-        let retraction = match revision.retraction_draft_id {
-            Some(id) => match self.phase1_draft_status(id).await {
-                Ok(status) => {
-                    validate_revision_retraction(&status, &revision.target)?;
-                    if Phase1DraftPayload::decode(status.draft())?
-                        .revision_parent_draft_id
-                        .is_some_and(|parent| parent != replacement_draft_id)
-                    {
-                        return Err(Phase1DraftError::Corrupt);
-                    }
-                    Some(status)
-                }
-                Err(Phase1DraftError::NotFound) => None,
-                Err(error) => return Err(error),
-            },
-            None => None,
-        };
-        let phase = revision_phase(&replacement, retraction.as_ref(), revision.policy);
-        Ok(Phase1RevisionStatus {
-            replacement,
-            retraction,
-            target: revision.target,
-            policy: revision.policy,
-            phase,
-        })
     }
 
     /// Creates or replaces the editable content of one immutable-revision draft.
@@ -2837,6 +2810,7 @@ impl TeraRuntime {
             card_id,
             push,
             revision_policy,
+            revision_parent_draft_id: payload.revision_parent_draft_id,
         })
     }
 
@@ -3123,29 +3097,6 @@ fn has_delivery_success(push: &PushStatus) -> bool {
     super::publication::has_accepted_delivery(push)
 }
 
-fn revision_phase(
-    replacement: &Phase1DraftStatus,
-    retraction: Option<&Phase1DraftStatus>,
-    policy: Phase1RevisionPolicy,
-) -> Phase1RevisionPhase {
-    match replacement.state() {
-        Phase1OutboxState::Cancelled => return Phase1RevisionPhase::Cancelled,
-        Phase1OutboxState::Terminal => return Phase1RevisionPhase::ReplacementFailed,
-        Phase1OutboxState::Complete => {}
-        _ => return Phase1RevisionPhase::ReplacementPending,
-    }
-    if policy == Phase1RevisionPolicy::AddressableReplacement {
-        return Phase1RevisionPhase::Complete;
-    }
-    match retraction.map(Phase1DraftStatus::state) {
-        Some(Phase1OutboxState::Complete) => Phase1RevisionPhase::Complete,
-        Some(Phase1OutboxState::Cancelled | Phase1OutboxState::Terminal) => {
-            Phase1RevisionPhase::PartialEffect
-        }
-        Some(_) | None => Phase1RevisionPhase::RetractionPending,
-    }
-}
-
 fn revision_child_id(draft: &AuthoredDraft) -> Result<Option<[u8; 16]>, Phase1DraftError> {
     Ok(Phase1DraftPayload::decode(draft)?
         .revision
@@ -3276,6 +3227,7 @@ mod tests {
     mod revision_delivery_support;
     mod revision_delivery_tests;
     mod revision_preparation_tests;
+    mod revision_status_tests;
     use super::*;
     use crate::runtime::product_surface::{
         CANONICAL_ADD_COMMAND_TYPES, CreateAsk, CreateEvent, CreateFoodAvailability,

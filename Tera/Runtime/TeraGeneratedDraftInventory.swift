@@ -23,7 +23,8 @@ enum TeraGeneratedDraftInventory {
                                            createdAtUnixMilliseconds: summary.createdAtUnixMs,
                                            updatedAtUnixMilliseconds: summary.updatedAtUnixMs,
                                            mediaCount: summary.mediaCount, verifiedMediaCount: summary.verifiedMediaCount,
-                                           possibleOrphanCount: summary.possibleOrphanCount, settlement: summary.settlement?.appValue))
+                                           possibleOrphanCount: summary.possibleOrphanCount, settlement: summary.settlement?.appValue,
+                                           revisionParentID: summary.revisionParentDraftId))
     case let .repair(draftKey, revision, reason):
       let reason: TeraLegacyDraftRepairReason = switch reason {
       case .unsupportedSchema: .unsupportedSchema

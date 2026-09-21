@@ -201,7 +201,10 @@ impl TeraRuntime {
     }
 }
 
-fn meets_requirement(evidence: &PublicationTargetEvidence, requires_delivery: bool) -> bool {
+pub(super) fn meets_requirement(
+    evidence: &PublicationTargetEvidence,
+    requires_delivery: bool,
+) -> bool {
     evidence.read_back_observed_at_unix_ms.is_some()
         || evidence.delivered
         || (!requires_delivery && evidence.accepted)

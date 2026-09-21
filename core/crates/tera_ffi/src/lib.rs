@@ -13,6 +13,8 @@ pub mod logging;
 mod media_file;
 mod media_inventory;
 mod operations;
+mod revision_status;
+pub use revision_status::*;
 mod recovery;
 mod recovery_inventory;
 mod runtime;
