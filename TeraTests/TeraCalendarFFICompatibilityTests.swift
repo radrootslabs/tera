@@ -20,9 +20,9 @@ final class TeraCalendarFFICompatibilityTests: XCTestCase {
       let saved = try await first.phase1SaveDraft(
         draftId: String(repeating: index == 0 ? "01" : "02", count: 16),
         input: input,
-        authoredAtUnixS: 1_900_000_000,
+        authoredAtUnixS: 1_700_000_000,
         expectedRevision: nil,
-        persistedAtUnixMs: 1_900_000_000_000
+        persistedAtUnixMs: 1_700_000_000_000
       )
       let form = try XCTUnwrap(saved.form)
       XCTAssertEqual(form.commandType, .createEvent)
@@ -42,7 +42,7 @@ final class TeraCalendarFFICompatibilityTests: XCTestCase {
           deliveryDeadlineUnixMs: 2_000_000_000_000,
           cancellation: .localCooperative
         ),
-        queuedAtUnixMs: 1_900_000_000_001
+        queuedAtUnixMs: 1_700_000_000_001
       )
       XCTAssertEqual(status.state, .queued)
       XCTAssertNotNil(status.operationId)

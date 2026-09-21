@@ -9,11 +9,26 @@ use radroots_transport::{
 };
 
 pub(super) fn signed_head(secret: &str, kind: u32, identifier: &str, at: u64) -> SignedEvent {
+    signed_head_content(
+        secret,
+        kind,
+        identifier,
+        at,
+        "Not a renderable calendar or food record",
+    )
+}
+
+pub(super) fn signed_head_content(
+    secret: &str,
+    kind: u32,
+    identifier: &str,
+    at: u64,
+    content: &str,
+) -> SignedEvent {
     let keys = nostr::Keys::parse(secret).unwrap();
     let author = keys.public_key().to_string();
     // Deliberately unsupported product content still has protocol head authority.
     let tags = vec![vec!["d".into(), identifier.into()]];
-    let content = "Not a renderable calendar or food record";
     let id =
         radroots_event::wire::compute_canonical_nip01_event_id(&author, at, kind, &tags, content)
             .unwrap();

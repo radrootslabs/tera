@@ -2,31 +2,9 @@
 
 use super::{record::OwnershipRecord, *};
 use crate::TeraRuntime;
-use radroots_storage::{authored_draft::AuthoredDraftRevision, event::EventStore};
+use radroots_storage::authored_draft::AuthoredDraftRevision;
 
 impl TeraRuntime {
-    pub(in crate::runtime::product_surface) async fn coordinate_known_winner_matches(
-        &self,
-        intent: &CoordinateIntent,
-    ) -> Result<bool, E> {
-        let store = self.client.storage().map_err(|_| E::Storage)?;
-        let coordinate = intent.coordinate()?;
-        let snapshot = EventStore::rebuild_visibility(store)
-            .await
-            .map_err(|_| E::Storage)?;
-        let head = snapshot
-            .current_heads()
-            .iter()
-            .find(|head| head.coordinate == coordinate);
-        Ok(match head {
-            Some(head) => {
-                head.event_id.as_bytes() == &intent.event_id
-                    || intent.prior_event_id.as_ref() == Some(head.event_id.as_bytes())
-            }
-            None => intent.prior_event_id.is_none(),
-        })
-    }
-
     pub(super) async fn coordinate_binding(
         &self,
         intent: &CoordinateIntent,
@@ -72,6 +50,18 @@ impl TeraRuntime {
         &self,
         intent: &CoordinateIntent,
     ) -> Result<bool, E> {
+        self.coordinate_is_current_at(
+            intent,
+            super::super::phase1_operation_now_unix_ms()? / 1_000,
+        )
+        .await
+    }
+
+    async fn coordinate_is_current_at(
+        &self,
+        intent: &CoordinateIntent,
+        now_unix_s: u64,
+    ) -> Result<bool, E> {
         let Some(binding) = self.coordinate_binding(intent).await? else {
             return Ok(false);
         };
@@ -82,7 +72,10 @@ impl TeraRuntime {
             .map_err(|_| E::Storage)?
             .ok_or(E::Corrupt)?;
         let current = OwnershipRecord::decode(&claim)?;
-        Ok(current == binding && self.coordinate_known_winner_matches(intent).await?)
+        Ok(current == binding
+            && self
+                .coordinate_known_winner_matches_at(intent, now_unix_s)
+                .await?)
     }
 
     pub(in crate::runtime::product_surface) async fn require_coordinate_current(
@@ -90,6 +83,17 @@ impl TeraRuntime {
         intent: &CoordinateIntent,
     ) -> Result<(), E> {
         if !self.coordinate_is_current(intent).await? {
+            return Err(E::RevisionConflict);
+        }
+        Ok(())
+    }
+
+    pub(in crate::runtime::product_surface) async fn require_coordinate_current_at(
+        &self,
+        intent: &CoordinateIntent,
+        now_unix_s: u64,
+    ) -> Result<(), E> {
+        if !self.coordinate_is_current_at(intent, now_unix_s).await? {
             return Err(E::RevisionConflict);
         }
         Ok(())

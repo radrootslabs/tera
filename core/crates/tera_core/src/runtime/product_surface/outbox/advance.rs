@@ -32,6 +32,17 @@ impl TeraRuntime {
             .await
     }
 
+    #[cfg(test)]
+    pub(super) async fn advance_owned_push_request_with_clock(
+        &self,
+        request: PushRequest,
+        head: &AuthoredDraft,
+        clock: impl Fn() -> Result<u64, Phase1DraftError> + Send + Sync,
+    ) -> Result<(), Phase1DraftError> {
+        self.advance_push_request_inner(request, None, Some(head), clock)
+            .await
+    }
+
     pub(in crate::runtime::product_surface) async fn advance_push_request_selected(
         &self,
         request: PushRequest,
@@ -73,7 +84,8 @@ impl TeraRuntime {
                 .map_err(|_| Phase1DraftError::Operation)?;
             return Ok(());
         }
-        if !self.publication_retry_at(&status, clock()?)?.may_start() {
+        let now = clock()?;
+        if !self.publication_retry_at(&status, now)?.may_start() {
             return Ok(());
         }
 
@@ -93,6 +105,10 @@ impl TeraRuntime {
             Some(head) => self.admit_coordinate(head).await?,
             None => None,
         };
+        if let Some(intent) = &intent {
+            self.require_coordinate_current_at(intent, now / 1_000)
+                .await?;
+        }
 
         if matches!(
             status.artifact().signing_state(),
@@ -114,7 +130,8 @@ impl TeraRuntime {
             )
         {
             if let Some(intent) = &intent {
-                self.require_coordinate_current(intent).await?;
+                self.require_coordinate_current_at(intent, clock()? / 1_000)
+                    .await?;
             }
             sync.admit_signed(operation_id)
                 .await
@@ -133,7 +150,8 @@ impl TeraRuntime {
             )
         {
             if let Some(intent) = &intent {
-                self.require_coordinate_current(intent).await?;
+                self.require_coordinate_current_at(intent, clock()? / 1_000)
+                    .await?;
             }
             match selected {
                 Some(targets) => sync.deliver_push_selected(operation_id, targets).await,

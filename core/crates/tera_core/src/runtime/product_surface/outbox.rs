@@ -47,7 +47,7 @@ use crate::runtime::TeraRuntime;
 
 mod advance;
 mod coordinate;
-pub(super) use coordinate::coordinate_intent;
+pub(super) use coordinate::coordinate_plan;
 #[path = "outbox/revision_coordinator.rs"]
 mod revision_coordinator;
 mod revision_status;
@@ -3212,8 +3212,10 @@ fn phase1_random_id() -> Result<[u8; 16], Phase1DraftError> {
 
 #[cfg(test)]
 mod tests {
+    mod coordinate_clock_tests;
     mod coordinate_effect_support;
     mod coordinate_effect_tests;
+    mod coordinate_ordering_tests;
     mod coordinate_recovery_tests;
     mod coordinate_support;
     mod coordinate_tests;

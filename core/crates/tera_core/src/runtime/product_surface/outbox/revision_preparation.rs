@@ -10,6 +10,20 @@ impl TeraRuntime {
         request_id: [u8; 16],
         intent: Phase1ReviseIntent,
     ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
+        Box::pin(self.prepare_revision_intent_with_clock(
+            request_id,
+            intent,
+            phase1_operation_now_unix_ms,
+        ))
+        .await
+    }
+
+    pub(super) async fn prepare_revision_intent_with_clock(
+        &self,
+        request_id: [u8; 16],
+        intent: Phase1ReviseIntent,
+        clock: impl Fn() -> Result<u64, Phase1DraftError> + Send + Sync,
+    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
         let _command = self.lifecycle.enter()?;
         let author = self.draft_author()?;
         if request_id == [0; 16] || intent.target.author_public_key != hex::encode(author) {
@@ -26,7 +40,7 @@ impl TeraRuntime {
             .map_err(|_| Phase1DraftError::Storage)?;
         let now = match &original {
             Some(original) => original.created_at_unix_ms(),
-            None => phase1_operation_now_unix_ms()?,
+            None => clock()?,
         };
         let plan = intent
             .command

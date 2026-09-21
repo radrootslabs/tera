@@ -3,14 +3,14 @@
 use super::intent::IntentPayload;
 use crate::{
     TeraRuntime,
-    runtime::product_surface::{Phase1DraftError as E, coordinate::CoordinateIntent},
+    runtime::product_surface::{Phase1DraftError as E, coordinate::CoordinatePlan},
 };
 use radroots_storage::authored_draft::AuthoredDraft;
 
-pub(in crate::runtime::product_surface) fn coordinate_intent(
+pub(in crate::runtime::product_surface) fn coordinate_plan(
     head: &AuthoredDraft,
-) -> Result<Option<CoordinateIntent>, E> {
-    IntentPayload::coordinate_intent(head).map_err(|_| E::Corrupt)
+) -> Result<Option<CoordinatePlan>, E> {
+    IntentPayload::coordinate_plan(head).map_err(|_| E::Corrupt)
 }
 
 impl TeraRuntime {

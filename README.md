@@ -306,3 +306,12 @@ If the known current revision changes, publication is held while the captured
 form, signed bytes and relay evidence remain available. A new request must be
 reviewed against the current revision. Addressable replacement does not create
 a broad deletion request.
+
+Equal-second replacements use the shared Nostr event-ID tie-break rule. Tera
+preserves the captured event timestamp and never advances it artificially to
+win a replacement. A timestamp ahead of the current clock, or one that loses
+to the known revision, holds publication for review. A forward clock jump
+does not extend the saved delivery window. Review the device clock and current
+revision before choosing another intentional request. Civil calendar dates
+remain unchanged. This local policy cannot establish globally accurate time
+or prevent an unseen remote replacement.

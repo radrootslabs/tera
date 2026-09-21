@@ -4,7 +4,7 @@
 mod capture;
 mod commit;
 mod coordinate;
-pub(super) use coordinate::coordinate_intent;
+pub(super) use coordinate::coordinate_plan;
 pub(crate) mod configuration;
 #[cfg(test)]
 mod configuration_effect_tests;

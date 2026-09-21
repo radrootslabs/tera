@@ -1,11 +1,11 @@
 //! Legacy capture adapter for the shared application coordinate authority.
 
 use super::*;
-use crate::runtime::product_surface::coordinate::CoordinateIntent;
+use crate::runtime::product_surface::coordinate::CoordinatePlan;
 
-pub(in crate::runtime::product_surface) fn coordinate_intent(
+pub(in crate::runtime::product_surface) fn coordinate_plan(
     draft: &AuthoredDraft,
-) -> Result<Option<CoordinateIntent>, Phase1DraftError> {
+) -> Result<Option<CoordinatePlan>, Phase1DraftError> {
     let payload = Phase1DraftPayload::decode(draft)?;
     let plan =
         PlanWireV1::from_json(&payload.plan_wire_json).map_err(|_| Phase1DraftError::Corrupt)?;
@@ -19,7 +19,7 @@ pub(in crate::runtime::product_surface) fn coordinate_intent(
                 .map_err(|_| Phase1DraftError::Corrupt)
         })
         .transpose()?;
-    CoordinateIntent::from_plan(draft, plan.plan(), prior)
+    CoordinatePlan::from_plan(draft, plan.plan(), prior)
 }
 
 impl TeraRuntime {
@@ -27,7 +27,7 @@ impl TeraRuntime {
         &self,
         head: &AuthoredDraft,
     ) -> Result<bool, Phase1DraftError> {
-        coordinate_intent(head)?.ok_or(Phase1DraftError::Corrupt)?;
+        coordinate_plan(head)?.ok_or(Phase1DraftError::Corrupt)?;
         if head.stage() == AuthoredDraftStage::Cancelled {
             return Ok(true);
         }

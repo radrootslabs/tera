@@ -4875,6 +4875,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/coordinate/ordering.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/identity.rs",
           "count": 1
         },
@@ -4884,6 +4888,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/coordinate.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_ordering_tests.rs",
           "count": 1
         },
         {
@@ -5803,6 +5811,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/coordinate/ordering.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/coordinate/record.rs",
           "count": 1
         },
@@ -5824,6 +5836,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_effect_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_ordering_tests.rs",
           "count": 1
         },
         {

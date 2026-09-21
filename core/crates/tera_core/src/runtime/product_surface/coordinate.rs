@@ -13,10 +13,32 @@ use super::Phase1DraftError as E;
 
 mod admission;
 mod authority;
+mod ordering;
 mod record;
 
 pub(super) const CLAIM_SCHEMA: &str = "tera.coordinate_claim.v1";
 pub(super) const BINDING_SCHEMA: &str = "tera.coordinate_binding.v1";
+
+/// Ephemeral view of the existing validated capture, never another persisted schema.
+pub(super) struct CoordinatePlan {
+    pub intent: CoordinateIntent,
+    pub created_at: u64,
+}
+
+impl CoordinatePlan {
+    pub(super) fn from_plan(
+        draft: &AuthoredDraft,
+        plan: &AuthoredEventPlan,
+        prior_event_id: Option<[u8; 32]>,
+    ) -> Result<Option<Self>, E> {
+        Ok(
+            CoordinateIntent::from_plan(draft, plan, prior_event_id)?.map(|intent| Self {
+                intent,
+                created_at: plan.created_at(),
+            }),
+        )
+    }
+}
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -115,9 +137,13 @@ pub(super) fn metadata_is_valid(draft: &AuthoredDraft) -> bool {
 }
 
 pub(super) fn intent_from_draft(draft: &AuthoredDraft) -> Result<Option<CoordinateIntent>, E> {
+    Ok(plan_from_draft(draft)?.map(|plan| plan.intent))
+}
+
+pub(super) fn plan_from_draft(draft: &AuthoredDraft) -> Result<Option<CoordinatePlan>, E> {
     match draft.payload_schema() {
-        super::outbox::DRAFT_PAYLOAD_SCHEMA => super::outbox::coordinate_intent(draft),
-        super::SUBMISSION_INTENT_PAYLOAD_SCHEMA => super::submission::coordinate_intent(draft),
+        super::outbox::DRAFT_PAYLOAD_SCHEMA => super::outbox::coordinate_plan(draft),
+        super::SUBMISSION_INTENT_PAYLOAD_SCHEMA => super::submission::coordinate_plan(draft),
         _ => Err(E::Corrupt),
     }
 }

@@ -13,8 +13,8 @@ final class TeraCalendarComposerFFITests: XCTestCase {
       let form = try form(mode)
       let input = TeraAddRuntimeInput(form: form, media: []).generatedValue
       let draft = try await first.phase1SaveDraft(draftId: String(repeating: index == 0 ? "51" : "52", count: 16),
-                                                  input: input, authoredAtUnixS: 1_900_000_000, expectedRevision: nil,
-                                                  persistedAtUnixMs: 1_900_000_000_000)
+                                                  input: input, authoredAtUnixS: 1_700_000_000, expectedRevision: nil,
+                                                  persistedAtUnixMs: 1_700_000_000_000)
       XCTAssertEqual(draft.form?.eventStartDate, input.eventStartDate)
       XCTAssertEqual(draft.form?.eventEndDate, input.eventEndDate)
       XCTAssertEqual(input.eventStartDate, "2026-09-05")
@@ -24,7 +24,7 @@ final class TeraCalendarComposerFFITests: XCTestCase {
       let queued = try await first.phase1QueueDraft(draftId: draft.draftId, expectedRevision: draft.revision,
                                                     policy: FfiQueuePolicyRecord(schemaVersion: 1, relayUrls: ["wss://relay.example"],
                                                                                  satisfaction: .allAccepted, deliveryDeadlineUnixMs: 2_000_000_000_000,
-                                                                                 cancellation: .localCooperative), queuedAtUnixMs: 1_900_000_000_001)
+                                                                                 cancellation: .localCooperative), queuedAtUnixMs: 1_700_000_000_001)
       XCTAssertEqual(queued.state, .queued)
       XCTAssertEqual(queued.form, draft.form)
       XCTAssertNotNil(queued.operationId)
