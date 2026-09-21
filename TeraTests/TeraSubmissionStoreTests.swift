@@ -243,6 +243,52 @@ final class TeraSubmissionStoreTests: XCTestCase {
 }
 
 extension TeraSubmissionStoreTests {
+  func testLateAcceptedPublicationCannotPopulateAReplacementAccountOrNetworkScope() async throws {
+    for replacingAccount in [false, true] {
+      let backend = AddBackend()
+      let client = try await TeraAddStoreTests.startedClient(backend)
+      let store = await make(client, backend: backend)
+      let pause = ResourceTestPause()
+      await backend.submissionBackend.pauseAdvance(pause)
+      store.updateForm(\.content, "Original publication")
+      let task = Task { await store.submit() }
+      await entered(pause)
+      let original = try XCTUnwrap(store.submissions.status)
+      let replacement = TeraComposerScope(
+        authorPublicKey: replacingAccount ? String(repeating: "cd", count: 32) : original.request.scope.authorPublicKey,
+        localNetworkID: replacingAccount ? original.request.scope.localNetworkID : "replacement-network"
+      )
+      let context = TeraLocalNetwork(schemaVersion: 1, id: replacement.localNetworkID, label: "Replacement",
+                                     relayURLs: [], locality: nil, followedAuthors: [], generation: 2)
+      store.submissions.configure(scope: replacement, context: context)
+      store.submissions.start()
+      await pause.resume.open()
+      await task.value
+      var recovered: TeraSubmissionStatus?
+      let deadline = ContinuousClock.now.advanced(by: .seconds(3))
+      repeat {
+        recovered = try? await client.submissionStatus(request: original.request)
+        if recovered?.delivery.state == .accepted {
+          break
+        }
+        try await Task.sleep(for: .milliseconds(1))
+      } while ContinuousClock.now < deadline
+      let accepted = try XCTUnwrap(recovered)
+      XCTAssertEqual(accepted.delivery.state, .accepted)
+      XCTAssertEqual(accepted.request, original.request)
+      XCTAssertEqual(accepted.operationID, original.operationID)
+      XCTAssertEqual(accepted.captured, original.captured)
+      XCTAssertNil(store.submissions.request)
+      XCTAssertNil(store.submissions.status)
+      XCTAssertNil(store.submissions.message)
+      XCTAssertNil(store.submissions.failureCode)
+      let advances = await backend.submissionBackend.advanceCount
+      XCTAssertEqual(advances, 1)
+      store.stop()
+      _ = try await client.stop()
+    }
+  }
+
   func testStopBeforeIntentCommitStaysUnconfirmedUntilOriginalPreparationReturns() async throws {
     let backend = AddBackend()
     let client = try await TeraAddStoreTests.startedClient(backend)

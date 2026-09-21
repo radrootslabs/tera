@@ -13,7 +13,7 @@ use crate::runtime::product_surface::{
 
 #[tokio::test]
 async fn stopped_socket_retains_unknown_then_late_ok_across_sqlite_reopen() {
-    for sqlite in [false, true] {
+    for (sqlite, before_handshake) in [(false, false), (true, false), (false, true), (true, true)] {
         let root = tempfile::tempdir().unwrap();
         let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("ws://{}", listener.local_addr().unwrap());
@@ -30,13 +30,21 @@ async fn stopped_socket_retains_unknown_then_late_ok_across_sqlite_reopen() {
             tokio::spawn(async move {
                 tokio::time::timeout(Duration::from_secs(15), async move {
                     let (stream, _) = listener.accept().await.unwrap();
+                    if before_handshake {
+                        // TCP is connected, but the relay has not admitted a
+                        // websocket or received any publication frame yet.
+                        entered.notify_one();
+                        resume.notified().await;
+                    }
                     let mut socket = accept_async(stream).await.unwrap();
                     while let Some(message) = socket.next().await {
                         if let Message::Text(text) = message.unwrap() {
                             let value: serde_json::Value = serde_json::from_str(&text).unwrap();
                             if value[0] == "EVENT" {
-                                entered.notify_one();
-                                resume.notified().await;
+                                if !before_handshake {
+                                    entered.notify_one();
+                                    resume.notified().await;
+                                }
                                 socket
                                     .send(Message::Text(
                                         serde_json::json!(["OK", value[1]["id"], true, ""])

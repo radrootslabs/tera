@@ -1325,10 +1325,10 @@
         "sha256": "27037487bf6b305efc2ba43e75c8ec20c597ebd0a1bac19fcf2a0f80ceb7c7da"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/stop_effect_tests.rs": {
-        "bytes": 8874,
-        "git_blob": "e67764c7a458985d3202874e44cae1de0d90ac7e",
+        "bytes": 9351,
+        "git_blob": "b573241041d60551ec8a74e8076c35ad4537f197",
         "mode": "100644",
-        "sha256": "2b605aaafeed08af3b310f5ceea454bc273905d6343ed23c9e13c83cc9c2f59a"
+        "sha256": "a4d7273d94f474ecbc5803f895a83489ea1d5bd60e94b7092b2699ee910a8cae"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/stop_tests.rs": {
         "bytes": 7315,
@@ -2436,6 +2436,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "e7a3b88cba7e4ab4676694822d7d222f68d36a65"
+    "tree": "6fb1acade84d5425e22521d77f5642658fb8991b"
   }
 }
