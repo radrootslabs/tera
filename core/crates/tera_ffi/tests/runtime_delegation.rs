@@ -714,38 +714,50 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         &source,
     )
     .to_hex();
-    let revision = runtime
-        .phase1_save_revision_intent(FfiRevisionInputRecord {
+    let revision_input = FfiRevisionInputRecord {
+        request_id: "ac".repeat(16),
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        card_id,
+        source_event_id,
+        source_address: None,
+        author_public_key: support::PUBLIC_KEY.to_owned(),
+        replacement: FfiAddDraftInput {
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
-            card_id,
-            source_event_id,
-            source_address: None,
-            author_public_key: support::PUBLIC_KEY.to_owned(),
-            replacement: FfiAddDraftInput {
-                schema_version: MOBILE_FFI_SCHEMA_VERSION,
-                command_type: FfiAddCommandType::CreateUpdate,
-                content: "Corrected farm stand hours".to_owned(),
-                identifier: None,
-                title: None,
-                summary: None,
-                location: None,
-                event_timing: None,
-                event_start_date: None,
-                event_end_date: None,
-                event_start_unix_s: None,
-                event_end_unix_s: None,
-                event_timezone: None,
-                price_amount: None,
-                currency: None,
-                unit: None,
-                quantity: None,
-                food_published_at_unix_s: None,
-                food_status: None,
-                media: Vec::new(),
-            },
-        })
+            command_type: FfiAddCommandType::CreateUpdate,
+            content: "Corrected farm stand hours".to_owned(),
+            identifier: None,
+            title: None,
+            summary: None,
+            location: None,
+            event_timing: None,
+            event_start_date: None,
+            event_end_date: None,
+            event_start_unix_s: None,
+            event_end_unix_s: None,
+            event_timezone: None,
+            price_amount: None,
+            currency: None,
+            unit: None,
+            quantity: None,
+            food_published_at_unix_s: None,
+            food_status: None,
+            media: Vec::new(),
+        },
+    };
+    let revision = runtime
+        .phase1_save_revision_intent(revision_input.clone())
         .await
         .expect("save lossless revision intent");
+    assert_eq!(
+        runtime
+            .phase1_save_revision_intent(revision_input.clone())
+            .await
+            .unwrap(),
+        revision
+    );
+    let mut changed = revision_input;
+    changed.replacement.content = "Conflicting correction".into();
+    assert!(runtime.phase1_save_revision_intent(changed).await.is_err());
     assert_eq!(revision.phase, FfiRevisionPhase::ReplacementPending);
     assert_eq!(revision.operation_id, revision.replacement.draft_id);
     assert!(revision.replacement.is_revision);

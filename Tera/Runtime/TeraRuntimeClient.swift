@@ -216,33 +216,6 @@ actor TeraRuntimeClient {
     }
   }
 
-  func saveRevisionIntent(
-    target: TeraRevisionTarget,
-    replacement: TeraAddRuntimeInput
-  ) async throws -> TeraRevisionStatus {
-    try await addOperation("runtime.add.revision.save") { backend in
-      try await backend.saveRevisionIntent(target: target, replacement: replacement)
-    }
-  }
-
-  func revisionStatus(operationID: String) async throws -> TeraRevisionStatus {
-    try await addOperation("runtime.add.revision.status") { backend in
-      try await backend.revisionStatus(operationID: operationID)
-    }
-  }
-
-  func advanceRevision(operationID: String) async throws -> TeraRevisionStatus {
-    try await addOperation("runtime.add.revision.advance") { backend in
-      try await backend.advanceRevision(operationID: operationID)
-    }
-  }
-
-  func cancelRevision(operationID: String) async throws -> TeraRevisionStatus {
-    try await addOperation("runtime.add.revision.cancel") { backend in
-      try await backend.cancelRevision(operationID: operationID)
-    }
-  }
-
   func draftStatus(id: String) async throws -> TeraDraftStatus {
     try await addOperation("runtime.add.status") { backend in
       try await backend.draftStatus(id: id)

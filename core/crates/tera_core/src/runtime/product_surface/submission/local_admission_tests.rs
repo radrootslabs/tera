@@ -102,6 +102,37 @@ async fn local_admission_recovery_survives_both_process_death_boundaries() {
             hex::encode(status.receipt().operation_id().as_bytes())
         );
         assert_eq!(overlay.state, status.state().label());
+        assert_eq!(
+            overlay.source_draft_id,
+            Some(hex::encode(status.receipt().intent_id().as_bytes()))
+        );
+        let card = &page.items[0].card;
+        let target = crate::runtime::product_surface::Phase1RevisionTarget::from_source(
+            status.captured().form().input().command_type,
+            card.card_id,
+            card.source_event_id.clone(),
+            card.source_address.clone(),
+            card.author_pubkey.clone(),
+        )
+        .unwrap();
+        let original_form = runtime
+            .revision_source_form(*status.receipt().intent_id().as_bytes(), &target)
+            .await
+            .unwrap();
+        assert_eq!(
+            original_form.content,
+            status.captured().form().input().content
+        );
+        assert_eq!(
+            original_form.command_type,
+            status.captured().form().input().command_type
+        );
+        assert!(
+            runtime
+                .revision_source_form(*status.receipt().operation_id().as_bytes(), &target)
+                .await
+                .is_err()
+        );
         for _ in 0..3 {
             let replay = runtime
                 .submission_reconcile_local(&request, &selected)

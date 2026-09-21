@@ -133,6 +133,8 @@ pub struct ThreadEntry {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalAuthorOverlay {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_draft_id: Option<String>,
     pub operation_id: String,
     pub state: String,
 }

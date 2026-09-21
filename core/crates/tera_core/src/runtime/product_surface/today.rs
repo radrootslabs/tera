@@ -777,7 +777,11 @@ impl TeraRuntime {
             .await?
             .ok_or(TodayError::ProjectionMissing)?;
         if overlay.as_ref().is_some_and(|overlay| {
-            overlay.operation_id.is_empty()
+            overlay.source_draft_id.as_ref().is_some_and(|id| {
+                id.len() != 32
+                    || !id.bytes().all(|byte| byte.is_ascii_hexdigit())
+                    || id.bytes().all(|byte| byte == b'0')
+            }) || overlay.operation_id.is_empty()
                 || overlay.operation_id.len() > 256
                 || overlay.state.is_empty()
                 || overlay.state.len() > 96
@@ -2651,6 +2655,7 @@ mod tests {
                 &context,
                 card.card.card_id,
                 Some(LocalAuthorOverlay {
+                    source_draft_id: None,
                     operation_id: "publish-photo-1".into(),
                     state: "delivered".into(),
                 }),
@@ -3594,22 +3599,27 @@ mod tests {
 
         for overlay in [
             LocalAuthorOverlay {
+                source_draft_id: None,
                 operation_id: String::new(),
                 state: "queued".into(),
             },
             LocalAuthorOverlay {
+                source_draft_id: None,
                 operation_id: "x".repeat(257),
                 state: "queued".into(),
             },
             LocalAuthorOverlay {
+                source_draft_id: None,
                 operation_id: "operation".into(),
                 state: String::new(),
             },
             LocalAuthorOverlay {
+                source_draft_id: None,
                 operation_id: "operation".into(),
                 state: "x".repeat(97),
             },
             LocalAuthorOverlay {
+                source_draft_id: None,
                 operation_id: "operation".into(),
                 state: "bad\nstate".into(),
             },
@@ -3638,6 +3648,7 @@ mod tests {
                     &context,
                     card_id,
                     Some(LocalAuthorOverlay {
+                        source_draft_id: None,
                         operation_id: "operation".into(),
                         state: "queued".into(),
                     }),
@@ -3651,6 +3662,7 @@ mod tests {
                 &context,
                 card_id,
                 Some(LocalAuthorOverlay {
+                    source_draft_id: None,
                     operation_id: "operation".into(),
                     state: "queued".into(),
                 }),

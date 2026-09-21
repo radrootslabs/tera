@@ -18,15 +18,11 @@ enum TeraAddCardIntents {
       throw TeraRuntimeFailure.local(operation: "add.revise", code: "ios.add.revision_not_authorized",
                                      safeMessage: "Only your own post can be revised.")
     }
-    guard let id = card.localOperationID else {
+    guard let id = card.localSourceDraftID ?? card.localOperationID else {
       throw TeraRuntimeFailure.local(operation: "add.revise", code: "ios.add.revision_source_unavailable",
                                      safeMessage: "This post cannot be revised losslessly on this device.")
     }
-    let source = try await client.draftStatus(id: id)
-    guard let form = source.form else {
-      throw TeraRuntimeFailure.local(operation: "add.revise", code: "ios.add.revision_form_unavailable",
-                                     safeMessage: "The original Add form is unavailable on this device.")
-    }
+    let form = try await client.revisionSourceForm(card: card, sourceDraftID: id)
     return RevisionEditing(target: TeraRevisionTarget(cardID: card.id, sourceEventID: card.sourceEventID,
                                                       sourceAddress: card.sourceAddress, authorPublicKey: card.authorPublicKey), form: form)
   }

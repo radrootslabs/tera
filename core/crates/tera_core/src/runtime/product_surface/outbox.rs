@@ -51,6 +51,10 @@ mod configuration;
 #[path = "outbox/inventory.rs"]
 mod inventory;
 mod reference_inventory;
+#[path = "outbox/revision_preparation.rs"]
+mod revision_preparation;
+#[path = "outbox/revision_source.rs"]
+mod revision_source;
 pub(super) use reference_inventory::media_references;
 mod media;
 mod native_upload;
@@ -1651,68 +1655,14 @@ impl TeraRuntime {
             .await
     }
 
-    /// Persists the replacement half of one revision before any retraction can
-    /// exist. Standard kind-1 revisions receive a deterministic child draft ID
-    /// that remains inert until replacement settlement succeeds.
+    /// Starts a fresh intentional revision. Retryable callers retain a request
+    /// identity and use `prepare_revision_intent` instead.
     pub async fn phase1_save_revision_intent(
         &self,
         intent: Phase1ReviseIntent,
     ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
-        let _command = self.lifecycle.enter()?;
-        let now_unix_ms = phase1_operation_now_unix_ms()?;
-        let authored_at_unix_s = now_unix_ms / 1_000;
-        let author = self.draft_author()?;
-        if intent.target.author_public_key != hex::encode(author) {
-            return Err(Phase1DraftError::InvalidRevision);
-        }
-        let draft_id = AuthoredDraftId::new(phase1_random_id()?)
-            .map_err(|_| Phase1DraftError::InvalidDraft)?;
-        let _admission = self.mutations.draft(*draft_id.as_bytes())?;
-        let plan = intent
-            .command
-            .authored_plan(authored_at_unix_s, hex::encode(author))
-            .map_err(|_| Phase1DraftError::InvalidDraft)?;
-        let wire = PlanWireV1::from_plan(&plan)
-            .to_json()
-            .map_err(|_| Phase1DraftError::InvalidDraft)?;
-        let policy = if intent.target.source_kind == 1 {
-            Phase1RevisionPolicy::ReplaceThenRetract
-        } else {
-            Phase1RevisionPolicy::AddressableReplacement
-        };
-        let retraction_draft_id = match policy {
-            Phase1RevisionPolicy::ReplaceThenRetract => {
-                let child_id = phase1_random_id()?;
-                if child_id == *draft_id.as_bytes() {
-                    return Err(Phase1DraftError::OperationUnavailable);
-                }
-                Some(child_id)
-            }
-            Phase1RevisionPolicy::AddressableReplacement => None,
-        };
-        let mut payload =
-            Phase1DraftPayload::new(&intent.command, wire, intent.media, Some(intent.form))?;
-        payload.revision = Some(Phase1RevisionRecord {
-            target: intent.target,
-            policy,
-            retraction_draft_id,
-        });
-        let bytes = payload.encode()?;
-        let draft = AuthoredDraft::initial(
-            draft_id,
-            author,
-            DRAFT_PAYLOAD_SCHEMA,
-            bytes,
-            draft_stage_for_media(&payload.media),
-            None,
-            now_unix_ms,
-        )
-        .map_err(|_| Phase1DraftError::InvalidDraft)?;
-        self.storage()?
-            .append_authored_draft(draft, None)
+        self.prepare_revision_intent(phase1_random_id()?, intent)
             .await
-            .map_err(map_draft_storage_error)?;
-        self.phase1_revision_status(*draft_id.as_bytes()).await
     }
 
     /// Reconstructs the complete ordered revision from durable replacement and
@@ -1991,6 +1941,7 @@ impl TeraRuntime {
                 .map_err(|_| Phase1DraftError::Storage)?
                 .ok_or(Phase1DraftError::NotFound)?;
             if head.revision() != expected
+                || Phase1DraftPayload::decode(&head)?.revision.is_some()
                 || head.stage().is_terminal()
                 || matches!(
                     head.stage(),
@@ -2822,6 +2773,7 @@ impl TeraRuntime {
             context,
             status.card_id,
             Some(LocalAuthorOverlay {
+                source_draft_id: Some(hex::encode(draft_id)),
                 operation_id,
                 state: status.state.label().to_owned(),
             }),
@@ -3436,6 +3388,7 @@ fn phase1_random_id() -> Result<[u8; 16], Phase1DraftError> {
 #[cfg(test)]
 mod tests {
     mod recovery_completion_tests;
+    mod revision_preparation_tests;
     use super::*;
     use crate::runtime::product_surface::{
         CANONICAL_ADD_COMMAND_TYPES, CreateAsk, CreateEvent, CreateFoodAvailability,

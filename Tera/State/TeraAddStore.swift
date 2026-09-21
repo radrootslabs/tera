@@ -45,6 +45,7 @@ final class TeraAddStore: ObservableObject {
   private var appliedDraftsGeneration = TeraSessionGeneration.initial
   private var probeGeneration = TeraSessionGeneration.initial
   private var blossomGeneration = TeraSessionGeneration.initial
+  let revisionPreparation: TeraRevisionPreparation
   private var revisionTarget: TeraRevisionTarget?
   private var revisionOperationID: String?
   private var activePublicKey: String?
@@ -61,6 +62,7 @@ final class TeraAddStore: ObservableObject {
       TeraRuntimeObservationBackoff.sleep
   ) {
     self.runtimeClient = runtimeClient
+    revisionPreparation = TeraRevisionPreparation(client: runtimeClient, media: media)
     recovery = TeraDraftRecoveryStore(client: runtimeClient, media: media)
     composer = TeraComposerAutosave(persistence: TeraComposerPersistence(client: runtimeClient).protectingMedia(media))
     submissions = TeraSubmissionStore(client: runtimeClient, composer: composer, media: media)
@@ -108,8 +110,7 @@ final class TeraAddStore: ObservableObject {
     composer.reset(scope: composer.scope)
     generation = generation.invalidated()
     activeDraft = nil
-    revisionTarget = nil
-    revisionOperationID = nil
+    resetRevision()
     form = TeraAddPresentation.newForm(type: type ?? form.commandType, identifier: identifier, clock: clock)
     message = nil
   }
@@ -133,6 +134,7 @@ final class TeraAddStore: ObservableObject {
     activeDraft = draft
     composer.reset(scope: composer.scope)
     revisionTarget = nil
+    revisionPreparation.reset()
     revisionOperationID = draft.isRevision ? draft.id : nil
     form = snapshot
     message = draft.state.isEditable ? "Draft reopened." : draft.honestSummary
@@ -146,13 +148,13 @@ final class TeraAddStore: ObservableObject {
       case let .composer(draft):
         try store.composer.restore(draft)
         store.activeDraft = nil
-        store.revisionTarget = nil
-        store.revisionOperationID = nil
+        store.resetRevision()
         store.form = draft.form.editingValue
         store.message = "Saved editing reopened."
       case let .legacy(draft):
         store.composer.reset(scope: store.composer.scope)
         store.revisionTarget = nil
+        store.revisionPreparation.reset()
         store.revisionOperationID = draft.isRevision ? draft.id : nil
         try store.accept(draft, generation: requested)
         store.message = draft.honestSummary
@@ -262,7 +264,7 @@ final class TeraAddStore: ObservableObject {
         runtimeClient: self.runtimeClient, media: self.media,
         revisionID: { self.revisionOperationID },
         initial: {
-          if let active = self.activeDraft, !active.state.isEditable {
+          if let active = self.activeDraft, active.isRevision || !active.state.isEditable {
             return active
           }
           return try await self.saveCurrentForm(generation: requested)
@@ -357,6 +359,7 @@ final class TeraAddStore: ObservableObject {
       let editing = try await TeraAddCardIntents.revision(card, author: store.activePublicKey, client: store.runtimeClient)
       try store.ensureCurrent(requestedGeneration)
       store.revisionTarget = editing.target
+      store.revisionPreparation.reset()
       store.composer.reset(scope: store.composer.scope)
       store.revisionOperationID = nil
       store.activeDraft = nil
@@ -390,42 +393,6 @@ final class TeraAddStore: ObservableObject {
       }
       store.message = status.honestSummary
     }
-  }
-
-  private func saveCurrentForm(generation requestedGeneration: TeraSessionGeneration) async throws -> TeraDraftStatus {
-    guard isFormEditable else {
-      throw TeraRuntimeFailure.local(
-        operation: "add.save",
-        code: "ios.add.form_frozen",
-        safeMessage: "Submitted drafts cannot be changed. Create a revised copy instead."
-      )
-    }
-    let opened = try await openedMedia()
-    defer { opened.close() }
-    try ensureCurrent(requestedGeneration)
-    let input = TeraAddRuntimeInput(form: form, media: opened.handles)
-    if let target = revisionTarget {
-      let revision = try await runtimeClient.saveRevisionIntent(
-        target: target,
-        replacement: input
-      )
-      try ensureCurrent(requestedGeneration)
-      revisionOperationID = revision.operationID
-      revisionTarget = nil
-      try accept(revision, generation: requestedGeneration)
-      return revision.replacement
-    }
-    let status = try await runtimeClient.saveAddIntent(
-      input: input,
-      existingDraftID: activeDraft?.isRevision == true ? nil : activeDraft?.id,
-      expectedRevision: activeDraft?.isRevision == true ? nil : activeDraft?.revision
-    )
-    try accept(status, generation: requestedGeneration)
-    return status
-  }
-
-  private func openedMedia(_ values: [TeraPreparedMedia]? = nil) async throws -> TeraOpenedMedia {
-    try await TeraOpenedMedia.open(values ?? form.media, using: media)
   }
 
   private func reloadDrafts() async {
@@ -582,8 +549,7 @@ extension TeraAddStore {
       drafts = []
       if scopeChanged {
         activeDraft = nil
-        revisionTarget = nil
-        revisionOperationID = nil
+        resetRevision()
         form = TeraAddPresentation.newForm(type: form.commandType, identifier: identifier, clock: clock)
       }
       state = .idle
@@ -665,6 +631,37 @@ extension TeraAddStore {
 }
 
 private extension TeraAddStore {
+  func resetRevision() {
+    revisionTarget = nil
+    revisionPreparation.reset()
+    revisionOperationID = nil
+  }
+
+  func saveCurrentForm(generation requestedGeneration: TeraSessionGeneration) async throws -> TeraDraftStatus {
+    if let target = revisionTarget {
+      let revision = try await revisionPreparation.prepare(target: target, form: form, identifier: identifier,
+                                                           ensureCurrent: { try self.ensureCurrent(requestedGeneration) })
+      try ensureCurrent(requestedGeneration)
+      revisionOperationID = revision.operationID
+      revisionTarget = nil
+      revisionPreparation.reset()
+      try accept(revision, generation: requestedGeneration)
+      return revision.replacement
+    }
+    guard isFormEditable else { throw TeraComposerAcknowledgment.unconfirmed }
+    let opened = try await TeraOpenedMedia.open(form.media, using: media)
+    defer { opened.close() }
+    try ensureCurrent(requestedGeneration)
+    let input = TeraAddRuntimeInput(form: form, media: opened.handles)
+    let status = try await runtimeClient.saveAddIntent(
+      input: input,
+      existingDraftID: activeDraft?.isRevision == true ? nil : activeDraft?.id,
+      expectedRevision: activeDraft?.isRevision == true ? nil : activeDraft?.revision
+    )
+    try accept(status, generation: requestedGeneration)
+    return status
+  }
+
   var needsEditingPreservation: Bool {
     revisionTarget != nil || (isFormEditable && (composer.isDirty || submissions.hasAction))
   }

@@ -33,7 +33,8 @@ pub use recovery::*;
 pub use recovery_inventory::*;
 pub use runtime::{
     FfiNativeRecoveryReason, FfiNativeRecoverySchedule, FfiNativeRecoveryStatus,
-    FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt, ProtectedDataAvailability, TeraRuntime,
+    FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt, FfiRevisionSourceRequest,
+    ProtectedDataAvailability, TeraRuntime,
 };
 pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,

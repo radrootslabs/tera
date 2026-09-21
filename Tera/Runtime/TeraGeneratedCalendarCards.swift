@@ -32,6 +32,7 @@ extension FfiTodayCardRecord {
       rankDigest: rankDigest,
       authorProfile: authorProfile?.appValue,
       thread: thread.map(\.appValue),
+      localSourceDraftID: localSourceDraftId,
       localOperationID: localOperationId,
       localOperationState: localOperationState
     )

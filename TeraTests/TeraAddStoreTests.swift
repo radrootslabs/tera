@@ -689,9 +689,14 @@ actor AddBackend: TeraRuntimeBackend {
   private let delayedPhase: AddDelayPhase?
   private let delayAfterBackgroundCompletion: Bool
   private let schemaInventory: [TeraAddSchema]
-  private var values: [String: TeraDraftStatus] = [:]
+  var values: [String: TeraDraftStatus] = [:]
   private var uploadedMedia = false
-  private var revisionPlans = 0
+  var revisionPlans = 0
+  var failRevisionReceipt = false
+  func failNextRevisionReceipt() {
+    failRevisionReceipt = true
+  }
+
   private var delayConsumed = false
   private var backgroundCompletionPersisted = false
   private var recordedRetraction: TeraRetractionDraftInput?
@@ -825,74 +830,6 @@ actor AddBackend: TeraRuntimeBackend {
 
   func lastRetraction() -> TeraRetractionDraftInput? {
     recordedRetraction
-  }
-
-  func saveRevisionIntent(
-    target: TeraRevisionTarget,
-    replacement: TeraAddRuntimeInput
-  ) -> TeraRevisionStatus {
-    revisionPlans += 1
-    let id = String(format: "%032x", values.count + 1)
-    let status = makeStatus(
-      id: id,
-      revision: 1,
-      kind: .add,
-      commandType: replacement.form.commandType,
-      form: replacement.form,
-      state: replacement.form.media.isEmpty ? .draft : .mediaPreparing,
-      updatedAt: 1_800_000_100_000,
-      media: [],
-      isRevision: true
-    )
-    values[id] = status
-    return TeraRevisionStatus(
-      operationID: id,
-      replacement: status,
-      retraction: nil,
-      policy: target.sourceAddress == nil ? .replaceThenRetract : .addressableReplacement,
-      phase: .replacementPending
-    )
-  }
-
-  func revisionStatus(operationID: String) throws -> TeraRevisionStatus {
-    let replacement = try draftStatus(id: operationID)
-    return TeraRevisionStatus(
-      operationID: operationID,
-      replacement: replacement,
-      retraction: nil,
-      policy: .addressableReplacement,
-      phase: replacement.state == .complete ? .complete : .replacementPending
-    )
-  }
-
-  func advanceRevision(operationID: String) throws -> TeraRevisionStatus {
-    let current = try draftStatus(id: operationID)
-    let completed = replacing(
-      current,
-      revision: current.revision + 1,
-      state: .complete,
-      updatedAt: current.updatedAtUnixMilliseconds + 1
-    )
-    values[operationID] = completed
-    return try revisionStatus(operationID: operationID)
-  }
-
-  func cancelRevision(operationID: String) throws -> TeraRevisionStatus {
-    let current = try draftStatus(id: operationID)
-    let cancelled = replacing(
-      current,
-      revision: current.revision + 1,
-      state: .cancelled,
-      updatedAt: current.updatedAtUnixMilliseconds + 1
-    )
-    values[operationID] = cancelled
-    return TeraRevisionStatus(
-      operationID: operationID,
-      replacement: cancelled,
-      retraction: nil,
-      policy: .addressableReplacement,
-      phase: .cancelled
-    )
   }
 
   func draftStatus(id: String) throws -> TeraDraftStatus {
@@ -1080,7 +1017,7 @@ actor AddBackend: TeraRuntimeBackend {
     return TeraRuntimeShutdownReceipt(state: "closed", alreadyClosed: wasClosed)
   }
 
-  private func makeStatus(
+  func makeStatus(
     id: String,
     revision: UInt64,
     kind: TeraDraftKind,
@@ -1109,7 +1046,7 @@ actor AddBackend: TeraRuntimeBackend {
     )
   }
 
-  private func replacing(
+  func replacing(
     _ value: TeraDraftStatus,
     revision: UInt64,
     state: TeraOutboxState,
@@ -1160,7 +1097,7 @@ actor AddBackend: TeraRuntimeBackend {
     try await Task.sleep(nanoseconds: 50_000_000)
   }
 
-  private func unsupported() -> TeraRuntimeFailure {
+  func unsupported() -> TeraRuntimeFailure {
     .local(
       operation: "test.add", code: "test.unsupported", safeMessage: "Unsupported test operation."
     )

@@ -6,7 +6,7 @@ extension TeraAddStore {
   }
 
   var isFormEditable: Bool {
-    guard activeDraft?.isRevision != true, activeDraft?.kind != .retraction else { return false }
+    guard !revisionPreparation.isCaptured, activeDraft?.isRevision != true, activeDraft?.kind != .retraction else { return false }
     return activeDraft?.state.isEditable ?? true
   }
 
@@ -15,13 +15,13 @@ extension TeraAddStore {
   }
 
   var canSave: Bool {
-    isProductReady && isFormEditable && !isWorking
+    isProductReady && (isFormEditable || revisionPreparation.isCaptured) && !isWorking
   }
 
   var canSubmit: Bool {
     isProductReady && !isWorking && !submissions.isWorking
       && (activeDraft?.isRevision == true || activeDraft?.state.canAdvance == true
-        || isFormEditable)
+        || isFormEditable || revisionPreparation.isCaptured)
   }
 
   var acceptsMedia: Bool {

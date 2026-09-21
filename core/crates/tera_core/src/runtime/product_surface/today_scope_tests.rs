@@ -382,6 +382,7 @@ async fn corrupt_snapshot_order_and_legacy_unbound_cache_fail_closed() {
     let mut unbound = state.clone();
     unbound.query_scope = None;
     let overlay = LocalAuthorOverlay {
+        source_draft_id: None,
         operation_id: "retained-operation".into(),
         state: "delivered".into(),
     };

@@ -699,6 +699,7 @@ pub struct FfiTodayCardRecord {
     pub rank_digest: Option<String>,
     pub author_profile: Option<FfiProfileRecord>,
     pub thread: Vec<FfiThreadEntryRecord>,
+    pub local_source_draft_id: Option<String>,
     pub local_operation_id: Option<String>,
     pub local_operation_state: Option<String>,
 }
@@ -735,6 +736,10 @@ impl From<TodayCard> for FfiTodayCardRecord {
             rank_digest: card.rank.map(|rank| rank.digest_hex()),
             author_profile: value.author_profile.map(Into::into),
             thread: value.thread.into_iter().map(Into::into).collect(),
+            local_source_draft_id: value
+                .local_overlay
+                .as_ref()
+                .and_then(|overlay| overlay.source_draft_id.clone()),
             local_operation_id: value
                 .local_overlay
                 .as_ref()

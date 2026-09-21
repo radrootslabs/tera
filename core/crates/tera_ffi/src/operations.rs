@@ -486,6 +486,7 @@ impl From<Phase1ProfileStatus> for FfiProfileStatusRecord {
 
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct FfiRevisionInputRecord {
+    pub request_id: String,
     pub schema_version: u16,
     pub card_id: String,
     pub source_event_id: String,

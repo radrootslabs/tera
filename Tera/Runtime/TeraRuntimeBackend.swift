@@ -75,9 +75,11 @@ protocol TeraRuntimeBackend: Sendable {
     persistedAtUnixMilliseconds: UInt64
   ) async throws -> TeraDraftStatus
   func saveRevisionIntent(
+    requestID: String,
     target: TeraRevisionTarget,
     replacement: TeraAddRuntimeInput
   ) async throws -> TeraRevisionStatus
+  func revisionSourceForm(card: TeraTodayCard, sourceDraftID: String) async throws -> TeraAddForm
   func revisionStatus(operationID: String) async throws -> TeraRevisionStatus
   func advanceRevision(operationID: String) async throws -> TeraRevisionStatus
   func cancelRevision(operationID: String) async throws -> TeraRevisionStatus
@@ -185,9 +187,14 @@ extension TeraRuntimeBackend {
   }
 
   func saveRevisionIntent(
+    requestID _: String,
     target _: TeraRevisionTarget,
     replacement _: TeraAddRuntimeInput
   ) async throws -> TeraRevisionStatus {
+    throw addUnsupported()
+  }
+
+  func revisionSourceForm(card _: TeraTodayCard, sourceDraftID _: String) async throws -> TeraAddForm {
     throw addUnsupported()
   }
 

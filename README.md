@@ -270,3 +270,12 @@ make release-preflight
 Run the write target only when an owned release input changes. The preflight
 is read-only and rejects stale generated evidence. Signing, tagging,
 publication, and deployment remain separate operations.
+
+Revision preparation retains a request identity and immutable replacement form
+before signing or delivery. Retrying an uncertain preparation returns the same
+replacement and retraction graph; changed input requires a new intentional
+request. Regular posts retain the original source event and a separate ordered
+retraction child. Current local card overlays also carry the exact source draft
+key, so revision editing can recover the retained form from either a legacy
+draft or a scoped submission. Missing forms and mismatched signed sources fail
+closed; a displayed operation ID is never treated as proof of source ownership.

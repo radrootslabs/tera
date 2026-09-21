@@ -1,4 +1,7 @@
 use std::sync::Arc;
+#[path = "revision.rs"]
+mod revision;
+pub use revision::FfiRevisionSourceRequest;
 
 #[path = "composer/runtime.rs"]
 mod composer;
@@ -1026,7 +1029,10 @@ impl TeraRuntime {
             .command_media_and_form(authored_at_unix_s, blossom.as_ref())?;
         let status = self
             .inner
-            .phase1_save_revision_intent(Phase1ReviseIntent::new(target, command, media, form)?)
+            .prepare_revision_intent(
+                decode_id(&input.request_id, "invalid_revision_request_id")?,
+                Phase1ReviseIntent::new(target, command, media, form)?,
+            )
             .await?;
         let operation_id = hex::encode(status.replacement().draft().draft_id().as_bytes());
         self.subscriptions

@@ -70,6 +70,7 @@ impl TeraRuntime {
         }
         let key = card_id.to_hex();
         let overlay = LocalAuthorOverlay {
+            source_draft_id: Some(hex::encode(status.receipt().intent_id().as_bytes())),
             operation_id: hex::encode(status.receipt().operation_id().as_bytes()),
             state: status.state().label().to_owned(),
         };
@@ -111,6 +112,7 @@ mod tests {
             .unwrap();
         let card_id = state.cards[0].card.card_id;
         let overlay = LocalAuthorOverlay {
+            source_draft_id: None,
             operation_id: "original-operation".into(),
             state: "complete".into(),
         };

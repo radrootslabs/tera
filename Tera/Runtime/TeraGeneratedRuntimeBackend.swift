@@ -206,50 +206,6 @@ final class TeraGeneratedRuntimeBackend: TeraRuntimeBackend, @unchecked Sendable
     }
   }
 
-  func saveRevisionIntent(
-    target: TeraRevisionTarget,
-    replacement: TeraAddRuntimeInput
-  ) async throws -> TeraRevisionStatus {
-    do {
-      return try await runtime.phase1SaveRevisionIntent(
-        input: FfiRevisionInputRecord(
-          schemaVersion: 1,
-          cardId: target.cardID,
-          sourceEventId: target.sourceEventID,
-          sourceAddress: target.sourceAddress,
-          authorPublicKey: target.authorPublicKey,
-          replacement: replacement.generatedValue
-        )
-      ).appValue
-    } catch {
-      throw TeraGeneratedRuntimeFailure.from(error)
-    }
-  }
-
-  func revisionStatus(operationID: String) async throws -> TeraRevisionStatus {
-    do {
-      return try await runtime.phase1RevisionStatus(operationId: operationID).appValue
-    } catch {
-      throw TeraGeneratedRuntimeFailure.from(error)
-    }
-  }
-
-  func advanceRevision(operationID: String) async throws -> TeraRevisionStatus {
-    do {
-      return try await runtime.phase1AdvanceRevision(operationId: operationID).appValue
-    } catch {
-      throw TeraGeneratedRuntimeFailure.from(error)
-    }
-  }
-
-  func cancelRevision(operationID: String) async throws -> TeraRevisionStatus {
-    do {
-      return try await runtime.phase1CancelRevision(operationId: operationID).appValue
-    } catch {
-      throw TeraGeneratedRuntimeFailure.from(error)
-    }
-  }
-
   func queueAddIntent(
     id: String,
     expectedRevision: UInt64
@@ -695,7 +651,7 @@ extension FfiAddFieldKind {
 }
 
 extension TeraAddCommandType {
-  fileprivate var generatedValue: FfiAddCommandType {
+  var generatedValue: FfiAddCommandType {
     switch self {
     case .createUpdate: .createUpdate
     case .createPhotoUpdate: .createPhotoUpdate
@@ -979,7 +935,7 @@ extension FfiDraftFormMediaRecord {
 }
 
 extension FfiDraftFormRecord {
-  fileprivate var appValue: TeraAddForm {
+  var appValue: TeraAddForm {
     TeraAddForm(
       commandType: commandType.appValue,
       content: content,
@@ -1026,7 +982,7 @@ extension FfiDraftStatusRecord {
 }
 
 extension FfiRevisionStatusRecord {
-  fileprivate var appValue: TeraRevisionStatus {
+  var appValue: TeraRevisionStatus {
     TeraRevisionStatus(
       operationID: operationId,
       replacement: replacement.appValue,
