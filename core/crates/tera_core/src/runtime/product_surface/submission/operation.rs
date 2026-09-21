@@ -52,6 +52,7 @@ pub struct SubmissionOperationStatus {
     receipt: SubmissionReceipt,
     intent: AuthoredDraft,
     push: PushStatus,
+    targets: crate::runtime::product_surface::PublicationTargetDetails,
     captured: crate::runtime::product_surface::ComposerDraft,
     media: Vec<crate::runtime::product_surface::Phase1MediaPrerequisite>,
 }
@@ -74,6 +75,9 @@ impl SubmissionOperationStatus {
     }
     pub fn push(&self) -> &PushStatus {
         &self.push
+    }
+    pub fn target_details(&self) -> &crate::runtime::product_surface::PublicationTargetDetails {
+        &self.targets
     }
     pub fn captured(&self) -> &crate::runtime::product_surface::ComposerDraft {
         &self.captured
@@ -105,7 +109,15 @@ impl TeraRuntime {
     ) -> Result<SubmissionOperationStatus, E> {
         let _command = self.lifecycle.enter().map_err(Phase1DraftError::from)?;
         let (loaded, push) = self.load_submission_operation(request).await?;
+        let targets = crate::runtime::product_surface::PublicationTargetDetails::load(
+            &push,
+            self.client
+                .storage()
+                .map_err(|_| Error::BackendUnavailable)?,
+        )
+        .await;
         Ok(SubmissionOperationStatus {
+            targets,
             media: loaded.payload.media().to_vec(),
             captured: loaded.captured,
             receipt: loaded.receipt,

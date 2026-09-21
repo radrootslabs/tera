@@ -12,9 +12,11 @@ mod error;
 mod operation;
 mod page;
 mod renewal;
+mod targets;
 pub use operation::*;
 pub use page::*;
 pub use renewal::FfiSubmissionUploadRenewal;
+pub use targets::*;
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiSubmissionCommandIdRecord {

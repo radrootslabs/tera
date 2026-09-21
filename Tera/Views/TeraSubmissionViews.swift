@@ -29,6 +29,7 @@ struct TeraSubmissionStatusView: View {
         if let status = store.status {
           Text(status.summary)
             .accessibilityIdentifier("tera.add.submission.status")
+          TeraPublicationTargetsView(details: status.targetDetails)
           if !status.media.isEmpty {
             Text(status.mediaSummary)
               .accessibilityIdentifier("tera.add.submission.media_status")

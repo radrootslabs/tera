@@ -57,7 +57,8 @@ extension TeraGeneratedSubmission {
                                     committedAtUnixMilliseconds: value.committedAtUnixMs,
                                     updatedAtUnixMilliseconds: value.updatedAtUnixMs,
                                     media: media, settlement: value.settlement.appValue,
-                                    delivery: TeraPublicationEvidence.decode(value.delivery))
+                                    delivery: TeraPublicationEvidence.decode(value.delivery),
+                                    targetDetails: TeraPublicationTargets.decode(value.targetDetails))
   }
 
   static func page(_ value: FfiSubmissionPageRecord, scope: TeraComposerScope, limit: UInt16) throws -> TeraSubmissionPage {

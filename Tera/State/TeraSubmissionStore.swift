@@ -252,6 +252,7 @@ final class TeraSubmissionStore: ObservableObject {
       throw TeraComposerAcknowledgment.unconfirmed
     }
     if let status, value.revision < status.revision || !value.delivery.follows(status.delivery)
+      || !value.targetDetails.follows(status.targetDetails)
       || value.settlement.signed < status.settlement.signed || value.settlement.admitted < status.settlement.admitted {
         return
       }

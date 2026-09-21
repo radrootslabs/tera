@@ -30,6 +30,7 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
   let media: [TeraSubmissionMedia]
   let settlement: TeraOperationSettlement
   let delivery: TeraPublicationEvidence
+  let targetDetails: TeraPublicationTargets
 
   var id: String {
     operationID

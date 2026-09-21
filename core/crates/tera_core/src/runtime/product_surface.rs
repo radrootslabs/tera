@@ -21,6 +21,8 @@ mod outbox;
 mod projection;
 #[cfg(feature = "mobile-social")]
 mod publication;
+#[cfg(feature = "mobile-social")]
+mod publication_targets;
 mod ranking;
 #[cfg(feature = "mobile-social")]
 pub mod recovery_completion;
@@ -95,6 +97,10 @@ pub use outbox::{
 pub use projection::{ProductEventClassification, ProductEventExclusion, classify_admitted_event};
 #[cfg(feature = "mobile-social")]
 pub use publication::{PublicationDeliveryEvidence, PublicationDeliveryState};
+#[cfg(feature = "mobile-social")]
+pub use publication_targets::{
+    PublicationTargetDetails, PublicationTargetEvidence, PublicationTargetPolicy,
+};
 pub use ranking::{RankError, TODAY_RANK_SCHEMA_VERSION, TimeRelevance, TodayRank, TodayRankInput};
 #[cfg(feature = "mobile-social")]
 pub use settings::{

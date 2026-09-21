@@ -4911,6 +4911,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/target_receipt_tests.rs",
+          "count": 3
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 6
         },
@@ -5018,6 +5022,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/local_admission.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/target_receipt_tests.rs",
           "count": 1
         },
         {
@@ -5735,6 +5743,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_targets.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/recovery_completion/types.rs",
           "count": 1
         },
@@ -5879,6 +5891,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/target_receipt_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/transaction_test_support.rs",
           "count": 1
         },
@@ -5953,6 +5969,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_targets.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
           "count": 1
         },
@@ -6012,6 +6032,14 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/publication.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_targets.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/target_receipt_tests.rs",
           "count": 1
         },
         {

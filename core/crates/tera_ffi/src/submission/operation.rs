@@ -74,6 +74,7 @@ pub struct FfiSubmissionOperationRecord {
     pub media: Vec<FfiSubmissionMediaRecord>,
     pub settlement: FfiOperationSettlementRecord,
     pub delivery: FfiPublicationDeliveryEvidence,
+    pub target_details: super::FfiPublicationTargetDetails,
 }
 
 impl std::fmt::Debug for FfiSubmissionOperationRecord {
@@ -116,6 +117,7 @@ impl From<&SubmissionOperationStatus> for FfiSubmissionOperationRecord {
                 .collect(),
             settlement: value.push().settlement().into(),
             delivery: value.delivery_evidence().into(),
+            target_details: value.target_details().into(),
         }
     }
 }

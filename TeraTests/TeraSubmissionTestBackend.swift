@@ -119,7 +119,8 @@ actor SubmissionTestBackend {
       media: media.map { TeraSubmissionMedia(opaqueReference: $0.media.opaqueReference,
                                              progress: progress($0.media, stage: .pending)) }, settlement: settlement(complete: false),
       delivery: TeraPublicationEvidence(state: .notIssued, stopRequestedAtUnixMilliseconds: nil,
-                                        schedulingRevision: 1, retainedFacts: 0, recordedAttempts: 0, unresolvedClaims: false)
+                                        schedulingRevision: 1, retainedFacts: 0, recordedAttempts: 0, unresolvedClaims: false),
+      targetDetails: .fixture()
     )
     if delayedPhase == .queue, !delayed {
       delayed = true
@@ -221,7 +222,8 @@ actor SubmissionTestBackend {
                                                            stopRequestedAtUnixMilliseconds: value.delivery.stopRequestedAtUnixMilliseconds,
                                                            schedulingRevision: value.delivery.schedulingRevision + 1,
                                                            retainedFacts: state == .complete ? 1 : value.delivery.retainedFacts,
-                                                           recordedAttempts: state == .complete ? 1 : value.delivery.recordedAttempts, unresolvedClaims: false))
+                                                           recordedAttempts: state == .complete ? 1 : value.delivery.recordedAttempts, unresolvedClaims: false),
+                         targetDetails: state == .complete ? .fixture(accepted: true) : value.targetDetails)
   }
 
   func requestStop(_ request: TeraSubmissionRequest) throws -> TeraSubmissionStatus {
@@ -235,7 +237,8 @@ actor SubmissionTestBackend {
                                        media: value.media, settlement: value.settlement,
                                        delivery: TeraPublicationEvidence(state: value.delivery.state, stopRequestedAtUnixMilliseconds: 1_800_000_000_100,
                                                                          schedulingRevision: value.delivery.schedulingRevision + 1, retainedFacts: value.delivery.retainedFacts,
-                                                                         recordedAttempts: value.delivery.recordedAttempts, unresolvedClaims: value.delivery.unresolvedClaims))
+                                                                         recordedAttempts: value.delivery.recordedAttempts, unresolvedClaims: value.delivery.unresolvedClaims),
+                                       targetDetails: value.targetDetails)
     operations[request.commandID] = stopped
     return stopped
   }

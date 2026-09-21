@@ -102,6 +102,7 @@ final class TeraStoppedUploadTests: XCTestCase {
                                                                     indeterminate: 0, failedTerminal: 0, cancelled: 1, deliveryPlans: 1, deliverySatisfied: 0, deliveryPending: 0,
                                                                     deliveryRetryable: 0, deliveryExhausted: 0, deliveryFailedTerminal: 0, deliveryCancelled: 1),
                                 delivery: TeraPublicationEvidence(state: .notIssued, stopRequestedAtUnixMilliseconds: 1_800_000_000_002,
-                                                                  schedulingRevision: 2, retainedFacts: 0, recordedAttempts: 0, unresolvedClaims: false))
+                                                                  schedulingRevision: 2, retainedFacts: 0, recordedAttempts: 0, unresolvedClaims: false),
+                                targetDetails: .fixture())
   }
 }

@@ -71,6 +71,8 @@ mod signed_artifact_tests;
 #[cfg(test)]
 mod signing_preparation_tests;
 #[cfg(test)]
+mod target_receipt_tests;
+#[cfg(test)]
 mod test_support;
 #[cfg(test)]
 mod transaction_test_support;
