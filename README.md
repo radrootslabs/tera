@@ -279,3 +279,14 @@ retraction child. Current local card overlays also carry the exact source draft
 key, so revision editing can recover the retained form from either a legacy
 draft or a scoped submission. Missing forms and mismatched signed sources fail
 closed; a displayed operation ID is never treated as proof of source ownership.
+
+Regular revision delivery retains the replacement's exact relay policy on its
+linked retraction child. Each deletion destination requires replacement evidence
+from that same destination; another relay's success or aggregate completion does
+not grant permission. Retries reuse the original signed child and full destination
+list, withholding ineligible and already-satisfied destinations. Cancelling a
+partial revision stops both pending branches and retains observed effects across
+reopen. Historical revision children without an exact parent link remain held;
+their signed bytes and operation identities are never rewritten or rebound to a
+guessed replacement. This restriction also holds historical independent deletions
+using the reserved revision reason. Other independent retractions remain separate.

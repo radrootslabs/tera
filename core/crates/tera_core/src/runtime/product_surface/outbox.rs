@@ -46,6 +46,11 @@ use super::{
 use crate::runtime::TeraRuntime;
 
 mod advance;
+#[path = "outbox/revision_coordinator.rs"]
+mod revision_coordinator;
+#[path = "outbox/revision_delivery.rs"]
+mod revision_delivery;
+use revision_delivery::RevisionDelivery;
 #[path = "outbox/configuration.rs"]
 mod configuration;
 #[path = "outbox/inventory.rs"]
@@ -1028,6 +1033,8 @@ struct Phase1DraftPayload {
     queue: Option<Phase1QueuePolicy>,
     #[serde(default)]
     revision: Option<Phase1RevisionRecord>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    revision_parent_draft_id: Option<[u8; 16]>,
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -1102,6 +1109,7 @@ impl Phase1DraftPayload {
             media,
             queue: None,
             revision: None,
+            revision_parent_draft_id: None,
         };
         value.validate()?;
         Ok(value)
@@ -1122,6 +1130,7 @@ impl Phase1DraftPayload {
             media: Vec::new(),
             queue: None,
             revision: None,
+            revision_parent_draft_id: None,
         };
         value.validate()?;
         Ok(value)
@@ -1133,7 +1142,7 @@ impl Phase1DraftPayload {
         }
         match self.kind {
             Phase1DraftKind::Add => {
-                if self.target_card_id.is_some() {
+                if self.target_card_id.is_some() || self.revision_parent_draft_id.is_some() {
                     return Err(Phase1DraftError::Corrupt);
                 }
                 if let Some(form) = &self.form {
@@ -1183,6 +1192,9 @@ impl Phase1DraftPayload {
             {
                 return Err(Phase1DraftError::InvalidRevision);
             }
+        }
+        if let Some(parent) = self.revision_parent_draft_id {
+            AuthoredDraftId::new(parent).map_err(|_| Phase1DraftError::Corrupt)?;
         }
         let expected_media = media_urls(plan.body().tags())?;
         let actual_media = self
@@ -1679,6 +1691,12 @@ impl TeraRuntime {
             Some(id) => match self.phase1_draft_status(id).await {
                 Ok(status) => {
                     validate_revision_retraction(&status, &revision.target)?;
+                    if Phase1DraftPayload::decode(status.draft())?
+                        .revision_parent_draft_id
+                        .is_some_and(|parent| parent != replacement_draft_id)
+                    {
+                        return Err(Phase1DraftError::Corrupt);
+                    }
                     Some(status)
                 }
                 Err(Phase1DraftError::NotFound) => None,
@@ -1694,167 +1712,6 @@ impl TeraRuntime {
             policy: revision.policy,
             phase,
         })
-    }
-
-    /// Advances the replacement first and creates the NIP-09 child only after
-    /// all configured replacement delivery targets accepted it.
-    pub async fn phase1_advance_revision(
-        &self,
-        replacement_draft_id: [u8; 16],
-    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
-        let _command = self.lifecycle.enter()?;
-        let admission = self.mutations.draft(replacement_draft_id)?;
-        let mut status = self.phase1_revision_status(replacement_draft_id).await?;
-        if matches!(
-            status.replacement.state(),
-            Phase1OutboxState::Draft | Phase1OutboxState::ReadyToSign
-        ) {
-            let now_unix_ms = phase1_operation_now_unix_ms()?;
-            self.phase1_queue_draft_admitted(
-                &admission,
-                replacement_draft_id,
-                status.replacement.draft().revision().get(),
-                None,
-                now_unix_ms,
-            )
-            .await?;
-            status = self.phase1_revision_status(replacement_draft_id).await?;
-        }
-        if matches!(
-            status.replacement.state(),
-            Phase1OutboxState::Queued
-                | Phase1OutboxState::Retryable
-                | Phase1OutboxState::PartiallyDelivered
-        ) {
-            self.phase1_advance_draft_admitted(
-                &admission,
-                replacement_draft_id,
-                status.replacement.draft().revision().get(),
-            )
-            .await?;
-            status = self.phase1_revision_status(replacement_draft_id).await?;
-        }
-        if status.replacement.state() != Phase1OutboxState::Complete
-            || status.policy != Phase1RevisionPolicy::ReplaceThenRetract
-        {
-            return Ok(status);
-        }
-
-        let child_id =
-            revision_child_id(status.replacement.draft())?.ok_or(Phase1DraftError::Corrupt)?;
-        if status.retraction.is_none() {
-            self.phase1_create_revision_retraction(&status.target, child_id)
-                .await?;
-            status = self.phase1_revision_status(replacement_draft_id).await?;
-        }
-        let child = status
-            .retraction
-            .as_ref()
-            .ok_or(Phase1DraftError::Corrupt)?;
-        if matches!(
-            child.state(),
-            Phase1OutboxState::Draft | Phase1OutboxState::ReadyToSign
-        ) {
-            self.phase1_queue_add_intent(Phase1QueueIntent::new(
-                child_id,
-                child.draft().revision().get(),
-            )?)
-            .await?;
-            status = self.phase1_revision_status(replacement_draft_id).await?;
-        }
-        let child = status
-            .retraction
-            .as_ref()
-            .ok_or(Phase1DraftError::Corrupt)?;
-        if matches!(
-            child.state(),
-            Phase1OutboxState::Queued
-                | Phase1OutboxState::Retryable
-                | Phase1OutboxState::PartiallyDelivered
-        ) {
-            self.phase1_advance_draft(child_id, child.draft().revision().get())
-                .await?;
-        }
-        self.phase1_revision_status(replacement_draft_id).await
-    }
-
-    /// Cancels only still-pending work. If a kind-1 replacement is already
-    /// visible, a cancelled child records the deliberate partial effect and
-    /// prevents a later recovery from retracting the original unexpectedly.
-    pub async fn phase1_cancel_revision(
-        &self,
-        replacement_draft_id: [u8; 16],
-    ) -> Result<Phase1RevisionStatus, Phase1DraftError> {
-        let _command = self.lifecycle.enter()?;
-        let admission = self.mutations.draft(replacement_draft_id)?;
-        let mut status = self.phase1_revision_status(replacement_draft_id).await?;
-        if !matches!(
-            status.replacement.state(),
-            Phase1OutboxState::Complete
-                | Phase1OutboxState::Terminal
-                | Phase1OutboxState::Cancelled
-        ) {
-            self.phase1_cancel_draft_admitted(
-                &admission,
-                replacement_draft_id,
-                status.replacement.draft().revision().get(),
-                phase1_operation_now_unix_ms()?,
-            )
-            .await?;
-            return self.phase1_revision_status(replacement_draft_id).await;
-        }
-        if status.replacement.state() == Phase1OutboxState::Complete
-            && status.policy == Phase1RevisionPolicy::ReplaceThenRetract
-        {
-            let child_id =
-                revision_child_id(status.replacement.draft())?.ok_or(Phase1DraftError::Corrupt)?;
-            if status.retraction.is_none() {
-                self.phase1_create_revision_retraction(&status.target, child_id)
-                    .await?;
-                status = self.phase1_revision_status(replacement_draft_id).await?;
-            }
-            let child = status
-                .retraction
-                .as_ref()
-                .ok_or(Phase1DraftError::Corrupt)?;
-            if !matches!(
-                child.state(),
-                Phase1OutboxState::Complete
-                    | Phase1OutboxState::Terminal
-                    | Phase1OutboxState::Cancelled
-            ) {
-                self.phase1_cancel_add_intent(child_id, child.draft().revision().get())
-                    .await?;
-            }
-        }
-        self.phase1_revision_status(replacement_draft_id).await
-    }
-
-    async fn phase1_create_revision_retraction(
-        &self,
-        target: &Phase1RevisionTarget,
-        draft_id: [u8; 16],
-    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
-        let admission = self.mutations.draft(draft_id)?;
-        match self.phase1_draft_status(draft_id).await {
-            Ok(existing) => return Ok(existing),
-            Err(Phase1DraftError::NotFound) => {}
-            Err(error) => return Err(error),
-        }
-        let now_unix_ms = phase1_operation_now_unix_ms()?;
-        self.phase1_save_retraction_draft_admitted(
-            &admission,
-            draft_id,
-            target.command_type,
-            target.card_id,
-            &target.source_event_id,
-            target.source_kind,
-            target.source_address.as_deref(),
-            REVISION_RETRACTION_REASON,
-            now_unix_ms / 1_000,
-            now_unix_ms,
-        )
-        .await
     }
 
     /// Creates or replaces the editable content of one immutable-revision draft.
@@ -1942,6 +1799,9 @@ impl TeraRuntime {
                 .ok_or(Phase1DraftError::NotFound)?;
             if head.revision() != expected
                 || Phase1DraftPayload::decode(&head)?.revision.is_some()
+                || Phase1DraftPayload::decode(&head)?
+                    .revision_parent()?
+                    .is_some()
                 || head.stage().is_terminal()
                 || matches!(
                     head.stage(),
@@ -2003,6 +1863,7 @@ impl TeraRuntime {
             reason,
             authored_at_unix_s,
             persisted_at_unix_ms,
+            None,
         )
         .await
     }
@@ -2020,6 +1881,7 @@ impl TeraRuntime {
         reason: &str,
         authored_at_unix_s: u64,
         persisted_at_unix_ms: u64,
+        revision_parent_draft_id: Option<[u8; 16]>,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         let target_shape_valid = match command_type {
             AddCommandType::CreateUpdate
@@ -2054,7 +1916,8 @@ impl TeraRuntime {
         let wire = PlanWireV1::from_plan(&plan)
             .to_json()
             .map_err(|_| Phase1DraftError::InvalidDraft)?;
-        let payload = Phase1DraftPayload::retraction(command_type, target_card_id, wire)?;
+        let mut payload = Phase1DraftPayload::retraction(command_type, target_card_id, wire)?;
+        payload.revision_parent_draft_id = revision_parent_draft_id;
         let bytes = payload.encode()?;
         let draft = AuthoredDraft::initial(
             draft_id,
@@ -2306,7 +2169,14 @@ impl TeraRuntime {
             return Err(Phase1DraftError::RevisionConflict);
         }
         let mut payload = Phase1DraftPayload::decode(&head)?;
-        let policy = match policy.or_else(|| payload.queue.clone()) {
+        let inherited = self.revision_child_queue_policy(&head).await?;
+        if inherited
+            .as_ref()
+            .is_some_and(|frozen| policy.as_ref().is_some_and(|policy| policy != frozen))
+        {
+            return Err(Phase1DraftError::InvalidQueuePolicy);
+        }
+        let policy = match inherited.or(policy).or_else(|| payload.queue.clone()) {
             Some(policy) => policy,
             None => self.active_queue_policy(queued_at_unix_ms)?,
         };
@@ -2419,6 +2289,13 @@ impl TeraRuntime {
         if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
             return Err(Phase1DraftError::RevisionConflict);
         }
+        let _parent_admission = self.revision_parent_admission(&head)?;
+        if matches!(
+            self.revision_delivery_selection(&head).await?,
+            RevisionDelivery::Held
+        ) {
+            return self.draft_status_from(head).await;
+        }
         self.require_legacy_publication_running(sync_id_for(&head)?)
             .await?;
         self.sync()?
@@ -2460,8 +2337,11 @@ impl TeraRuntime {
         if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
             return Err(Phase1DraftError::RevisionConflict);
         }
+        let _parent_admission = self.revision_parent_admission(&head)?;
         let request = push_request(&head)?;
-        self.advance_push_request(request).await?;
+        // Keep the effect pipeline off the caller's nested native async frame.
+        // This caller retains both mutation permits across the awaited pipeline.
+        Box::pin(self.advance_revision_child_request(&head, request)).await?;
         self.draft_status_from(head).await
     }
 
@@ -2901,6 +2781,11 @@ impl TeraRuntime {
         ready: AuthoredDraft,
         queued_at_unix_ms: u64,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        if let Some(inherited) = self.revision_child_queue_policy(&ready).await?
+            && Phase1DraftPayload::decode(&ready)?.queue.as_ref() != Some(&inherited)
+        {
+            return Err(Phase1DraftError::InvalidQueuePolicy);
+        }
         let request = push_request(&ready)?;
         self.sync()?
             .prepare_push(request)
@@ -3388,6 +3273,8 @@ fn phase1_random_id() -> Result<[u8; 16], Phase1DraftError> {
 #[cfg(test)]
 mod tests {
     mod recovery_completion_tests;
+    mod revision_delivery_support;
+    mod revision_delivery_tests;
     mod revision_preparation_tests;
     use super::*;
     use crate::runtime::product_surface::{

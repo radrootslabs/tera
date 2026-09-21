@@ -16,6 +16,24 @@ impl TeraRuntime {
         request: PushRequest,
         clock: impl Fn() -> Result<u64, Phase1DraftError> + Send + Sync,
     ) -> Result<(), Phase1DraftError> {
+        self.advance_push_request_inner(request, None, clock).await
+    }
+
+    pub(in crate::runtime::product_surface) async fn advance_push_request_selected(
+        &self,
+        request: PushRequest,
+        selected: TargetSet,
+    ) -> Result<(), Phase1DraftError> {
+        self.advance_push_request_inner(request, Some(selected), phase1_operation_now_unix_ms)
+            .await
+    }
+
+    async fn advance_push_request_inner(
+        &self,
+        request: PushRequest,
+        selected: Option<TargetSet>,
+        clock: impl Fn() -> Result<u64, Phase1DraftError> + Send + Sync,
+    ) -> Result<(), Phase1DraftError> {
         let operation_id = request.operation_id();
         self.require_legacy_publication_running(operation_id)
             .await?;
@@ -80,9 +98,11 @@ impl TeraRuntime {
                 AuthoredDeliveryState::Pending | AuthoredDeliveryState::Retryable
             )
         {
-            sync.deliver_push(operation_id)
-                .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+            match selected {
+                Some(targets) => sync.deliver_push_selected(operation_id, targets).await,
+                None => sync.deliver_push(operation_id).await,
+            }
+            .map_err(|_| Phase1DraftError::Operation)?;
         }
         Ok(())
     }

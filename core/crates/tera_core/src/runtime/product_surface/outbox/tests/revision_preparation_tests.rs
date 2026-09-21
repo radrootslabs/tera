@@ -264,7 +264,11 @@ async fn revision_child() {
     // Exercise exactly the durable child creation boundary. Delivery eligibility
     // is independently tested by the coordinator and belongs to C102.
     runtime
-        .phase1_create_revision_retraction(&captured.target, child)
+        .phase1_create_revision_retraction(
+            &captured.target,
+            child,
+            *saved.replacement().draft().draft_id().as_bytes(),
+        )
         .await
         .unwrap();
     println!("{BARRIER}");
@@ -332,7 +336,11 @@ async fn revision_child_process_death_replays_one_graph() {
     assert_eq!(retained.draft_id().as_bytes(), &child_id);
     for _ in 0..3 {
         let replay = runtime
-            .phase1_create_revision_retraction(recovered.target(), child_id)
+            .phase1_create_revision_retraction(
+                recovered.target(),
+                child_id,
+                *recovered.replacement().draft().draft_id().as_bytes(),
+            )
             .await
             .unwrap();
         assert_eq!(replay.draft(), &retained);
