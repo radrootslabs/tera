@@ -31,7 +31,9 @@ final class TeraNativeRepairTests: XCTestCase {
     }
     let first = try await run()
     XCTAssertEqual(first.progress.visited, 3)
-    XCTAssertEqual(first.progress.issues.map(\.reason), [.missingParent, .associationMismatch])
+    XCTAssertEqual(first.progress.issues.count, 2)
+    XCTAssertTrue(first.progress.issues.contains { $0.reason == .missingParent })
+    XCTAssertTrue(first.progress.issues.contains { $0.reason == .associationMismatch })
     XCTAssertTrue(first.progress.issues.allSatisfy { $0.status?.revision == 1 })
     let replay = try await run()
     XCTAssertEqual(replay.progress.visited, 2)

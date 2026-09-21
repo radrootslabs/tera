@@ -69,6 +69,7 @@ let package = Package(
         "Runtime/TeraGeneratedRecoveryInventory.swift",
         "Runtime/TeraNativeRecoveryInventory.swift",
         "Runtime/TeraNativeRecoveryStatus.swift",
+        "Runtime/TeraNativeRecoverySchedule.swift",
         "Runtime/TeraGeneratedRecoveryStatus.swift",
         "State/TeraNativeRepairStore.swift",
         "Views/TeraNativeRepairView.swift",

@@ -4,6 +4,7 @@ import Foundation
 /// Controllable native-boundary test double. Production policy is exercised by
 /// the separate generated FFI/SQLite tests, never inferred from this scheduler.
 actor SubmissionTestBackend {
+  let recoveryScheduleStorage = NativeRecoveryScheduleTestStorage()
   let composer: ComposerTestStorage
   let writable: Bool
   let offline: Bool

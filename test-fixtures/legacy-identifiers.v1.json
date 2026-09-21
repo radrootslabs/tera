@@ -843,6 +843,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraRecoveryContinuationTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraRecoveryInventoryTests.swift",
           "count": 1
         }
@@ -1628,6 +1632,10 @@
         },
         {
           "path": "TeraTests/TeraRecoveryCompletionTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRecoveryContinuationTests.swift",
           "count": 1
         },
         {
@@ -2718,6 +2726,10 @@
         },
         {
           "path": "TeraTests/TeraNativeRepairTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraRecoveryContinuationTests.swift",
           "count": 1
         },
         {
@@ -5737,6 +5749,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/recovery_reconciliation.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/recovery_schedule.rs",
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/recovery_status.rs",

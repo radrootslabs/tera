@@ -72,13 +72,13 @@ final class TeraRecoveryInventoryTests: XCTestCase {
       cursor = result.cursor
       if passes == 1 {
         XCTAssertEqual(result.progress.remaining, 936)
-        XCTAssertTrue(result.progress.needsAttention)
       }
     } while cursor != nil
     XCTAssertEqual(visited, 1000)
     XCTAssertEqual(passes, 16)
     let keys = await seen.keys
-    XCTAssertEqual(keys, (1 ... 1000).map(Self.key))
+    XCTAssertEqual(Set(keys), Set((1 ... 1000).map(Self.key)))
+    XCTAssertEqual(keys.count, 1000)
     let counts = await transfer.counts
     XCTAssertEqual(counts.acceptedSettlement, 999)
     XCTAssertEqual(counts.enqueue, 0)

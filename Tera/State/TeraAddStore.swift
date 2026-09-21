@@ -600,7 +600,7 @@ extension TeraAddStore {
   }
 
   func start() async {
-    guard !observation.isActive, !Task.isCancelled else { return }
+    guard !Task.isCancelled, await !(recovery.transfers.resumeIfObserving(observation.isActive)) else { return }
     composer.resume()
     submissions.start()
     startObservation()

@@ -8,9 +8,12 @@ mod draft_inventory;
 mod recovery_completion;
 #[path = "recovery_inventory/runtime.rs"]
 mod recovery_inventory;
+#[path = "recovery_schedule.rs"]
+mod recovery_schedule;
 #[path = "recovery_status.rs"]
 mod recovery_status;
 pub use recovery_completion::{FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt};
+pub use recovery_schedule::FfiNativeRecoverySchedule;
 pub use recovery_status::{FfiNativeRecoveryReason, FfiNativeRecoveryStatus};
 #[path = "submission/runtime.rs"]
 mod submission;

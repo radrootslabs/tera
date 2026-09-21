@@ -4,6 +4,7 @@ import Foundation
 @MainActor
 final class TeraNativeRepairStore: ObservableObject {
   static let previewLimit = 64
+  static let batchLimit = 4
   @Published private(set) var progress: TeraNativeRecoveryProgress?
   @Published private(set) var issues: [TeraNativeRecoveryIssue] = []
   @Published private(set) var message: String?
@@ -13,6 +14,7 @@ final class TeraNativeRepairStore: ObservableObject {
   private var author: String?
   private var generation = TeraSessionGeneration.initial
   private var task: Task<Void, Never>?
+  private var pending = false
 
   init(client: TeraRuntimeClient, media: (any TeraAddMediaHandling)?) {
     self.client = client
@@ -32,39 +34,80 @@ final class TeraNativeRepairStore: ObservableObject {
 
   func stop() {
     generation = generation.invalidated()
+    pending = false
     task?.cancel()
   }
 
   func retry() {
-    guard task == nil, !isRunning else { return }
+    guard !Task.isCancelled, generation.isActive else { return }
+    // Coalesce live requests. A request after stop is retained until the old
+    // worker actually returns, so cancellation cannot release its ownership.
+    guard task == nil || task?.isCancelled == true else { return }
+    pending = true
+    startWorker()
+  }
+
+  private func startWorker() {
+    guard task == nil, pending, generation.isActive else { return }
+    pending = false
+    let requested = generation
+    isRunning = true
     task = Task { [weak self] in
       guard let self else { return }
-      _ = await reconcile()
+      await run(requested)
+      isRunning = false
       task = nil
+      startWorker()
     }
   }
 
   @discardableResult
   func reconcile() async -> String? {
-    guard !isRunning, !Task.isCancelled else { return message }
-    isRunning = true
-    defer { isRunning = false }
-    let requested = generation
+    guard !Task.isCancelled else { return message }
+    retry()
+    guard let task else { return message }
+    await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() }
+    return message
+  }
+
+  /// Foreground resumes must recover even when the event observer is already
+  /// live; neither a new draft nor a native transfer callback is required.
+  func resumeIfObserving(_ observing: Bool) async -> Bool {
+    guard observing else { return false }
+    await reconcile()
+    return true
+  }
+
+  private func run(_ requested: TeraSessionGeneration) async {
+    for _ in 0 ..< Self.batchLimit {
+      guard requested == generation, !Task.isCancelled else { return }
+      await batch(requested)
+      guard requested == generation, !Task.isCancelled,
+            let progress, progress.pause == nil, progress.remaining > 0, progress.visited > 0
+      else { return }
+      await Task.yield()
+    }
+  }
+
+  private func batch(_ requested: TeraSessionGeneration) async {
     do {
       let result = try await media?.recoverNativeUploads(client: client)
-      guard requested == generation, !Task.isCancelled else { return nil }
+      guard requested == generation, !Task.isCancelled else { return }
+      if let result {
+        guard (0 ... TeraNativeRecoveryInventory.passLimit).contains(result.visited), result.remaining >= 0,
+              result.issues.count <= Self.previewLimit else { throw TeraComposerAcknowledgment.unconfirmed }
+      }
       let refreshed = await Self.refresh(issues, incoming: result?.issues ?? [], client: client)
-      guard requested == generation, !Task.isCancelled else { return nil }
+      guard requested == generation, !Task.isCancelled else { return }
       issues = refreshed
       progress = result
       message = Self.message(result, retained: !issues.isEmpty)
     } catch {
-      guard requested == generation, !Task.isCancelled else { return nil }
+      guard requested == generation, !Task.isCancelled else { return }
       let pause = TeraNativeRecoveryClassification.pause(error)
       progress = .init(visited: 0, remaining: 0, needsAttention: pause == nil, pause: pause)
       message = Self.message(progress, retained: !issues.isEmpty)
     }
-    return message
   }
 
   private static func refresh(_ previous: [TeraNativeRecoveryIssue], incoming: [TeraNativeRecoveryIssue],
@@ -93,7 +136,7 @@ final class TeraNativeRepairStore: ObservableObject {
   private static func message(_ progress: TeraNativeRecoveryProgress?, retained: Bool) -> String? {
     guard let progress else { return nil }
     switch progress.pause {
-    case .protectedData: return "Unlock the device, then check saved photos again. Saved editing is still available."
+    case .protectedData: return "Photo recovery is paused until this device is unlocked. Saved editing is still available."
     case .storageUnavailable: return "Photo recovery is paused until local storage is available. Saved editing is still available."
     case nil: break
     }

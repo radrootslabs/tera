@@ -92,7 +92,6 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   /// Reserve before request preparation or native callbacks. A cancelled waiter
   /// releases this caller's admission; OS transfer state remains authoritative.
   private var activeUploadDrafts: Set<String> = []
-  private var recoveryCursor: String?
   private var recoveryActive = false
 
   func renewSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia, client: TeraRuntimeClient) async throws -> TeraSubmissionStatus {
@@ -346,7 +345,11 @@ extension TeraAddMediaCoordinator {
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
     recoveryActive = true
     defer { recoveryActive = false; withExtendedLifetime(mediaUse) {} }
-    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: recoveryCursor, complete: { snapshot, owner in
+    let schedule = try await client.nativeRecoverySchedule()
+    let continuation = TeraNativeRecoveryContinuation(schedule, client: client)
+    let result = try await TeraNativeRecoveryInventory.run(transfer: transfer, cursor: schedule.after, checkpoint: { key in
+      try await continuation.advance(key)
+    }, complete: { snapshot, owner in
       let input = try TeraRecoveryUploadReceipt(snapshot: snapshot, owner: owner)
       let opened = try await self.open([input.media])
       defer { opened.close() }
@@ -358,7 +361,6 @@ extension TeraAddMediaCoordinator {
     }, report: { snapshot, reason in
       await TeraNativeRecoveryClassification.report(snapshot.identifier.rawValue, reason: reason, client: client)
     }, lookup: { key in try await client.recoveryUploadOwner(key: key) })
-    recoveryCursor = result.cursor
     return result.progress
   }
 
