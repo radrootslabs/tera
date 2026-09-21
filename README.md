@@ -299,6 +299,17 @@ policy; inspecting or acting on a revision does not replace composer editing.
 Meeting an Any relay policy does not imply completion at every saved destination,
 and even a fully accepted retraction remains a request, not proof of erasure.
 
+Food Availability remains a public announcement. Shared constructors validate
+exact decimal strings, matching quantity/price units, currency shape and
+active/sold status. A three-letter currency is not a verified financial asset;
+bags and bunches carry no inferred conversion. The native form preserves partial
+draft text. A new Submit or revision capture translates complete locale decimal entries into exact
+canonical strings before capturing the saved revision, without floating-point
+conversion. Canonical dots remain valid after a locale change; grouping, mixed
+separators, signs, exponents and incomplete entries are not guessed. Translation
+does not alter an existing submission or retry. A new intentional announcement
+retains its own identifier and operation even when its visible details match.
+
 Retraction requires the exact signed original in the current account's store.
 Rust verifies its signature, author, event kind, address and product card identity
 before capture and again before signing, local admission and delivery. A native

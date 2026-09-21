@@ -147,6 +147,10 @@
           "count": 19
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/food_tests.rs",
+          "count": 3
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
           "count": 11
         }
@@ -2471,6 +2475,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
           "count": 7
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/food_tests.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
@@ -4927,6 +4935,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/food_tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/form.rs",
           "count": 2
         },
@@ -5067,6 +5079,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/food_tests.rs",
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/intent.rs",
@@ -5524,6 +5540,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/food_tests.rs",
           "count": 1
         },
         {
@@ -6313,6 +6333,16 @@
         {
           "path": "scripts/test_package_contract.py",
           "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsSignatureVerifiedEvent",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/food_tests.rs",
+          "count": 1
         }
       ]
     }

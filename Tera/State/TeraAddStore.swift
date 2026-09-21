@@ -235,7 +235,10 @@ final class TeraAddStore: ObservableObject {
     form.media[index].alt = alt
   }
 
-  func save() async {
+  func save(locale: Locale = .current) async {
+    if canSave, !protection.isWorking, revisionTarget != nil, isFormEditable {
+      form = TeraFoodDecimalEntry.form(form, locale: locale)
+    }
     await perform { requestedGeneration in
       if self.revisionTarget != nil {
         _ = try await self.saveCurrentForm(generation: requestedGeneration)
@@ -248,7 +251,12 @@ final class TeraAddStore: ObservableObject {
     }
   }
 
-  func submit() async {
+  func submit(locale: Locale = .current) async {
+    // Only a new editable request may translate entry text. Existing capture,
+    // retry, revision operation and signed bytes retain their original inputs.
+    if canSubmit, !protection.isWorking, isFormEditable, !submissions.hasAction, activeDraft?.isRevision != true {
+      form = TeraFoodDecimalEntry.form(form, locale: locale)
+    }
     if activeDraft == nil, revisionTarget == nil {
       guard canSubmit else { return }
       await submissions.submit(form: form)
@@ -272,11 +280,6 @@ final class TeraAddStore: ObservableObject {
       )
       try await legacy.submit()
     }
-  }
-
-  func retry(_ draft: TeraDraftStatus? = nil) async {
-    guard let draft = draft ?? activeDraft else { return }
-    await retry(id: draft.id)
   }
 
   func retry(id: String) async {
@@ -320,11 +323,6 @@ final class TeraAddStore: ObservableObject {
       try store.accept(current, generation: requestedGeneration)
       store.message = current.honestSummary
     }
-  }
-
-  func cancel(_ draft: TeraDraftStatus? = nil) async {
-    guard let draft = draft ?? activeDraft, draft.state.canCancel else { return }
-    await cancel(id: draft.id)
   }
 
   func cancel(id: String) async {

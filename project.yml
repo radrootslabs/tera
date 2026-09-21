@@ -70,6 +70,7 @@ targets:
       - path: TeraTests/TeraPublicationRetryTests.swift
       - path: TeraTests/TeraCoordinateAdmissionTests.swift
       - path: TeraTests/TeraRevisionPreparationTests.swift
+      - path: TeraTests/TeraFoodDecimalEntryTests.swift
       - path: TeraTests/TeraRevisionDetailTests.swift
       - path: TeraTests/TeraRevisionTestBackend.swift
       - path: TeraTests/TeraStoppedUploadTests.swift

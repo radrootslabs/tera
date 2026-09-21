@@ -9,6 +9,9 @@ use radroots_sdk::transport::BlossomConfig;
 #[path = "runtime_tests.rs"]
 mod runtime_tests;
 
+#[path = "food_tests.rs"]
+mod food_tests;
+
 fn reservation(input: ComposerFormInput) -> SubmissionReservationReceipt {
     let request = request();
     let source = ComposerStorageRecord::initial(
