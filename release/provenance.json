@@ -6,7 +6,7 @@
     "info_plist_sha256": "15ef08b1cdd1096cfb9eeaf5be5bf8f814807a7ca9350bbbb47860fa72ec13ef",
     "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
     "sbom_sha256": "bfc57ed1f259dad8dcff7ec061b0889942a27bfdc9f9f01ebb631e25b715267b",
-    "xcode_project_sha256": "83c8c22a4f8eaf0f1f944073e67593af38c89fbdbb0bd27278ff1c128715c7fd"
+    "xcode_project_sha256": "4a9be0d06c4581252fc3a9eb32949fa2974ee4c7c6ceca38f6ed47710f6e535c"
   },
   "disposition": "unsigned",
   "platforms": [

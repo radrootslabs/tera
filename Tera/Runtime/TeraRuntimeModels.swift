@@ -310,7 +310,7 @@ struct TeraProfileStatus: Sendable, Equatable, Identifiable {
   let settlement: TeraOperationSettlement?
 
   var honestSummary: String {
-    settlement?.summary ?? state.label
+    state.summary(settlement: settlement)
   }
 }
 
@@ -957,40 +957,6 @@ enum TeraDraftKind: String, Sendable, Equatable, Hashable {
   case retraction
 }
 
-enum TeraOutboxState: String, Sendable, Equatable, Hashable {
-  case draft
-  case mediaPreparing
-  case mediaUploading
-  case readyToSign
-  case signing
-  case signed
-  case queued
-  case delivering
-  case partiallyDelivered
-  case retryable
-  case terminal
-  case cancelled
-  case complete
-
-  var isEditable: Bool {
-    self == .draft || self == .mediaPreparing
-  }
-
-  var canAdvance: Bool {
-    self == .queued || self == .retryable || self == .partiallyDelivered
-  }
-
-  var canCancel: Bool {
-    ![.cancelled, .complete, .terminal].contains(self)
-  }
-
-  var label: String {
-    rawValue
-      .replacingOccurrences(of: "([a-z])([A-Z])", with: "$1 $2", options: .regularExpression)
-      .capitalized
-  }
-}
-
 enum TeraDraftMediaStage: String, Sendable, Equatable, Hashable {
   case pending
   case preparing
@@ -1027,28 +993,6 @@ struct TeraOperationSettlement: Sendable, Equatable, Hashable {
   let deliveryExhausted: UInt16
   let deliveryFailedTerminal: UInt16
   let deliveryCancelled: UInt16
-
-  var summary: String {
-    if deliverySatisfied > 0 {
-      return "Delivered"
-    }
-    if deliveryRetryable > 0 || retryable > 0 {
-      return "Saved; delivery can be retried"
-    }
-    if indeterminate > 0 {
-      return "Delivery outcome is not yet known"
-    }
-    if failedTerminal > 0 || deliveryFailedTerminal > 0 {
-      return "Delivery failed"
-    }
-    if admitted > 0 {
-      return "Published locally; relay delivery is pending"
-    }
-    if signed > 0 {
-      return "Signed; local publication is pending"
-    }
-    return "Waiting"
-  }
 }
 
 struct TeraRetractionDraftInput: Sendable, Equatable, Hashable {

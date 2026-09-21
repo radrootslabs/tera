@@ -334,3 +334,5 @@ does not extend the saved delivery window. Review the device clock and current
 revision before choosing another intentional request. Civil calendar dates
 remain unchanged. This local policy cannot establish globally accurate time
 or prevent an unseen remote replacement.
+
+Publication stage labels report saved local, signing, media and relay facts. Completion means the operation met its saved relay policy; it does not mean every relay accepted it or will retain it permanently. Mixed legacy settlement counts remain visible alongside the current stage, including pending, unknown, exhausted, failed and stopped work. Stopping local work preserves remote evidence, and retraction is a deletion request rather than proof of erasure. Submit and continuation controls follow the saved typed retry decision; status checks remain available without authorizing new effects.

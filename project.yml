@@ -65,6 +65,7 @@ targets:
       - path: TeraTests/TeraNativeExecutionFixture.swift
       - path: TeraTests/TeraNativeRepairPreviewTests.swift
       - path: TeraTests/TeraComposerMediaOwnershipTests.swift
+      - path: TeraTests/TeraPublicationStageTests.swift
       - path: TeraTests/TeraPublicationEvidenceTests.swift
       - path: TeraTests/TeraPublicationTargetTests.swift
       - path: TeraTests/TeraPublicationRetryTests.swift

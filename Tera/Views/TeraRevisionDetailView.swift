@@ -60,7 +60,7 @@ struct TeraRevisionDetailView: View {
   private func branch(_ title: String, draft: TeraDraftStatus, progress: TeraRevisionBranchStatus) -> some View {
     Section(title) {
       LabeledContent("Saved operation", value: draft.id).textSelection(.enabled)
-      Text(draft.settlement?.summary ?? draft.state.label)
+      Text(draft.state.summary(settlement: draft.settlement))
       if progress.stopped {
         Text("Further local work is stopped; retained relay evidence remains visible.")
       }

@@ -61,20 +61,11 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
     if case .needsAction = retry, delivery.state != .accepted {
       return "Saved publication needs attention."
     }
-    switch state {
-    case .draft: return "Saved on this device."
-    case .mediaPreparing: return "Preparing photo."
-    case .mediaUploading: return "Photo upload awaiting verification."
-    case .readyToSign, .signing: return "Awaiting signing."
-    case .signed: return "Signed; local admission is pending."
-    case .queued: return "Queued for the saved relays."
-    case .delivering: return "Sending to the saved relays."
-    case .partiallyDelivered: return "Partially delivered."
-    case .retryable: return "Saved for retry."
-    case .terminal: return "Delivery needs attention."
-    case .cancelled: return "Local work stopped. Recorded remote effects are retained."
-    case .complete: return "Delivery completed for the saved relay policy."
-    }
+    return state.label
+  }
+
+  var canOfferStop: Bool {
+    !delivery.isStopped && (state.canCancel || delivery.unresolvedClaims)
   }
 
   /// Presentation of an explicit action, never authority to bypass Rust policy.

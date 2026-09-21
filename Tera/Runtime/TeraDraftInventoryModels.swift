@@ -51,7 +51,7 @@ struct TeraLegacyDraftSummary: Sendable, Equatable, Identifiable {
     if revisionParentID != nil {
       return "Retraction belongs to a saved revision."
     }
-    return settlement?.summary ?? state.label
+    return state.summary(settlement: settlement)
   }
 
   var mediaSummary: String {

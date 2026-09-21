@@ -24,7 +24,10 @@ extension TeraAddStore {
   }
 
   var canSubmit: Bool {
-    isProductReady && !isWorking && !submissions.isWorking
+    if activeDraft == nil, submissions.hasAction {
+      return isProductReady && !isWorking && submissions.canContinue
+    }
+    return isProductReady && !isWorking && !submissions.isWorking
       && activeDraft?.coordinateWritable != false
       && (activeDraft?.isRevision == true || activeDraft?.canAdvance == true
         || activeDraft?.canQueue == true

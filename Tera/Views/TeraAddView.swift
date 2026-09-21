@@ -41,7 +41,7 @@ struct TeraAddView: View {
 
       if store.activeDraft?.kind == .retraction {
         Section("Retraction") {
-          Text("This saved operation removes one of your published posts.")
+          Text("This saved operation requests deletion of one of your posts. Remote erasure is not guaranteed.")
             .foregroundStyle(.secondary)
         }
       } else {

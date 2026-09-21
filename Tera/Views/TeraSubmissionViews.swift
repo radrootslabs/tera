@@ -6,7 +6,7 @@ struct TeraSubmissionStatusView: View {
   var body: some View {
     if store.hasAction {
       Section("Submission") {
-        if store.status?.delivery.isStopped != true {
+        if store.status?.canOfferStop != false {
           Button("Stop publication") { Task { await store.requestStop() } }
             .accessibilityIdentifier("tera.add.submission.stop")
         }
@@ -21,7 +21,7 @@ struct TeraSubmissionStatusView: View {
             Button("Check saved submission status") { Task { await store.refreshSelected() } }
               .accessibilityIdentifier("tera.add.submission.check")
           }
-          if store.status?.canOfferContinuation != false {
+          if store.canContinue {
             Button("Continue original submission") { Task { await store.continueSelected() } }
               .accessibilityIdentifier("tera.add.submission.continue")
           }

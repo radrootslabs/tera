@@ -68,6 +68,12 @@ actor SubmissionTestBackend {
     failReads = value
   }
 
+  /// Injects saved facts for presentation tests; it does not simulate policy.
+  func installPresentationFixture(_ value: TeraSubmissionStatus) {
+    precondition(operations[value.request.commandID]?.request == value.request)
+    operations[value.request.commandID] = value
+  }
+
   func reserveID() -> String {
     idCount += 1
     return String(format: "%032x", 1000 + idCount)

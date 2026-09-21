@@ -41,6 +41,6 @@ struct TeraDraftStatus: Sendable, Equatable, Hashable, Identifiable {
     if revisionParentID != nil {
       return "Retraction belongs to a saved revision."
     }
-    return settlement?.summary ?? state.label
+    return state.summary(settlement: settlement)
   }
 }
