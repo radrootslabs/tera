@@ -42,7 +42,7 @@ pub use intent::{
 pub use inventory::{
     SubmissionListEntry, SubmissionPage, SubmissionSummary, SubmissionSummaryState,
 };
-pub use media::{SubmissionMediaRequest, SubmissionMediaResponse};
+pub use media::{SubmissionMediaRequest, SubmissionMediaResponse, SubmissionUploadRenewal};
 pub use operation::{SubmissionOperationError, SubmissionOperationStatus};
 #[cfg(test)]
 mod fault_store;
@@ -54,6 +54,8 @@ mod media_authorization_tests;
 mod media_foreground_tests;
 #[cfg(test)]
 mod media_recovery_tests;
+#[cfg(test)]
+mod media_renewal_tests;
 #[cfg(test)]
 mod media_test_support;
 #[cfg(test)]

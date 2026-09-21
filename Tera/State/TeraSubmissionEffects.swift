@@ -52,6 +52,10 @@ struct TeraSubmissionEffects {
       else {
         throw TeraComposerAcknowledgment.unconfirmed
       }
+      if !item.authorizations.isEmpty {
+        current = try await renew(current, source: source, using: media)
+        continue
+      }
       if try await media.prefersSharedForegroundUpload(ownerID: current.intentID) {
         let input = TeraSubmissionMediaRequest(request: current.request, expectedRevision: current.revision, media: handle)
         // View cancellation does not cancel the effect. The client retains
@@ -67,11 +71,7 @@ struct TeraSubmissionEffects {
       try accept(job.submission)
       try ensure()
       guard mayStart(), !job.submission.delivery.isStopped else { return job.submission }
-      let receipt: TeraAddBackgroundUploadReceipt = if let stopControl {
-        try await stopControl.upload(using: media, transfer: job.transfer, source: source)
-      } else {
-        try await media.uploadInBackground(transfer: job.transfer, media: source)
-      }
+      let receipt = try await upload(job.transfer, source: source, using: media)
       try ensure()
       // Keep an uncertain OS receipt until Rust has durably verified it. A
       // storage/read/cancellation failure is never proof the upload was rejected.
@@ -82,30 +82,34 @@ struct TeraSubmissionEffects {
       try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
       _ = await TeraNativeRecoveryClassification.report(receipt.identifier, reason: .resolved, client: client)
       try ensure()
-      if current.delivery.isStopped || !mayStart() {
-        return current
-      }
     }
     return current
   }
 
+  private func upload(_ transfer: TeraNativeTransferJob, source: TeraPreparedMedia, using media: any TeraAddMediaHandling) async throws -> TeraAddBackgroundUploadReceipt {
+    if let stopControl {
+      return try await stopControl.upload(using: media, transfer: transfer, source: source)
+    }
+    return try await media.uploadInBackground(transfer: transfer, media: source)
+  }
+
+  private func renew(_ current: TeraSubmissionStatus, source: TeraPreparedMedia, using media: any TeraAddMediaHandling) async throws -> TeraSubmissionStatus {
+    let renewed = if let stopControl {
+      try await stopControl.renew(using: media, submission: current, source: source, client: client)
+    } else {
+      try await media.renewSubmissionUpload(current, media: source, client: client)
+    }
+    try accept(renewed)
+    try ensure()
+    return renewed
+  }
+
   func reconcileStopped(_ initial: TeraSubmissionStatus) async throws {
     guard let media else { return }
-    var current = initial
-    for source in initial.preparedMedia {
-      try ensure()
-      guard current.media.contains(where: { $0.opaqueReference == source.opaqueReference && $0.progress.stage == .uploading }),
-            let receipt = try await media.retainedSubmissionUpload(current, media: source) else { continue }
-      let opened = try await TeraOpenedMedia.open([source], using: media)
-      defer { opened.close() }
-      guard let handle = opened.handles.first else { throw TeraComposerAcknowledgment.unconfirmed }
-      current = try await client.completeSubmissionUpload(input: TeraSubmissionMediaRequest(
-        request: current.request, expectedRevision: current.revision, media: handle
-      ), response: receipt)
-      try accept(current)
-      try await media.settleBackgroundUpload(identifier: receipt.identifier, accepted: true)
-      _ = await TeraNativeRecoveryClassification.report(receipt.identifier, reason: .resolved, client: client)
-    }
-    // Pending, missing or unreadable native responses remain uncertain.
+    // The authoritative inventory carries each original revision and attempt
+    // through idempotent completion. Never relabel it as the current head.
+    _ = try await media.recoverNativeUploads(client: client)
+    try ensure()
+    try await accept(client.submissionStatus(request: initial.request))
   }
 }

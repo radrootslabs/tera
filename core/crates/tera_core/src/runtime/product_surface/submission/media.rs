@@ -20,8 +20,11 @@ const PREPARED_MEDIA_MAX_BYTES: usize = 10 * 1024 * 1024;
 
 #[path = "media_foreground.rs"]
 mod foreground;
+#[path = "media_renewal.rs"]
+mod renewal;
 #[path = "media_runtime.rs"]
 mod runtime;
+pub use renewal::SubmissionUploadRenewal;
 
 #[derive(Clone)]
 pub struct SubmissionMediaRequest {

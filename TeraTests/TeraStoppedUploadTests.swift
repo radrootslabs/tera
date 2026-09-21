@@ -10,7 +10,7 @@ final class TeraStoppedUploadTests: XCTestCase {
     defer { fixture.remove() }
     let transfer = BackgroundTransferHarness()
     let coordinator = fixture.coordinator(transfer: transfer)
-    let status = submission(fixture)
+    let status = submission(fixture, revision: 7)
     let missing = try await coordinator.retainedSubmissionUpload(status, media: fixture.media)
     XCTAssertNil(missing)
     let job = fixture.job(revision: 2, operation: String(repeating: "2", count: 32))
@@ -25,7 +25,8 @@ final class TeraStoppedUploadTests: XCTestCase {
       let receipt = try await coordinator.retainedSubmissionUpload(status, media: fixture.media)
       XCTAssertEqual(receipt?.identifier, job.transferIdentifier)
       XCTAssertEqual(receipt?.draftID, fixture.draftID)
-      XCTAssertEqual(receipt?.expectedRevision, status.revision)
+      XCTAssertEqual(receipt?.expectedRevision, job.draft.revision)
+      XCTAssertNotEqual(receipt?.expectedRevision, status.revision)
       XCTAssertEqual(receipt?.body, Data("{}".utf8))
     }
     let counts = await transfer.counts
@@ -87,8 +88,8 @@ final class TeraStoppedUploadTests: XCTestCase {
     }
   }
 
-  private func submission(_ fixture: BackgroundUploadFixture) -> TeraSubmissionStatus {
-    let draft = fixture.draft(revision: 2, stage: .uploading)
+  private func submission(_ fixture: BackgroundUploadFixture, revision: UInt64 = 2) -> TeraSubmissionStatus {
+    let draft = fixture.draft(revision: revision, stage: .uploading)
     let scope = TeraComposerScope(authorPublicKey: String(repeating: "a", count: 64), localNetworkID: "nearby")
     let request = TeraSubmissionRequest(commandID: String(repeating: "3", count: 32), scope: scope,
                                         composerID: String(repeating: "4", count: 32), expectedRevision: 1)

@@ -1,4 +1,10 @@
 extension TeraRuntimeClient {
+  /// Run the native inactivity reservation inside the retained runtime worker.
+  /// A caller deadline cannot release it while the underlying FFI is returning.
+  func withUploadRenewal(_ body: @escaping @Sendable (any TeraRuntimeBackend) async throws -> TeraSubmissionStatus) async throws -> TeraSubmissionStatus {
+    try await addOperation("runtime.submission.renew_upload", submission: true, body)
+  }
+
   func uploadSubmissionMedia(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
     try await addOperation("runtime.submission.upload", submission: true) { try await $0.uploadSubmissionMedia(input: input) }
   }
@@ -43,6 +49,14 @@ extension TeraRuntimeClient {
 }
 
 extension TeraRuntimeBackend {
+  func renewSubmissionUpload(input _: TeraSubmissionMediaRequest, renewal _: TeraSubmissionUploadRenewal) async throws -> TeraSubmissionUploadJob {
+    throw submissionUnavailable()
+  }
+
+  func renewSubmissionMedia(input _: TeraSubmissionMediaRequest, renewal _: TeraSubmissionUploadRenewal) async throws -> TeraSubmissionStatus {
+    throw submissionUnavailable()
+  }
+
   func uploadSubmissionMedia(input _: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
     throw submissionUnavailable()
   }

@@ -82,6 +82,16 @@ impl From<SubmissionOperationError> for TeraAppError {
                 &["preserve_local_work", "inspect_local_stores"],
             ),
             E::InvalidMedia => return Self::invalid_argument("submission_media_invalid"),
+            E::UploadRenewalPending => (
+                "submission_upload_renewal_pending",
+                true,
+                &["reconcile_upload", "retry_after_expiry"],
+            ),
+            E::UploadAttemptsExhausted => (
+                "submission_upload_attempts_exhausted",
+                false,
+                &["preserve_local_work", "review_upload"],
+            ),
             E::MediaPolicyChanged => (
                 "submission_media_policy_changed",
                 false,

@@ -12,6 +12,16 @@ impl TeraRuntime {
         &self,
         input: SubmissionMediaRequest,
     ) -> Result<(SubmissionOperationStatus, Phase1NativeUploadJob), E> {
+        self.prepare_submission_upload_at(input, None, phase1_operation_now_unix_ms()?)
+            .await
+    }
+
+    pub(in crate::runtime::product_surface::submission) async fn prepare_submission_upload_at(
+        &self,
+        input: SubmissionMediaRequest,
+        renewal: Option<SubmissionUploadRenewal>,
+        now: u64,
+    ) -> Result<(SubmissionOperationStatus, Phase1NativeUploadJob), E> {
         let _command = self.lifecycle.enter().map_err(Phase1DraftError::from)?;
         self.validate_submission_owner(&input.submission)?;
         let id = super::super::intent::intent_id(&input.submission)?;
@@ -19,16 +29,10 @@ impl TeraRuntime {
         let (mut loaded, _) = self.load_submission_operation(&input.submission).await?;
         self.require_submission_running(&input.submission).await?;
         let transaction = self.materialize_submission_media(&loaded, &input, false)?;
-        let plan = Phase1UploadPlan::derive(
-            phase1_operation_now_unix_ms()?,
-            phase1_new_operation_id()?,
-            phase1_new_operation_id()?,
-        )?;
-        loaded
-            .payload
-            .media_mut(&input.reference)?
-            .reserve_upload(&plan, &transaction)
-            .map_err(|_| E::InvalidMedia)?;
+        let plan =
+            Phase1UploadPlan::derive(now, phase1_new_operation_id()?, phase1_new_operation_id()?)?;
+        self.reserve_submission_upload(&mut loaded, &input, &transaction, &plan, renewal, now)
+            .await?;
         // Commit the exact attempt before the first possibly interactive await.
         self.save_submission_media(&mut loaded).await?;
         self.require_submission_running(&input.submission).await?;

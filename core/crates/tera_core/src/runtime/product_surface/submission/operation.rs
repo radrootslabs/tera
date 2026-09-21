@@ -35,6 +35,10 @@ pub enum SubmissionOperationError {
     InvalidMedia,
     #[error("submission media policy changed")]
     MediaPolicyChanged,
+    #[error("upload renewal requires expiry or retry delay")]
+    UploadRenewalPending,
+    #[error("upload authorization attempts are exhausted")]
+    UploadAttemptsExhausted,
 }
 
 impl From<Error> for SubmissionOperationError {

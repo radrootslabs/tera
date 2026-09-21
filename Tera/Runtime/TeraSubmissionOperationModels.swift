@@ -3,6 +3,19 @@ import Foundation
 struct TeraSubmissionMedia: Sendable, Equatable {
   let opaqueReference: String
   let progress: TeraDraftMediaStatus
+  var authorizations: [TeraUploadAttemptIdentity] = []
+}
+
+struct TeraUploadAttemptIdentity: Sendable, Equatable {
+  let operationID: String
+  let revision: UInt64?
+  let expirationUnixSeconds: UInt64
+}
+
+struct TeraSubmissionUploadRenewal: Sendable, Equatable {
+  let priorRevision: UInt64
+  let priorAttempt: String
+  let nativeFailed: Bool
 }
 
 struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConvertible, CustomDebugStringConvertible {

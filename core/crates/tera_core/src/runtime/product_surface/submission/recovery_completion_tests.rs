@@ -1,7 +1,7 @@
 use super::{media_test_support::*, operation_test_support::*, test_support::*, *};
 use crate::runtime::product_surface::{Phase1NativeUploadJob, recovery_completion::*};
 
-fn native(
+pub(super) fn native(
     status: &SubmissionOperationStatus,
     job: &Phase1NativeUploadJob,
     origin: &str,
@@ -24,7 +24,7 @@ fn native(
     )
 }
 
-fn source() -> RecoveryMedia {
+pub(super) fn source() -> RecoveryMedia {
     let (item, bytes) = photo();
     RecoveryMedia::new(
         item.opaque_reference,

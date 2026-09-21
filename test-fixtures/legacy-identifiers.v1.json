@@ -183,6 +183,18 @@
         {
           "path": "TeraTests/TeraNativeExecutionTests.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalExecutionTests.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalLifecycleTests.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalTests.swift",
+          "count": 3
         }
       ]
     },
@@ -193,6 +205,18 @@
         {
           "path": "TeraTests/TeraNativeExecutionFixture.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalExecutionTests.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalLifecycleTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalTests.swift",
+          "count": 2
         }
       ]
     },
@@ -202,6 +226,10 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
           "count": 1
         }
       ]
@@ -521,6 +549,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 1
         },
@@ -677,6 +709,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
+          "count": 2
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
         },
@@ -741,6 +777,10 @@
           "count": 6
         },
         {
+          "path": "TeraTests/TeraUploadRenewalTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraUserMessagesTests.swift",
           "count": 1
         }
@@ -787,6 +827,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
+          "count": 2
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
         },
@@ -810,6 +854,16 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraMediaCleanup.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferNetworkPolicy",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
           "count": 1
         }
       ]
@@ -861,6 +915,14 @@
         {
           "path": "TeraTests/TeraNativeExecutionTests.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalExecutionTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalTests.swift",
+          "count": 1
         }
       ]
     },
@@ -907,6 +969,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
+          "count": 3
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 6
         },
@@ -921,6 +987,18 @@
         {
           "path": "TeraTests/TeraNativeExecutionTests.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalExecutionTests.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalLifecycleTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalTests.swift",
+          "count": 4
         }
       ]
     },
@@ -1469,6 +1547,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
           "count": 1
         },
@@ -1574,6 +1656,18 @@
         },
         {
           "path": "TeraTests/TeraStoppedUploadTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalExecutionTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalLifecycleTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraUploadRenewalTests.swift",
           "count": 1
         },
         {
@@ -2609,6 +2703,10 @@
         {
           "path": "Tera/Runtime/TeraStoppedUploadRecovery.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraUploadRenewal.swift",
+          "count": 2
         },
         {
           "path": "TeraTests/TeraAddMediaHarness.swift",
@@ -5309,6 +5407,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/upload_renewal.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/recovery_completion/types.rs",
           "count": 1
         },
@@ -5362,6 +5464,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_foreground_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_renewal_tests.rs",
           "count": 1
         },
         {
@@ -5500,6 +5606,14 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/local_admission_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_renewal.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_renewal_tests.rs",
           "count": 1
         },
         {
@@ -5686,6 +5800,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_recovery_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/media_renewal.rs",
           "count": 1
         },
         {

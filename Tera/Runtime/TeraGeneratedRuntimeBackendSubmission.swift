@@ -2,6 +2,20 @@ import Foundation
 import TeraKitBindings
 
 extension TeraGeneratedRuntimeBackend {
+  func renewSubmissionUpload(input: TeraSubmissionMediaRequest, renewal: TeraSubmissionUploadRenewal) async throws -> TeraSubmissionUploadJob {
+    do {
+      let value = try await runtime.submissionRenewNativeUpload(input: input.generatedValue, renewal: renewal.generatedValue)
+      return try TeraGeneratedSubmission.upload(value, input: input)
+    } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+
+  func renewSubmissionMedia(input: TeraSubmissionMediaRequest, renewal: TeraSubmissionUploadRenewal) async throws -> TeraSubmissionStatus {
+    do {
+      let value = try await runtime.submissionRenewUploadMedia(input: input.generatedValue, renewal: renewal.generatedValue)
+      return try TeraGeneratedSubmission.operation(value, expected: input.request)
+    } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+
   func uploadSubmissionMedia(input: TeraSubmissionMediaRequest) async throws -> TeraSubmissionStatus {
     do {
       let value = try await runtime.submissionUploadMedia(input: input.generatedValue)
@@ -76,5 +90,11 @@ extension TeraGeneratedRuntimeBackend {
       ))
       return try TeraGeneratedSubmission.operation(value, expected: input.request)
     } catch { throw TeraGeneratedRuntimeFailure.from(error) }
+  }
+}
+
+extension TeraSubmissionUploadRenewal {
+  var generatedValue: FfiSubmissionUploadRenewal {
+    FfiSubmissionUploadRenewal(priorRevision: priorRevision, priorAttempt: priorAttempt, nativeFailed: nativeFailed)
   }
 }

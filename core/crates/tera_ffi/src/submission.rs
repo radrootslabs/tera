@@ -11,8 +11,10 @@ use tera_core::runtime::product_surface::{
 mod error;
 mod operation;
 mod page;
+mod renewal;
 pub use operation::*;
 pub use page::*;
+pub use renewal::FfiSubmissionUploadRenewal;
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiSubmissionCommandIdRecord {

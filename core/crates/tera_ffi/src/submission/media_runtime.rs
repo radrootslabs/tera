@@ -1,8 +1,8 @@
 use super::TeraRuntime;
 use crate::{
     FfiRuntimeChangeKind, FfiSubmissionMediaInput, FfiSubmissionOperationRecord,
-    FfiSubmissionUploadJobRecord, FfiSubmissionUploadResponse, MOBILE_FFI_SCHEMA_VERSION,
-    TeraAppError, dto::PreparedMedia,
+    FfiSubmissionUploadJobRecord, FfiSubmissionUploadRenewal, FfiSubmissionUploadResponse,
+    MOBILE_FFI_SCHEMA_VERSION, TeraAppError, dto::PreparedMedia,
 };
 use tera_core::runtime::product_surface::{SubmissionMediaRequest, SubmissionMediaResponse};
 
@@ -42,18 +42,37 @@ impl TeraRuntime {
         self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
         self.subscriptions
             .notify(FfiRuntimeChangeKind::Drafts, None);
-        let (status, job) = result?;
-        Ok(FfiSubmissionUploadJobRecord {
-            schema_version: crate::UPLOAD_OUTPUT_FFI_SCHEMA_VERSION,
-            submission: (&status).into(),
-            operation_id: hex::encode(job.operation_id()),
-            remote_url: job.remote_url().to_owned(),
-            upload_url: job.upload_url().to_owned(),
-            authorization_header: job.authorization_header().to_owned(),
-            expected_sha256: job.expected_sha256().to_owned(),
-            media_type: job.media_type().to_owned(),
-            byte_size: job.byte_size(),
-        })
+        Ok(result?.into())
+    }
+
+    pub async fn submission_renew_native_upload(
+        &self,
+        input: FfiSubmissionMediaInput,
+        renewal: FfiSubmissionUploadRenewal,
+    ) -> Result<FfiSubmissionUploadJobRecord, TeraAppError> {
+        let result = self
+            .inner
+            .submission_renew_native_upload(input.try_into()?, renewal.try_into()?)
+            .await;
+        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, None);
+        Ok(result?.into())
+    }
+
+    pub async fn submission_renew_upload_media(
+        &self,
+        input: FfiSubmissionMediaInput,
+        renewal: FfiSubmissionUploadRenewal,
+    ) -> Result<FfiSubmissionOperationRecord, TeraAppError> {
+        let result = self
+            .inner
+            .submission_renew_upload_media(input.try_into()?, renewal.try_into()?)
+            .await;
+        self.subscriptions.notify(FfiRuntimeChangeKind::Media, None);
+        self.subscriptions
+            .notify(FfiRuntimeChangeKind::Drafts, None);
+        Ok((&result?).into())
     }
 
     pub async fn submission_complete_upload(

@@ -19,6 +19,7 @@ struct TeraAddBackgroundUploadReceipt: Sendable, Equatable {
 }
 
 protocol TeraAddMediaHandling: Sendable {
+  func renewSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia, client: TeraRuntimeClient) async throws -> TeraSubmissionStatus
   func recoverNativeUploads(client: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) async throws
   func prefersSharedForegroundUpload(ownerID: String) async throws -> Bool
@@ -38,6 +39,10 @@ protocol TeraAddMediaHandling: Sendable {
 }
 
 extension TeraAddMediaHandling {
+  func renewSubmissionUpload(_: TeraSubmissionStatus, media _: TeraPreparedMedia, client _: TeraRuntimeClient) async throws -> TeraSubmissionStatus {
+    throw TeraComposerAcknowledgment.unconfirmed
+  }
+
   func recoverNativeUploads(client _: TeraRuntimeClient) async throws -> TeraNativeRecoveryProgress {
     throw TeraComposerAcknowledgment.unconfirmed
   }
@@ -89,6 +94,21 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   private var activeUploadDrafts: Set<String> = []
   private var recoveryCursor: String?
   private var recoveryActive = false
+
+  func renewSubmissionUpload(_ submission: TeraSubmissionStatus, media: TeraPreparedMedia, client: TeraRuntimeClient) async throws -> TeraSubmissionStatus {
+    guard activeUploadDrafts.insert(submission.intentID).inserted else { throw TeraBackgroundUploadRequest.operationInProgress }
+    defer { activeUploadDrafts.remove(submission.intentID) }
+    let roots = roots, transfer = transfer, preparer = preparer
+    return try await client.withUploadRenewal { backend in
+      let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
+      defer { withExtendedLifetime(mediaUse) {} }
+      let opened = try await self.open([media])
+      defer { opened.close() }
+      guard let handle = opened.handles.first else { throw TeraComposerAcknowledgment.unconfirmed }
+      return try await TeraUploadRenewal(transfer: transfer, preparer: preparer)
+        .run(submission, media: media, handle: handle, backend: backend)
+    }
+  }
 
   func confirmDurableComposerMedia(_ media: [TeraComposerMedia]) throws {
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)

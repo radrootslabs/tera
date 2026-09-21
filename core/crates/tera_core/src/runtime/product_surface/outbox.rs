@@ -61,6 +61,8 @@ pub use inventory::{
 };
 pub use native_upload::Phase1UploadPlan;
 use upload_attempt::UploadAttempt;
+pub use upload_attempt::UploadAttemptIdentity;
+mod upload_renewal;
 
 const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
 const PROFILE_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-profile.v1";
@@ -217,6 +219,8 @@ pub struct Phase1MediaPrerequisite {
     orphan: Option<Phase1MediaOrphanRecord>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     authorization_attempt: Option<UploadAttempt>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    previous_authorizations: Vec<UploadAttempt>,
 }
 
 /// Durable, secret-safe evidence that a remote blob may be unreferenced.
@@ -254,12 +258,14 @@ impl Phase1MediaPrerequisite {
             verified_at_unix_ms: None,
             orphan: None,
             authorization_attempt: None,
+            previous_authorizations: Vec::new(),
         };
         value.validate()?;
         Ok(value)
     }
 
     pub(super) fn validate(&self) -> Result<(), Phase1DraftError> {
+        self.validate_authorization_lineage()?;
         let blob = BlobUrl::parse(self.url.as_str()).map_err(|_| Phase1DraftError::InvalidMedia)?;
         let hash = blob.hash_path().hash().to_string();
         if let Some(attempt) = &self.authorization_attempt {

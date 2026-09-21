@@ -24,11 +24,12 @@ enum TeraStoppedUploadRecovery {
     }
     guard candidates.count <= 1 else { throw TeraComposerAcknowledgment.unconfirmed }
     guard let snapshot = candidates.first,
+          let identity = TeraBackgroundUploadRequest.transferIdentity(snapshot.identifier),
           [.awaitingVerification, .completed].contains(snapshot.state) else { return nil }
     guard let response = snapshot.response, let status = UInt16(exactly: response.statusCode),
           let body = response.body else { throw TeraComposerAcknowledgment.unconfirmed }
     return TeraAddBackgroundUploadReceipt(identifier: snapshot.identifier.rawValue, draftID: submission.intentID,
-                                          expectedRevision: submission.revision, statusCode: status,
+                                          expectedRevision: identity.revision, statusCode: status,
                                           mediaType: response.mediaType, contentEncoding: response.contentEncoding, body: body)
   }
 }

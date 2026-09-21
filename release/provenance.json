@@ -1,12 +1,12 @@
 {
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
-    "ffi_api_sha256": "5e7329d4bfa6834b9256d792dc8ce7327a842a8806c7d0a7b6b048384dd3c020",
-    "ffi_provenance_sha256": "eb8227eea16e0a9713c9418f93fbcfd6cd34e9964c1eff57f61bfbe776174b0c",
+    "ffi_api_sha256": "4eec2040134c6a94df03d5fb1f101ebf44ff635e621716fbe5770904103a8523",
+    "ffi_provenance_sha256": "29199eaaa1a15adb4241027c302da79f57f813e952352267da9c743fae84059d",
     "info_plist_sha256": "15ef08b1cdd1096cfb9eeaf5be5bf8f814807a7ca9350bbbb47860fa72ec13ef",
     "privacy_manifest_sha256": "a331d51864743ebe4e00dd22360b4a538b6b3ac26a6b3eb54094e60a36959a12",
-    "sbom_sha256": "7670a647b443eca6cac6dd0b69e7ca335afdb3772204c4b91fe24920f651f027",
-    "xcode_project_sha256": "634a750ca283d93e3f82dcba798fd793bc0b7ffe6708cc5bf86916932826f09e"
+    "sbom_sha256": "dfcf223cee3f889130fc1826ad5e134c6603d15fbfcdcb4f7eefc73b4ee8b471",
+    "xcode_project_sha256": "3eb70a93ced69413a1ce6baddfc1aaadaccca68aa1981a5f4e7bfb3b07a5e264"
   },
   "disposition": "unsigned",
   "platforms": [
@@ -17,13 +17,13 @@
   "repository": "https://github.com/radrootslabs/tera",
   "schema": "tera.release-provenance.v1",
   "source": {
-    "cargo_lock_sha256": "b2e9d4130fd2767226a55b2d8076082ef4588f0824bac8273b8897eca7778532",
-    "consumer_source_lock_sha256": "f70d511d93a7a4395e632373222b84c2d62a6395a7586888abaa2e371bda0176",
-    "lib_revision": "91006304a47ff335c6f36fbbcfcb68ecfc76f6c7",
+    "cargo_lock_sha256": "02a6b0aa917cb1d0a6aa1a0b55eabde761ceea450649cadcb90f17fd690fd38a",
+    "consumer_source_lock_sha256": "acc50a1fb863517ae7831eecb58744cbbb667aba506e1b79a957821682633f97",
+    "lib_revision": "70abf6eb6bcbf07f4074b6fba237add4681c00eb",
     "source_date_epoch": 1787871027,
-    "swift_package_lock_sha256": "03ae32145d887565c7feca38b99aa0f8ee4aee55bdfbe6f367bab0602ccca824",
-    "tera_ffi_source_tree": "e3bf7db2c860042ad23669e90f684303d1763c4f",
-    "xcode_package_lock_sha256": "a95880b5360e93d3702e6a8ad5668204a5466b29578079bf241de892e849f1a7"
+    "swift_package_lock_sha256": "a7e31d77d31ecbc1e0e5a78f2681e3fb0c6f367af0edf8b4ceef0af973a78681",
+    "tera_ffi_source_tree": "eb72dbef8c19fc5424d292d8a7a872fd8c30c012",
+    "xcode_package_lock_sha256": "d98a614a38dce7b55c2925dee51c2d4bf8dcfc4e31779d0c5fe8561c45d6e3ba"
   },
   "version": "0.1.0-alpha"
 }

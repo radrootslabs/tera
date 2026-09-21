@@ -14,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/radrootslabs/apple_kit.git",
-      revision: "75a4a63149adb55b6a07f94686ef74b5446f1136"
+      revision: "68135576af9ac34126195178dabe82f02ff69497"
     ),
   ],
   targets: [
@@ -75,6 +75,7 @@ let package = Package(
         "Runtime/TeraRuntimeClientSubmission.swift",
         "Runtime/TeraSubmissionOperationModels.swift",
         "Runtime/TeraAddMediaCoordinator.swift",
+        "Runtime/TeraUploadRenewal.swift",
         "Runtime/TeraMediaCleanup.swift",
         "Runtime/TeraMediaProcessUse.swift",
         "Runtime/TeraRemoteQualificationMediaPicker.swift",

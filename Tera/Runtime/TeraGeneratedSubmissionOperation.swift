@@ -41,7 +41,16 @@ extension TeraGeneratedSubmission {
             progress.opaqueReference == source.opaqueReference,
             progress.progress.uploadUrl?.isEmpty == false,
             !progress.progress.url.isEmpty else { throw mismatch() }
-      return TeraSubmissionMedia(opaqueReference: progress.opaqueReference, progress: progress.progress.appValue)
+      guard progress.authorizations.count <= 5 else { throw mismatch() }
+      let attempts = try progress.authorizations.map { attempt in
+        guard validID(attempt.operationId), attempt.expirationUnixS > 0,
+              attempt.expirationUnixS <= UInt64(Int64.max) / 1000,
+              attempt.revision.map({ $0 > 0 && $0 <= value.revision }) ?? true else { throw mismatch() }
+        return TeraUploadAttemptIdentity(operationID: attempt.operationId, revision: attempt.revision,
+                                         expirationUnixSeconds: attempt.expirationUnixS)
+      }
+      guard Set(attempts.map(\.operationID)).count == attempts.count else { throw mismatch() }
+      return TeraSubmissionMedia(opaqueReference: progress.opaqueReference, progress: progress.progress.appValue, authorizations: attempts)
     }
     return try TeraSubmissionStatus(request: actualRequest, intentID: value.intentId, operationID: value.operationId,
                                     revision: value.revision, captured: captured, state: value.state.appValue,

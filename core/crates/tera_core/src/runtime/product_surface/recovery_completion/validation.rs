@@ -39,7 +39,7 @@ pub(in crate::runtime::product_surface) fn admit(
     source: &RecoveryMedia,
 ) -> Result<RecoveryDecision, E> {
     if !current.same_input_as(historical)
-        || current.recovery_attempt()? != historical.recovery_attempt()?
+        || !current.retains_authorization(historical)
         || historical.stage() != Phase1MediaStage::Uploading
         || current.local_reference() != source.reference
         || current.sha256() != native.media.hash.to_hex()
@@ -71,7 +71,7 @@ pub(in crate::runtime::product_surface) fn admit(
     let expected = RecoveryAssociation::new(
         author,
         native.identity.parent,
-        current.recovery_attempt()?,
+        historical.recovery_attempt()?,
         url,
         MediaType::parse(current.media_type()).map_err(|_| E::InvalidMedia)?,
         current.byte_size(),
@@ -112,7 +112,7 @@ impl RecoveryCompletionReceipt {
         native: &RecoveryNativeReceipt,
         media: &Phase1MediaPrerequisite,
     ) -> Result<Self, E> {
-        if !media.is_remote_verified() || media.recovery_attempt()? != native.identity.attempt {
+        if !media.is_remote_verified() || !media.retains_attempt(native.identity.attempt) {
             return Err(E::InvalidMedia);
         }
         let verified_at_unix_ms = media

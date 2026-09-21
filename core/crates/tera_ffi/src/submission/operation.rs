@@ -50,6 +50,14 @@ impl From<tera_core::runtime::product_surface::PublicationDeliveryEvidence>
 pub struct FfiSubmissionMediaRecord {
     pub opaque_reference: String,
     pub progress: FfiDraftMediaRecord,
+    pub authorizations: Vec<FfiUploadAttemptIdentity>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiUploadAttemptIdentity {
+    pub operation_id: String,
+    pub revision: Option<u64>,
+    pub expiration_unix_s: u64,
 }
 
 #[derive(Clone, Eq, PartialEq, uniffi::Record)]
@@ -95,6 +103,15 @@ impl From<&SubmissionOperationStatus> for FfiSubmissionOperationRecord {
                 .map(|media| FfiSubmissionMediaRecord {
                     opaque_reference: media.local_reference().to_owned(),
                     progress: media.into(),
+                    authorizations: media
+                        .upload_authorizations()
+                        .into_iter()
+                        .map(|value| FfiUploadAttemptIdentity {
+                            operation_id: hex::encode(value.operation_id),
+                            revision: value.revision,
+                            expiration_unix_s: value.expiration_unix_s,
+                        })
+                        .collect(),
                 })
                 .collect(),
             settlement: value.push().settlement().into(),
