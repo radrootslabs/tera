@@ -29,6 +29,17 @@ through the search, including when a later page completes. A saturated timestamp
 can leave gaps among same-time posts, so advancing to older posts does not prove
 complete relay history. Refresh starts a new search from the newest window.
 
+Publication keeps the original captured form, signed bytes when available, and
+frozen relay evidence after the delivery window or shared attempt cap is
+exhausted. Authentication, quota and malformed-event refusals require attention
+instead of an automatic retry. Explicit continuation respects shared claims and
+retry-after limits plus bounded exponential backoff from one to sixty seconds,
+with restart-stable jitter. Rust rechecks the time window before signing and
+delivery; the native host presents its decision and offers status refresh.
+Existing late-fact reconciliation remains local and never also sends a retry.
+No deadline extension, new signature, destination amendment or retry worker is
+implied by recovering a saved submission.
+
 `TeraFFI/producer.toml` separately governs the owned Tera FFI producer.
 After staging its source inputs, `make ffi-source-write ffi-source-check`
 captures and checks the exact source tree, foundation lock, target, features and

@@ -5013,6 +5013,10 @@
           "count": 4
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_retry/tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture.rs",
           "count": 1
         },
@@ -5350,6 +5354,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_retry.rs",
           "count": 1
         }
       ]
@@ -5743,6 +5751,14 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_retry.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_retry/tests.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/publication_targets.rs",
           "count": 1
         },
@@ -5969,6 +5985,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_retry.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/publication_targets.rs",
           "count": 1
         },
@@ -6032,6 +6052,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/publication.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/publication_retry/tests.rs",
           "count": 1
         },
         {

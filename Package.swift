@@ -59,6 +59,7 @@ let package = Package(
         "Runtime/TeraStoppedUploadRecovery.swift",
         "Runtime/TeraPublicationEvidence.swift",
         "Runtime/TeraPublicationTargets.swift",
+        "Runtime/TeraPublicationRetry.swift",
         "Runtime/TeraBackgroundUploadWaiter.swift",
         "Runtime/TeraNativeUploadExecution.swift",
         "Runtime/TeraGeneratedRuntimeBackendSubmission.swift",

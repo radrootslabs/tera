@@ -12,10 +12,12 @@ mod error;
 mod operation;
 mod page;
 mod renewal;
+mod retry;
 mod targets;
 pub use operation::*;
 pub use page::*;
 pub use renewal::FfiSubmissionUploadRenewal;
+pub use retry::*;
 pub use targets::*;
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]

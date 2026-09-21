@@ -53,6 +53,7 @@ pub struct SubmissionOperationStatus {
     intent: AuthoredDraft,
     push: PushStatus,
     targets: crate::runtime::product_surface::PublicationTargetDetails,
+    retry: crate::runtime::product_surface::PublicationRetryDecision,
     captured: crate::runtime::product_surface::ComposerDraft,
     media: Vec<crate::runtime::product_surface::Phase1MediaPrerequisite>,
 }
@@ -79,6 +80,9 @@ impl SubmissionOperationStatus {
     pub fn target_details(&self) -> &crate::runtime::product_surface::PublicationTargetDetails {
         &self.targets
     }
+    pub fn retry_decision(&self) -> crate::runtime::product_surface::PublicationRetryDecision {
+        self.retry
+    }
     pub fn captured(&self) -> &crate::runtime::product_surface::ComposerDraft {
         &self.captured
     }
@@ -90,7 +94,19 @@ impl SubmissionOperationStatus {
             return outbox::aggregate_state(&self.intent, Some(&self.push));
         }
         let push = (self.intent.stage() == AuthoredDraftStage::Queued).then_some(&self.push);
-        outbox::aggregate_state(&self.intent, push)
+        let state = outbox::aggregate_state(&self.intent, push);
+        if matches!(
+            self.retry,
+            crate::runtime::product_surface::PublicationRetryDecision::NeedsAction(_)
+        ) && !matches!(
+            state,
+            Phase1OutboxState::Complete
+                | Phase1OutboxState::PartiallyDelivered
+                | Phase1OutboxState::Cancelled
+        ) {
+            return Phase1OutboxState::Terminal;
+        }
+        state
     }
 
     pub fn delivery_evidence(
@@ -107,6 +123,15 @@ impl TeraRuntime {
         &self,
         request: &SubmissionReservationRequest,
     ) -> Result<SubmissionOperationStatus, E> {
+        self.submission_operation_status_at(request, phase1_operation_now_unix_ms()?)
+            .await
+    }
+
+    pub(super) async fn submission_operation_status_at(
+        &self,
+        request: &SubmissionReservationRequest,
+        now_unix_ms: u64,
+    ) -> Result<SubmissionOperationStatus, E> {
         let _command = self.lifecycle.enter().map_err(Phase1DraftError::from)?;
         let (loaded, push) = self.load_submission_operation(request).await?;
         let targets = crate::runtime::product_surface::PublicationTargetDetails::load(
@@ -117,6 +142,7 @@ impl TeraRuntime {
         )
         .await;
         Ok(SubmissionOperationStatus {
+            retry: self.publication_retry_at(&push, now_unix_ms)?,
             targets,
             media: loaded.payload.media().to_vec(),
             captured: loaded.captured,

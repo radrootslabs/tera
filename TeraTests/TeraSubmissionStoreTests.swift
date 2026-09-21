@@ -27,7 +27,7 @@ final class TeraSubmissionStoreTests: XCTestCase {
         media: [TeraSubmissionMedia(opaqueReference: item.opaqueReference, progress: TeraDraftMediaStatus(
           url: "https://blossom.example/\(item.sha256).png", stage: .pending, uploadAttempts: 0,
           verifiedAtUnixMilliseconds: nil, possibleOrphan: false, orphanReasonCode: nil, orphanRecordedAtUnixMilliseconds: nil
-        ))], settlement: original.settlement, delivery: original.delivery, targetDetails: original.targetDetails
+        ))], settlement: original.settlement, delivery: original.delivery, targetDetails: original.targetDetails, retry: original.retry
       )
       let before = await backend.submissionBackend.advanceCount
       let effects = TeraSubmissionEffects(client: client, media: media, ensure: {},

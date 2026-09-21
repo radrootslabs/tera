@@ -71,7 +71,7 @@ private actor RenewalExecutionBackend: TeraRuntimeBackend {
                                                                     deliveryRetryable: 0, deliveryExhausted: 0, deliveryFailedTerminal: 0, deliveryCancelled: 0),
                                 delivery: TeraPublicationEvidence(state: .notIssued, stopRequestedAtUnixMilliseconds: nil,
                                                                   schedulingRevision: revision, retainedFacts: 0, recordedAttempts: 0, unresolvedClaims: false),
-                                targetDetails: .fixture())
+                                targetDetails: .fixture(), retry: .ready)
   }
 
   func renewSubmissionUpload(input: TeraSubmissionMediaRequest, renewal: TeraSubmissionUploadRenewal) throws -> TeraSubmissionUploadJob {

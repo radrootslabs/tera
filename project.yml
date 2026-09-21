@@ -67,6 +67,7 @@ targets:
       - path: TeraTests/TeraComposerMediaOwnershipTests.swift
       - path: TeraTests/TeraPublicationEvidenceTests.swift
       - path: TeraTests/TeraPublicationTargetTests.swift
+      - path: TeraTests/TeraPublicationRetryTests.swift
       - path: TeraTests/TeraStoppedUploadTests.swift
       - path: TeraTests/TeraUploadRenewalTests.swift
       - path: TeraTests/TeraUploadRenewalExecutionTests.swift

@@ -75,6 +75,7 @@ pub struct FfiSubmissionOperationRecord {
     pub settlement: FfiOperationSettlementRecord,
     pub delivery: FfiPublicationDeliveryEvidence,
     pub target_details: super::FfiPublicationTargetDetails,
+    pub retry: super::FfiPublicationRetryDecision,
 }
 
 impl std::fmt::Debug for FfiSubmissionOperationRecord {
@@ -118,6 +119,7 @@ impl From<&SubmissionOperationStatus> for FfiSubmissionOperationRecord {
             settlement: value.push().settlement().into(),
             delivery: value.delivery_evidence().into(),
             target_details: value.target_details().into(),
+            retry: value.retry_decision().into(),
         }
     }
 }

@@ -31,6 +31,7 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
   let settlement: TeraOperationSettlement
   let delivery: TeraPublicationEvidence
   let targetDetails: TeraPublicationTargets
+  let retry: TeraPublicationRetry
 
   var id: String {
     operationID
@@ -57,6 +58,9 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
     if delivery.state == .partiallyAccepted {
       return "Some saved relays accepted this publication. Remaining delivery is not confirmed."
     }
+    if case .needsAction = retry, delivery.state != .accepted {
+      return "Saved publication needs attention."
+    }
     switch state {
     case .draft: return "Saved on this device."
     case .mediaPreparing: return "Preparing photo."
@@ -75,7 +79,7 @@ struct TeraSubmissionStatus: Sendable, Equatable, Identifiable, CustomStringConv
 
   /// Presentation of an explicit action, never authority to bypass Rust policy.
   var canOfferContinuation: Bool {
-    !delivery.isStopped && state != .complete && state != .cancelled && state != .terminal
+    retry.mayStart && !delivery.isStopped && state != .complete && state != .cancelled && state != .terminal
   }
 
   var mediaSummary: String {

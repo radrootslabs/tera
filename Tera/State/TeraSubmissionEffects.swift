@@ -17,7 +17,7 @@ struct TeraSubmissionEffects {
       return
     }
     guard mayStart() else { return }
-    if [.complete, .terminal, .cancelled].contains(initial.state) {
+    if !initial.retry.mayStart || [.complete, .terminal, .cancelled].contains(initial.state) {
       try await media?.reconcileBackgroundSubmissions([initial], client: client)
       try ensure()
       return
@@ -27,7 +27,7 @@ struct TeraSubmissionEffects {
       current = try await upload(current)
     }
     try ensure()
-    if mayStart(), !current.delivery.isStopped, ![.complete, .terminal, .cancelled].contains(current.state) {
+    if mayStart(), current.retry.mayStart, !current.delivery.isStopped, ![.complete, .terminal, .cancelled].contains(current.state) {
       current = try await client.advanceSubmission(request: current.request, expectedRevision: current.revision)
       try accept(current)
     }

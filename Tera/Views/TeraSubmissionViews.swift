@@ -29,6 +29,9 @@ struct TeraSubmissionStatusView: View {
         if let status = store.status {
           Text(status.summary)
             .accessibilityIdentifier("tera.add.submission.status")
+          if let explanation = status.retry.explanation {
+            Text(explanation).accessibilityIdentifier("tera.add.submission.retry_status")
+          }
           TeraPublicationTargetsView(details: status.targetDetails)
           if !status.media.isEmpty {
             Text(status.mediaSummary)

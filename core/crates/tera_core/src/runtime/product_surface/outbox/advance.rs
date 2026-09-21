@@ -7,6 +7,15 @@ impl TeraRuntime {
         &self,
         request: PushRequest,
     ) -> Result<(), Phase1DraftError> {
+        self.advance_push_request_with_clock(request, phase1_operation_now_unix_ms)
+            .await
+    }
+
+    pub(in crate::runtime::product_surface) async fn advance_push_request_with_clock(
+        &self,
+        request: PushRequest,
+        clock: impl Fn() -> Result<u64, Phase1DraftError> + Send + Sync,
+    ) -> Result<(), Phase1DraftError> {
         let operation_id = request.operation_id();
         self.require_legacy_publication_running(operation_id)
             .await?;
@@ -16,6 +25,25 @@ impl TeraRuntime {
             .await
             .map_err(|_| Phase1DraftError::Operation)?
             .ok_or(Phase1DraftError::Corrupt)?;
+
+        // Existing fact reconciliation is a bounded local action and never
+        // also sends a retry. Preserve it even after a delivery deadline.
+        if status.artifact().admission_state().is_admitted()
+            && !status.delivery_plan().state().is_terminal()
+            && status
+                .delivery_plan()
+                .pending_delivery_facts()
+                .next()
+                .is_some()
+        {
+            sync.deliver_push(operation_id)
+                .await
+                .map_err(|_| Phase1DraftError::Operation)?;
+            return Ok(());
+        }
+        if !self.publication_retry_at(&status, clock()?)?.may_start() {
+            return Ok(());
+        }
 
         if matches!(
             status.artifact().signing_state(),
@@ -46,6 +74,7 @@ impl TeraRuntime {
                 .ok_or(Phase1DraftError::Corrupt)?;
         }
         if status.artifact().admission_state().is_admitted()
+            && self.publication_retry_at(&status, clock()?)?.may_start()
             && matches!(
                 status.delivery_plan().state(),
                 AuthoredDeliveryState::Pending | AuthoredDeliveryState::Retryable

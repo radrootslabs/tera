@@ -120,7 +120,7 @@ actor SubmissionTestBackend {
                                              progress: progress($0.media, stage: .pending)) }, settlement: settlement(complete: false),
       delivery: TeraPublicationEvidence(state: .notIssued, stopRequestedAtUnixMilliseconds: nil,
                                         schedulingRevision: 1, retainedFacts: 0, recordedAttempts: 0, unresolvedClaims: false),
-      targetDetails: .fixture()
+      targetDetails: .fixture(), retry: .ready
     )
     if delayedPhase == .queue, !delayed {
       delayed = true
@@ -223,7 +223,8 @@ actor SubmissionTestBackend {
                                                            schedulingRevision: value.delivery.schedulingRevision + 1,
                                                            retainedFacts: state == .complete ? 1 : value.delivery.retainedFacts,
                                                            recordedAttempts: state == .complete ? 1 : value.delivery.recordedAttempts, unresolvedClaims: false),
-                         targetDetails: state == .complete ? .fixture(accepted: true) : value.targetDetails)
+                         targetDetails: state == .complete ? .fixture(accepted: true) : value.targetDetails,
+                         retry: state == .complete ? .complete : value.retry)
   }
 
   func requestStop(_ request: TeraSubmissionRequest) throws -> TeraSubmissionStatus {
@@ -238,7 +239,7 @@ actor SubmissionTestBackend {
                                        delivery: TeraPublicationEvidence(state: value.delivery.state, stopRequestedAtUnixMilliseconds: 1_800_000_000_100,
                                                                          schedulingRevision: value.delivery.schedulingRevision + 1, retainedFacts: value.delivery.retainedFacts,
                                                                          recordedAttempts: value.delivery.recordedAttempts, unresolvedClaims: value.delivery.unresolvedClaims),
-                                       targetDetails: value.targetDetails)
+                                       targetDetails: value.targetDetails, retry: .stopped)
     operations[request.commandID] = stopped
     return stopped
   }

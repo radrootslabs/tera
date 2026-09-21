@@ -22,6 +22,8 @@ mod projection;
 #[cfg(feature = "mobile-social")]
 mod publication;
 #[cfg(feature = "mobile-social")]
+mod publication_retry;
+#[cfg(feature = "mobile-social")]
 mod publication_targets;
 mod ranking;
 #[cfg(feature = "mobile-social")]
@@ -97,6 +99,8 @@ pub use outbox::{
 pub use projection::{ProductEventClassification, ProductEventExclusion, classify_admitted_event};
 #[cfg(feature = "mobile-social")]
 pub use publication::{PublicationDeliveryEvidence, PublicationDeliveryState};
+#[cfg(feature = "mobile-social")]
+pub use publication_retry::{PublicationActionReason, PublicationRetryDecision};
 #[cfg(feature = "mobile-social")]
 pub use publication_targets::{
     PublicationTargetDetails, PublicationTargetEvidence, PublicationTargetPolicy,
