@@ -137,6 +137,12 @@ impl TeraRuntime {
             repair()
         } else {
             match stored.payload_schema() {
+                super::coordinate::CLAIM_SCHEMA | super::coordinate::BINDING_SCHEMA => {
+                    if super::coordinate::metadata_is_valid(&stored) {
+                        return None;
+                    }
+                    repair()
+                }
                 "radroots.mobile.phase1-draft.v1" => {
                     if outbox::media_references(&stored).is_ok() {
                         RecoveryOwner::Legacy

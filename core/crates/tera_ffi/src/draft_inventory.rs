@@ -10,6 +10,8 @@ use tera_core::runtime::product_surface::{
 
 #[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
 pub struct FfiLegacyDraftSummaryRecord {
+    pub coordinate_writable: bool,
+    pub coordinate_captured: bool,
     pub schema_version: u16,
     pub draft_id: String,
     pub revision: u64,
@@ -30,6 +32,8 @@ pub struct FfiLegacyDraftSummaryRecord {
 impl From<&Phase1DraftSummary> for FfiLegacyDraftSummaryRecord {
     fn from(value: &Phase1DraftSummary) -> Self {
         Self {
+            coordinate_writable: value.coordinate_writable(),
+            coordinate_captured: value.coordinate_captured(),
             schema_version: MOBILE_FFI_SCHEMA_VERSION,
             draft_id: hex::encode(value.draft_id().as_bytes()),
             revision: value.revision().get(),

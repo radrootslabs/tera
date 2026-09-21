@@ -79,6 +79,7 @@ impl TeraRuntime {
             return Err(E::Corrupt);
         }
         if !status.push().artifact().admission_state().is_admitted() {
+            let _coordinate = self.admit_coordinate(status.intent()).await?;
             self.sync()?
                 .admit_signed(
                     radroots_sync::policy::SyncId::new(*status.receipt().operation_id().as_bytes())

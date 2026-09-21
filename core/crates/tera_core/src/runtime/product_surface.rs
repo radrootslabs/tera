@@ -9,6 +9,8 @@ mod calendar_timing;
 #[cfg(feature = "mobile-social")]
 mod composer;
 mod context;
+#[cfg(feature = "mobile-social")]
+mod coordinate;
 mod cursor;
 mod identity;
 mod local_network_id;

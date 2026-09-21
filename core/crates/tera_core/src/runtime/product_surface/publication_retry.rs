@@ -18,6 +18,7 @@ pub enum PublicationActionReason {
     QuotaExceeded,
     InvalidPayload,
     DeliveryRefused,
+    CoordinateChanged,
 }
 
 /// Permission to start another attempt, separate from any retained remote facts.

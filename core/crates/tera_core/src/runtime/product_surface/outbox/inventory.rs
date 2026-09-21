@@ -13,6 +13,8 @@ mod tests;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Phase1DraftSummary {
+    coordinate_writable: bool,
+    coordinate_captured: bool,
     draft_id: AuthoredDraftId,
     revision: AuthoredDraftRevision,
     kind: Phase1DraftKind,
@@ -30,6 +32,12 @@ pub struct Phase1DraftSummary {
 }
 
 impl Phase1DraftSummary {
+    pub const fn coordinate_writable(&self) -> bool {
+        self.coordinate_writable
+    }
+    pub const fn coordinate_captured(&self) -> bool {
+        self.coordinate_captured
+    }
     pub const fn draft_id(&self) -> AuthoredDraftId {
         self.draft_id
     }
@@ -77,6 +85,8 @@ impl Phase1DraftSummary {
 impl From<Phase1DraftStatus> for Phase1DraftSummary {
     fn from(value: Phase1DraftStatus) -> Self {
         Self {
+            coordinate_writable: value.coordinate_writable,
+            coordinate_captured: value.coordinate_captured,
             draft_id: value.draft.draft_id(),
             revision: value.draft.revision(),
             kind: value.kind,

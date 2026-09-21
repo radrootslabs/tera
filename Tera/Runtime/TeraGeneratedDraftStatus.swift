@@ -17,7 +17,9 @@ extension FfiDraftStatusRecord {
       media: media.map(\.appValue),
       settlement: settlement?.appValue,
       isRevision: isRevision,
-      revisionParentID: revisionParentDraftId
+      revisionParentID: revisionParentDraftId,
+      coordinateWritable: coordinateWritable,
+      coordinateCaptured: coordinateCaptured
     )
   }
 }

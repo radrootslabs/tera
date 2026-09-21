@@ -78,6 +78,9 @@ impl TeraRuntime {
             if receipt.draft() != &candidate {
                 return Err(Phase1DraftError::Corrupt);
             }
+            // Captured input alone is not publication permission. Cancellation
+            // here leaves retained input; claim and binding still commit together.
+            let _coordinate = self.admit_coordinate(&candidate).await?;
         }
         self.phase1_revision_status(*draft_id.as_bytes()).await
     }

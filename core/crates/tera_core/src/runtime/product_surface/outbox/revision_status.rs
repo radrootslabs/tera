@@ -74,7 +74,8 @@ impl TeraRuntime {
             },
             None => None,
         };
-        let replacement_progress = Box::pin(self.revision_branch_status(&replacement)).await?;
+        let mut replacement_progress = Box::pin(self.revision_branch_status(&replacement)).await?;
+        replacement_progress.can_resume &= self.coordinate_may_resume(replacement.draft()).await?;
         let retraction_progress = match retraction.as_ref() {
             Some(child) => {
                 let mut branch = Box::pin(self.revision_branch_status(child)).await?;

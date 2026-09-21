@@ -141,8 +141,19 @@ impl TeraRuntime {
                 .map_err(|_| Error::BackendUnavailable)?,
         )
         .await;
+        let mut retry = self.publication_retry_at(&push, now_unix_ms)?;
+        if !matches!(
+            retry,
+            crate::runtime::product_surface::PublicationRetryDecision::Complete
+                | crate::runtime::product_surface::PublicationRetryDecision::Stopped
+        ) && !self.coordinate_may_resume(&loaded.head).await?
+        {
+            retry = crate::runtime::product_surface::PublicationRetryDecision::NeedsAction(
+                crate::runtime::product_surface::PublicationActionReason::CoordinateChanged,
+            );
+        }
         Ok(SubmissionOperationStatus {
-            retry: self.publication_retry_at(&push, now_unix_ms)?,
+            retry,
             targets,
             media: loaded.payload.media().to_vec(),
             captured: loaded.captured,
@@ -185,7 +196,8 @@ impl TeraRuntime {
         self.require_submission_running(request).await?;
         self.queue_submission_loaded(&mut loaded, expected_revision)
             .await?;
-        self.advance_push_request(loaded.request).await?;
+        self.advance_owned_push_request(loaded.request, &loaded.head)
+            .await?;
         self.submission_operation_status(request).await
     }
 
@@ -236,6 +248,7 @@ impl TeraRuntime {
         if loaded.head.revision().get() != expected_revision {
             return Err(Phase1DraftError::RevisionConflict.into());
         }
+        let _coordinate = self.admit_coordinate(&loaded.head).await?;
         match loaded.head.stage() {
             AuthoredDraftStage::Queued => return Ok(()),
             AuthoredDraftStage::ReadyToSign => {}

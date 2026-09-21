@@ -2,11 +2,13 @@ import Foundation
 import TeraKitBindings
 
 enum TeraPublicationActionReason: Sendable, Equatable {
+  case coordinateChanged
   case deadlineExceeded, attemptLimit, authenticationRequired, quotaExceeded
   case invalidPayload, deliveryRefused
 
   var explanation: String {
     switch self {
+    case .coordinateChanged: "Another saved request owns this address, or its known revision changed. Review the current revision before publishing. Your captured form and any signed evidence are retained."
     case .deadlineExceeded: "The saved delivery window does not allow another attempt. The captured form and any signed publication or relay evidence are retained. Review them before choosing another submission."
     case .attemptLimit: "The delivery attempt limit was reached. The saved publication and relay evidence are retained for review."
     case .authenticationRequired: "A saved relay requires authentication. Review its access requirements before authorizing further publication. This request is retained."
@@ -49,6 +51,7 @@ enum TeraPublicationRetry: Sendable, Equatable {
 
   private static func decode(_ reason: FfiPublicationActionReason) -> TeraPublicationActionReason {
     switch reason {
+    case .coordinateChanged: .coordinateChanged
     case .deadlineExceeded: .deadlineExceeded
     case .attemptLimit: .attemptLimit
     case .authenticationRequired: .authenticationRequired

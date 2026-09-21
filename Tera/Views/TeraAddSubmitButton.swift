@@ -48,7 +48,10 @@ struct TeraAddSubmitButton: View {
     if store.activeDraft?.kind == .retraction {
       return "Retry retraction"
     }
-    if let state = store.activeDraft?.state, state.canAdvance {
+    if store.activeDraft?.coordinateWritable == false {
+      return "Publication held"
+    }
+    if store.activeDraft?.canAdvance == true {
       return "Retry delivery"
     }
     return "Submit"

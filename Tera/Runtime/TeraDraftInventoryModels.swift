@@ -26,8 +26,25 @@ struct TeraLegacyDraftSummary: Sendable, Equatable, Identifiable {
   let possibleOrphanCount: UInt64
   let settlement: TeraOperationSettlement?
   var revisionParentID: String?
+  var coordinateWritable = true
+  var coordinateCaptured = false
+
+  var canAdvance: Bool {
+    coordinateWritable && state.canAdvance
+  }
+
+  var canQueue: Bool {
+    coordinateWritable && (state.isEditable || state == .readyToSign)
+  }
+
+  var isEditable: Bool {
+    !coordinateCaptured && state.isEditable
+  }
 
   var honestSummary: String {
+    if !coordinateWritable, ![.complete, .cancelled, .terminal].contains(state) {
+      return TeraPublicationActionReason.coordinateChanged.explanation
+    }
     if isRevision {
       return "Saved revision; open details for current relay outcomes."
     }

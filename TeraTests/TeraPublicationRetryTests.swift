@@ -10,6 +10,7 @@ final class TeraPublicationRetryTests: XCTestCase {
       (.deadlineExceeded, .deadlineExceeded), (.attemptLimit, .attemptLimit),
       (.authenticationRequired, .authenticationRequired), (.quotaExceeded, .quotaExceeded),
       (.invalidPayload, .invalidPayload), (.deliveryRefused, .deliveryRefused),
+      (.coordinateChanged, .coordinateChanged),
     ]
     for (wire, expected) in cases {
       let decoded = try TeraPublicationRetry.decode(.needsAction(reason: wire))
@@ -49,6 +50,7 @@ final class TeraPublicationRetryTests: XCTestCase {
       .deferredUntil(1), .inFlightUntil(1), .needsAction(.deadlineExceeded), .needsAction(.attemptLimit),
       .needsAction(.authenticationRequired), .needsAction(.quotaExceeded),
       .needsAction(.invalidPayload), .needsAction(.deliveryRefused),
+      .needsAction(.coordinateChanged),
     ]
     for decision in decisions {
       let status = TeraSubmissionStatus(

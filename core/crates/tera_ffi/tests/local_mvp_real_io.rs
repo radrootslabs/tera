@@ -450,19 +450,24 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     );
 
     let offline_port = unused_loopback_port().await;
-    let replacement_id = draft_id(6);
     let mut replacement_input = food_input("Corrected carrots from Moss Farm", "today-carrots");
     replacement_input.food_published_at_unix_s = Some(AUTHORED_AT);
     let replacement = publisher
-        .phase1_save_draft(
-            replacement_id.clone(),
-            replacement_input,
-            AUTHORED_AT + 10,
-            None,
-            1_800_000_010_000,
-        )
+        .phase1_save_revision_intent(tera_ffi::FfiRevisionInputRecord {
+            schema_version: MOBILE_FFI_SCHEMA_VERSION,
+            request_id: draft_id(6),
+            card_id: food_card_id.clone(),
+            source_event_id: food_event_id.clone(),
+            source_address: food.source_address.clone(),
+            author_public_key: food.author_public_key.clone(),
+            replacement: replacement_input,
+        })
         .await
-        .expect("save replacement");
+        .expect("capture replacement against the selected current food revision");
+    assert!(replacement.retraction.is_none());
+    let replacement = replacement.replacement;
+    assert!(replacement.coordinate_captured && replacement.coordinate_writable);
+    let replacement_id = replacement.draft_id.clone();
     let replacement_queued = publisher
         .phase1_queue_draft(
             replacement_id.clone(),
@@ -474,7 +479,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
                 delivery_deadline_unix_ms: u64::MAX,
                 cancellation: FfiCancellationPolicy::LocalCooperative,
             },
-            1_800_000_010_100,
+            replacement.updated_at_unix_ms + 1,
         )
         .await
         .expect("queue replacement");

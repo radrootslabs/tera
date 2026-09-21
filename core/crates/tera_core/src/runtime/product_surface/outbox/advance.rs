@@ -16,7 +16,20 @@ impl TeraRuntime {
         request: PushRequest,
         clock: impl Fn() -> Result<u64, Phase1DraftError> + Send + Sync,
     ) -> Result<(), Phase1DraftError> {
-        self.advance_push_request_inner(request, None, clock).await
+        self.advance_push_request_inner(request, None, None, clock)
+            .await
+    }
+
+    pub(in crate::runtime::product_surface) async fn advance_owned_push_request(
+        &self,
+        request: PushRequest,
+        head: &AuthoredDraft,
+    ) -> Result<(), Phase1DraftError> {
+        if super::super::coordinate::intent_from_draft(head)?.is_none() {
+            return self.advance_push_request(request).await;
+        }
+        self.advance_push_request_inner(request, None, Some(head), phase1_operation_now_unix_ms)
+            .await
     }
 
     pub(in crate::runtime::product_surface) async fn advance_push_request_selected(
@@ -24,7 +37,7 @@ impl TeraRuntime {
         request: PushRequest,
         selected: TargetSet,
     ) -> Result<(), Phase1DraftError> {
-        self.advance_push_request_inner(request, Some(selected), phase1_operation_now_unix_ms)
+        self.advance_push_request_inner(request, Some(selected), None, phase1_operation_now_unix_ms)
             .await
     }
 
@@ -32,6 +45,7 @@ impl TeraRuntime {
         &self,
         request: PushRequest,
         selected: Option<TargetSet>,
+        owner: Option<&AuthoredDraft>,
         clock: impl Fn() -> Result<u64, Phase1DraftError> + Send + Sync,
     ) -> Result<(), Phase1DraftError> {
         let operation_id = request.operation_id();
@@ -63,6 +77,23 @@ impl TeraRuntime {
             return Ok(());
         }
 
+        let intent = owner
+            .map(super::super::coordinate::intent_from_draft)
+            .transpose()?
+            .flatten();
+        if (30_000..40_000).contains(&request.plan().body().kind())
+            && intent.as_ref().is_none_or(|intent| {
+                intent.event_id != *request.plan().expected_event_id().as_bytes()
+                    || intent.author != *request.plan().author().as_bytes()
+            })
+        {
+            return Err(Phase1DraftError::InvalidRevision);
+        }
+        let _coordinate = match owner {
+            Some(head) => self.admit_coordinate(head).await?,
+            None => None,
+        };
+
         if matches!(
             status.artifact().signing_state(),
             SigningState::Planned | SigningState::Retryable
@@ -82,6 +113,9 @@ impl TeraRuntime {
                 AdmissionState::Pending | AdmissionState::Retryable
             )
         {
+            if let Some(intent) = &intent {
+                self.require_coordinate_current(intent).await?;
+            }
             sync.admit_signed(operation_id)
                 .await
                 .map_err(|_| Phase1DraftError::Operation)?;
@@ -98,6 +132,9 @@ impl TeraRuntime {
                 AuthoredDeliveryState::Pending | AuthoredDeliveryState::Retryable
             )
         {
+            if let Some(intent) = &intent {
+                self.require_coordinate_current(intent).await?;
+            }
             match selected {
                 Some(targets) => sync.deliver_push_selected(operation_id, targets).await,
                 None => sync.deliver_push(operation_id).await,

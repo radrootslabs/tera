@@ -84,11 +84,6 @@ final class TeraAddStore: ObservableObject {
     composer.acknowledged
   }
 
-  func selectType(_ type: TeraAddCommandType) {
-    guard !isWorking, !submissions.isWorking, isFormEditable, form.commandType != type else { return }
-    newDraft(type: type)
-  }
-
   func updateForm<Value>(_ keyPath: WritableKeyPath<TeraAddForm, Value>, _ value: Value) {
     guard isFormEditable else { return }
     generation = generation.invalidated()
@@ -137,7 +132,7 @@ final class TeraAddStore: ObservableObject {
     revisionPreparation.reset()
     revisionOperationID = draft.isRevision ? draft.id : nil
     form = snapshot
-    message = draft.state.isEditable ? "Draft reopened." : draft.honestSummary
+    message = draft.isEditable ? "Draft reopened." : draft.honestSummary
   }
 
   func reopenSaved(_ selection: TeraDraftRecoverySelection) async -> Bool {
@@ -264,7 +259,7 @@ final class TeraAddStore: ObservableObject {
         runtimeClient: self.runtimeClient, media: self.media,
         revisionID: { self.revisionOperationID },
         initial: {
-          if let active = self.activeDraft, active.isRevision || !active.state.isEditable {
+          if let active = self.activeDraft, active.isRevision || !active.isEditable {
             return active
           }
           return try await self.saveCurrentForm(generation: requested)
@@ -288,6 +283,10 @@ final class TeraAddStore: ObservableObject {
     await replaceEditing { store, requestedGeneration in
       var current = try await store.runtimeClient.draftStatus(id: id)
       try store.ensureCurrent(requestedGeneration)
+      guard current.coordinateWritable else {
+        store.message = current.honestSummary
+        return
+      }
       if current.state == .draft || current.state == .mediaPreparing
         || current.state == .readyToSign
       {
@@ -310,7 +309,7 @@ final class TeraAddStore: ObservableObject {
         store.message = revision.honestSummary
         return
       }
-      if current.state.canAdvance {
+      if current.canAdvance {
         current = try await store.runtimeClient.advanceDraft(
           id: current.id,
           expectedRevision: current.revision
@@ -384,7 +383,7 @@ final class TeraAddStore: ObservableObject {
         expectedRevision: status.revision
       )
       try store.accept(status, generation: requestedGeneration)
-      if status.state.canAdvance {
+      if status.canAdvance {
         status = try await store.runtimeClient.advanceDraft(
           id: status.id,
           expectedRevision: status.revision

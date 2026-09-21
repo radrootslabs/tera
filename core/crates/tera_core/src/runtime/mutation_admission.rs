@@ -16,6 +16,7 @@ use super::product_surface::Phase1DraftError;
 enum Scope {
     Draft(AuthoredDraftId),
     Authorization(SigningOperationId),
+    Coordinate([u8; 32]),
 }
 
 #[derive(Default)]
@@ -24,6 +25,10 @@ pub(super) struct MutationAdmission {
 }
 
 impl MutationAdmission {
+    pub(super) fn coordinate(&self, key: [u8; 32]) -> Result<MutationPermit<'_>, Phase1DraftError> {
+        self.reserve(Scope::Coordinate(key))
+    }
+
     pub(super) fn draft(&self, id: [u8; 16]) -> Result<MutationPermit<'_>, Phase1DraftError> {
         let id = AuthoredDraftId::new(id).map_err(|_| Phase1DraftError::InvalidDraft)?;
         self.reserve(Scope::Draft(id))

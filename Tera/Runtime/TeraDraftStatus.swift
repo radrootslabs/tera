@@ -16,8 +16,25 @@ struct TeraDraftStatus: Sendable, Equatable, Hashable, Identifiable {
   let settlement: TeraOperationSettlement?
   let isRevision: Bool
   var revisionParentID: String?
+  var coordinateWritable = true
+  var coordinateCaptured = false
+
+  var canAdvance: Bool {
+    coordinateWritable && state.canAdvance
+  }
+
+  var canQueue: Bool {
+    coordinateWritable && (state.isEditable || state == .readyToSign)
+  }
+
+  var isEditable: Bool {
+    !coordinateCaptured && state.isEditable
+  }
 
   var honestSummary: String {
+    if !coordinateWritable, ![.complete, .cancelled, .terminal].contains(state) {
+      return TeraPublicationActionReason.coordinateChanged.explanation
+    }
     if isRevision {
       return "Saved revision; open Drafts & outbox for current relay outcomes."
     }

@@ -1,13 +1,18 @@
 import Foundation
 
 extension TeraAddStore {
+  func selectType(_ type: TeraAddCommandType) {
+    guard !isWorking, !submissions.isWorking, isFormEditable, form.commandType != type else { return }
+    newDraft(type: type)
+  }
+
   var selectedSchema: TeraAddSchema? {
     schemas.first(where: { $0.commandType == form.commandType })
   }
 
   var isFormEditable: Bool {
     guard !revisionPreparation.isCaptured, activeDraft?.isRevision != true, activeDraft?.kind != .retraction else { return false }
-    return activeDraft?.state.isEditable ?? true
+    return activeDraft?.isEditable ?? true
   }
 
   var isProductReady: Bool {
@@ -20,7 +25,9 @@ extension TeraAddStore {
 
   var canSubmit: Bool {
     isProductReady && !isWorking && !submissions.isWorking
-      && (activeDraft?.isRevision == true || activeDraft?.state.canAdvance == true
+      && activeDraft?.coordinateWritable != false
+      && (activeDraft?.isRevision == true || activeDraft?.canAdvance == true
+        || activeDraft?.canQueue == true
         || isFormEditable || revisionPreparation.isCaptured)
   }
 

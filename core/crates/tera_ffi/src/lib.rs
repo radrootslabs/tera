@@ -7,6 +7,8 @@ uniffi::setup_scaffolding!("tera_core");
 
 mod composer;
 mod draft_inventory;
+mod draft_status;
+pub use draft_status::*;
 mod dto;
 mod invalidation;
 pub mod logging;

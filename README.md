@@ -298,3 +298,11 @@ effects after restart. Resume and stop actions are checked against current Rust
 policy; inspecting or acting on a revision does not replace composer editing.
 Meeting an Any relay policy does not imply completion at every saved destination,
 and even a fully accepted retraction remains a request, not proof of erasure.
+
+Addressable publication keeps its full kind, author and identifier coordinate.
+Local requests acquire durable ownership before signing or publication, and a
+superseded request cannot regain that ownership by retrying after restart.
+If the known current revision changes, publication is held while the captured
+form, signed bytes and relay evidence remain available. A new request must be
+reviewed against the current revision. Addressable replacement does not create
+a broad deletion request.

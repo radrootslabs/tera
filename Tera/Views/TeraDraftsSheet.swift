@@ -117,9 +117,9 @@ struct TeraDraftsSheet: View {
           }
         }
         if summary.hasForm {
-          Button(summary.state.isEditable ? "Reopen" : "View") { reopen(.legacy(summary.id)) }
+          Button(summary.isEditable ? "Reopen" : "View") { reopen(.legacy(summary.id)) }
         }
-        if !summary.isRevision, summary.revisionParentID == nil, summary.state.canAdvance {
+        if !summary.isRevision, summary.revisionParentID == nil, summary.canAdvance || summary.canQueue {
           Button("Retry") { Task { await store.retry(id: summary.id); recovery.start() } }
         }
         if !summary.isRevision, summary.revisionParentID == nil, summary.state.canCancel {

@@ -173,7 +173,7 @@ impl TeraRuntime {
         request: PushRequest,
     ) -> Result<(), Phase1DraftError> {
         match self.revision_delivery_selection(head).await? {
-            RevisionDelivery::Independent => self.advance_push_request(request).await,
+            RevisionDelivery::Independent => self.advance_owned_push_request(request, head).await,
             RevisionDelivery::Selected(targets) => {
                 self.advance_push_request_selected(request, targets).await
             }

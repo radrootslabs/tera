@@ -8,6 +8,13 @@ pub(in crate::runtime::product_surface) fn media_references(
         return Err(E);
     }
     match draft.payload_schema() {
+        super::super::coordinate::CLAIM_SCHEMA | super::super::coordinate::BINDING_SCHEMA => {
+            if super::super::coordinate::metadata_is_valid(draft) {
+                Ok(Vec::new())
+            } else {
+                Err(E)
+            }
+        }
         DRAFT_PAYLOAD_SCHEMA => {
             let payload = Phase1DraftPayload::decode(draft).map_err(|_| E)?;
             if payload.encode().map_err(|_| E)? != draft.payload() {

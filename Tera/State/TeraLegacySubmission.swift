@@ -17,6 +17,11 @@ struct TeraLegacySubmission {
       var status = try await initial()
 
       try ensure()
+      guard status.coordinateWritable else {
+        try acceptDraft(status)
+        message(status.honestSummary)
+        return
+      }
       if !status.media.isEmpty,
         status.media.contains(where: { $0.stage != .verified })
       {
@@ -61,7 +66,7 @@ struct TeraLegacySubmission {
   ) async throws {
     var status = initial
     do {
-      if status.state.canAdvance {
+      if status.canAdvance {
         status = try await runtimeClient.advanceDraft(
           id: status.id,
           expectedRevision: status.revision

@@ -8,11 +8,13 @@ pub enum FfiPublicationActionReason {
     QuotaExceeded,
     InvalidPayload,
     DeliveryRefused,
+    CoordinateChanged,
 }
 
 impl From<PublicationActionReason> for FfiPublicationActionReason {
     fn from(value: PublicationActionReason) -> Self {
         match value {
+            PublicationActionReason::CoordinateChanged => Self::CoordinateChanged,
             PublicationActionReason::DeadlineExceeded => Self::DeadlineExceeded,
             PublicationActionReason::AttemptLimit => Self::AttemptLimit,
             PublicationActionReason::AuthenticationRequired => Self::AuthenticationRequired,

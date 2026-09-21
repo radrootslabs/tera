@@ -144,9 +144,10 @@ async fn collect_account(
                 | super::SUBMISSION_INTENT_PAYLOAD_SCHEMA => {
                     submission::media_references(stored, author, store, budget).await?
                 }
-                "radroots.mobile.phase1-draft.v1" | "radroots.mobile.phase1-profile.v1" => {
-                    outbox::media_references(&stored)?
-                }
+                "radroots.mobile.phase1-draft.v1"
+                | "radroots.mobile.phase1-profile.v1"
+                | super::coordinate::CLAIM_SCHEMA
+                | super::coordinate::BINDING_SCHEMA => outbox::media_references(&stored)?,
                 _ => return Err(MediaInventoryIncomplete),
             };
             for hash in references {

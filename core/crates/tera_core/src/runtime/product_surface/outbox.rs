@@ -46,6 +46,8 @@ use super::{
 use crate::runtime::TeraRuntime;
 
 mod advance;
+mod coordinate;
+pub(super) use coordinate::coordinate_intent;
 #[path = "outbox/revision_coordinator.rs"]
 mod revision_coordinator;
 mod revision_status;
@@ -75,7 +77,7 @@ use upload_attempt::UploadAttempt;
 pub use upload_attempt::UploadAttemptIdentity;
 mod upload_renewal;
 
-const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
+pub(super) const DRAFT_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-draft.v1";
 const PROFILE_PAYLOAD_SCHEMA: &str = "radroots.mobile.phase1-profile.v1";
 const DRAFT_SCHEMA_VERSION: u16 = 1;
 const DRAFT_MEDIA_MAX: usize = 20;
@@ -946,9 +948,17 @@ pub struct Phase1DraftStatus {
     push: Option<PushStatus>,
     revision_policy: Option<Phase1RevisionPolicy>,
     revision_parent_draft_id: Option<[u8; 16]>,
+    coordinate_writable: bool,
+    coordinate_captured: bool,
 }
 
 impl Phase1DraftStatus {
+    pub const fn coordinate_writable(&self) -> bool {
+        self.coordinate_writable
+    }
+    pub const fn coordinate_captured(&self) -> bool {
+        self.coordinate_captured
+    }
     pub const fn draft(&self) -> &AuthoredDraft {
         &self.draft
     }
@@ -1771,6 +1781,7 @@ impl TeraRuntime {
                 .map_err(|_| Phase1DraftError::Storage)?
                 .ok_or(Phase1DraftError::NotFound)?;
             if head.revision() != expected
+                || self.draft_has_coordinate_binding(&head).await?
                 || Phase1DraftPayload::decode(&head)?.revision.is_some()
                 || Phase1DraftPayload::decode(&head)?
                     .revision_parent()?
@@ -2143,6 +2154,7 @@ impl TeraRuntime {
         }
         let mut payload = Phase1DraftPayload::decode(&head)?;
         let inherited = self.revision_child_queue_policy(&head).await?;
+        let _coordinate = self.admit_coordinate(&head).await?;
         if inherited
             .as_ref()
             .is_some_and(|frozen| policy.as_ref().is_some_and(|policy| policy != frozen))
@@ -2223,6 +2235,11 @@ impl TeraRuntime {
             .await
             .map_err(|_| Phase1DraftError::Storage)?
             .ok_or(Phase1DraftError::NotFound)?;
+        let _coordinate = if head.stage() == AuthoredDraftStage::ReadyToSign {
+            self.admit_coordinate(&head).await?
+        } else {
+            None
+        };
         match head.stage() {
             AuthoredDraftStage::ReadyToSign => {
                 self.finish_queue(&configuration, head, recovered_at_unix_ms)
@@ -2235,47 +2252,6 @@ impl TeraRuntime {
             | AuthoredDraftStage::MediaPreparing
             | AuthoredDraftStage::MediaUploading => Err(Phase1DraftError::InvalidDraft),
         }
-    }
-
-    /// Invokes the configured opaque host signer for one durably queued draft.
-    ///
-    /// The canonical sync engine verifies author, event ID, exact fields,
-    /// signature, deadline, cancellation, and operation binding before the
-    /// signed artifact can be persisted. Delivery remains a separate phase.
-    pub async fn phase1_sign_queued_draft(
-        &self,
-        draft_id: [u8; 16],
-        expected_revision: u64,
-    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
-        let _command = self.lifecycle.enter()?;
-        let _admission = self.mutations.draft(draft_id)?;
-        let draft_id =
-            AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
-        let expected = AuthoredDraftRevision::new(expected_revision)
-            .map_err(|_| Phase1DraftError::RevisionConflict)?;
-        let head = self
-            .storage()?
-            .authored_draft_head(draft_id)
-            .await
-            .map_err(|_| Phase1DraftError::Storage)?
-            .ok_or(Phase1DraftError::NotFound)?;
-        if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
-            return Err(Phase1DraftError::RevisionConflict);
-        }
-        let _parent_admission = self.revision_parent_admission(&head)?;
-        if matches!(
-            self.revision_delivery_selection(&head).await?,
-            RevisionDelivery::Held
-        ) {
-            return self.draft_status_from(head).await;
-        }
-        self.require_legacy_publication_running(sync_id_for(&head)?)
-            .await?;
-        self.sync()?
-            .sign_prepared(push_request(&head)?)
-            .await
-            .map_err(|_| Phase1DraftError::Operation)?;
-        self.draft_status_from(head).await
     }
 
     /// Advances one durably queued draft through signing, local admission, and
@@ -2784,6 +2760,15 @@ impl TeraRuntime {
         &self,
         draft: AuthoredDraft,
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
+        // Status reconstruction is shared by deeply nested native commands.
+        // Bound their stack frames without changing cancellation or ownership.
+        Box::pin(self.draft_status_current(draft)).await
+    }
+
+    async fn draft_status_current(
+        &self,
+        draft: AuthoredDraft,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         if draft.author() != &self.draft_author()? {
             return Err(Phase1DraftError::Corrupt);
         }
@@ -2800,7 +2785,11 @@ impl TeraRuntime {
             return Err(Phase1DraftError::Corrupt);
         }
         let state = aggregate_state(&draft, push.as_ref());
+        let coordinate_writable = self.coordinate_may_resume(&draft).await?;
+        let coordinate_captured = self.draft_has_coordinate_binding(&draft).await?;
         Ok(Phase1DraftStatus {
+            coordinate_writable,
+            coordinate_captured,
             draft,
             kind: payload.kind,
             command_type: payload.command_type,
@@ -3223,6 +3212,11 @@ fn phase1_random_id() -> Result<[u8; 16], Phase1DraftError> {
 
 #[cfg(test)]
 mod tests {
+    mod coordinate_effect_support;
+    mod coordinate_effect_tests;
+    mod coordinate_recovery_tests;
+    mod coordinate_support;
+    mod coordinate_tests;
     mod recovery_completion_tests;
     mod revision_delivery_support;
     mod revision_delivery_tests;
@@ -3511,12 +3505,13 @@ mod tests {
     #[tokio::test]
     async fn addressable_revision_preserves_every_form_field_and_colon_identifier() {
         let identifier = "market:summer:2026";
+        let prior = coordinate_support::signed_head(SECRET, 31_923, identifier, 1_700_000_000);
         let source = CardSourceIdentity::address(31_923, AUTHOR, identifier).unwrap();
         let target_card = CardId::derive(TodayCardType::Event, &source);
         let target = Phase1RevisionTarget::from_source(
             AddCommandType::CreateEvent,
             target_card,
-            "b".repeat(64),
+            prior.id().to_hex(),
             Some(format!("31923:{AUTHOR}:{identifier}")),
             AUTHOR,
         )
@@ -3555,6 +3550,7 @@ mod tests {
             media: Vec::new(),
         };
         let runtime = runtime();
+        coordinate_support::retain(&runtime, prior).await;
         let saved = runtime
             .phase1_save_revision_intent(
                 Phase1ReviseIntent::new(
@@ -3585,6 +3581,7 @@ mod tests {
     #[tokio::test]
     async fn addressable_revision_rejects_identity_change_and_preserves_date_boundary() {
         let identifier = "winter:market";
+        let prior = coordinate_support::signed_head(SECRET, 31_922, identifier, 1_700_000_000);
         let target_card = CardId::derive(
             TodayCardType::Event,
             &CardSourceIdentity::address(31_922, AUTHOR, identifier).unwrap(),
@@ -3592,7 +3589,7 @@ mod tests {
         let target = Phase1RevisionTarget::new(
             AddCommandType::CreateEvent,
             target_card,
-            "d".repeat(64),
+            prior.id().to_hex(),
             31_922,
             Some(format!("31922:{AUTHOR}:{identifier}")),
             AUTHOR,
@@ -3632,6 +3629,7 @@ mod tests {
         .with_locations(vec!["Barn".to_owned()])
         .unwrap();
         let runtime = runtime();
+        coordinate_support::retain(&runtime, prior).await;
         let saved = runtime
             .phase1_save_revision_intent(
                 Phase1ReviseIntent::new(

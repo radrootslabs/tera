@@ -92,6 +92,26 @@ pub(super) fn commit_id(request: &SubmissionReservationRequest) -> AtomicCommitI
 }
 
 impl IntentPayload {
+    pub(super) fn coordinate_intent(
+        head: &AuthoredDraft,
+    ) -> Result<Option<crate::runtime::product_surface::coordinate::CoordinateIntent>, E> {
+        let value: Self = serde_json::from_slice(head.payload()).map_err(|_| E::CorruptRecord)?;
+        if head.payload_schema() != SUBMISSION_INTENT_PAYLOAD_SCHEMA
+            || value.schema_version != SUBMISSION_INTENT_SCHEMA_VERSION
+            || value.schema_sha256 != SUBMISSION_INTENT_SCHEMA_SHA256
+            || value.scope.author().as_bytes() != head.author()
+        {
+            return Err(E::CorruptRecord);
+        }
+        let wire = PlanWireV1::from_json(&value.plan_wire_json).map_err(|_| E::CorruptRecord)?;
+        crate::runtime::product_surface::coordinate::CoordinateIntent::from_plan(
+            head,
+            wire.plan(),
+            None,
+        )
+        .map_err(|_| E::CorruptRecord)
+    }
+
     pub(super) fn queue_policy(&self) -> &Phase1QueuePolicy {
         &self.policy
     }
