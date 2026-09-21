@@ -4,7 +4,7 @@ use std::{
     time::Duration,
 };
 
-use futures_util::{SinkExt, StreamExt};
+use futures_util::{FutureExt, SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio_tungstenite::{accept_async, tungstenite::Message};
 
@@ -104,7 +104,7 @@ pub(super) fn kill_at_barrier(
     reader.join().unwrap();
 }
 
-async fn receive_event(listener: TcpListener) -> serde_json::Value {
+async fn receive_event(listener: TcpListener) -> String {
     tokio::time::timeout(Duration::from_secs(15), async move {
         let (stream, _) = listener.accept().await.unwrap();
         let mut socket = accept_async(stream).await.unwrap();
@@ -120,7 +120,7 @@ async fn receive_event(listener: TcpListener) -> serde_json::Value {
                         ))
                         .await
                         .unwrap();
-                    return value[1].clone();
+                    return text.to_string();
                 }
             }
         }
@@ -173,7 +173,8 @@ async fn signed_artifact_process_death_preserves_exact_delivery() {
         .unwrap();
     assert_eq!(
         relay_task.await.unwrap(),
-        serde_json::from_str::<serde_json::Value>(&raw).unwrap()
+        format!("[\"EVENT\",{raw}]"),
+        "the socket must receive the exact persisted event bytes, not a reserialized envelope"
     );
     assert_eq!(
         delivered
@@ -193,4 +194,37 @@ async fn signed_artifact_process_death_preserves_exact_delivery() {
     );
     assert_eq!(delivered.receipt(), recovered.receipt());
     runtime.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn delivery_without_persisted_signed_bytes_has_no_effects() {
+    for sqlite in [false, true] {
+        let root = tempfile::tempdir().unwrap();
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let relay = format!("ws://{}", listener.local_addr().unwrap());
+        let signer = CountingSigner::new();
+        let runtime = runtime(sqlite.then_some(root.path()), signer.clone(), &relay).await;
+        let request = request();
+        prepare(&runtime, &request, false).await;
+        let before = runtime.submission_operation_status(&request).await.unwrap();
+        assert!(before.push().artifact().signed().is_none());
+        assert!(before.push().delivery_plan().attempts().is_empty());
+        let (loaded, _) = runtime.load_submission_operation(&request).await.unwrap();
+        assert_eq!(
+            runtime
+                .sync()
+                .unwrap()
+                .deliver_push(loaded.request.operation_id())
+                .await
+                .unwrap_err(),
+            radroots_sync::policy::Error::InvalidSignerOutput
+        );
+        assert_eq!(
+            runtime.submission_operation_status(&request).await.unwrap(),
+            before
+        );
+        assert_eq!(signer.count(), 0);
+        assert!(listener.accept().now_or_never().is_none());
+        runtime.shutdown().await.unwrap();
+    }
 }
