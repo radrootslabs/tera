@@ -76,15 +76,21 @@ impl TeraRuntime {
         };
         let mut replacement_progress = Box::pin(self.revision_branch_status(&replacement)).await?;
         replacement_progress.can_resume &= self.coordinate_may_resume(replacement.draft()).await?;
+        // Missing source proof holds new effects, without hiding old receipts or stop/reconciliation.
+        let source_authorized = revision.policy != Phase1RevisionPolicy::ReplaceThenRetract
+            || self.require_revision_source(&revision.target).await.is_ok();
+        replacement_progress.can_resume &= source_authorized || replacement_progress.can_reconcile;
         let retraction_progress = match retraction.as_ref() {
             Some(child) => {
                 let mut branch = Box::pin(self.revision_branch_status(child)).await?;
                 branch.can_resume &= child.revision_parent_draft_id() == Some(replacement_draft_id);
+                branch.can_resume &= source_authorized || branch.can_reconcile;
                 Some(branch)
             }
             None => None,
         };
-        let child_eligible = !replacement_progress.stopped
+        let child_eligible = source_authorized
+            && !replacement_progress.stopped
             && replacement_progress
                 .targets
                 .as_ref()

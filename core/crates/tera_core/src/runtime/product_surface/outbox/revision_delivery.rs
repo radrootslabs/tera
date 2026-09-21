@@ -175,7 +175,8 @@ impl TeraRuntime {
         match self.revision_delivery_selection(head).await? {
             RevisionDelivery::Independent => self.advance_owned_push_request(request, head).await,
             RevisionDelivery::Selected(targets) => {
-                self.advance_push_request_selected(request, targets).await
+                self.advance_push_request_selected(request, targets, head)
+                    .await
             }
             RevisionDelivery::Held => {
                 // Reconciliation cannot initiate another effect in this call.

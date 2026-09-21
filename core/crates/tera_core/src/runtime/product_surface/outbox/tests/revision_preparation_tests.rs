@@ -2,18 +2,9 @@ use super::*;
 use std::io::{BufRead, Read, Write};
 
 fn intent(content: &str) -> Phase1ReviseIntent {
-    let event = "ab".repeat(32);
-    let target = Phase1RevisionTarget::from_source(
-        AddCommandType::CreateUpdate,
-        CardId::derive(
-            TodayCardType::Update,
-            &CardSourceIdentity::Event(radroots_event::EventId::parse(&event).unwrap()),
-        ),
-        event,
-        None,
-        AUTHOR.to_owned(),
-    )
-    .unwrap();
+    let target = super::retraction_support::original_target(&Phase1AddCommand::CreateUpdate(
+        CreateUpdate::new("Original harvest").unwrap(),
+    ));
     Phase1ReviseIntent::new(
         target,
         Phase1AddCommand::CreateUpdate(CreateUpdate::new(content).unwrap()),
@@ -29,6 +20,7 @@ fn intent(content: &str) -> Phase1ReviseIntent {
 #[tokio::test]
 async fn repeat_preparation_is_one_graph_and_changed_capture_conflicts() {
     let runtime = runtime();
+    super::retraction_support::original(&runtime).await;
     let captured = intent("Original replacement");
     let first = runtime
         .prepare_revision_intent([101; 16], captured.clone())
@@ -253,6 +245,7 @@ async fn revision_child() {
     let store = config(std::path::Path::new(&root));
     std::fs::create_dir_all(store.owner_directory()).unwrap();
     let runtime = RuntimeBuilder::new(store).build().await.unwrap();
+    super::retraction_support::original(&runtime).await;
     let captured = intent("Crash-safe replacement");
     let saved = runtime
         .prepare_revision_intent([101; 16], captured.clone())

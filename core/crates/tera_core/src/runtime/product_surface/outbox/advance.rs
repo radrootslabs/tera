@@ -3,14 +3,7 @@
 use super::*;
 
 impl TeraRuntime {
-    pub(in crate::runtime::product_surface) async fn advance_push_request(
-        &self,
-        request: PushRequest,
-    ) -> Result<(), Phase1DraftError> {
-        self.advance_push_request_with_clock(request, phase1_operation_now_unix_ms)
-            .await
-    }
-
+    #[cfg(test)]
     pub(in crate::runtime::product_surface) async fn advance_push_request_with_clock(
         &self,
         request: PushRequest,
@@ -25,9 +18,6 @@ impl TeraRuntime {
         request: PushRequest,
         head: &AuthoredDraft,
     ) -> Result<(), Phase1DraftError> {
-        if super::super::coordinate::intent_from_draft(head)?.is_none() {
-            return self.advance_push_request(request).await;
-        }
         self.advance_push_request_inner(request, None, Some(head), phase1_operation_now_unix_ms)
             .await
     }
@@ -47,9 +37,15 @@ impl TeraRuntime {
         &self,
         request: PushRequest,
         selected: TargetSet,
+        owner: &AuthoredDraft,
     ) -> Result<(), Phase1DraftError> {
-        self.advance_push_request_inner(request, Some(selected), None, phase1_operation_now_unix_ms)
-            .await
+        self.advance_push_request_inner(
+            request,
+            Some(selected),
+            Some(owner),
+            phase1_operation_now_unix_ms,
+        )
+        .await
     }
 
     async fn advance_push_request_inner(
@@ -88,6 +84,9 @@ impl TeraRuntime {
         if !self.publication_retry_at(&status, now)?.may_start() {
             return Ok(());
         }
+        let authority_plan = request.plan().clone();
+        self.require_publication_source(&authority_plan, owner)
+            .await?;
 
         let intent = owner
             .map(super::super::coordinate::intent_from_draft)
@@ -129,6 +128,8 @@ impl TeraRuntime {
                 AdmissionState::Pending | AdmissionState::Retryable
             )
         {
+            self.require_publication_source(&authority_plan, owner)
+                .await?;
             if let Some(intent) = &intent {
                 self.require_coordinate_current_at(intent, clock()? / 1_000)
                     .await?;
@@ -149,6 +150,8 @@ impl TeraRuntime {
                 AuthoredDeliveryState::Pending | AuthoredDeliveryState::Retryable
             )
         {
+            self.require_publication_source(&authority_plan, owner)
+                .await?;
             if let Some(intent) = &intent {
                 self.require_coordinate_current_at(intent, clock()? / 1_000)
                     .await?;

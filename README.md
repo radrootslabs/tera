@@ -299,6 +299,14 @@ policy; inspecting or acting on a revision does not replace composer editing.
 Meeting an Any relay policy does not imply completion at every saved destination,
 and even a fully accepted retraction remains a request, not proof of erasure.
 
+Retraction requires the exact signed original in the current account's store.
+Rust verifies its signature, author, event kind, address and product card identity
+before capture and again before signing, local admission and delivery. A native
+card or an older saved signature alone does not authorize those effects. Missing
+source evidence holds publication while retained receipts and cancellation remain
+available. Already retracted originals remain eligible evidence for repeated
+requests; their visibility does not grant or remove authorship.
+
 Addressable publication keeps its full kind, author and identifier coordinate.
 Local requests acquire durable ownership before signing or publication, and a
 superseded request cannot regain that ownership by retrying after restart.

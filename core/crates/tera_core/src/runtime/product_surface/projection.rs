@@ -50,20 +50,9 @@ pub fn classify_admitted_event(
         RadrootsAdmittedEvent::Comment(_) => supporting(SupportingProfile::Comment),
         RadrootsAdmittedEvent::DeletionRequest(_) => supporting(SupportingProfile::Deletion),
         RadrootsAdmittedEvent::RootPost(event) => {
-            let card_type = match event.projection().classification() {
-                RadrootsPostClassification::Update => TodayCardType::Update,
-                RadrootsPostClassification::PhotoUpdate => TodayCardType::PhotoUpdate,
-                RadrootsPostClassification::Ask => TodayCardType::Ask,
-                RadrootsPostClassification::ThreadExcluded => {
-                    return ProductEventClassification::Excluded(
-                        ProductEventExclusion::UnsupportedProfile,
-                    );
-                }
-                _ => {
-                    return ProductEventClassification::Excluded(
-                        ProductEventExclusion::UnsupportedProfile,
-                    );
-                }
+            let card_type = match admitted_card_type(admitted) {
+                Ok(value) => value,
+                Err(reason) => return ProductEventClassification::Excluded(reason),
             };
             card(
                 admitted,
@@ -100,6 +89,58 @@ pub fn classify_admitted_event(
     }
 }
 
+/// Product identity without locality, visibility, page or native-card authority.
+pub(super) fn admitted_card_type(
+    admitted: &RadrootsAdmittedEvent,
+) -> Result<TodayCardType, ProductEventExclusion> {
+    Ok(match admitted {
+        RadrootsAdmittedEvent::RootPost(event) => match event.projection().classification() {
+            RadrootsPostClassification::Update => TodayCardType::Update,
+            RadrootsPostClassification::PhotoUpdate => TodayCardType::PhotoUpdate,
+            RadrootsPostClassification::Ask => TodayCardType::Ask,
+            _ => return Err(ProductEventExclusion::UnsupportedProfile),
+        },
+        RadrootsAdmittedEvent::FoodAvailability(_) => TodayCardType::FoodAvailability,
+        RadrootsAdmittedEvent::ContractValidated(event)
+            if matches!(
+                event.contract_id(),
+                "radroots.calendar.date_event.v1" | "radroots.calendar.time_event.v1"
+            ) =>
+        {
+            TodayCardType::Event
+        }
+        _ => return Err(ProductEventExclusion::UnsupportedProfile),
+    })
+}
+
+pub(super) fn admitted_card_source(
+    admitted: &RadrootsAdmittedEvent,
+    card_type: TodayCardType,
+) -> Result<CardSourceIdentity, ProductEventExclusion> {
+    let event = admitted.event();
+    Ok(match card_type {
+        TodayCardType::Update | TodayCardType::PhotoUpdate | TodayCardType::Ask => {
+            CardSourceIdentity::Event(*event.id())
+        }
+        TodayCardType::Event | TodayCardType::FoodAvailability => {
+            let identifier = event
+                .tags_as_vec()
+                .into_iter()
+                .find(|tag| tag.first().map(String::as_str) == Some("d"))
+                .and_then(|tag| tag.get(1).cloned());
+            let Some(identifier) = identifier else {
+                return Err(ProductEventExclusion::InvalidSourceIdentity);
+            };
+            let Ok(source) =
+                CardSourceIdentity::address(event.kind_u32(), event.author().to_hex(), identifier)
+            else {
+                return Err(ProductEventExclusion::InvalidSourceIdentity);
+            };
+            source
+        }
+    })
+}
+
 const fn supporting(profile: SupportingProfile) -> ProductEventClassification {
     ProductEventClassification::Supporting(profile)
 }
@@ -112,30 +153,9 @@ fn card(
     lifecycle: CardLifecycleState,
 ) -> ProductEventClassification {
     let event = admitted.event();
-    let source = match card_type {
-        TodayCardType::Update | TodayCardType::PhotoUpdate | TodayCardType::Ask => {
-            CardSourceIdentity::Event(*event.id())
-        }
-        TodayCardType::Event | TodayCardType::FoodAvailability => {
-            let identifier = event
-                .tags_as_vec()
-                .into_iter()
-                .find(|tag| tag.first().map(String::as_str) == Some("d"))
-                .and_then(|tag| tag.get(1).cloned());
-            let Some(identifier) = identifier else {
-                return ProductEventClassification::Excluded(
-                    ProductEventExclusion::InvalidSourceIdentity,
-                );
-            };
-            let Ok(source) =
-                CardSourceIdentity::address(event.kind_u32(), event.author().to_hex(), identifier)
-            else {
-                return ProductEventClassification::Excluded(
-                    ProductEventExclusion::InvalidSourceIdentity,
-                );
-            };
-            source
-        }
+    let source = match admitted_card_source(admitted, card_type) {
+        Ok(value) => value,
+        Err(reason) => return ProductEventClassification::Excluded(reason),
     };
     let source_address = match &source {
         CardSourceIdentity::Event(_) => None,

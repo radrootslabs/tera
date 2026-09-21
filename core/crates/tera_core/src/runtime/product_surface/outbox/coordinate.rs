@@ -74,8 +74,11 @@ impl TeraRuntime {
         }
         self.require_legacy_publication_running(sync_id_for(&head)?)
             .await?;
+        let request = push_request(&head)?;
+        self.require_publication_source(request.plan(), Some(&head))
+            .await?;
         self.sync()?
-            .sign_prepared(push_request(&head)?)
+            .sign_prepared(request)
             .await
             .map_err(|_| Phase1DraftError::Operation)?;
         self.require_draft_coordinate_current(&head).await?;

@@ -206,11 +206,9 @@ async fn cancellation_stops_both_partial_branches_and_direct_child_after_reopen(
 #[tokio::test]
 async fn historical_unlinked_revision_reason_is_held_without_rewriting_old_payload() {
     let runtime = signing_runtime();
-    let source = "b".repeat(64);
-    let card = CardId::derive(
-        TodayCardType::Update,
-        &CardSourceIdentity::Event(radroots_event::EventId::parse(&source).unwrap()),
-    );
+    let target = super::retraction_support::original(&runtime).await;
+    let source = target.source_event_id;
+    let card = target.card_id;
     let old = runtime
         .phase1_save_retraction_draft(
             [103; 16],

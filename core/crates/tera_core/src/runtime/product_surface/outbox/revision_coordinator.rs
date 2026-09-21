@@ -18,7 +18,8 @@ impl TeraRuntime {
         if matches!(
             status.replacement.state(),
             Phase1OutboxState::Draft | Phase1OutboxState::ReadyToSign
-        ) {
+        ) && status.replacement_progress.can_resume
+        {
             let now_unix_ms = phase1_operation_now_unix_ms()?;
             self.phase1_queue_draft_admitted(
                 &admission,

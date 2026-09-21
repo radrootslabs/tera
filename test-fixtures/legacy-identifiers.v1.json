@@ -144,7 +144,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
-          "count": 14
+          "count": 19
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
@@ -1918,7 +1918,7 @@
       "occurrences": [
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
-          "count": 5
+          "count": 4
         }
       ]
     },
@@ -3264,7 +3264,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
-          "count": 1
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_calendar_migration_tests.rs",
@@ -3282,7 +3282,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/projection.rs",
-          "count": 1
+          "count": 2
         }
       ]
     },
@@ -4884,10 +4884,14 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
-          "count": 5
+          "count": 3
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/coordinate.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/retraction_authority.rs",
           "count": 1
         },
         {
@@ -4899,15 +4903,15 @@
           "count": 2
         },
         {
-          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/revision_delivery_support.rs",
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/retraction_authority_tests.rs",
           "count": 1
         },
         {
-          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/revision_delivery_tests.rs",
-          "count": 1
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/retraction_source_tests.rs",
+          "count": 4
         },
         {
-          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/revision_preparation_tests.rs",
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/retraction_support.rs",
           "count": 1
         },
         {
@@ -5007,10 +5011,6 @@
           "count": 1
         },
         {
-          "path": "core/crates/tera_ffi/tests/revision_status_contract.rs",
-          "count": 1
-        },
-        {
           "path": "core/crates/tera_ffi/tests/runtime_delegation.rs",
           "count": 1
         }
@@ -5047,6 +5047,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
           "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/retraction_authority.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_support.rs",
@@ -5835,6 +5839,10 @@
           "count": 2
         },
         {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/retraction_authority.rs",
+          "count": 1
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_effect_tests.rs",
           "count": 1
         },
@@ -5848,6 +5856,14 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_support.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/retraction_effect_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/retraction_source_tests.rs",
           "count": 1
         },
         {
@@ -6160,6 +6176,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_support.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/retraction_source_tests.rs",
           "count": 1
         },
         {

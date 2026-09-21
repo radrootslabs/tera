@@ -1,17 +1,22 @@
 use tera_ffi::*;
+#[path = "support/retraction.rs"]
+mod retraction;
 mod support;
 
 #[tokio::test]
 async fn revision_status_maps_original_relation_actions_and_stopped_facts_across_reopen() {
     let (root, runtime) = support::runtime().await;
-    let source_event_id = "ab".repeat(32);
-    let card_id = tera_core::runtime::product_surface::CardId::derive(
-        tera_core::runtime::product_surface::TodayCardType::Update,
-        &tera_core::runtime::product_surface::CardSourceIdentity::Event(
-            radroots_event::EventId::parse(&source_event_id).unwrap(),
-        ),
+    runtime.shutdown().await.unwrap();
+    let (card_id, source_event_id) = retraction::seed(root.path(), input()).await;
+    let runtime = TeraRuntime::new(
+        root.path().to_string_lossy().into_owned(),
+        support::PUBLIC_KEY.into(),
+        support::GENERATION.into(),
+        1_800_000_000_000,
+        ProtectedDataAvailability::Available,
     )
-    .to_hex();
+    .await
+    .unwrap();
     let saved = runtime
         .phase1_save_revision_intent(FfiRevisionInputRecord {
             request_id: "ac".repeat(16),
@@ -20,28 +25,7 @@ async fn revision_status_maps_original_relation_actions_and_stopped_facts_across
             source_event_id: source_event_id.clone(),
             source_address: None,
             author_public_key: support::PUBLIC_KEY.into(),
-            replacement: FfiAddDraftInput {
-                schema_version: 1,
-                command_type: FfiAddCommandType::CreateUpdate,
-                content: "Corrected harvest".into(),
-                identifier: None,
-                title: None,
-                summary: None,
-                location: None,
-                event_timing: None,
-                event_start_date: None,
-                event_end_date: None,
-                event_start_unix_s: None,
-                event_end_unix_s: None,
-                event_timezone: None,
-                price_amount: None,
-                currency: None,
-                unit: None,
-                quantity: None,
-                food_published_at_unix_s: None,
-                food_status: None,
-                media: vec![],
-            },
+            replacement: input(),
         })
         .await
         .unwrap();
@@ -86,4 +70,29 @@ async fn revision_status_maps_original_relation_actions_and_stopped_facts_across
         stopped
     );
     runtime.shutdown().await.unwrap();
+}
+
+fn input() -> FfiAddDraftInput {
+    FfiAddDraftInput {
+        schema_version: 1,
+        command_type: FfiAddCommandType::CreateUpdate,
+        content: "Corrected harvest".into(),
+        identifier: None,
+        title: None,
+        summary: None,
+        location: None,
+        event_timing: None,
+        event_start_date: None,
+        event_end_date: None,
+        event_start_unix_s: None,
+        event_end_unix_s: None,
+        event_timezone: None,
+        price_amount: None,
+        currency: None,
+        unit: None,
+        quantity: None,
+        food_published_at_unix_s: None,
+        food_status: None,
+        media: vec![],
+    }
 }

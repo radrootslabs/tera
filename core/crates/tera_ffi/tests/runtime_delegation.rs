@@ -15,6 +15,8 @@ use tera_ffi::{
     FfiTodayProjectionUpdate, MOBILE_FFI_SCHEMA_VERSION, TeraAppError,
 };
 
+#[path = "support/retraction.rs"]
+mod retraction;
 mod support;
 
 #[tokio::test]
@@ -395,7 +397,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .phase1_validate_add_draft(add.clone(), 1_800_000_001)
         .expect("valid draft");
     let saved = runtime
-        .phase1_save_add_intent(add, None, None)
+        .phase1_save_add_intent(add.clone(), None, None)
         .await
         .expect("saved draft");
     let draft_id = saved.draft_id.clone();
@@ -475,12 +477,36 @@ async fn native_boundary_delegates_the_complete_core_surface() {
             .is_err()
     );
 
+    runtime.shutdown().await.unwrap();
+    let (source_card, source_event) = retraction::seed(_root.path(), add).await;
+    let runtime = tera_ffi::TeraRuntime::new(
+        _root.path().to_string_lossy().into_owned(),
+        support::PUBLIC_KEY.into(),
+        support::GENERATION.into(),
+        1_800_000_000_000,
+        tera_ffi::ProtectedDataAvailability::Available,
+    )
+    .await
+    .unwrap();
+    runtime
+        .configure_device_relays(vec!["wss://10.0.0.5:7447".to_owned()])
+        .await
+        .unwrap();
+    runtime
+        .configure_blossom(
+            FfiBlossomHostKind::PhysicalDevice,
+            FfiBlossomEndpointAuthority::PrivateNetworkDevelopment,
+            "https://10.0.0.5:3100".to_owned(),
+            vec![],
+        )
+        .await
+        .unwrap();
     let retraction_id = "0a".repeat(16);
     let retraction_input = FfiRetractionDraftInput {
         schema_version: MOBILE_FFI_SCHEMA_VERSION,
         command_type: FfiAddCommandType::CreateUpdate,
-        target_card_id: "c".repeat(64),
-        target_event_id: "a".repeat(64),
+        target_card_id: source_card.clone(),
+        target_event_id: source_event.clone(),
         target_kind: 1,
         target_address: None,
         reason: "Replaced with a corrected copy".to_owned(),
@@ -511,7 +537,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         .await
         .expect("saved retraction");
     assert_eq!(retraction.kind, FfiDraftKind::Retraction);
-    assert_eq!(retraction.card_id, "c".repeat(64));
+    assert_eq!(retraction.card_id, source_card);
     assert!(retraction.form.is_none());
     let queued_retraction = runtime
         .phase1_queue_draft(
@@ -705,7 +731,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
     );
     assert_eq!(unlocked.settings.revision, completed.settings.revision);
 
-    let source_event_id = "ab".repeat(32);
+    let source_event_id = source_event;
     let source = tera_core::runtime::product_surface::CardSourceIdentity::Event(
         radroots_event::EventId::parse(&source_event_id).expect("source event id"),
     );
@@ -820,6 +846,15 @@ async fn native_boundary_delegates_the_complete_core_surface() {
         FfiOutboxState::Cancelled
     );
 
+    // The seeded source changed history after the earlier empty projection.
+    runtime
+        .phase1_refresh_today(
+            local_network.clone(),
+            1_800_000_010,
+            FfiTodayProjectionUpdate::Incremental,
+        )
+        .await
+        .unwrap();
     let cache = runtime
         .phase1_media_cache_status(local_network.clone())
         .await

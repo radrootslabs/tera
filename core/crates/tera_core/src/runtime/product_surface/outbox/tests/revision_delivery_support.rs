@@ -118,19 +118,7 @@ pub(super) async fn persistent_runtime(root: &std::path::Path, urls: &[String]) 
 }
 
 pub(super) async fn saved_revision(runtime: &TeraRuntime) -> Phase1RevisionStatus {
-    let event = "b".repeat(64);
-    let target = Phase1RevisionTarget::new(
-        AddCommandType::CreateUpdate,
-        CardId::derive(
-            TodayCardType::Update,
-            &CardSourceIdentity::Event(radroots_event::EventId::parse(&event).unwrap()),
-        ),
-        event,
-        1,
-        None,
-        AUTHOR,
-    )
-    .unwrap();
+    let target = super::retraction_support::original(runtime).await;
     runtime
         .prepare_revision_intent(
             [102; 16],

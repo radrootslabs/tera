@@ -85,6 +85,16 @@ impl TeraRuntime {
                 return Err(Phase1DraftError::RevisionConflict);
             }
         } else {
+            if policy == Phase1RevisionPolicy::ReplaceThenRetract {
+                self.require_revision_source(
+                    &payload
+                        .revision
+                        .as_ref()
+                        .ok_or(Phase1DraftError::Corrupt)?
+                        .target,
+                )
+                .await?;
+            }
             let receipt = storage
                 .append_authored_draft(candidate.clone(), None)
                 .await
