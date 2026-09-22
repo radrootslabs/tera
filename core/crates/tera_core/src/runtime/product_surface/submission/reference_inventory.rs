@@ -10,7 +10,7 @@ pub(in crate::runtime::product_surface) async fn media_references(
     author: [u8; 32],
     store: &dyn Storage,
     budget: &mut InventoryBudget,
-) -> Result<Vec<String>, E> {
+) -> Result<Vec<super::super::media_gc::MediaReference>, E> {
     let (reservation, intent) =
         if stored.payload_schema() == record::SUBMISSION_RESERVATION_PAYLOAD_SCHEMA {
             (stored, None)

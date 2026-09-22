@@ -234,7 +234,10 @@ fn validate_time(value: u64) -> Result<(), ComposerStorageError> {
 pub(in crate::runtime::product_surface) fn media_references(
     stored: AuthoredDraft,
     author: [u8; 32],
-) -> Result<Vec<String>, super::super::media_gc::MediaInventoryIncomplete> {
+) -> Result<
+    Vec<super::super::media_gc::MediaReference>,
+    super::super::media_gc::MediaInventoryIncomplete,
+> {
     use super::super::media_gc::MediaInventoryIncomplete as E;
     if stored.payload().len() > COMPOSER_FORM_MAX_BYTES {
         return Err(E);
@@ -252,7 +255,10 @@ pub(in crate::runtime::product_surface) fn media_references(
         .input()
         .media
         .iter()
-        .map(|media| media.sha256.clone())
+        .map(|media| super::super::media_gc::MediaReference {
+            sha256: media.sha256.clone(),
+            byte_length: media.byte_size,
+        })
         .collect())
 }
 

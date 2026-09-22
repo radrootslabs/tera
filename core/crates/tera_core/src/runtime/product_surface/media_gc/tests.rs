@@ -109,6 +109,7 @@ async fn removing_one_shared_reference_and_reediting_reserved_source_cannot_coll
         scope.author().into_bytes(),
         &mut references,
         &mut InventoryBudget::default(),
+        None,
     )
     .await
     .unwrap();

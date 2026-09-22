@@ -1,4 +1,6 @@
 use std::sync::Arc;
+#[path = "backup/runtime.rs"]
+mod backup;
 #[path = "revision.rs"]
 mod revision;
 pub use revision::FfiRevisionSourceRequest;
@@ -90,6 +92,7 @@ impl TeraRuntime {
             source_generation_created_at_unix_ms,
             protected_data,
             None,
+            false,
         )
         .await
     }
@@ -110,6 +113,7 @@ impl TeraRuntime {
             source_generation_created_at_unix_ms,
             protected_data,
             Some(host_signer),
+            false,
         )
         .await
     }
@@ -1224,6 +1228,7 @@ async fn build_runtime(
     source_generation_created_at_unix_ms: u64,
     protected_data: ProtectedDataAvailability,
     host_signer: Option<Box<dyn TeraHostSigner>>,
+    local_backups: bool,
 ) -> Result<TeraRuntime, TeraAppError> {
     let store = tera_core::runtime::store::MobileUserStoreConfig::from_encoded(
         application_support_directory,
@@ -1232,6 +1237,11 @@ async fn build_runtime(
         source_generation_created_at_unix_ms,
         protected_data.into(),
     )?;
+    let store = if local_backups {
+        store.with_local_backups()
+    } else {
+        store
+    };
     let invalidations = tera_core::runtime::invalidation::RuntimeInvalidations::new(
         store.public_key(),
         store.source_generation(),

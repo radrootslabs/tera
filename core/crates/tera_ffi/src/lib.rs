@@ -5,7 +5,9 @@
 
 uniffi::setup_scaffolding!("tera_core");
 
+mod backup;
 mod composer;
+pub use backup::*;
 mod draft_inventory;
 mod draft_status;
 pub use draft_status::*;

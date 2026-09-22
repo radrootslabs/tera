@@ -3,19 +3,20 @@ import TeraKitBindings
 
 extension TeraGeneratedRuntimeBackend {
   static func start(
-    configuration: TeraRuntimeLaunchConfiguration
+    configuration: TeraRuntimeLaunchConfiguration, localBackups: Bool = false
   ) async throws -> TeraRuntimeBackendStart {
     var createdRuntime: TeraRuntime?
     do {
       let mediaUse = try TeraMediaProcessUse.admit(applicationSupportDirectory: configuration.applicationSupportDirectory)
       defer { withExtendedLifetime(mediaUse) {} }
-      let runtime = try await TeraRuntime.withHostSigner(
-        applicationSupportDirectory: configuration.applicationSupportDirectory,
-        publicKeyHex: configuration.publicKeyHex,
-        sourceGenerationHex: configuration.sourceGenerationHex,
-        sourceGenerationCreatedAtUnixMs: configuration.sourceGenerationCreatedAtUnixMilliseconds,
-        protectedData: configuration.protectedData.generatedValue,
-        hostSigner: TeraGeneratedHostSigner(signer: configuration.signer)
+      let constructor = localBackups ? TeraRuntime.withHostSignerAndLocalBackups : TeraRuntime.withHostSigner
+      let runtime = try await constructor(
+        configuration.applicationSupportDirectory,
+        configuration.publicKeyHex,
+        configuration.sourceGenerationHex,
+        configuration.sourceGenerationCreatedAtUnixMilliseconds,
+        configuration.protectedData.generatedValue,
+        TeraGeneratedHostSigner(signer: configuration.signer)
       )
       createdRuntime = runtime
       runtime.setAppInfoPlatform(

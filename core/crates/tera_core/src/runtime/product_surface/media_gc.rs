@@ -3,7 +3,7 @@
 //! The host must hold the exclusive file-maintenance reservation for this entire
 //! inventory and every subsequent conditional unlink. No result survives that fence.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use radroots_storage::{
     Storage,
@@ -62,6 +62,11 @@ pub struct MediaReferenceInventory {
     hashes: BTreeSet<String>,
 }
 
+pub(in crate::runtime) struct MediaReference {
+    pub(in crate::runtime) sha256: String,
+    pub(in crate::runtime) byte_length: u64,
+}
+
 impl MediaReferenceInventory {
     /// Policy only: the host still proves regular single-link file identity and
     /// performs same-scan conditional unlink under its retained exclusive fence.
@@ -73,6 +78,31 @@ impl MediaReferenceInventory {
                 .is_some_and(|age| age >= MEDIA_ORPHAN_GRACE_MS);
         old_enough && ((canonical_hash(name) && !self.hashes.contains(name)) || scratch_name(name))
     }
+}
+
+/// Only for an already fenced live runtime. Callers retain its exclusive
+/// maintenance reservation until the returned references have been leased.
+pub(in crate::runtime) async fn backup_references(
+    store: &dyn Storage,
+    author: [u8; 32],
+) -> Result<Vec<MediaReference>> {
+    let mut hashes = BTreeSet::new();
+    let mut lengths = BTreeMap::new();
+    collect_account(
+        store,
+        author,
+        &mut hashes,
+        &mut InventoryBudget::default(),
+        Some(&mut lengths),
+    )
+    .await?;
+    Ok(lengths
+        .into_iter()
+        .map(|(sha256, byte_length)| MediaReference {
+            sha256,
+            byte_length,
+        })
+        .collect())
 }
 
 pub(super) fn canonical_hash(value: &str) -> bool {
@@ -113,6 +143,7 @@ async fn collect_account(
     author: [u8; 32],
     hashes: &mut BTreeSet<String>,
     budget: &mut InventoryBudget,
+    mut lengths: Option<&mut BTreeMap<String, u64>>,
 ) -> Result<()> {
     let mut query = AuthoredDraftQuery::for_author_all_schemas(author, MEDIA_PAGE_LIMIT)
         .map_err(|_| MediaInventoryIncomplete)?;
@@ -150,8 +181,16 @@ async fn collect_account(
                 | super::coordinate::BINDING_SCHEMA => outbox::media_references(&stored)?,
                 _ => return Err(MediaInventoryIncomplete),
             };
-            for hash in references {
-                retain(hashes, hash)?;
+            for reference in references {
+                retain(hashes, reference.sha256.clone())?;
+                if let Some(lengths) = &mut lengths
+                    && (reference.byte_length == 0
+                        || lengths
+                            .insert(reference.sha256, reference.byte_length)
+                            .is_some_and(|previous| previous != reference.byte_length))
+                {
+                    return Err(MediaInventoryIncomplete);
+                }
             }
         }
         let Some(next) = next else { return Ok(()) };

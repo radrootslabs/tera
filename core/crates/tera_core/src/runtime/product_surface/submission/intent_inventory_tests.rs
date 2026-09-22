@@ -43,7 +43,9 @@ async fn media_inventory_retains_pending_uploading_and_failed_intent_sources() {
         )
         .await
         .unwrap();
-        assert_eq!(hashes, [photo().0.sha256]);
+        assert_eq!(hashes.len(), 1);
+        assert_eq!(hashes[0].sha256, photo().0.sha256);
+        assert_eq!(hashes[0].byte_length, photo().0.byte_size);
     }
     client.close().await.unwrap();
 }

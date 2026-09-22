@@ -3,7 +3,7 @@ use super::*;
 
 pub(in crate::runtime::product_surface) fn media_references(
     draft: &AuthoredDraft,
-) -> Result<Vec<String>, E> {
+) -> Result<Vec<super::super::media_gc::MediaReference>, E> {
     if draft.scope().is_some() {
         return Err(E);
     }
@@ -25,7 +25,10 @@ pub(in crate::runtime::product_surface) fn media_references(
             Ok(payload
                 .media
                 .iter()
-                .map(|media| media.sha256().to_owned())
+                .map(|media| super::super::media_gc::MediaReference {
+                    sha256: media.sha256().to_owned(),
+                    byte_length: media.byte_size(),
+                })
                 .collect())
         }
         PROFILE_PAYLOAD_SCHEMA => {

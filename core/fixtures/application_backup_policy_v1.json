@@ -1,0 +1,21 @@
+{
+  "schema": "tera.application-backup.policy.v1",
+  "manifest_version": 1,
+  "manifest_max_bytes": 16777216,
+  "media_member_max_bytes": 67108864,
+  "reference_inventory": "media_cleanup_policy_v1.json",
+  "aggregate_capacity": "positive_caller_limit_including_database_and_media_bytes",
+  "capture": "canonical_storage_owner",
+  "admission": "exclusive_idle_runtime_maintenance",
+  "settling": "canonical_owner_drains_canceled_writes_before_inventory",
+  "startup": "explicit_backup_enabled_session",
+  "identity": ["account", "source_generation", "backup_id", "requested_at_unix_ms", "maximum_bytes"],
+  "members": ["runtime_database", "protected_database", "required_immutable_media_leases"],
+  "media_custody": "protected_account_backup_directory_before_immutable_lease_creation",
+  "media_admission": "canonical_rust_validator_before_native_file_effects",
+  "completion": "owner_verify_and_finalize_then_durable_create_only_native_manifest",
+  "interruption": "retain_incomplete_staging_and_leases_without_claiming_completion",
+  "retry": "exact_candidate_binding_and_original_member_reverification",
+  "credential_export": false,
+  "automatic_restore_or_republish": false
+}

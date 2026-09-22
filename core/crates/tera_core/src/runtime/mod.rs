@@ -1,4 +1,6 @@
 pub mod app_info;
+#[cfg(feature = "mobile-social")]
+pub mod backup;
 pub mod builder;
 pub mod info;
 pub mod invalidation;

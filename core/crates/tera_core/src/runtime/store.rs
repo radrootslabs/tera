@@ -34,6 +34,7 @@ pub struct MobileUserStoreConfig {
     source_generation: SourceGeneration,
     source_generation_created_at_unix_ms: u64,
     protected_data: ProtectedDataAvailability,
+    local_backups: bool,
 }
 
 impl MobileUserStoreConfig {
@@ -83,7 +84,22 @@ impl MobileUserStoreConfig {
             source_generation,
             source_generation_created_at_unix_ms,
             protected_data,
+            local_backups: false,
         })
+    }
+
+    /// Enables local owner backups in the exact native-created account scope.
+    /// This does not create directories or authorize export of credentials.
+    pub fn with_local_backups(mut self) -> Self {
+        self.local_backups = true;
+        self
+    }
+
+    pub fn backup_directory(&self) -> PathBuf {
+        self.application_support_directory
+            .join("backups")
+            .join(self.public_key.to_hex())
+            .join("sqlite")
     }
 
     /// Returns the host-owned Application Support root.
@@ -111,7 +127,7 @@ impl MobileUserStoreConfig {
     }
 
     pub(crate) fn validate_host_filesystem(&self) -> Result<(), TeraAppError> {
-        let directories = [
+        let mut directories = vec![
             self.application_support_directory.clone(),
             self.application_support_directory
                 .join(PRODUCT_DIRECTORY)
@@ -122,6 +138,14 @@ impl MobileUserStoreConfig {
                 .to_path_buf(),
             self.owner_directory.clone(),
         ];
+        if self.local_backups {
+            let backups = self.application_support_directory.join("backups");
+            directories.extend([
+                backups.clone(),
+                backups.join(self.public_key.to_hex()),
+                self.backup_directory(),
+            ]);
+        }
         for directory in directories {
             let metadata = std::fs::symlink_metadata(&directory)
                 .map_err(|_| TeraAppError::store_path_unavailable())?;
@@ -156,7 +180,7 @@ impl MobileUserStoreConfig {
         } else {
             radroots_sdk::storage::SqliteOpenMode::Create
         };
-        radroots_sdk::storage::SqliteOptions::new(paths, mode)
+        let options = radroots_sdk::storage::SqliteOptions::new(paths, mode)
             .with_busy_timeout(Duration::from_secs(5))
             .and_then(|options| {
                 options.with_source_generation(
@@ -164,7 +188,14 @@ impl MobileUserStoreConfig {
                     self.source_generation_created_at_unix_ms,
                 )
             })
-            .map_err(|_| TeraAppError::store_invalid_configuration())
+            .map_err(|_| TeraAppError::store_invalid_configuration())?;
+        if self.local_backups {
+            options
+                .with_backup_root(self.backup_directory())
+                .map_err(|_| TeraAppError::store_invalid_configuration())
+        } else {
+            Ok(options)
+        }
     }
 }
 

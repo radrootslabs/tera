@@ -352,3 +352,29 @@ conflicts require recovery without overwriting either copy. A verified legacy
 copy is installed only after confirming destination absence, and the old copy
 remains available across repeated restarts. Unpublished partial staging is not
 treated as a completed photo or discarded by migration.
+
+Local application backup uses the exact shared database owner's capture,
+verification and finalization capability. An explicit backup-enabled startup
+prepares the account backup root through the native file owner; ordinary startup
+does not create it. The caller closes its previous session before selecting this
+startup mode. Backup admission requires an idle runtime, waits for earlier owner
+writes to settle (including canceled commands), and excludes mutations until the
+attempt finishes. It binds the account, source generation, request ID,
+format version, database digests and sizes, and all required authored-media
+digests and byte counts. Native media leases are immutable and survive removal
+of the original prepared file. They live in the protected account backup tree;
+directory custody metadata is applied before immutable file creation. Missing or
+conflicting media refuses completion.
+
+The application manifest is bounded to 16 MiB, each retained media member to
+64 MiB, and the reference inventory to the existing 65,536-reference traversal
+budget. The caller supplies a positive aggregate byte limit. These are processing
+bounds, not a disk-space reservation. Candidate and complete manifests use
+create-only durable installation. Retrying an exact persisted candidate verifies
+its original snapshot and leases, even if live state has since changed. An
+interrupted attempt retains incomplete owner staging and media leases; absence
+of a complete manifest is never success. Backups stay local, excluded from OS
+backup, with host file protection; this adapter neither exports Keychain secrets
+nor restores or republishes historical operations. Existing conservative media
+cleanup retains the backup tree. Physical power-loss behavior is not inferred
+from simulator interruption tests.

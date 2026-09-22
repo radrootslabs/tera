@@ -52,6 +52,7 @@ targets:
       - path: TeraTests/TeraSubmissionStoreTests.swift
       - path: TeraTests/TeraForegroundSubmissionTests.swift
       - path: TeraTests/TeraDurableMediaRootsTests.swift
+      - path: TeraTests/TeraLocalBackupTests.swift
       - path: TeraTests/TeraMediaCleanupTests.swift
       - path: TeraTests/TeraRecoveryInventoryTests.swift
       - path: TeraTests/TeraNativeRecoveryScheduleTestStorage.swift

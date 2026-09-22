@@ -42,7 +42,7 @@ pub async fn inspect_media_references(
             .build()
             .map_err(|_| MediaInventoryIncomplete)?;
         let result = match client.storage() {
-            Ok(store) => collect_account(store, author, &mut hashes, &mut budget).await,
+            Ok(store) => collect_account(store, author, &mut hashes, &mut budget, None).await,
             Err(_) => Err(MediaInventoryIncomplete),
         };
         // Close even after a failed traversal. A failed close cannot authorize GC.

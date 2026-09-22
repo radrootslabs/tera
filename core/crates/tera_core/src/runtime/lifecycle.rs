@@ -21,6 +21,8 @@ pub enum RuntimeLifecycleError {
     Closed,
     #[error("runtime close is in progress")]
     CloseInProgress,
+    #[error("runtime maintenance is in progress")]
+    MaintenanceInProgress,
     #[error("runtime lifecycle is unavailable")]
     Unavailable,
 }
@@ -35,6 +37,7 @@ impl RuntimeLifecycleError {
             Self::Closing => KnownCode::ClientClosing,
             Self::Closed => KnownCode::ClientClosed,
             Self::CloseInProgress => KnownCode::ClientCloseInProgress,
+            Self::MaintenanceInProgress => KnownCode::PreconditionChanged,
             Self::Unavailable => KnownCode::InternalError,
         }
     }
@@ -49,7 +52,9 @@ impl From<RuntimeLifecycleError> for TeraAppError {
             RuntimeLifecycleError::CloseInProgress => {
                 Some(radroots_sdk::error::ErrorKind::CloseInProgress)
             }
-            RuntimeLifecycleError::Unavailable => None,
+            RuntimeLifecycleError::MaintenanceInProgress | RuntimeLifecycleError::Unavailable => {
+                None
+            }
         }
         .map(radroots_sdk::error::ErrorKind::descriptor);
         Self::Sdk {
@@ -76,6 +81,7 @@ impl From<RuntimeLifecycleError> for TeraAppError {
 #[derive(Default)]
 struct State {
     closing: bool,
+    maintenance: bool,
     active: usize,
     close_active: bool,
     completed: Option<Result<(), SdkErrorRecord>>,
@@ -100,11 +106,56 @@ impl RuntimeLifecycle {
                 RuntimeLifecycleError::Closing
             });
         }
+        if state.maintenance {
+            return Err(RuntimeLifecycleError::MaintenanceInProgress);
+        }
         state.active = state
             .active
             .checked_add(1)
             .ok_or(RuntimeLifecycleError::Unavailable)?;
         Ok(CommandLease(self))
+    }
+
+    /// Refuses busy runtimes immediately. No existing command is interrupted,
+    /// and the reservation participates in the ordinary close drain.
+    #[cfg(feature = "mobile-social")]
+    pub(super) fn maintenance(&self) -> Result<MaintenanceLease<'_>, RuntimeLifecycleError> {
+        let mut state = self
+            .state
+            .lock()
+            .map_err(|_| RuntimeLifecycleError::Unavailable)?;
+        if state.closing {
+            return Err(if state.completed.is_some() {
+                RuntimeLifecycleError::Closed
+            } else {
+                RuntimeLifecycleError::Closing
+            });
+        }
+        if state.active != 0 || state.maintenance {
+            return Err(RuntimeLifecycleError::MaintenanceInProgress);
+        }
+        state.maintenance = true;
+        state.active = 1;
+        Ok(MaintenanceLease(self))
+    }
+
+    fn release(&self, maintenance: bool) {
+        let wake = if let Ok(mut state) = self.state.lock() {
+            state.active -= 1;
+            if maintenance {
+                state.maintenance = false;
+            }
+            if state.active == 0 {
+                state.close_waker.take()
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        if let Some(wake) = wake {
+            wake.wake();
+        }
     }
 
     pub(super) fn begin_close(&self) -> Result<CloseAttempt<'_>, RuntimeLifecycleError> {
@@ -125,19 +176,17 @@ pub(super) struct CommandLease<'a>(&'a RuntimeLifecycle);
 
 impl Drop for CommandLease<'_> {
     fn drop(&mut self) {
-        let wake = if let Ok(mut state) = self.0.state.lock() {
-            state.active -= 1;
-            if state.active == 0 {
-                state.close_waker.take()
-            } else {
-                None
-            }
-        } else {
-            None
-        };
-        if let Some(wake) = wake {
-            wake.wake();
-        }
+        self.0.release(false);
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+pub(super) struct MaintenanceLease<'a>(&'a RuntimeLifecycle);
+
+#[cfg(feature = "mobile-social")]
+impl Drop for MaintenanceLease<'_> {
+    fn drop(&mut self) {
+        self.0.release(true);
     }
 }
 
