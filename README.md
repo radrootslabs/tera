@@ -344,3 +344,11 @@ generation before writable setup; unsupported versions or incompatible state
 remain typed failures with original evidence retained. Protected-data absence
 also fails before opening storage. Startup does not rename directories, import
 arbitrary paths, repair permissions or silently replace identity custody.
+
+Interrupted calendar rebuilds reconcile through the existing storage owner's
+durable records, retaining legacy bytes and publication identities. Lazy
+prepared-photo recovery validates an existing destination before accepting it;
+conflicts require recovery without overwriting either copy. A verified legacy
+copy is installed only after confirming destination absence, and the old copy
+remains available across repeated restarts. Unpublished partial staging is not
+treated as a completed photo or discarded by migration.

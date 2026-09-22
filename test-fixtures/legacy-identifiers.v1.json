@@ -290,7 +290,7 @@
         },
         {
           "path": "TeraTests/TeraDurableMediaRootsTests.swift",
-          "count": 1
+          "count": 2
         },
         {
           "path": "TeraTests/TeraMediaCleanupTests.swift",
@@ -309,6 +309,10 @@
         {
           "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraDurableMediaRootsTests.swift",
+          "count": 1
         }
       ]
     },
@@ -330,6 +334,10 @@
       "identifier": "RadrootsAppleFileError.notFound",
       "category": "shared_apple_api",
       "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
+          "count": 2
+        },
         {
           "path": "Tera/State/TeraConfigurationStore.swift",
           "count": 1
@@ -2044,7 +2052,7 @@
         },
         {
           "path": "Tera/Runtime/TeraDurableMediaRoots.swift",
-          "count": 1
+          "count": 2
         },
         {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
@@ -5388,6 +5396,10 @@
       "identifier": "radroots_pending_12345678-1234-1234-1234-123456789abc",
       "category": "verification_compatibility",
       "occurrences": [
+        {
+          "path": "TeraTests/TeraDurableMediaRootsTests.swift",
+          "count": 1
+        },
         {
           "path": "TeraTests/TeraMediaCleanupTests.swift",
           "count": 1

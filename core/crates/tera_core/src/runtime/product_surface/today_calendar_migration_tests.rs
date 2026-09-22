@@ -227,7 +227,14 @@ async fn old_sqlite_calendar_migrates_on_all_readers_without_changing_pending_id
 
 #[tokio::test]
 async fn every_durable_rebuild_boundary_resumes_after_sqlite_reopen() {
-    for boundary in ["invalidated", "requested", "running", "staged"] {
+    for boundary in [
+        "before",
+        "invalidated",
+        "requested",
+        "running",
+        "staged",
+        "completed",
+    ] {
         let root = tempfile::tempdir().unwrap();
         let runtime = open(root.path()).await;
         seed_legacy(&runtime).await;
@@ -241,11 +248,13 @@ async fn every_durable_rebuild_boundary_resumes_after_sqlite_reopen() {
             NOW * 1000,
         )
         .unwrap();
-        ProjectionStore::invalidate(storage, invalidation.clone())
-            .await
-            .unwrap();
+        if boundary != "before" {
+            ProjectionStore::invalidate(storage, invalidation.clone())
+                .await
+                .unwrap();
+        }
         let id = RebuildTicketId::new([7; 16]).unwrap();
-        if boundary != "invalidated" {
+        if !matches!(boundary, "before" | "invalidated") {
             ProjectionStore::request_rebuild(
                 storage,
                 RebuildTicket::requested(
@@ -260,7 +269,7 @@ async fn every_durable_rebuild_boundary_resumes_after_sqlite_reopen() {
             .await
             .unwrap();
         }
-        if matches!(boundary, "running" | "staged") {
+        if matches!(boundary, "running" | "staged" | "completed") {
             calendar_migration::begin(
                 storage,
                 NOW * 1000,
@@ -285,35 +294,44 @@ async fn every_durable_rebuild_boundary_resumes_after_sqlite_reopen() {
             .await
             .unwrap();
         }
-        assert!(
+        if boundary == "completed" {
+            runtime
+                .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
+                .await
+                .unwrap();
+        }
+        assert_eq!(
             load_state(storage, &context(None, 1), projection_generation().unwrap())
                 .await
                 .unwrap()
-                .is_none()
+                .is_some(),
+            boundary == "completed"
         );
         let original = old_bytes(&runtime).await;
         let signed_before = raw(&runtime).await;
         runtime.shutdown().await.unwrap();
         drop(runtime);
-        let runtime = open(root.path()).await;
-        runtime
-            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
-            .await
-            .unwrap();
-        assert_current(&runtime).await;
-        assert_eq!(old_bytes(&runtime).await, original, "{boundary}");
-        assert_eq!(raw(&runtime).await, signed_before, "{boundary}");
-        if boundary != "invalidated" {
-            assert_eq!(
-                ProjectionStore::rebuild(runtime.client.storage().unwrap(), id)
-                    .await
-                    .unwrap()
-                    .unwrap()
-                    .stage(),
-                RebuildStage::Completed
-            );
+        for _ in 0..2 {
+            let runtime = open(root.path()).await;
+            runtime
+                .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
+                .await
+                .unwrap();
+            assert_current(&runtime).await;
+            assert_eq!(old_bytes(&runtime).await, original, "{boundary}");
+            assert_eq!(raw(&runtime).await, signed_before, "{boundary}");
+            if !matches!(boundary, "before" | "invalidated") {
+                assert_eq!(
+                    ProjectionStore::rebuild(runtime.client.storage().unwrap(), id)
+                        .await
+                        .unwrap()
+                        .unwrap()
+                        .stage(),
+                    RebuildStage::Completed
+                );
+            }
+            runtime.shutdown().await.unwrap();
         }
-        runtime.shutdown().await.unwrap();
     }
 }
 
