@@ -5644,7 +5644,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/store.rs",
-          "count": 4
+          "count": 5
         },
         {
           "path": "core/crates/tera_core/tests/package_boundary.rs",

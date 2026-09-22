@@ -113,6 +113,20 @@ impl TeraAppError {
         }
     }
 
+    pub(crate) fn store_incomplete() -> Self {
+        Self::Store {
+            report: StoreErrorRecord {
+                schema_version: 1,
+                code: "store_incomplete".to_owned(),
+                class: "storage".to_owned(),
+                retryable: false,
+                recovery_actions: Vec::new(),
+                message: "mobile user store is incomplete; existing data requires recovery"
+                    .to_owned(),
+            },
+        }
+    }
+
     pub(crate) fn store_path_unavailable() -> Self {
         Self::Store {
             report: StoreErrorRecord {

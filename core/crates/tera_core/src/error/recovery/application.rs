@@ -32,7 +32,8 @@ pub(super) fn classify(code: &str) -> RecoveryDisposition {
         "identity_unavailable" | "no_active_identity" | "unknown_identity" => {
             Recovery::IdentityUnavailable
         }
-        "store_path_unavailable"
+        "store_incomplete"
+        | "store_path_unavailable"
         | "invalid_store_configuration"
         | "settings_storage_unavailable"
         | "corrupt_settings_document"

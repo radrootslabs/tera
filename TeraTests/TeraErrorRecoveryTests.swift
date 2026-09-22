@@ -8,6 +8,8 @@ final class TeraErrorRecoveryTests: XCTestCase {
   func testStableCodesDriveDistinctMessagesAndHonestStoreStates() {
     let cases: [(String, TeraUserMessageKey)] = [
       ("database_busy", .secureStateUnavailable),
+      ("store_incomplete", .secureStateUnavailable),
+      ("storage_integrity_failed", .secureStateUnavailable),
       ("identity_unavailable", .identityOperationFailed),
       ("protected_data_unavailable", .protectedDataUnavailable),
       ("storage_space_insufficient", .storageFull),

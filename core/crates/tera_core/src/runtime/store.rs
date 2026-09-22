@@ -137,18 +137,34 @@ impl MobileUserStoreConfig {
     ) -> Result<radroots_sdk::storage::SqliteOptions, TeraAppError> {
         let paths = radroots_sdk::storage::SqlitePaths::from_directory(&self.owner_directory)
             .map_err(|_| TeraAppError::store_invalid_configuration())?;
-        radroots_sdk::storage::SqliteOptions::new(
-            paths,
-            radroots_sdk::storage::SqliteOpenMode::Create,
-        )
-        .with_busy_timeout(Duration::from_secs(5))
-        .and_then(|options| {
-            options.with_source_generation(
-                self.source_generation,
-                self.source_generation_created_at_unix_ms,
-            )
-        })
-        .map_err(|_| TeraAppError::store_invalid_configuration())
+        // A surviving member is evidence of existing state. Never initialize
+        // an empty companion in place of missing retained work.
+        let runtime_exists = paths
+            .runtime()
+            .try_exists()
+            .map_err(|_| TeraAppError::store_path_unavailable())?;
+        let private_exists = paths
+            .private()
+            .try_exists()
+            .map_err(|_| TeraAppError::store_path_unavailable())?;
+        if runtime_exists != private_exists {
+            return Err(TeraAppError::store_incomplete());
+        }
+        let existing = runtime_exists || private_exists;
+        let mode = if existing {
+            radroots_sdk::storage::SqliteOpenMode::ReadWriteExisting
+        } else {
+            radroots_sdk::storage::SqliteOpenMode::Create
+        };
+        radroots_sdk::storage::SqliteOptions::new(paths, mode)
+            .with_busy_timeout(Duration::from_secs(5))
+            .and_then(|options| {
+                options.with_source_generation(
+                    self.source_generation,
+                    self.source_generation_created_at_unix_ms,
+                )
+            })
+            .map_err(|_| TeraAppError::store_invalid_configuration())
     }
 }
 
