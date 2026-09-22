@@ -15,6 +15,7 @@ struct TeraDraftsSheet: View {
   var body: some View {
     NavigationStack {
       List {
+        TeraRestoreRecoverySection(store: recovery.restore)
         if recovery.isLoading {
           ProgressView("Loading saved work…")
         }

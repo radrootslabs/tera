@@ -1,6 +1,9 @@
 use std::sync::Arc;
 #[path = "backup/runtime.rs"]
 mod backup;
+#[path = "restore/runtime.rs"]
+mod restore;
+pub use restore::{FfiRestoreStore, restore_local_application_backup};
 #[path = "revision.rs"]
 mod revision;
 pub use revision::FfiRevisionSourceRequest;
@@ -92,7 +95,7 @@ impl TeraRuntime {
             source_generation_created_at_unix_ms,
             protected_data,
             None,
-            false,
+            RuntimeOpenOptions::default(),
         )
         .await
     }
@@ -113,7 +116,7 @@ impl TeraRuntime {
             source_generation_created_at_unix_ms,
             protected_data,
             Some(host_signer),
-            false,
+            RuntimeOpenOptions::default(),
         )
         .await
     }
@@ -1221,6 +1224,12 @@ impl TeraRuntime {
     }
 }
 
+#[derive(Default)]
+struct RuntimeOpenOptions {
+    local_backups: bool,
+    restore_guard: Option<tera_core::runtime::restore::ApplicationRestoreGuard>,
+}
+
 async fn build_runtime(
     application_support_directory: String,
     public_key_hex: String,
@@ -1228,7 +1237,7 @@ async fn build_runtime(
     source_generation_created_at_unix_ms: u64,
     protected_data: ProtectedDataAvailability,
     host_signer: Option<Box<dyn TeraHostSigner>>,
-    local_backups: bool,
+    options: RuntimeOpenOptions,
 ) -> Result<TeraRuntime, TeraAppError> {
     let store = tera_core::runtime::store::MobileUserStoreConfig::from_encoded(
         application_support_directory,
@@ -1237,7 +1246,7 @@ async fn build_runtime(
         source_generation_created_at_unix_ms,
         protected_data.into(),
     )?;
-    let store = if local_backups {
+    let store = if options.local_backups {
         store.with_local_backups()
     } else {
         store
@@ -1249,6 +1258,9 @@ async fn build_runtime(
     );
     let has_host_signer = host_signer.is_some();
     let mut builder = tera_core::runtime::builder::RuntimeBuilder::new(store);
+    if let Some(guard) = options.restore_guard {
+        builder = builder.restore_guard(guard);
+    }
     if let Some(host_signer) = host_signer {
         builder = builder.signer(Arc::new(HostSignerAdapter::new(host_signer)));
     }

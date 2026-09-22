@@ -9,15 +9,7 @@ extension TeraGeneratedRuntimeBackend {
     do {
       let mediaUse = try TeraMediaProcessUse.admit(applicationSupportDirectory: configuration.applicationSupportDirectory)
       defer { withExtendedLifetime(mediaUse) {} }
-      let constructor = localBackups ? TeraRuntime.withHostSignerAndLocalBackups : TeraRuntime.withHostSigner
-      let runtime = try await constructor(
-        configuration.applicationSupportDirectory,
-        configuration.publicKeyHex,
-        configuration.sourceGenerationHex,
-        configuration.sourceGenerationCreatedAtUnixMilliseconds,
-        configuration.protectedData.generatedValue,
-        TeraGeneratedHostSigner(signer: configuration.signer)
-      )
+      let (runtime, restored) = try await construct(configuration: configuration, localBackups: localBackups)
       createdRuntime = runtime
       runtime.setAppInfoPlatform(
         platform: "iOS",
@@ -28,15 +20,9 @@ extension TeraGeneratedRuntimeBackend {
       )
 
       let backend = TeraGeneratedRuntimeBackend(runtime: runtime)
-      let currentSettings = try await backend.mobileSettings()
-      if configuration.adoptBootstrapSettings
-        || currentSettings.revision == 1 && currentSettings.identity.identities.isEmpty
-      {
-        _ = try await backend.replaceMobileSettings(
-          input: configuration.bootstrapSettingsReplacement(current: currentSettings)
-        )
+      if !restored {
+        try await bootstrap(runtime: runtime, backend: backend, configuration: configuration)
       }
-      _ = try await runtime.phase1ApplySettingsToRuntime()
       return try await TeraRuntimeBackendStart(
         backend: backend,
         snapshot: backend.snapshot()
@@ -47,6 +33,40 @@ extension TeraGeneratedRuntimeBackend {
       }
       throw TeraGeneratedRuntimeFailure.from(error)
     }
+  }
+
+  private static func bootstrap(runtime: TeraRuntime, backend: TeraGeneratedRuntimeBackend,
+                                configuration: TeraRuntimeLaunchConfiguration) async throws
+  {
+    let currentSettings = try await backend.mobileSettings()
+    if configuration.adoptBootstrapSettings
+      || currentSettings.revision == 1 && currentSettings.identity.identities.isEmpty
+    {
+      _ = try await backend.replaceMobileSettings(input: configuration.bootstrapSettingsReplacement(current: currentSettings))
+    }
+    _ = try await runtime.phase1ApplySettingsToRuntime()
+  }
+
+  private static func construct(configuration: TeraRuntimeLaunchConfiguration, localBackups: Bool) async throws -> (TeraRuntime, Bool) {
+    if let guardBytes = try TeraRestoreFiles.readGuard(
+      applicationSupportDirectory: configuration.applicationSupportDirectory, publicKey: configuration.publicKeyHex
+    ) {
+      let runtime = try await TeraRuntime.withHostSignerAndRestoreGuard(
+        store: FfiRestoreStore(applicationSupportDirectory: configuration.applicationSupportDirectory,
+                               publicKey: configuration.publicKeyHex, sourceGeneration: configuration.sourceGenerationHex,
+                               sourceGenerationCreatedAtMs: configuration.sourceGenerationCreatedAtUnixMilliseconds,
+                               protectedData: configuration.protectedData.generatedValue),
+        hostSigner: TeraGeneratedHostSigner(signer: configuration.signer), guard: guardBytes, localBackups: localBackups
+      )
+      return (runtime, true)
+    }
+    let constructor = localBackups ? TeraRuntime.withHostSignerAndLocalBackups : TeraRuntime.withHostSigner
+    let runtime = try await constructor(
+      configuration.applicationSupportDirectory, configuration.publicKeyHex,
+      configuration.sourceGenerationHex, configuration.sourceGenerationCreatedAtUnixMilliseconds,
+      configuration.protectedData.generatedValue, TeraGeneratedHostSigner(signer: configuration.signer)
+    )
+    return (runtime, false)
   }
 }
 

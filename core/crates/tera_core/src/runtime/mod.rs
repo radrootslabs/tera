@@ -8,6 +8,8 @@ pub mod lifecycle;
 #[cfg(feature = "mobile-social")]
 mod mutation_admission;
 pub mod product_surface;
+#[cfg(feature = "mobile-social")]
+pub mod restore;
 pub mod sdk;
 pub mod store;
 mod today_projection;
@@ -51,6 +53,8 @@ pub struct TeraRuntime {
     pub(crate) inbound_media_directory: Option<PathBuf>,
     #[cfg(feature = "mobile-social")]
     pub(crate) inbound_media_lock: tokio::sync::Mutex<()>,
+    #[cfg(feature = "mobile-social")]
+    restore_guard: Option<restore::ApplicationRestoreGuard>,
 }
 
 impl TeraRuntime {
@@ -116,6 +120,8 @@ impl TeraRuntime {
             inbound_media_directory,
             #[cfg(feature = "mobile-social")]
             inbound_media_lock: tokio::sync::Mutex::new(()),
+            #[cfg(feature = "mobile-social")]
+            restore_guard: None,
         })
     }
 

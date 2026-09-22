@@ -105,6 +105,7 @@ impl TeraRuntime {
         &self,
         operation: SyncId,
     ) -> Result<(), Phase1DraftError> {
+        self.require_restore_effects_allowed().await?;
         let configuration = self.publication_configuration.read().await;
         if !configuration.allowed {
             self.stop_legacy_publication(operation).await?;

@@ -172,6 +172,7 @@ impl TeraRuntime {
         head: &AuthoredDraft,
         request: PushRequest,
     ) -> Result<(), Phase1DraftError> {
+        self.require_restore_effects_allowed().await?;
         match self.revision_delivery_selection(head).await? {
             RevisionDelivery::Independent => self.advance_owned_push_request(request, head).await,
             RevisionDelivery::Selected(targets) => {

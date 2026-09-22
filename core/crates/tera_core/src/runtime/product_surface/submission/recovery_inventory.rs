@@ -5,6 +5,28 @@ use super::{
     record, repository::SubmissionRepository,
 };
 
+impl crate::TeraRuntime {
+    pub(in crate::runtime) async fn restore_submission_request(
+        &self,
+        stored: &AuthoredDraft,
+    ) -> Result<Option<radroots_sync::PushRequest>, E> {
+        let author = self.store_public_key.ok_or(E::Corrupt)?.into_bytes();
+        let store = self.client.storage().map_err(|_| E::Corrupt)?;
+        let request = recovery_request(stored, author, store).await?;
+        let (loaded, push) = self.load_submission_operation(&request).await?;
+        if loaded.head != *stored {
+            return Err(E::Corrupt);
+        }
+        if stored.stage() == radroots_storage::authored_draft::AuthoredDraftStage::Cancelled
+            || push.delivery_plan().stop_requested_at_unix_ms().is_some()
+            || push.delivery_plan().state().is_terminal()
+        {
+            return Ok(None);
+        }
+        Ok(Some(loaded.request))
+    }
+}
+
 /// Recover immutable identity from this exact intent, independently of UI scope.
 /// This only reads existing state; it never reserves, prepares or advances work.
 pub(in crate::runtime::product_surface) async fn recovery_request(

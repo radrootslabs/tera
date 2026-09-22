@@ -2292,6 +2292,8 @@ mod tests {
             .build()
             .expect("client");
         let runtime = TeraRuntime {
+            #[cfg(feature = "mobile-social")]
+            restore_guard: None,
             client,
             started_unix_ms: 1,
             shutting_down: AtomicBool::new(false),

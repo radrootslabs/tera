@@ -1,4 +1,4 @@
-use super::{ProtectedDataAvailability, TeraRuntime, build_runtime};
+use super::{ProtectedDataAvailability, RuntimeOpenOptions, TeraRuntime, build_runtime};
 use crate::backup::BackupHostAdapter;
 use crate::{FfiBackupManifest, FfiBackupRequest, TeraAppError, TeraBackupHost, TeraHostSigner};
 
@@ -21,7 +21,10 @@ impl TeraRuntime {
             source_generation_created_at_unix_ms,
             protected_data,
             Some(host_signer),
-            true,
+            RuntimeOpenOptions {
+                local_backups: true,
+                ..Default::default()
+            },
         )
         .await
     }

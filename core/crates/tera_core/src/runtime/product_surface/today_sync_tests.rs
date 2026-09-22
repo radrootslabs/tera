@@ -62,6 +62,7 @@ pub(super) fn runtime(source: Arc<dyn EventSource>) -> TeraRuntime {
         .build()
         .expect("client");
     TeraRuntime {
+        restore_guard: None,
         client,
         started_unix_ms: 1,
         shutting_down: AtomicBool::new(false),

@@ -255,6 +255,7 @@ impl From<Phase1DraftError> for TeraAppError {
             Phase1DraftError::InvalidRevision => {
                 ("revision_invalid", false, &["review_revision"][..])
             }
+            Phase1DraftError::Restore(error) => (error.code(), false, &["review_restore"][..]),
         };
         Self::failure(
             code,

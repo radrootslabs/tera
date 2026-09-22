@@ -378,3 +378,30 @@ backup, with host file protection; this adapter neither exports Keychain secrets
 nor restores or republishes historical operations. Existing conservative media
 cleanup retains the backup tree. Physical power-loss behavior is not inferred
 from simulator interruption tests.
+
+Cold restore is a separate explicit host operation against a completed,
+account-bound local backup. It requires exclusive native file maintenance, no
+live application process users, available protected data and a known-empty OS
+transfer inventory. The canonical database owner verifies and installs both
+members, closes and reopens them; the native file owner restores only verified
+immutable media. There is no arbitrary-path restore or secret export.
+
+A bounded external guard is installed before database replacement. Ordinary
+startup refuses that guard; guarded startup requires a matching durable restore
+barrier. Interrupted or ambiguous installation retains all evidence and requires
+explicit repair with supported software. Never delete the guard, replace a
+missing member with an empty database, or use an older unsupported application
+to bypass recovery. Existing binaries do not retroactively acquire this guard.
+Guarded native startup loads saved transport preferences without adopting
+bootstrap overrides or stopping original operations. Review waits for canceled
+owner writes to finish before it reads the complete inventory.
+
+Restored signing, upload authorization and delivery remain held until the user
+checks original destinations, reviews the complete current operation inventory,
+and separately confirms resume in Drafts & outbox. Each destination check is
+bounded to two pages of 64 events and verifies actual event identity. Offline or
+partial results cannot authorize resume; a completed query that did not observe
+an event is not proof that it was never accepted. The inventory admits at most
+4,096 records and 4,096 pending destinations within a 64 MiB payload budget.
+Changes invalidate the prior review. Resume preserves original operation IDs,
+signed bytes and outcomes; it does not itself sign, upload or deliver anything.

@@ -253,6 +253,10 @@
         {
           "path": "TeraTests/TeraMediaCleanupTests.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 1
         }
       ]
     },
@@ -307,6 +311,14 @@
         {
           "path": "TeraTests/TeraLocalBackupTests.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraRestoreFiles.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
+          "count": 2
         }
       ]
     },
@@ -361,6 +373,10 @@
         {
           "path": "Tera/Runtime/TeraBackupFiles.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraRestoreFiles.swift",
+          "count": 1
         }
       ]
     },
@@ -403,6 +419,10 @@
         {
           "path": "TeraTests/TeraMediaCleanupTests.swift",
           "count": 3
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 1
         }
       ]
     },
@@ -496,6 +516,18 @@
         },
         {
           "path": "TeraTests/TeraLocalBackupTests.swift",
+          "count": 2
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 3
+        },
+        {
+          "path": "Tera/Runtime/TeraRestoreFiles.swift",
+          "count": 3
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
           "count": 2
         }
       ]
@@ -616,6 +648,10 @@
         },
         {
           "path": "TeraTests/TeraLocalBackupTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
           "count": 1
         }
       ]
@@ -841,6 +877,10 @@
         {
           "path": "TeraTests/TeraUserMessagesTests.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
+          "count": 1
         }
       ]
     },
@@ -896,6 +936,14 @@
         },
         {
           "path": "TeraTests/TeraRecoveryInventoryTests.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
           "count": 1
         }
       ]
@@ -1084,6 +1132,10 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
           "count": 1
         }
       ]
@@ -1299,6 +1351,10 @@
         {
           "path": "Tera/Runtime/TeraMediaCleanup.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 2
         }
       ]
     },
@@ -1354,6 +1410,18 @@
         },
         {
           "path": "Tera/Runtime/TeraBackupFiles.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraRestoreFiles.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
           "count": 1
         }
       ]
@@ -1773,6 +1841,18 @@
         {
           "path": "TeraTests/TeraLocalBackupTests.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraRestoreFiles.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
+          "count": 1
         }
       ]
     },
@@ -2132,6 +2212,14 @@
         },
         {
           "path": "TeraTests/TeraLocalBackupTests.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraRestoreFiles.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraLocalRestoreTests.swift",
           "count": 1
         }
       ]
@@ -2610,6 +2698,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/backup/tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/restore.rs",
           "count": 1
         }
       ]
@@ -3825,6 +3917,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/recovery_inventory.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/restore_inventory.rs",
+          "count": 1
         }
       ]
     },
@@ -3842,6 +3938,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/recovery_inventory.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/restore_inventory.rs",
           "count": 1
         }
       ]
@@ -5319,6 +5419,14 @@
         {
           "path": "core/crates/tera_core/src/runtime/backup/tests.rs",
           "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/model_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/review_record.rs",
+          "count": 1
         }
       ]
     },
@@ -5457,6 +5565,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/reconciliation_tests.rs",
+          "count": 2
         }
       ]
     },
@@ -5776,6 +5888,26 @@
         },
         {
           "path": "scripts/test_ffi_provenance.py",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/fault_tests.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/orchestration.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/orchestration_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/reconciliation_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/startup.rs",
           "count": 1
         }
       ]
@@ -6132,7 +6264,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/recovery_inventory.rs",
-          "count": 3
+          "count": 4
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/reference_inventory.rs",
@@ -6225,6 +6357,46 @@
         {
           "path": "core/crates/tera_ffi/src/backup/adapter.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/restore_inventory.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/barrier.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/error.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/model.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/model_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/orchestration.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/reconciliation.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/review_record.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_ffi/src/restore/adapter.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/fault_tests.rs",
+          "count": 1
         }
       ]
     },
@@ -6290,6 +6462,22 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/restore_inventory.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/submission/recovery_inventory.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/reconciliation.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/review_record.rs",
           "count": 1
         }
       ]
@@ -6385,6 +6573,22 @@
         {
           "path": "core/crates/tera_core/src/runtime/backup.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/orchestration.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/reconciliation.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/review_record.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/test_support.rs",
+          "count": 1
         }
       ]
     },
@@ -6466,6 +6670,36 @@
       "occurrences": [
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/capture/food_tests.rs",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleBackgroundTransferAdapters.live",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsAppleBackgroundTransferFileResolver",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraLocalRestoreHost.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots-backup-",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "core/crates/tera_core/src/runtime/restore/fault_tests.rs",
           "count": 1
         }
       ]

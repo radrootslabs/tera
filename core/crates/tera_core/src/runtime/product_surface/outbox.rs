@@ -996,6 +996,8 @@ impl Phase1DraftStatus {
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
 pub enum Phase1DraftError {
     #[error(transparent)]
+    Restore(#[from] crate::runtime::restore::RestoreError),
+    #[error(transparent)]
     Lifecycle(#[from] crate::runtime::lifecycle::RuntimeLifecycleError),
     #[error("authenticated draft identity is unavailable")]
     IdentityUnavailable,
@@ -1321,6 +1323,7 @@ impl TeraRuntime {
         draft_id: [u8; 16],
     ) -> Result<Phase1ProfileStatus, Phase1DraftError> {
         let _command = self.lifecycle.enter()?;
+        self.require_restore_effects_allowed().await?;
         let _admission = self.mutations.draft(draft_id)?;
         let mut status = self.phase1_profile_status(draft_id).await?;
         if status.draft.stage() == AuthoredDraftStage::Draft {
@@ -2209,6 +2212,7 @@ impl TeraRuntime {
         cancellation: Phase1CancellationPolicy,
     ) -> Result<radroots_sdk::signing::AuthorizationHeader, Phase1DraftError> {
         let _command = self.lifecycle.enter()?;
+        self.require_restore_effects_allowed().await?;
         let public_key = self
             .store_public_key
             .ok_or(Phase1DraftError::IdentityUnavailable)?;

@@ -137,6 +137,18 @@ impl TeraRuntime {
             repair()
         } else {
             match stored.payload_schema() {
+                crate::runtime::restore::REVIEW_SCHEMA => {
+                    if crate::runtime::restore::review_metadata_is_valid(&stored) {
+                        return None;
+                    }
+                    repair()
+                }
+                crate::runtime::restore::BARRIER_SCHEMA => {
+                    if crate::runtime::restore::barrier_metadata_is_valid(&stored) {
+                        return None;
+                    }
+                    repair()
+                }
                 super::coordinate::CLAIM_SCHEMA | super::coordinate::BINDING_SCHEMA => {
                     if super::coordinate::metadata_is_valid(&stored) {
                         return None;

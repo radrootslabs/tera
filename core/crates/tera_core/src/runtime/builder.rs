@@ -5,6 +5,8 @@ use crate::{TeraAppError, TeraRuntime};
 pub struct RuntimeBuilder {
     store: MobileUserStoreConfig,
     #[cfg(feature = "mobile-social")]
+    restore_guard: Option<super::restore::ApplicationRestoreGuard>,
+    #[cfg(feature = "mobile-social")]
     explicit_publication_environment: bool,
     #[cfg(feature = "mobile-social")]
     signer: Option<std::sync::Arc<dyn radroots_signing::Signer>>,
@@ -19,6 +21,8 @@ impl RuntimeBuilder {
     pub fn new(store: MobileUserStoreConfig) -> Self {
         Self {
             store,
+            #[cfg(feature = "mobile-social")]
+            restore_guard: None,
             #[cfg(feature = "mobile-social")]
             explicit_publication_environment: false,
             #[cfg(feature = "mobile-social")]
@@ -37,6 +41,16 @@ impl RuntimeBuilder {
             #[cfg(feature = "mobile-social")]
             blossom_config: None,
         }
+    }
+
+    /// The native file owner must read these exact canonical bytes while holding
+    /// its process-use admission. This cannot bypass an incomplete owner restore:
+    /// build also requires the matching durable application barrier.
+    #[cfg(feature = "mobile-social")]
+    #[must_use]
+    pub fn restore_guard(mut self, guard: super::restore::ApplicationRestoreGuard) -> Self {
+        self.restore_guard = Some(guard);
+        self
     }
 
     /// Installs one opaque host signer without transferring secret material.
@@ -74,6 +88,21 @@ impl RuntimeBuilder {
             return Err(TeraAppError::protected_data_unavailable());
         }
         self.store.validate_host_filesystem()?;
+        let guarded = self.store.restore_guard_exists()?;
+        #[cfg(not(feature = "mobile-social"))]
+        if guarded {
+            return Err(TeraAppError::runtime("restore_recovery_required"));
+        }
+        #[cfg(feature = "mobile-social")]
+        if guarded != self.restore_guard.is_some()
+            || self.restore_guard.as_ref().is_some_and(|guard| {
+                guard.request().backup().author() != self.store.public_key().into_bytes()
+                    || guard.request().backup().generation()
+                        != *self.store.source_generation().as_bytes()
+            })
+        {
+            return Err(TeraAppError::runtime("restore_recovery_required"));
+        }
         let options = self.store.sqlite_options()?;
         #[cfg(feature = "mobile-social")]
         let inbound_media_directory = self.store.owner_directory().join("inbound_media.v1");
@@ -100,7 +129,25 @@ impl RuntimeBuilder {
             self.blossom_config,
         )?;
         #[cfg(feature = "mobile-social")]
-        if self.explicit_publication_environment {
+        let runtime = {
+            let mut runtime = runtime;
+            runtime.restore_guard = self.restore_guard;
+            if let Err(error) = runtime.validate_restore_startup().await {
+                runtime.shutdown().await?;
+                return Err(TeraAppError::runtime(error.code()));
+            }
+            runtime
+        };
+        #[cfg(feature = "mobile-social")]
+        if guarded
+            && !self.explicit_publication_environment
+            && let Err(error) = runtime.install_restored_preferences().await
+        {
+            runtime.shutdown().await?;
+            return Err(error);
+        }
+        #[cfg(feature = "mobile-social")]
+        if self.explicit_publication_environment && !guarded {
             runtime
                 .restrict_publications(Some(&initial_relays), initial_media, false)
                 .await
@@ -167,6 +214,17 @@ mod tests {
             assert_eq!(report.relays[0].write_state, "unobserved");
         }
         runtime.shutdown().await.expect("shutdown");
+    }
+
+    #[tokio::test]
+    async fn even_a_minimal_reader_refuses_a_guard_without_creating_empty_databases() {
+        let root = tempfile::tempdir().unwrap();
+        let config = store(root.path(), ProtectedDataAvailability::Available);
+        std::fs::write(config.restore_guard_path(), b"retained recovery evidence").unwrap();
+        assert!(RuntimeBuilder::new(config.clone()).build().await.is_err());
+        assert!(config.sqlite_options().is_err());
+        let entries = std::fs::read_dir(config.owner_directory()).unwrap().count();
+        assert_eq!(entries, 1);
     }
 
     #[cfg(feature = "mobile-social")]

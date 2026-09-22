@@ -39,6 +39,9 @@ impl TeraRuntime {
         &self,
         request: &SubmissionReservationRequest,
     ) -> Result<(), E> {
+        self.require_restore_effects_allowed()
+            .await
+            .map_err(Phase1DraftError::from)?;
         let configuration = self.publication_configuration.read().await;
         if !configuration.allowed {
             self.submission_request_stop(request).await?;

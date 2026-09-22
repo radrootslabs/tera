@@ -4,6 +4,7 @@ import Foundation
 /// composer and legacy pages are retained; continuation never grows an archive.
 @MainActor
 final class TeraDraftRecoveryStore: ObservableObject {
+  let restore: TeraRestoreRecoveryStore
   let transfers: TeraNativeRepairStore
   let revisions: TeraRevisionDetailStore
   static let pageSize: UInt16 = 100
@@ -24,6 +25,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
   private enum Request { case first, composers(String), legacy(String) }
 
   init(client: TeraRuntimeClient, media: (any TeraAddMediaHandling)? = nil) {
+    restore = TeraRestoreRecoveryStore(client: client)
     transfers = TeraNativeRepairStore(client: client, media: media)
     self.client = client
     revisions = TeraRevisionDetailStore(client: client)
@@ -47,6 +49,7 @@ final class TeraDraftRecoveryStore: ObservableObject {
   }
 
   func stop() {
+    restore.invalidate()
     transfers.stop()
     revisions.stop()
     generation = generation.invalidated()

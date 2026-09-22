@@ -170,6 +170,18 @@ async fn collect_account(
             }
             stored.validate().map_err(|_| MediaInventoryIncomplete)?;
             let references = match stored.payload_schema() {
+                crate::runtime::restore::REVIEW_SCHEMA => {
+                    if !crate::runtime::restore::review_metadata_is_valid(&stored) {
+                        return Err(MediaInventoryIncomplete);
+                    }
+                    vec![]
+                }
+                crate::runtime::restore::BARRIER_SCHEMA => {
+                    if !crate::runtime::restore::barrier_metadata_is_valid(&stored) {
+                        return Err(MediaInventoryIncomplete);
+                    }
+                    vec![]
+                }
                 super::COMPOSER_PAYLOAD_SCHEMA => composer::media_references(stored, author)?,
                 super::SUBMISSION_RESERVATION_PAYLOAD_SCHEMA
                 | super::SUBMISSION_INTENT_PAYLOAD_SCHEMA => {

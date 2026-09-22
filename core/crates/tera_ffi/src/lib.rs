@@ -6,6 +6,8 @@
 uniffi::setup_scaffolding!("tera_core");
 
 mod backup;
+mod restore;
+pub use restore::*;
 mod composer;
 pub use backup::*;
 mod draft_inventory;
@@ -39,8 +41,9 @@ pub use recovery::*;
 pub use recovery_inventory::*;
 pub use runtime::{
     FfiNativeRecoveryReason, FfiNativeRecoverySchedule, FfiNativeRecoveryStatus,
-    FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt, FfiRevisionSourceRequest,
-    ProtectedDataAvailability, TeraRuntime,
+    FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt, FfiRestoreStore,
+    FfiRevisionSourceRequest, ProtectedDataAvailability, TeraRuntime,
+    restore_local_application_backup,
 };
 pub use signer::{
     HostSigningOutcome, HostSigningPurpose, HostSigningRequest, HostSigningResult,

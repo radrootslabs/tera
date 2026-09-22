@@ -39,6 +39,8 @@ pub mod recovery_schedule;
 #[cfg(feature = "mobile-social")]
 pub mod recovery_status;
 #[cfg(feature = "mobile-social")]
+mod restore_inventory;
+#[cfg(feature = "mobile-social")]
 mod settings;
 #[cfg(feature = "mobile-social")]
 mod submission;

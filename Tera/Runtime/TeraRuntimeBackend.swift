@@ -5,6 +5,10 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 }
 
 protocol TeraRuntimeBackend: Sendable {
+  func restoreStatus() async throws -> TeraRestoreStatus?
+  func reconcileRestoredTarget(_ target: TeraRestoreTarget) async throws
+  func reviewRestoredWork() async throws -> String
+  func resumeRestoredWork(reviewedInventory: String) async throws
   func nativeRecoveryStatus(key: String) async throws -> TeraNativeRecoveryStatus?
   func nativeRecoverySchedule() async throws -> TeraNativeRecoverySchedule
   func advanceNativeRecoverySchedule(expected: TeraNativeRecoverySchedule, after: String?) async throws -> TeraNativeRecoverySchedule

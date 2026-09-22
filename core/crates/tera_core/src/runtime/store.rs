@@ -13,6 +13,8 @@ use crate::TeraAppError;
 const PRODUCT_DIRECTORY: &str = "radroots";
 const USER_DIRECTORY: &str = "users";
 const GENERATION_HEX_LENGTH: usize = 64;
+/// Native-owned recovery evidence, deliberately outside both SQLite files.
+pub const RESTORE_GUARD_FILENAME: &str = "restore_guard_v1";
 
 /// Host-observed Apple protected-data state at runtime construction time.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -112,6 +114,18 @@ impl MobileUserStoreConfig {
         self.owner_directory.as_path()
     }
 
+    pub fn restore_guard_path(&self) -> PathBuf {
+        self.owner_directory.join(RESTORE_GUARD_FILENAME)
+    }
+
+    pub(crate) fn restore_guard_exists(&self) -> Result<bool, TeraAppError> {
+        match std::fs::symlink_metadata(self.restore_guard_path()) {
+            Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => Ok(true),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+            _ => Err(TeraAppError::runtime("restore_recovery_required")),
+        }
+    }
+
     /// Returns the authenticated identity that scopes this store.
     pub const fn public_key(&self) -> PublicKey {
         self.public_key
@@ -175,6 +189,9 @@ impl MobileUserStoreConfig {
             return Err(TeraAppError::store_incomplete());
         }
         let existing = runtime_exists || private_exists;
+        if !existing && self.restore_guard_exists()? {
+            return Err(TeraAppError::store_incomplete());
+        }
         let mode = if existing {
             radroots_sdk::storage::SqliteOpenMode::ReadWriteExisting
         } else {
