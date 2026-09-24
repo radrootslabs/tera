@@ -126,7 +126,7 @@ actor TeraIdentityStore {
 
     func loadAndMigrate() async throws -> TeraAppIdentity {
         let initial = await custody.snapshot()
-        guard initial.state == .absent else {
+        guard [.absent, .locked, .unlocked].contains(initial.state) else {
             return Self.appIdentity(initial)
         }
 
@@ -144,14 +144,14 @@ actor TeraIdentityStore {
         guard hasLegacySecret || legacyMetadata != nil else {
             return Self.appIdentity(initial)
         }
-        guard hasLegacySecret else {
+        guard hasLegacySecret || initial.state != .absent else {
             throw TeraIdentityStoreError.corruptLegacyMetadata
         }
         return TeraAppIdentity(
           state: .recoveryRequired,
-          identityHandle: nil,
-          publicKeyHex: legacyMetadata?.publicKeyHex.lowercased(),
-          label: legacyMetadata?.label,
+          identityHandle: initial.identity?.identityHandle,
+          publicKeyHex: legacyMetadata?.publicKeyHex.lowercased() ?? initial.identity?.publicKeyHex,
+          label: legacyMetadata?.label ?? initial.identity?.label,
           signerGeneration: nil,
           recoveryCode: "identity.legacy_migration_required"
         )
@@ -164,14 +164,14 @@ actor TeraIdentityStore {
         )
         let legacyMetadata = try loadLegacyMetadata()
         do {
-            let migrated = try await custody.migrateLegacyIdentity(
-              from: legacySecretKey,
-              label: legacyMetadata?.label
-            )
-            if let metadata = legacyMetadata,
-               metadata.publicKeyHex.lowercased() != migrated.identity?.publicKeyHex
-            {
-                throw TeraIdentityStoreError.corruptLegacyMetadata
+            let migrated: RadrootsIdentitySnapshot = if let metadata = legacyMetadata {
+                try await custody.migrateLegacyIdentity(
+                  from: legacySecretKey,
+                  expectedPublicKeyHex: metadata.publicKeyHex.lowercased(),
+                  label: metadata.label
+                )
+            } else {
+                try await custody.migrateLegacyIdentity(from: legacySecretKey)
             }
             deleteLegacyMetadata()
             return Self.appIdentity(migrated)
@@ -185,14 +185,16 @@ actor TeraIdentityStore {
     }
 
     func create(label: String? = nil) async throws -> TeraAppIdentity {
-        try await custody.createIdentity(label: label).appValue
+        try await requireNoLegacyRecovery()
+        return try await custody.createIdentity(label: label).appValue
     }
 
     func importIdentity(
       _ material: RadrootsIdentitySecretMaterial,
       label: String? = nil
     ) async throws -> TeraAppIdentity {
-        try await custody.importIdentity(material, label: label).appValue
+        try await requireNoLegacyRecovery()
+        return try await custody.importIdentity(material, label: label).appValue
     }
 
     func snapshot() async -> TeraAppIdentity {
@@ -204,17 +206,18 @@ actor TeraIdentityStore {
     }
 
     func recover() async throws -> TeraAppIdentity {
-        let snapshot = await custody.snapshot()
-        if snapshot.state == .absent {
-            let legacyKey = RadrootsSecureStoreKey(
-              namespace: "nostr_identity",
-              name: "selected_secret_hex"
-            )
-            if try secureStore.contains(legacyKey) {
-                return try await migrateLegacyIdentity()
-            }
+        let recovered = try await custody.recover()
+        let pending = try await loadAndMigrate()
+        if pending.recoveryCode == "identity.legacy_migration_required" {
+            return try await migrateLegacyIdentity()
         }
-        return try await custody.recover().appValue
+        return recovered.appValue
+    }
+
+    private func requireNoLegacyRecovery() async throws {
+        guard try await loadAndMigrate().state != .recoveryRequired else {
+            throw TeraIdentityStoreError.custody("identity.recovery_required")
+        }
     }
 
     func lock() async {

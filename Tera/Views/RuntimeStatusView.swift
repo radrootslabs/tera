@@ -152,7 +152,7 @@ struct RuntimeStatusView: View {
     }
 }
 
-private struct TeraSecureIdentityImportField: UIViewRepresentable {
+struct TeraSecureIdentityImportField: UIViewRepresentable {
     let submit: @MainActor (RadrootsIdentitySecretMaterial) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -202,6 +202,15 @@ private struct TeraSecureIdentityImportField: UIViewRepresentable {
     }
 
     func updateUIView(_: UIView, context _: Context) {}
+
+    static func dismantleUIView(_: UIView, coordinator: Coordinator) {
+        coordinator.field?.text = nil
+        coordinator.field?.resignFirstResponder()
+        coordinator.field?.delegate = nil
+        coordinator.errorLabel?.text = nil
+        coordinator.field = nil
+        coordinator.errorLabel = nil
+    }
 
     @MainActor
     final class Coordinator: NSObject, UITextFieldDelegate {
