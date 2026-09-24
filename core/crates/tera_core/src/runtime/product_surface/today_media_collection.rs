@@ -9,7 +9,7 @@ use tokio::sync::MutexGuard;
 
 use super::*;
 
-const MAX_CANDIDATES: usize = 64;
+pub(super) const MAX_CANDIDATES: usize = 64;
 const PAGE_ROWS: u16 = 32;
 const MAX_PAGES: usize = 64;
 const MAX_DOCUMENT_BYTES: usize = 64 * 1024 * 1024;
@@ -25,23 +25,36 @@ pub(super) async fn collect(
     _files: &MutexGuard<'_, ()>,
     _projection: &MutexGuard<'_, ()>,
 ) -> Result<(), TodayError> {
+    collect_report(runtime, directory, candidates, _files, _projection)
+        .await
+        .map(|_| ())
+}
+
+pub(super) async fn collect_report(
+    runtime: &TeraRuntime,
+    directory: &Path,
+    candidates: &[Phase1MediaArtifactId],
+    _files: &MutexGuard<'_, ()>,
+    _projection: &MutexGuard<'_, ()>,
+) -> Result<u32, TodayError> {
     if !runtime.today_projection_lock.can_collect() {
-        return Ok(());
+        return Ok(0);
     }
     let storage = runtime
         .client
         .storage()
         .map_err(|_| TodayError::RuntimeUnavailable)?;
     let Some(unreferenced) = unreferenced(storage, candidates).await? else {
-        return Ok(());
+        return Ok(0);
     };
     if !runtime.today_projection_lock.can_collect() {
-        return Ok(());
+        return Ok(0);
     }
+    let collected = unreferenced.len() as u32;
     for artifact in unreferenced {
         super::super::media::remove_artifact_files(directory, artifact)?;
     }
-    Ok(())
+    Ok(collected)
 }
 
 async fn unreferenced(

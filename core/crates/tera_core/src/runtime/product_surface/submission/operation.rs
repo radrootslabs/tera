@@ -234,7 +234,7 @@ impl TeraRuntime {
             .sync()?
             .push_status(loaded.request.operation_id())
             .await
-            .map_err(|_| Phase1DraftError::Operation)?
+            .map_err(Phase1DraftError::sync_error)?
             .ok_or(E::Corrupt)?;
         loaded.validate_push(&push)?;
         Ok((loaded, push))

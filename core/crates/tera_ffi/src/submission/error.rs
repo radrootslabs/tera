@@ -39,6 +39,9 @@ impl From<SubmissionCommitError> for TeraAppError {
                 true,
                 &["recover_original_submission"],
             ),
+            E::Storage(radroots_storage::Error::SpaceInsufficient) => {
+                return Self::needs_space("submission");
+            }
             E::Storage(_) => (
                 "submission_storage_failed",
                 true,

@@ -15,7 +15,8 @@
 "error.operation.outcome_unknown" = "The result is not yet known. Check the existing operation before trying again.";
 "error.protected_data.unavailable" = "Unlock your device to access saved work.";
 "error.state.changed" = "Saved state changed. Reload it before continuing.";
-"error.storage.full" = "Storage is full. Free space before trying again.";
+"error.storage.full" = "Storage is full. Free space, then check the original work before retrying. Saving may be unavailable.";
+"error.storage.receipt_capacity" = "Transfer receipt storage has reached its limit. Keep the original transfer for recovery; clearing photo cache does not resolve this limit.";
 "error.version.unsupported" = "This version cannot safely use the saved state or request. Check for an update.";
 "error.operation.cancelled" = "The operation was cancelled.";
 "error.operation.try_again" = "The operation could not be completed temporarily.";

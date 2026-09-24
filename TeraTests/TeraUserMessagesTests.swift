@@ -26,6 +26,7 @@ final class TeraUserMessagesTests: XCTestCase {
         "error.protected_data.unavailable",
         "error.state.changed",
         "error.storage.full",
+        "error.storage.receipt_capacity",
         "error.version.unsupported",
         "error.operation.cancelled",
         "error.operation.try_again",

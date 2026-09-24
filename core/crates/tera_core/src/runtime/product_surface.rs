@@ -15,6 +15,7 @@ mod cursor;
 mod identity;
 mod local_network_id;
 mod media;
+mod media_capacity;
 #[cfg(feature = "mobile-social")]
 pub mod media_gc;
 mod model;
@@ -181,6 +182,9 @@ impl TeraRuntime {
         .map_err(|error| crate::TeraAppError::runtime(error.to_string()))
     }
 }
+
+#[cfg(feature = "mobile-social")]
+pub use today::MediaCacheCleanup;
 
 #[cfg(test)]
 mod tests {

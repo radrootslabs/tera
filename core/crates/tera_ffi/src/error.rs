@@ -1,5 +1,5 @@
 use tera_core::runtime::product_surface::{
-    Phase1DraftError, ProfileMetadataError, SettingsError, TodayError,
+    Phase1DraftError, Phase1InboundMediaError, ProfileMetadataError, SettingsError, TodayError,
 };
 use thiserror::Error;
 
@@ -160,6 +160,9 @@ impl From<TodayError> for TeraAppError {
                 &["upgrade_application"][..],
             ),
             TodayError::RuntimeUnavailable => ("today_runtime_unavailable", true, &["retry"][..]),
+            TodayError::InboundMedia(Phase1InboundMediaError::SpaceInsufficient) => {
+                return Self::needs_space("today");
+            }
             TodayError::InboundMedia(error) => (
                 tera_core::error::recovery::inbound_media_code(&error),
                 false,
@@ -171,6 +174,9 @@ impl From<TodayError> for TeraAppError {
                 } else {
                     (error.code(), false, &["review_media"][..])
                 }
+            }
+            TodayError::Storage(radroots_storage::Error::SpaceInsufficient) => {
+                return Self::needs_space("today");
             }
             TodayError::Storage(_) => ("today_storage_failed", true, &["inspect_local_stores"][..]),
             TodayError::CorruptProjection | TodayError::Serialization => {
@@ -233,6 +239,7 @@ impl From<Phase1DraftError> for TeraAppError {
                     "An authored transition is already in progress for this operation.",
                 );
             }
+            Phase1DraftError::SpaceInsufficient => return Self::needs_space("authoring"),
             Phase1DraftError::Storage => (
                 "authoring_storage_failed",
                 true,
@@ -272,6 +279,9 @@ impl From<SettingsError> for TeraAppError {
         if let SettingsError::Lifecycle(error) = error {
             return tera_core::TeraAppError::from(error).into();
         }
+        if matches!(error, SettingsError::SpaceInsufficient) {
+            return Self::needs_space("settings");
+        }
         let retryable = matches!(
             error,
             SettingsError::RevisionConflict | SettingsError::Storage
@@ -301,6 +311,22 @@ impl From<ProfileMetadataError> for TeraAppError {
             false,
             &["correct_input"],
             "The profile metadata is invalid.",
+        )
+    }
+}
+
+impl TeraAppError {
+    pub(crate) fn needs_space(domain: &str) -> Self {
+        Self::failure(
+            "storage_space_insufficient",
+            domain,
+            false,
+            &[
+                "free_reconstructable_cache",
+                "preserve_local_work",
+                "reconcile_original_operation",
+            ],
+            "Local storage space is insufficient. Preserve the original work and reconcile its state before retrying.",
         )
     }
 }
@@ -546,3 +572,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "capacity_tests.rs"]
+mod capacity_tests;

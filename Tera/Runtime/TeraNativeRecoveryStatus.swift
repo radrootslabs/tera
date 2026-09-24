@@ -7,17 +7,18 @@ enum TeraNativeRecoveryReason: Sendable, Equatable {
 }
 
 enum TeraNativeRecoveryPause: Sendable, Equatable {
-  case protectedData, storageUnavailable, quota, credentials, runtimeUnavailable
+  case protectedData, storageUnavailable, quota, receiptQuota, credentials, runtimeUnavailable
 
   var message: String {
     let reason = switch self {
     case .protectedData: "Photo recovery is paused until this device is unlocked."
     case .storageUnavailable: "Photo recovery is paused until local storage is available."
     case .quota: "Photo recovery is paused because local storage is full. Free space, then check again."
+    case .receiptQuota: "Photo recovery is paused because transfer receipt storage reached its limit. Preserve the original transfer; clearing photo cache does not resolve this limit."
     case .credentials: "Photo recovery is paused until this account’s credentials are available."
     case .runtimeUnavailable: "Photo recovery is paused until this account’s runtime is available."
     }
-    return "\(reason) Saved editing is still available."
+    return "\(reason) Keep your existing work; new saves may be unavailable."
   }
 }
 
@@ -61,8 +62,23 @@ enum TeraNativeRecoveryClassification {
       default: break
       }
     }
-    if let native = error as? RadrootsBackgroundTransferError, native == .persistenceFailure || native == .unavailable {
-      return .storageUnavailable
+    return nativePause(error)
+  }
+
+  private static func nativePause(_ error: Error) -> TeraNativeRecoveryPause? {
+    if let native = error as? RadrootsBackgroundTransferError {
+      switch native {
+      case .spaceInsufficient: return .quota
+      case .receiptCapacityExceeded: return .receiptQuota
+      case .persistenceFailure, .unavailable: return .storageUnavailable
+      default: break
+      }
+    }
+    if let file = error as? RadrootsAppleFileError, file == .spaceInsufficient {
+      return .quota
+    }
+    if let capture = error as? RadrootsCaptureIntakeError, capture == .spaceInsufficient {
+      return .quota
     }
     return nil
   }

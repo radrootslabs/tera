@@ -67,7 +67,7 @@ impl TeraRuntime {
                         self.sync()?
                             .prepare_push(request)
                             .await
-                            .map_err(|_| Phase1DraftError::Operation)?;
+                            .map_err(Phase1DraftError::sync_error)?;
                         self.stop_legacy_publication(operation).await?;
                     }
                 }
@@ -88,7 +88,7 @@ impl TeraRuntime {
         let stopped = sync
             .push_status(operation)
             .await
-            .map_err(|_| Phase1DraftError::Operation)?
+            .map_err(Phase1DraftError::sync_error)?
             .ok_or(Phase1DraftError::Corrupt)?;
         if stopped
             .delivery_plan()
@@ -97,7 +97,7 @@ impl TeraRuntime {
         {
             return Ok(());
         }
-        result.map_err(|_| Phase1DraftError::Operation)?;
+        result.map_err(Phase1DraftError::sync_error)?;
         Err(Phase1DraftError::Corrupt)
     }
 
@@ -115,7 +115,7 @@ impl TeraRuntime {
             .sync()?
             .push_status(operation)
             .await
-            .map_err(|_| Phase1DraftError::Operation)?
+            .map_err(Phase1DraftError::sync_error)?
             .ok_or(Phase1DraftError::Corrupt)?;
         if status.delivery_plan().stop_requested_at_unix_ms().is_some() {
             return Err(Phase1DraftError::Terminal);

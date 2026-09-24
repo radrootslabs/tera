@@ -34,9 +34,9 @@ const PROFILE_DISPLAY_NAME_MAX_BYTES: usize = 512;
 const PROFILE_ABOUT_MAX_BYTES: usize = 8 * 1024;
 const RELAY_ENDPOINT_MAX: usize = 32;
 const BLOSSOM_FALLBACK_MAX: usize = 15;
-const MEDIA_CACHE_MIN_BYTES: u64 = 16 * 1024 * 1024;
-const MEDIA_CACHE_MAX_BYTES: u64 = 2 * 1024 * 1024 * 1024;
-const MEDIA_CACHE_MAX_ARTIFACTS: u32 = 10_000;
+use super::media_capacity::{
+    MEDIA_CACHE_MAX_ARTIFACTS, MEDIA_CACHE_MAX_BYTES, MEDIA_CACHE_MIN_BYTES,
+};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -883,6 +883,8 @@ pub enum SettingsError {
     CorruptDocument,
     #[error("settings storage is unavailable")]
     Storage,
+    #[error("local storage space is insufficient")]
+    SpaceInsufficient,
     #[error("identity settings are invalid: {0}")]
     Identity(#[from] IdentitySettingsError),
 }
@@ -905,6 +907,7 @@ impl SettingsError {
             Self::UnsupportedSchema => "unsupported_settings_schema",
             Self::CorruptDocument => "corrupt_settings_document",
             Self::Storage => "settings_storage_unavailable",
+            Self::SpaceInsufficient => "storage_space_insufficient",
             Self::Identity(error) => error.code(),
         }
     }
@@ -983,7 +986,10 @@ async fn load_settings(
         SETTINGS_DOCUMENT_KEY.to_owned(),
     )
     .await
-    .map_err(|_| SettingsError::Storage)?;
+    .map_err(|error| match error {
+        radroots_storage::Error::SpaceInsufficient => SettingsError::SpaceInsufficient,
+        _ => SettingsError::Storage,
+    })?;
     document
         .map(|document| decode_settings(document.value()))
         .transpose()
@@ -1018,7 +1024,10 @@ async fn replace_settings(
         .map_err(|_| SettingsError::CorruptDocument)?,
     )
     .await
-    .map_err(|_| SettingsError::Storage)?;
+    .map_err(|error| match error {
+        radroots_storage::Error::SpaceInsufficient => SettingsError::SpaceInsufficient,
+        _ => SettingsError::Storage,
+    })?;
     Ok(transition)
 }
 

@@ -218,6 +218,7 @@ impl TeraRuntime {
                     Ok(status) => return Phase1DraftListEntry::Draft(status.into()),
                     Err(
                         Phase1DraftError::Storage
+                        | Phase1DraftError::SpaceInsufficient
                         | Phase1DraftError::Operation
                         | Phase1DraftError::OperationUnavailable
                         | Phase1DraftError::OperationInProgress

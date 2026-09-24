@@ -1,4 +1,7 @@
 use std::sync::Arc;
+#[path = "cache_cleanup.rs"]
+mod cache_cleanup;
+pub use cache_cleanup::FfiMediaCacheCleanup;
 #[path = "backup/runtime.rs"]
 mod backup;
 #[path = "restore/runtime.rs"]

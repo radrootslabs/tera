@@ -59,7 +59,7 @@ impl TeraRuntime {
             .storage()?
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
             return Err(Phase1DraftError::RevisionConflict);
@@ -80,7 +80,7 @@ impl TeraRuntime {
         self.sync()?
             .sign_prepared(request)
             .await
-            .map_err(|_| Phase1DraftError::Operation)?;
+            .map_err(Phase1DraftError::sync_error)?;
         self.require_draft_coordinate_current(&head).await?;
         self.draft_status_from(head).await
     }

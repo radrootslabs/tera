@@ -129,6 +129,9 @@ impl From<SubmissionReservationError> for TeraAppError {
             ),
             E::InvalidReceipt => ("submission_receipt_mismatch", true, &["retry_same_command"]),
             E::ClockUnavailable => ("operation_clock_unavailable", true, &["check_device_clock"]),
+            E::Storage(radroots_storage::Error::SpaceInsufficient) => {
+                return Self::needs_space("submission");
+            }
             E::Storage(_) => (
                 "submission_storage_failed",
                 true,

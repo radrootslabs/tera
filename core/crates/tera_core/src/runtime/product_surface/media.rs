@@ -762,7 +762,11 @@ pub struct Phase1MediaCachePolicy {
 
 impl Phase1MediaCachePolicy {
     pub fn new(max_bytes: u64, max_artifacts: u32) -> Result<Self, Phase1InboundMediaError> {
-        if max_bytes == 0 || max_artifacts == 0 {
+        if max_bytes == 0
+            || max_bytes > super::media_capacity::MEDIA_CACHE_MAX_BYTES
+            || max_artifacts == 0
+            || max_artifacts > super::media_capacity::MEDIA_CACHE_MAX_ARTIFACTS
+        {
             return Err(Phase1InboundMediaError::InvalidCachePolicy);
         }
         Ok(Self {
@@ -851,6 +855,25 @@ impl Default for Phase1MediaCacheIndex {
 }
 
 impl Phase1MediaCacheIndex {
+    #[cfg(feature = "mobile-social")]
+    pub(super) fn cleanup_candidates(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<Phase1MediaArtifactId>, Phase1InboundMediaError> {
+        self.validate()?;
+        let mut entries: Vec<_> = self.entries.values().collect();
+        entries.sort_by_key(|entry| (entry.last_accessed_at_unix_ms, entry.artifact_id.to_hex()));
+        Ok(entries
+            .into_iter()
+            .take(limit)
+            .map(|entry| entry.artifact_id)
+            .collect())
+    }
+
+    fn validate_policy(policy: Phase1MediaCachePolicy) -> Result<(), Phase1InboundMediaError> {
+        Phase1MediaCachePolicy::new(policy.max_bytes, policy.max_artifacts).map(|_| ())
+    }
+
     pub fn admit(
         &mut self,
         receipt: &Phase1VerifiedMediaReceipt,
@@ -858,6 +881,7 @@ impl Phase1MediaCacheIndex {
         cached_at_unix_ms: u64,
     ) -> Result<Vec<Phase1MediaArtifactId>, Phase1InboundMediaError> {
         self.validate()?;
+        Self::validate_policy(policy)?;
         receipt.validate_intrinsic()?;
         if receipt.byte_size > policy.max_bytes {
             return Err(Phase1InboundMediaError::CacheQuotaExceeded);
@@ -962,6 +986,7 @@ impl Phase1MediaCacheIndex {
 
     fn validate(&self) -> Result<(), Phase1InboundMediaError> {
         if self.schema_version != MEDIA_CACHE_SCHEMA_VERSION
+            || self.entries.len() > super::media_capacity::MEDIA_CACHE_MAX_ARTIFACTS as usize
             || (self.configuration.is_none() && !self.entries.is_empty())
             || self.entries.iter().any(|(key, entry)| {
                 key != &entry.artifact_id.to_hex()
@@ -1052,6 +1077,8 @@ pub enum Phase1InboundMediaError {
     CacheUnavailable,
     #[error("inbound media cache filesystem operation failed")]
     CacheIo,
+    #[error("local storage space is insufficient")]
+    SpaceInsufficient,
     #[error("inbound media cache artifact is corrupt")]
     CorruptArtifact,
 }
@@ -1076,7 +1103,7 @@ pub(crate) async fn write_verified_artifact(
             return Ok(local_artifact(final_path, receipt, verified_bytes));
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+        Err(error) => return Err(cache_io_error(error)),
     }
 
     let temporary_path = directory.join(format!(
@@ -1089,31 +1116,22 @@ pub(crate) async fn write_verified_artifact(
         .write(true)
         .open(&temporary_path)
         .await
-        .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+        .map_err(cache_io_error)?;
     let write_result = async {
-        temporary
-            .write_all(bytes)
-            .await
-            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
-        temporary
-            .flush()
-            .await
-            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
-        temporary
-            .sync_all()
-            .await
-            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+        temporary.write_all(bytes).await.map_err(cache_io_error)?;
+        temporary.flush().await.map_err(cache_io_error)?;
+        temporary.sync_all().await.map_err(cache_io_error)?;
         drop(temporary);
         match tokio::fs::hard_link(&temporary_path, &final_path).await {
             Ok(()) => {}
             Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
                 verify_artifact_file(&final_path, receipt).await?;
             }
-            Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+            Err(error) => return Err(cache_io_error(error)),
         }
         tokio::fs::remove_file(&temporary_path)
             .await
-            .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+            .map_err(cache_io_error)?;
         sync_cache_directory(directory).await?;
         verify_artifact_file(&final_path, receipt).await
     }
@@ -1139,7 +1157,7 @@ pub(crate) fn remove_artifact_files(
         }
         Ok(_) => {}
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+        Err(error) => return Err(cache_io_error(error)),
     }
     for extension in MEDIA_CACHE_EXTENSIONS {
         let path = artifact_path(directory, artifact_id, extension)?;
@@ -1147,14 +1165,14 @@ pub(crate) fn remove_artifact_files(
             Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_file() => {
                 return Err(Phase1InboundMediaError::CorruptArtifact);
             }
-            Ok(_) => std::fs::remove_file(path).map_err(|_| Phase1InboundMediaError::CacheIo)?,
+            Ok(_) => std::fs::remove_file(path).map_err(cache_io_error)?,
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+            Err(error) => return Err(cache_io_error(error)),
         }
     }
     std::fs::File::open(directory)
         .and_then(|directory| directory.sync_all())
-        .map_err(|_| Phase1InboundMediaError::CacheIo)
+        .map_err(cache_io_error)
 }
 
 #[cfg(feature = "mobile-social")]
@@ -1174,11 +1192,11 @@ async fn ensure_cache_directory(directory: &Path) -> Result<(), Phase1InboundMed
     match tokio::fs::create_dir(directory).await {
         Ok(()) => {}
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(_) => return Err(Phase1InboundMediaError::CacheIo),
+        Err(error) => return Err(cache_io_error(error)),
     }
     let metadata = tokio::fs::symlink_metadata(directory)
         .await
-        .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+        .map_err(cache_io_error)?;
     if metadata.file_type().is_symlink() || !metadata.is_dir() {
         return Err(Phase1InboundMediaError::CorruptArtifact);
     }
@@ -1211,9 +1229,7 @@ async fn verify_artifact_file(
     {
         return Err(Phase1InboundMediaError::CorruptArtifact);
     }
-    let bytes = tokio::fs::read(path)
-        .await
-        .map_err(|_| Phase1InboundMediaError::CacheIo)?;
+    let bytes = tokio::fs::read(path).await.map_err(cache_io_error)?;
     if Sha256::digest(bytes.as_slice()).to_hex() != receipt.observed_sha256 {
         return Err(Phase1InboundMediaError::CorruptArtifact);
     }
@@ -1226,7 +1242,7 @@ async fn sync_cache_directory(directory: &Path) -> Result<(), Phase1InboundMedia
     tokio::task::spawn_blocking(move || std::fs::File::open(directory)?.sync_all())
         .await
         .map_err(|_| Phase1InboundMediaError::CacheIo)?
-        .map_err(|_| Phase1InboundMediaError::CacheIo)
+        .map_err(cache_io_error)
 }
 
 #[cfg(feature = "mobile-social")]
@@ -1307,6 +1323,16 @@ fn update_optional_u64(digest: &mut Sha256Hasher, value: Option<u64>) {
             digest.update(value.to_be_bytes());
         }
         None => digest.update([0]),
+    }
+}
+
+#[cfg(feature = "mobile-social")]
+fn cache_io_error(error: std::io::Error) -> Phase1InboundMediaError {
+    match error.kind() {
+        std::io::ErrorKind::StorageFull | std::io::ErrorKind::QuotaExceeded => {
+            Phase1InboundMediaError::SpaceInsufficient
+        }
+        _ => Phase1InboundMediaError::CacheIo,
     }
 }
 
@@ -2180,3 +2206,7 @@ mod tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "media_capacity_tests.rs"]
+mod capacity_tests;

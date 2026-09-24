@@ -17,6 +17,7 @@ mod dto;
 mod invalidation;
 pub mod logging;
 mod media_file;
+pub use runtime::FfiMediaCacheCleanup;
 mod media_inventory;
 mod operations;
 mod revision_status;

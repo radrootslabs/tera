@@ -14,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/radrootslabs/apple_kit.git",
-      revision: "68135576af9ac34126195178dabe82f02ff69497"
+      revision: "342a9c08d4eff1bedc5f25900bb166aa9eb531e2"
     ),
   ],
   targets: [
@@ -85,6 +85,8 @@ let package = Package(
         "Runtime/TeraAddMediaCoordinator.swift",
         "Runtime/TeraUploadRenewal.swift",
         "Runtime/TeraMediaCleanup.swift",
+        "Runtime/TeraMediaCacheCleanup.swift",
+        "Runtime/TeraGeneratedCacheCleanup.swift",
         "Runtime/TeraMediaProcessUse.swift",
         "Runtime/TeraRemoteQualificationMediaPicker.swift",
         "Runtime/TeraDiagnosticsStore.swift",
@@ -195,6 +197,8 @@ let package = Package(
         "Views/TeraEditingProtectionUITestSurface.swift",
         "Views/TeraRecoveryUITestSurface.swift",
         "Views/TeraSupportingViews.swift",
+        "Views/TeraSettingsView.swift",
+        "Views/TeraStorageSettingsSection.swift",
         "Views/TeraContextPicker.swift",
         "Views/TeraTodayDiscoveryView.swift",
         "Views/TeraTodayView.swift",

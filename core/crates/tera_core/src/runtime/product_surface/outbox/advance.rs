@@ -62,7 +62,7 @@ impl TeraRuntime {
         let mut status = sync
             .push_status(operation_id)
             .await
-            .map_err(|_| Phase1DraftError::Operation)?
+            .map_err(Phase1DraftError::sync_error)?
             .ok_or(Phase1DraftError::Corrupt)?;
 
         // Existing fact reconciliation is a bounded local action and never
@@ -77,7 +77,7 @@ impl TeraRuntime {
         {
             sync.deliver_push(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
             return Ok(());
         }
         let now = clock()?;
@@ -115,11 +115,11 @@ impl TeraRuntime {
         ) {
             sync.sign_prepared(request)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
             status = sync
                 .push_status(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?
+                .map_err(Phase1DraftError::sync_error)?
                 .ok_or(Phase1DraftError::Corrupt)?;
         }
         if status.artifact().signing_state() == SigningState::Signed
@@ -136,11 +136,11 @@ impl TeraRuntime {
             }
             sync.admit_signed(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
             status = sync
                 .push_status(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?
+                .map_err(Phase1DraftError::sync_error)?
                 .ok_or(Phase1DraftError::Corrupt)?;
         }
         if status.artifact().admission_state().is_admitted()
@@ -160,7 +160,7 @@ impl TeraRuntime {
                 Some(targets) => sync.deliver_push_selected(operation_id, targets).await,
                 None => sync.deliver_push(operation_id).await,
             }
-            .map_err(|_| Phase1DraftError::Operation)?;
+            .map_err(Phase1DraftError::sync_error)?;
         }
         Ok(())
     }

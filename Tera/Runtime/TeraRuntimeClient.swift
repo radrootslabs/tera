@@ -656,7 +656,7 @@ actor TeraRuntimeClient {
     }
   }
 
-  private func supportOperation<T: Sendable>(
+  func supportOperation<T: Sendable>(
     _ operation: String,
     _ body: @escaping @Sendable (any TeraRuntimeBackend) async throws -> T
   ) async throws -> T {

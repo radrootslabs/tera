@@ -13,7 +13,7 @@ packages:
     path: .
   RadrootsKit:
     url: https://github.com/radrootslabs/apple_kit.git
-    revision: 68135576af9ac34126195178dabe82f02ff69497
+    revision: 342a9c08d4eff1bedc5f25900bb166aa9eb531e2
 
 targets:
   Tera:
@@ -151,6 +151,9 @@ targets:
       - path: TeraTests/TeraBackgroundUploadFixtures.swift
       - path: TeraTests/TeraMutationAdmissionTests.swift
       - path: TeraTests/TeraSupportingStoreTests.swift
+      - path: TeraTests/TeraSupportingBackend.swift
+      - path: TeraTests/TeraCapacityRecoveryTests.swift
+      - path: TeraTests/TeraCapacitySettingsTests.swift
       - path: TeraTests/TeraLifecycleTests.swift
       - path: TeraTests/TeraClockTests.swift
       - path: TeraTests/TeraCalendarFFICompatibilityTests.swift

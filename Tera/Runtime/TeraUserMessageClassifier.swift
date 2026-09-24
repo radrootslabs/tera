@@ -117,6 +117,7 @@ enum TeraUserMessageClassifier {
   ) -> TeraUserMessageKey {
     switch error {
     case .invalidRequest: .invalidRequest
+    case .spaceInsufficient: .storageFull
     case .unavailable: .addMediaUnavailable
     case .permissionDenied: .permissionDenied
     case .userCancelled: .operationCancelled
@@ -133,6 +134,8 @@ enum TeraUserMessageClassifier {
     case .unavailable: .backgroundTransferUnavailable
     case .transferFailure: .backgroundTransferFailed
     case .persistenceFailure: .secureStateUnavailable
+    case .spaceInsufficient: .storageFull
+    case .receiptCapacityExceeded: .receiptCapacityExceeded
     }
   }
 
@@ -190,6 +193,7 @@ enum TeraUserMessageClassifier {
     _ error: RadrootsAppleFileError
   ) -> TeraUserMessageKey {
     switch error {
+    case .spaceInsufficient: .storageFull
     case .invalidRequest: .invalidRequest
     case .notFound, .permanentFailure: .fileOperationFailed
     case .permissionDenied: .permissionDenied

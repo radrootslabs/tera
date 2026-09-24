@@ -36,7 +36,7 @@ impl TeraRuntime {
             .map_err(|_| Phase1DraftError::Storage)?
             .query_verified(query)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?;
+            .map_err(Phase1DraftError::storage_error)?;
         let [stored] = page.items() else {
             return Err(Phase1DraftError::InvalidRevision);
         };

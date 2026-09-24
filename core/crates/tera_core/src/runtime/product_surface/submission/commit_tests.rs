@@ -381,3 +381,38 @@ async fn untrusted_receipt_and_historical_source_cannot_acknowledge_or_replace_w
         saved.operation_id()
     );
 }
+
+#[tokio::test]
+async fn capacity_before_and_after_submission_commit_retains_original_operation_and_media() {
+    for media in [false, true] {
+        for after in [false, true] {
+            let client = radroots_sdk::ClientBuilder::memory_default()
+                .build()
+                .unwrap();
+            let inner = client.storage().unwrap();
+            let request = request();
+            let captured = capture(inner, &request, media).await;
+            let mut store = FaultStore::new(inner, Fault::None);
+            store.atomic_fault = if after {
+                Fault::CapacityAfter
+            } else {
+                Fault::CapacityBefore
+            };
+            let repo = SubmissionRepository { store: &store };
+            assert_eq!(
+                repo.commit(&captured).await.unwrap_err(),
+                E::Storage(Error::SpaceInsufficient)
+            );
+            assert_records(inner, &captured, after).await;
+            assert_eq!(repo.recover(&request).await.unwrap().is_some(), after);
+            let retry = repo.commit(&captured).await.unwrap();
+            assert_eq!(
+                retry.operation_id(),
+                intent::operation_id(&request).unwrap()
+            );
+            assert_eq!(retry.intent_id(), intent::intent_id(&request).unwrap());
+            assert_eq!(retry.is_replay(), after);
+            assert_records(inner, &captured, true).await;
+        }
+    }
+}

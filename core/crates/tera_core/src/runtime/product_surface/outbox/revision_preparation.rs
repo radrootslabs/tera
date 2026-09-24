@@ -37,7 +37,7 @@ impl TeraRuntime {
         let original = storage
             .authored_draft_revision(draft_id, AuthoredDraftRevision::INITIAL)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?;
+            .map_err(Phase1DraftError::storage_error)?;
         let now = match &original {
             Some(original) => original.created_at_unix_ms(),
             None => clock()?,

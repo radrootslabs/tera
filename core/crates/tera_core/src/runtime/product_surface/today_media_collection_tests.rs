@@ -320,3 +320,6 @@ async fn candidate_limit_retains_excess_and_empty_batch_never_needs_storage() {
             .is_empty()
     );
 }
+
+#[path = "today_cache_cleanup_tests.rs"]
+mod cleanup;

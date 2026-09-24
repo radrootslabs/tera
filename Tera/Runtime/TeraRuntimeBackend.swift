@@ -5,6 +5,7 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 }
 
 protocol TeraRuntimeBackend: Sendable {
+  func cleanupMediaCache(context: TeraLocalNetwork) async throws -> TeraMediaCacheCleanup
   func restoreStatus() async throws -> TeraRestoreStatus?
   func reconcileRestoredTarget(_ target: TeraRestoreTarget) async throws
   func reviewRestoredWork() async throws -> String

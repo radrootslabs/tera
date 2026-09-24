@@ -147,6 +147,7 @@ pub(super) fn classify(code: &str) -> RecoveryDisposition {
 pub fn inbound_media_code(error: &Phase1InboundMediaError) -> &'static str {
     use Phase1InboundMediaError as Error;
     match error {
+        Error::SpaceInsufficient => "storage_space_insufficient",
         Error::CacheQuotaExceeded => "today_media_quota_exceeded",
         Error::UnsupportedSchema => "today_media_schema_unsupported",
         Error::CacheUnavailable | Error::CacheIo => "today_media_storage_failed",

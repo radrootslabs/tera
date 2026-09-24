@@ -85,6 +85,7 @@ final class TeraSettingsStore: ObservableObject {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
         do {
+            let (bytes, artifacts) = try TeraSettingsCapacityInput.convert(megabytes: mediaCacheMegabytes, artifacts: mediaCacheArtifacts)
             let transition = try await runtimeClient.replaceMobileSettings(
                 input: TeraReplaceSettings(
                   expectedRevision: settings.revision,
@@ -96,8 +97,8 @@ final class TeraSettingsStore: ObservableObject {
                   allowCellularDownloads: allowCellularDownloads,
                   allowCellularUploads: allowCellularUploads,
                   allowBackgroundTransfers: allowBackgroundTransfers,
-                  mediaCacheBytes: UInt64(max(mediaCacheMegabytes, 1)) * 1_048_576,
-                  mediaCacheArtifacts: UInt32(max(mediaCacheArtifacts, 1))
+                  mediaCacheBytes: bytes,
+                  mediaCacheArtifacts: artifacts
                 )
             )
             guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return false }
@@ -257,5 +258,39 @@ final class TeraSettingsStore: ObservableObject {
     private func optional(_ value: String) -> String? {
         let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return normalized.isEmpty ? nil : normalized
+    }
+}
+
+private enum TeraSettingsCapacityInput: Error {
+    case invalid
+    static func convert(megabytes: Int, artifacts: Int) throws -> (UInt64, UInt32) {
+        guard let megabytes = UInt64(exactly: megabytes), let artifacts = UInt32(exactly: artifacts) else { throw invalid }
+        let (bytes, overflow) = megabytes.multipliedReportingOverflow(by: 1_048_576)
+        guard !overflow else { throw Self.invalid }
+        return (bytes, artifacts)
+    }
+}
+
+extension TeraSettingsStore {
+    func cleanupMediaCache(context: TeraLocalNetwork) async {
+        guard reserveMutation() else { return }
+        defer { mutationInProgress = false }
+        generation = generation.invalidated()
+        let requestedGeneration = generation
+        isWorking = true
+        defer {
+          if requestedGeneration == generation {
+            isWorking = false
+          }
+        }
+        do {
+            let result = try await runtimeClient.cleanupMediaCache(context: context)
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
+            message = "Cleared \(result.invalidatedEntries) cache entries; \(result.remainingEntries) remain in this context. \(result.retainedCandidates) shared or unverified file candidates were retained. Cached photos can reload; pending work is preserved."
+            failureCode = nil
+        } catch {
+            guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
+            record(error)
+        }
     }
 }

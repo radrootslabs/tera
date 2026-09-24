@@ -49,6 +49,9 @@ impl From<ComposerPersistenceError> for TeraAppError {
                 &["preserve_local_work", "update_app"],
             ),
             Error::Record(_) => ("composer_record_corrupt", false, &["repair_composer"]),
+            Error::Storage(radroots_storage::Error::SpaceInsufficient) => {
+                return Self::needs_space("composer");
+            }
             Error::Storage(_) => (
                 "composer_storage_failed",
                 true,

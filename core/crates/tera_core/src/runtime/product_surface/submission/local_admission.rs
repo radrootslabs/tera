@@ -86,7 +86,7 @@ impl TeraRuntime {
                         .map_err(|_| E::Corrupt)?,
                 )
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
         }
         let current = self.submission_operation_status(request).await?;
         let projection = self

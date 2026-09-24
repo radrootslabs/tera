@@ -27,12 +27,16 @@ impl<S: AuthoredAtomicStorage + ?Sized> AuthoredAtomicStorage for FaultStore<'_,
             if attempt == 0 && matches!(self.atomic_fault, Fault::BeforeCommit) {
                 return Err(Error::BackendUnavailable);
             }
+            if attempt == 0 && matches!(self.atomic_fault, Fault::CapacityBefore) {
+                return Err(Error::SpaceInsufficient);
+            }
             if let Fault::Race(barrier) = &self.atomic_fault {
                 barrier.wait().await;
             }
             let receipt = self.inner.execute_authored(command).await?;
             if attempt == 0 {
                 match self.atomic_fault {
+                    Fault::CapacityAfter => return Err(Error::SpaceInsufficient),
                     Fault::LostCallback => return Err(Error::BackendUnavailable),
                     Fault::WrongReceipt => {
                         let AuthoredAtomicOutcome::Submitted(value) = receipt.outcome() else {

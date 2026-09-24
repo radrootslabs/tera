@@ -116,7 +116,7 @@ impl TeraRuntime {
         let head = storage
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.revision() != expected
             || head.stage().is_terminal()

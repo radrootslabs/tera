@@ -5,7 +5,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   let restoreStorage = RestoreTestStorage()
   let recoveryScheduleStorage = NativeRecoveryScheduleTestStorage()
   var nativeRepairValues: [String: TeraNativeRecoveryStatus] = [:]
-  enum Call: Hashable { case snapshot, schemas, drafts, save, composer, composerLoad, composerList, legacyPage, draftStatus, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate }
+  enum Call: Hashable { case snapshot, schemas, drafts, save, composer, composerLoad, composerList, legacyPage, draftStatus, probe, page, reconcile, refresh, search, me, subscribe, media, invalidate, cacheCleanup }
   struct Pending {
     let pause: ResourceTestPause
     let failure: TeraRuntimeFailure?
@@ -238,6 +238,11 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     let result = media
     try await wait(.media)
     return result
+  }
+
+  func cleanupMediaCache(context _: TeraLocalNetwork) async throws -> TeraMediaCacheCleanup {
+    try await wait(.cacheCleanup)
+    return TeraMediaCacheCleanup(invalidatedEntries: 2, retainedCandidates: 1, remainingEntries: 3)
   }
 
   func invalidateMediaArtifact(context _: TeraLocalNetwork, artifactID _: String) async throws -> Bool {

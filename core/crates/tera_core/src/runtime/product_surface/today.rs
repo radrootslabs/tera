@@ -95,8 +95,13 @@ mod submission_overlay;
 mod media_retrieval;
 
 #[cfg(feature = "mobile-social")]
+#[path = "today_cache_cleanup.rs"]
+mod cache_cleanup;
+#[cfg(feature = "mobile-social")]
 #[path = "today_media_collection.rs"]
 mod media_collection;
+#[cfg(feature = "mobile-social")]
+pub use cache_cleanup::MediaCacheCleanup;
 
 #[path = "today_media_visibility.rs"]
 mod media_visibility;

@@ -31,7 +31,7 @@ impl TeraRuntime {
         {
             return Ok(status);
         }
-        result.map_err(|_| Phase1DraftError::Operation)?;
+        result.map_err(Phase1DraftError::sync_error)?;
         Err(E::Corrupt)
     }
 

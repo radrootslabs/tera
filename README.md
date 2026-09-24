@@ -405,3 +405,20 @@ an event is not proof that it was never accepted. The inventory admits at most
 4,096 records and 4,096 pending destinations within a 64 MiB payload budget.
 Changes invalidate the prior review. Resume preserves original operation IDs,
 signed bytes and outcomes; it does not itself sign, upload or deliver anything.
+
+Storage pressure is reported separately from native transfer receipt capacity.
+A failed save can have committed before its acknowledgement was lost; reconcile
+the original composer or operation rather than creating a replacement. Settings
+accept cache budgets from 16 MiB through 2 GiB and 1 through 10,000 artifacts.
+Inbound cache admission also enforces the same upper bounds, including decoded
+policies; smaller internal budgets remain valid for constrained callers.
+
+Settings offers explicit cached-photo cleanup for the selected context. Each
+action invalidates at most 64 least-recently-used cache entries and reports
+remaining entries and retained file candidates, without claiming bytes freed.
+Physical deletion requires complete bounded cross-context ownership proof under
+the existing file/projection fence. Unknown owners or unsettled writes retain
+files. Draft staging, pending operations, transfer receipts and backup media are
+not cleanup targets. Invalidation must persist first: if the store is completely
+full, free device space before trying again. Cache cleanup cannot resolve the
+independent bounded transfer-receipt envelope limit.

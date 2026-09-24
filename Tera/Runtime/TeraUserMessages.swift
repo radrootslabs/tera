@@ -32,6 +32,7 @@ enum TeraUserMessageKey: String, CaseIterable, Sendable {
   case shutdownFailed = "error.shutdown.failed"
   case startupFailed = "error.startup.failed"
   case stateChanged = "error.state.changed"
+  case receiptCapacityExceeded = "error.storage.receipt_capacity"
   case storageFull = "error.storage.full"
   case todayChanged = "error.today.changed"
   case todaySelectNetwork = "error.today.select_network"
@@ -82,8 +83,10 @@ enum TeraUserMessageKey: String, CaseIterable, Sendable {
       "Unlock your device to access saved work."
     case .stateChanged:
       "Saved state changed. Reload it before continuing."
+    case .receiptCapacityExceeded:
+      "Transfer receipt storage has reached its limit. Keep the original transfer for recovery; clearing photo cache does not resolve this limit."
     case .storageFull:
-      "Storage is full. Free space before trying again."
+      "Storage is full. Free space, then check the original work before retrying. Saving may be unavailable."
     case .versionUnsupported:
       "This version cannot safely use the saved state or request. Check for an update."
     case .permissionDenied:

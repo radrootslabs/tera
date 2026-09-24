@@ -13,6 +13,8 @@ pub(super) enum Fault {
     None,
     BeforeCommit,
     LostCallback,
+    CapacityBefore,
+    CapacityAfter,
     WrongReceipt,
     Race(tokio::sync::Barrier),
 }

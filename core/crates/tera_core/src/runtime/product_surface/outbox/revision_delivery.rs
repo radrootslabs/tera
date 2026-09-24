@@ -195,7 +195,7 @@ impl TeraRuntime {
                     self.sync()?
                         .deliver_push(request.operation_id())
                         .await
-                        .map_err(|_| Phase1DraftError::Operation)?;
+                        .map_err(Phase1DraftError::sync_error)?;
                 }
                 Ok(())
             }

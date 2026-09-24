@@ -1,3 +1,4 @@
+mod capacity;
 use std::{
     collections::BTreeSet,
     sync::Arc,
@@ -1025,6 +1026,8 @@ pub enum Phase1DraftError {
     OperationInProgress,
     #[error("phase 1 draft persistence failed")]
     Storage,
+    #[error("local storage space is insufficient")]
+    SpaceInsufficient,
     #[error("phase 1 draft payload is corrupt")]
     Corrupt,
     #[error("phase 1 authored operation failed")]
@@ -1311,7 +1314,7 @@ impl TeraRuntime {
             .storage()?
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         self.profile_status_from(head).await
     }
@@ -1361,7 +1364,7 @@ impl TeraRuntime {
         let mut push = sync
             .push_status(operation_id)
             .await
-            .map_err(|_| Phase1DraftError::Operation)?
+            .map_err(Phase1DraftError::sync_error)?
             .ok_or(Phase1DraftError::Corrupt)?;
         if matches!(
             push.artifact().signing_state(),
@@ -1369,11 +1372,11 @@ impl TeraRuntime {
         ) {
             sync.sign_prepared(request)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
             push = sync
                 .push_status(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?
+                .map_err(Phase1DraftError::sync_error)?
                 .ok_or(Phase1DraftError::Corrupt)?;
         }
         if push.artifact().signing_state() == SigningState::Signed
@@ -1384,11 +1387,11 @@ impl TeraRuntime {
         {
             sync.admit_signed(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
             push = sync
                 .push_status(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?
+                .map_err(Phase1DraftError::sync_error)?
                 .ok_or(Phase1DraftError::Corrupt)?;
         }
         if push.artifact().admission_state().is_admitted()
@@ -1399,7 +1402,7 @@ impl TeraRuntime {
         {
             sync.deliver_push(operation_id)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
         }
         self.phase1_profile_status(draft_id).await
     }
@@ -1419,7 +1422,7 @@ impl TeraRuntime {
         let head = storage
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         Phase1ProfilePayload::decode(&head)?;
         if head.stage() == AuthoredDraftStage::Cancelled {
@@ -1436,7 +1439,7 @@ impl TeraRuntime {
             self.sync()?
                 .cancel_push(sync_id_for(&head)?)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
         }
         let next = head
             .successor(
@@ -1783,7 +1786,7 @@ impl TeraRuntime {
             let head = storage
                 .authored_draft_head(draft_id)
                 .await
-                .map_err(|_| Phase1DraftError::Storage)?
+                .map_err(Phase1DraftError::storage_error)?
                 .ok_or(Phase1DraftError::NotFound)?;
             if head.revision() != expected
                 || self.draft_has_coordinate_binding(&head).await?
@@ -1910,7 +1913,7 @@ impl TeraRuntime {
         let head = storage
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.revision() != expected
             || head.stage().is_terminal()
@@ -1981,7 +1984,7 @@ impl TeraRuntime {
         let head = storage
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.revision() != expected
             || head.stage().is_terminal()
@@ -2051,7 +2054,7 @@ impl TeraRuntime {
         let head = storage
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.revision() != expected {
             return Err(Phase1DraftError::RevisionConflict);
@@ -2137,7 +2140,7 @@ impl TeraRuntime {
             .storage()?
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         let _coordinate = if head.stage() == AuthoredDraftStage::ReadyToSign {
             self.admit_coordinate(&head).await?
@@ -2185,7 +2188,7 @@ impl TeraRuntime {
             .storage()?
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.revision() != expected || head.stage() != AuthoredDraftStage::Queued {
             return Err(Phase1DraftError::RevisionConflict);
@@ -2386,7 +2389,7 @@ impl TeraRuntime {
             .storage()?
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         self.draft_status_from(head).await
     }
@@ -2452,7 +2455,7 @@ impl TeraRuntime {
         let head = storage
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.stage() == AuthoredDraftStage::Cancelled {
             return self.draft_status_from(head).await;
@@ -2466,7 +2469,7 @@ impl TeraRuntime {
             self.sync()?
                 .cancel_push(sync_id_for(&head)?)
                 .await
-                .map_err(|_| Phase1DraftError::Operation)?;
+                .map_err(Phase1DraftError::sync_error)?;
             if status.artifact().signed().is_none() {
                 mark_possible_orphans(&mut payload.media, cancelled_at_unix_ms);
             }
@@ -2535,7 +2538,7 @@ impl TeraRuntime {
         let head = storage
             .authored_draft_head(draft_id)
             .await
-            .map_err(|_| Phase1DraftError::Storage)?
+            .map_err(Phase1DraftError::storage_error)?
             .ok_or(Phase1DraftError::NotFound)?;
         if head.revision() != expected {
             return Err(Phase1DraftError::RevisionConflict);
@@ -2583,7 +2586,7 @@ impl TeraRuntime {
         self.sync()?
             .prepare_push(request)
             .await
-            .map_err(|_| Phase1DraftError::Operation)?;
+            .map_err(Phase1DraftError::sync_error)?;
         let queued = ready
             .successor(
                 ready.payload().to_vec(),
@@ -2626,7 +2629,7 @@ impl TeraRuntime {
         self.sync()?
             .push_status(sync_id_for(draft)?)
             .await
-            .map_err(|_| Phase1DraftError::Operation)
+            .map_err(Phase1DraftError::sync_error)
     }
 
     async fn finish_queue(
@@ -2644,7 +2647,7 @@ impl TeraRuntime {
         self.sync()?
             .prepare_push(request)
             .await
-            .map_err(|_| Phase1DraftError::Operation)?;
+            .map_err(Phase1DraftError::sync_error)?;
         let queued = ready
             .successor(
                 ready.payload().to_vec(),
@@ -2718,7 +2721,7 @@ impl TeraRuntime {
         self.sync()?
             .push_status(sync_id_for(draft)?)
             .await
-            .map_err(|_| Phase1DraftError::Operation)
+            .map_err(Phase1DraftError::sync_error)
     }
 
     fn storage(&self) -> Result<&dyn AuthoredDraftStore, Phase1DraftError> {
@@ -3075,6 +3078,7 @@ pub(super) fn card_id(
 
 fn map_draft_storage_error(error: radroots_storage::Error) -> Phase1DraftError {
     match error {
+        radroots_storage::Error::SpaceInsufficient => Phase1DraftError::SpaceInsufficient,
         radroots_storage::Error::DraftRevisionConflict => Phase1DraftError::RevisionConflict,
         radroots_storage::Error::DraftNotFound => Phase1DraftError::NotFound,
         radroots_storage::Error::CorruptAuthoredDraft => Phase1DraftError::Corrupt,
@@ -3082,8 +3086,14 @@ fn map_draft_storage_error(error: radroots_storage::Error) -> Phase1DraftError {
     }
 }
 
-fn map_overlay_error(_: TodayError) -> Phase1DraftError {
-    Phase1DraftError::Overlay
+fn map_overlay_error(error: TodayError) -> Phase1DraftError {
+    match error {
+        TodayError::Storage(radroots_storage::Error::SpaceInsufficient)
+        | TodayError::InboundMedia(super::Phase1InboundMediaError::SpaceInsufficient) => {
+            Phase1DraftError::SpaceInsufficient
+        }
+        _ => Phase1DraftError::Overlay,
+    }
 }
 
 /// Captures the canonical wall-clock input for Rust-owned Phase 1 policy.

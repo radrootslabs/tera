@@ -72,6 +72,8 @@ async fn a_different_record_from_the_owner_cannot_be_read_or_saved_under_the_req
 enum AppendFault {
     None,
     BeforeCommit,
+    CapacityBefore,
+    CapacityAfter,
     WrongReceipt,
 }
 struct FaultStore<'a> {
@@ -97,6 +99,11 @@ impl AuthoredDraftStore for FaultStore<'_> {
             match self.fault {
                 AppendFault::None => self.inner.append_authored_draft(draft, expected).await,
                 AppendFault::BeforeCommit => Err(Error::BackendUnavailable),
+                AppendFault::CapacityBefore => Err(Error::SpaceInsufficient),
+                AppendFault::CapacityAfter => {
+                    self.inner.append_authored_draft(draft, expected).await?;
+                    Err(Error::SpaceInsufficient)
+                }
                 AppendFault::WrongReceipt => Ok(DraftAppendReceipt::new(
                     draft.successor(
                         draft.payload().to_vec(),
@@ -363,5 +370,61 @@ async fn backward_local_clock_preserves_order_and_invalid_time_does_not_append()
             ComposerPersistenceError::Record(ComposerStorageError::InvalidTimestamp)
         );
         assert_eq!(repo.load(id).await.unwrap().stored(), current.stored());
+    }
+}
+
+#[tokio::test]
+async fn capacity_before_and_after_composer_commit_requires_original_head_reconciliation() {
+    for after in [false, true] {
+        let client = radroots_sdk::ClientBuilder::memory_default()
+            .build()
+            .unwrap();
+        let inner = client.storage().unwrap();
+        let selected = scope();
+        let id = ComposerId::new([3; 16]).unwrap();
+        let original = ComposerRepository {
+            store: inner,
+            scope: &selected,
+        };
+        original
+            .create(id, sequence(1), form("original"), NOW)
+            .await
+            .unwrap();
+        let store = FaultStore {
+            inner,
+            fault: if after {
+                AppendFault::CapacityAfter
+            } else {
+                AppendFault::CapacityBefore
+            },
+            head_override: None,
+            appends: AtomicUsize::new(0),
+        };
+        let repo = ComposerRepository {
+            store: &store,
+            scope: &selected,
+        };
+        assert_eq!(
+            repo.save(
+                id,
+                ComposerRevision::INITIAL,
+                sequence(2),
+                form("changed"),
+                NOW + 1
+            )
+            .await
+            .unwrap_err(),
+            ComposerPersistenceError::Storage(Error::SpaceInsufficient)
+        );
+        let head = original.load(id).await.unwrap();
+        assert_eq!(
+            head.draft().edit_sequence(),
+            sequence(if after { 2 } else { 1 })
+        );
+        assert_eq!(
+            head.draft().form(),
+            &form(if after { "changed" } else { "original" })
+        );
+        assert_eq!(store.appends.load(Ordering::SeqCst), 1);
     }
 }
