@@ -91,7 +91,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   func newDraft(type: TeraAddCommandType? = nil) {
-    guard !isWorking, !submissions.isWorking, !protection.isWorking, !protection.failed else { return }
+    guard canCreateNewComposer else { return }
     if needsEditingPreservation {
       protection.schedule(kind: .editing, save: preservation(), apply: replacement { store, _ in store.replaceWithNew(type: type) })
     } else {
@@ -100,7 +100,7 @@ final class TeraAddStore: ObservableObject {
   }
 
   private func replaceWithNew(type: TeraAddCommandType?) {
-    guard !submissions.isWorking else { return }
+    guard submissions.canReplaceEditing else { return }
     submissions.newAction()
     composer.reset(scope: composer.scope)
     generation = generation.invalidated()
@@ -254,7 +254,7 @@ final class TeraAddStore: ObservableObject {
   func submit(locale: Locale = .current) async {
     // Only a new editable request may translate entry text. Existing capture,
     // retry, revision operation and signed bytes retain their original inputs.
-    if canSubmit, !protection.isWorking, isFormEditable, !submissions.hasAction, activeDraft?.isRevision != true {
+    if canSubmit, !protection.isWorking, isFormEditable, !submissions.usesCurrentAction, activeDraft?.isRevision != true {
       form = TeraFoodDecimalEntry.form(form, locale: locale)
     }
     if activeDraft == nil, revisionTarget == nil {

@@ -29,7 +29,7 @@ extension TeraSubmissionStore {
 
 extension TeraAddStore {
   var submitAccessibilityValue: String {
-    if activeDraft == nil, submissions.hasAction {
+    if activeDraft == nil, submissions.usesCurrentAction {
       let message = submissions.actionExplanation
       if let code = submissions.failureCode {
         return "\(message) Error code \(code)"
@@ -52,7 +52,7 @@ extension TeraAddStore {
   }
 
   var submitLabel: String {
-    if activeDraft == nil, submissions.hasAction {
+    if activeDraft == nil, submissions.usesCurrentAction {
       return submissions.actionLabel
     }
     if activeDraft?.kind == .retraction {

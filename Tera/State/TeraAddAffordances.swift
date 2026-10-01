@@ -1,8 +1,12 @@
 import Foundation
 
 extension TeraAddStore {
+  var canCreateNewComposer: Bool {
+    !isWorking && submissions.canReplaceEditing && !protection.isWorking && !protection.failed
+  }
+
   func selectType(_ type: TeraAddCommandType) {
-    guard !isWorking, !submissions.isWorking, isFormEditable, form.commandType != type else { return }
+    guard canCreateNewComposer, isFormEditable, form.commandType != type else { return }
     newDraft(type: type)
   }
 
@@ -24,7 +28,7 @@ extension TeraAddStore {
   }
 
   var canSubmit: Bool {
-    if activeDraft == nil, submissions.hasAction {
+    if activeDraft == nil, submissions.usesCurrentAction {
       return isProductReady && !isWorking && submissions.canContinue
     }
     return isProductReady && !isWorking && !submissions.isWorking

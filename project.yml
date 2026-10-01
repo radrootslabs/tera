@@ -115,6 +115,7 @@ targets:
       - path: TeraTests/TeraStateMigrationTests.swift
       - path: TeraTests/TeraIdentityRecoveryTests.swift
       - path: TeraTests/TeraKeyRemovalTests.swift
+      - path: TeraTests/TeraPublicationNavigationTests.swift
       - path: TeraTests/TeraIdentityCancellationTests.swift
       - path: TeraTests/TeraTodayStoreTests.swift
       - path: TeraTests/TeraTodaySyncFixtures.swift

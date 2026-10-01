@@ -22,6 +22,7 @@ final class TeraSubmissionStore: ObservableObject {
   private var worker: Task<Void, Never>?
   private var paused = false
   private let stopControl = TeraSubmissionStopControl()
+  private(set) var isNewComposer = false
 
   init(client: TeraRuntimeClient, composer: TeraComposerAutosave, media: (any TeraAddMediaHandling)?) {
     self.client = client
@@ -36,6 +37,14 @@ final class TeraSubmissionStore: ObservableObject {
     request != nil || capture != nil
   }
 
+  var usesCurrentAction: Bool {
+    hasAction && !isNewComposer
+  }
+
+  var canReplaceEditing: Bool {
+    worker == nil || (capture == nil && status != nil)
+  }
+
   func configure(scope: TeraComposerScope, context: TeraLocalNetwork) {
     self.context = context
     guard self.scope != scope else { return }
@@ -47,6 +56,7 @@ final class TeraSubmissionStore: ObservableObject {
     stopControl.reset()
     message = nil
     failureCode = nil
+    isNewComposer = false
     inventory.configure(scope: scope)
     changed()
   }
@@ -107,6 +117,9 @@ final class TeraSubmissionStore: ObservableObject {
     if let worker {
       await worker.value; return
     }
+    if isNewComposer {
+      newAction()
+    }
     do {
       if !hasAction {
         capture = try composer.beginSubmissionCapture(TeraComposerForm(editing: form))
@@ -136,7 +149,7 @@ final class TeraSubmissionStore: ObservableObject {
   /// New is explicit. Preserve the old captured source in its own composer row
   /// before the editing interlock saves newer input under a fresh composer ID.
   func preserveForReplacement(currentForm: () -> TeraAddForm) async throws {
-    guard worker == nil else {
+    guard canReplaceEditing else {
       throw TeraRuntimeFailure.local(operation: "submission.new", code: "operation_in_progress",
                                      safeMessage: "The original submission is still returning. Keep editing and retry New when it finishes.")
     }
@@ -153,7 +166,13 @@ final class TeraSubmissionStore: ObservableObject {
   }
 
   func newAction() {
-    guard worker == nil else { return }
+    guard canReplaceEditing else { return }
+    if worker != nil {
+      isNewComposer = true
+      changed()
+      return
+    }
+    isNewComposer = false
     capture = nil
     request = nil
     status = nil

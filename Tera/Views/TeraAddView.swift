@@ -129,7 +129,7 @@ struct TeraAddView: View {
           Label("New", systemImage: "square.and.pencil")
         }
         .accessibilityIdentifier("radroots.add.new")
-        .disabled(store.submissions.isWorking)
+        .disabled(!store.canCreateNewComposer)
       }
       ToolbarItemGroup(placement: .keyboard) {
         Spacer()
