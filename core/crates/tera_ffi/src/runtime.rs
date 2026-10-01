@@ -1,4 +1,9 @@
 use std::sync::Arc;
+#[path = "author_visibility.rs"]
+mod author_visibility;
+pub use author_visibility::{
+    FfiAuthorVisibility, FfiAuthorVisibilityEntry, FfiAuthorVisibilityPolicy,
+};
 #[path = "cache_cleanup.rs"]
 mod cache_cleanup;
 #[path = "key_removal.rs"]

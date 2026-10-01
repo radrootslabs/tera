@@ -46,6 +46,10 @@ let package = Package(
         "tera.xcconfig",
       ],
       sources: [
+        "Runtime/TeraAuthorVisibility.swift",
+        "Runtime/TeraGeneratedAuthorVisibility.swift",
+        "State/TeraVisibilityStore.swift",
+        "Views/TeraVisibilityControls.swift",
         "App/AppEntry.swift",
         "App/TeraAppDelegate.swift",
         "App/TeraAppModel.swift",

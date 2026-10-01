@@ -5,6 +5,8 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 }
 
 protocol TeraRuntimeBackend: Sendable {
+  func authorVisibility() async throws -> TeraAuthorVisibilityPolicy
+  func setAuthorVisibility(author: String, visibility: TeraAuthorVisibility) async throws -> TeraAuthorVisibilityPolicy
   func prepareRetractionForKeyRemoval(_ request: TeraKeyRemovalRequest) async throws
   func cleanupMediaCache(context: TeraLocalNetwork) async throws -> TeraMediaCacheCleanup
   func restoreStatus() async throws -> TeraRestoreStatus?

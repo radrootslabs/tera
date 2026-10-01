@@ -28,7 +28,6 @@ impl TodayProjectionFence {
         }
     }
 
-    #[cfg(any(feature = "mobile-social", test))]
     pub(super) fn can_collect(&self) -> bool {
         self.pending.load(Ordering::Acquire) == 0 && !self.uncertain.load(Ordering::Acquire)
     }

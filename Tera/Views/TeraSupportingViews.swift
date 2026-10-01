@@ -303,6 +303,7 @@ struct TeraProfileView: View {
       }
     }
     .navigationTitle("Profile")
+    .toolbar { TeraAuthorVisibilityMenu(author: profile.authorPublicKey) }
     .navigationBarTitleDisplayMode(.inline)
     .accessibilityIdentifier("radroots.profile.\(profile.authorPublicKey)")
   }

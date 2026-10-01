@@ -22,11 +22,12 @@ struct TeraTodayDetailView: View {
               Text(entry.authorProfile?.preferredName ?? entry.authorPublicKey)
                 .font(.subheadline.weight(.semibold))
               Text(entry.content)
+              TeraAuthorVisibilityMenu(author: entry.authorPublicKey)
               Text(entry.type.rawValue.capitalized)
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
-            .accessibilityElement(children: .combine)
+            .accessibilityElement(children: .contain)
           }
         }
       }
@@ -34,6 +35,9 @@ struct TeraTodayDetailView: View {
     .navigationTitle(card.type.label)
     .navigationBarTitleDisplayMode(.inline)
     .toolbar {
+      ToolbarItem(placement: .topBarTrailing) {
+        TeraAuthorVisibilityMenu(author: card.authorPublicKey)
+      }
       if canRevise {
         ToolbarItem(placement: .topBarTrailing) {
           Button("Revise") { revise(card) }

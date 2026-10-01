@@ -83,6 +83,7 @@ async fn cached_sqlite_pages_do_not_decode_ten_thousand_source_events() {
     assert!(
         samples.iter().all(
             |(_, _, calls)| calls.get("event.status").copied().unwrap_or(0) == 0
+                && calls.get("event.rebuild_visibility").copied().unwrap_or(0) == 0
                 && calls.get("event.query_visible").copied().unwrap_or(0) == 0
                 && calls.get("event.rows").copied().unwrap_or(0) <= 1
         ),

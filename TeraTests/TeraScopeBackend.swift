@@ -2,6 +2,7 @@ import Foundation
 @testable import TeraApp
 
 actor TeraScopeBackend: TeraRuntimeBackend {
+  let visibilityStorage = VisibilityTestStorage()
   let restoreStorage = RestoreTestStorage()
   let recoveryScheduleStorage = NativeRecoveryScheduleTestStorage()
   var nativeRepairValues: [String: TeraNativeRecoveryStatus] = [:]

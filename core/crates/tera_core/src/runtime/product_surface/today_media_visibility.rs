@@ -22,8 +22,7 @@ pub(super) async fn current_state(
     if state.query_scope != Some(scope) {
         return Err(TodayError::InvalidRequest);
     }
-    let visibility = EventStore::rebuild_visibility(storage).await?;
-    if state.visibility_digest != Some(*visibility.digest().as_bytes()) {
+    if state.visibility_digest != Some(runtime.projection_visibility_digest().await?) {
         return Err(TodayError::InvalidRequest);
     }
     Ok(state)

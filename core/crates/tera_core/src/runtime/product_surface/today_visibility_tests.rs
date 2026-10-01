@@ -197,7 +197,7 @@ async fn invalid_signature_cannot_gain_replacement_authority() {
     assert_eq!(page.items[0].card.source_event_id, old.id().to_hex());
 }
 
-fn sign_as_other_author(event: &SignedEvent) -> SignedEvent {
+pub(super) fn sign_as_other_author(event: &SignedEvent) -> SignedEvent {
     use nostr::secp256k1::{Keypair, Message, SECP256K1};
     let keys = nostr::Keys::parse(&"02".repeat(32)).unwrap();
     let mut wire = event.wire().clone();

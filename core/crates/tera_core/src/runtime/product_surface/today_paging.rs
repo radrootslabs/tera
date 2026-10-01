@@ -82,6 +82,7 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
+        let policy_digest = self.load_author_visibility().await?.cache_digest()?;
         let store_generation = current_store_generation(storage).await?;
         let algorithm_generation = projection_generation()?;
         let projection_id = projection_id()?;
@@ -100,6 +101,7 @@ impl TeraRuntime {
             if current.store_generation != scope.store_generation
                 || current.query_scope != Some(scope.query_scope)
                 || current.visibility_digest.is_none()
+                || current.author_visibility_digest != policy_digest
                 || !calendar_projection_ready(&current)
                 || current.content_generation != scope.projection_generation
             {
@@ -116,6 +118,7 @@ impl TeraRuntime {
                 Some(state)
                     if state.query_scope == Some(query_scope)
                         && state.visibility_digest.is_some()
+                        && state.author_visibility_digest == policy_digest
                         && calendar_projection_ready(&state) =>
                 {
                     state
@@ -149,6 +152,9 @@ impl TeraRuntime {
             (scope, snapshot, None)
         };
 
+        if self.load_author_visibility().await?.cache_digest()? != policy_digest {
+            return Err(CursorError::Stale.into());
+        }
         page_from_snapshot(snapshot, scope, after, request.limit)
     }
 }

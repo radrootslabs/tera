@@ -39,5 +39,6 @@ struct TeraTodayNavigation: View {
       )
     }
     .id(today.scopeGeneration)
+    .environmentObject(stores.visibility)
   }
 }

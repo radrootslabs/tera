@@ -340,6 +340,10 @@ private extension TeraTodayStore {
 }
 
 extension TeraTodayStore {
+    func invalidateVisibility() {
+        invalidatePresentation(for: selectedContext)
+    }
+
     func currentCard(id: String) -> TeraTodayCard? {
       cards.first { $0.id == id }
     }

@@ -137,6 +137,7 @@ struct TeraSettingsView: View {
         Toggle("Background transfers", isOn: $settingsStore.allowBackgroundTransfers)
       }
       TeraStorageSettingsSection(settingsStore: settingsStore, todayStore: todayStore)
+      TeraVisibilitySettingsSection()
       Section("Blossom service status") {
         if let configuration = addStore.blossomConfiguration {
           LabeledContent("Origin", value: configuration.primaryOrigin)

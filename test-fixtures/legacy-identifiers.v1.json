@@ -5655,6 +5655,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/store.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/visibility.rs",
+          "count": 1
         }
       ]
     },
@@ -6556,7 +6560,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today.rs",
-          "count": 12
+          "count": 11
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs",
@@ -6581,6 +6585,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_media_collection.rs",
           "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/product_surface/today_refresh.rs",
+          "count": 1
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/today_sync.rs",
@@ -6621,6 +6629,10 @@
         {
           "path": "core/crates/tera_core/src/runtime/store.rs",
           "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/visibility.rs",
+          "count": 3
         },
         {
           "path": "core/crates/tera_ffi/Cargo.toml",

@@ -81,6 +81,8 @@ mod calendar_migration_tests;
 mod paging;
 #[path = "today_paging_scope.rs"]
 mod paging_scope;
+#[path = "today_refresh.rs"]
+mod refresh;
 pub use paging::TodayPageRequest;
 
 #[path = "today_reconciliation.rs"]
@@ -145,6 +147,10 @@ mod admission_tests;
 #[cfg(all(test, feature = "mobile-social"))]
 #[path = "today_visibility_tests.rs"]
 mod visibility_tests;
+
+#[cfg(all(test, feature = "mobile-social"))]
+#[path = "today_author_visibility_tests.rs"]
+mod author_visibility_tests;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "PascalCase")]
@@ -251,6 +257,8 @@ struct TodayProjectionState {
     query_scope: Option<[u8; 32]>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     visibility_digest: Option<[u8; 32]>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    author_visibility_digest: Option<[u8; 32]>,
     #[serde(default)]
     quarantined_source_ids: Vec<String>,
 }
@@ -301,153 +309,6 @@ impl TeraRuntime {
             )
             .await?;
         Ok(ingest_receipt(receipt, projection))
-    }
-
-    /// Materializes current visible event truth for one LocalNetwork.
-    pub async fn phase1_refresh_today(
-        &self,
-        context: &LocalNetwork,
-        now_unix_seconds: u64,
-        update: TodayProjectionUpdate,
-    ) -> Result<TodayRefreshReceipt, TodayError> {
-        let _command = self.lifecycle.enter()?;
-        if now_unix_seconds == 0 {
-            return Err(TodayError::InvalidRequest);
-        }
-        let requested_updated_at_unix_ms = now_unix_seconds
-            .checked_mul(1_000)
-            .ok_or(TodayError::InvalidRequest)?;
-        let _projection = self.today_projection_lock.lock().await;
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        // Reject an unsupported reader before rebuilding any owner metadata.
-        calendar_migration::ready(storage).await?;
-        let visibility_digest = *EventStore::rebuild_visibility(storage)
-            .await?
-            .digest()
-            .as_bytes();
-        let event_status = EventStore::status(storage).await?;
-        let generation = projection_generation()?;
-        let projection_id = projection_id()?;
-        let key = projection_document_key(context);
-        let prior = match load_state(storage, context, generation).await? {
-            Some(state) => Some(state),
-            None => calendar_migration::legacy_state(storage, context).await?,
-        };
-        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
-
-        if update == TodayProjectionUpdate::Incremental
-            && prior.as_ref().is_some_and(|state| {
-                state.source_events == event_status.raw_events()
-                    && state.query_scope == Some(query_scope)
-                    && state.visibility_digest == Some(visibility_digest)
-                    && calendar_projection_ready(state)
-                    && state.schema_version == TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION
-            })
-        {
-            let state = prior.expect("checked present");
-            return Ok(refresh_receipt(update, &state, false));
-        }
-
-        let rebuild =
-            calendar_migration::begin(storage, requested_updated_at_unix_ms, &event_status).await?;
-        let visible = query_all_visible(storage).await?;
-        let local_media = prior.as_ref().map(local_media_evidence).unwrap_or_default();
-        let overlays = prior
-            .as_ref()
-            .map_or_else(BTreeMap::new, |state| state.overlays.clone());
-        let overlay_sources = submission_overlay::sources(prior.as_ref());
-        let media_cache =
-            prior.map_or_else(Phase1MediaCacheIndex::default, |state| state.media_cache);
-        let mut state = project_state(
-            context,
-            event_status.generation().as_bytes(),
-            event_status.raw_events(),
-            visible,
-            overlays,
-        )?;
-        submission_overlay::retain_sources(&mut state, &overlay_sources);
-        state.query_scope = Some(query_scope);
-        state.visibility_digest = Some(visibility_digest);
-        state.media_cache = media_cache;
-        apply_local_media_evidence(&mut state, &local_media);
-        state.content_generation = content_generation(&state)?;
-        let encoded = encode(&state)?;
-        let changed = ProjectionStore::projection_document(
-            storage,
-            projection_id.clone(),
-            generation,
-            key.clone(),
-        )
-        .await?
-        .is_none_or(|document| document.value() != encoded);
-        let document = ProjectionDocument::new(key, encoded)?;
-        let write = self.today_projection_lock.begin_write();
-        ProjectionStore::put_projection_document(
-            storage,
-            projection_id.clone(),
-            generation,
-            document,
-        )
-        .await?;
-        write.complete();
-
-        let source_position = if event_status.raw_events() == 0 {
-            None
-        } else {
-            Some(EventPosition::new(
-                event_status.generation(),
-                EventSequence::new(event_status.raw_events())?,
-            ))
-        };
-        let prior_updated_at = ProjectionStore::status(storage, projection_id.clone())
-            .await?
-            .and_then(|status| {
-                status
-                    .checkpoint()
-                    .map(ProjectionCheckpoint::updated_at_unix_ms)
-            })
-            .unwrap_or(0);
-        let updated_at_unix_ms = requested_updated_at_unix_ms.max(prior_updated_at);
-        let checkpoint = ProjectionCheckpoint::new(
-            projection_id,
-            generation,
-            source_position,
-            event_status.raw_events(),
-            updated_at_unix_ms,
-        )?;
-        if let Some(ticket) = rebuild {
-            calendar_migration::complete(storage, &ticket, checkpoint).await?;
-        } else {
-            ProjectionStore::checkpoint(storage, checkpoint).await?;
-        }
-        Ok(refresh_receipt(update, &state, changed))
-    }
-
-    async fn calendar_state_for_read(
-        &self,
-        storage: &dyn radroots_storage::Storage,
-        context: &LocalNetwork,
-        as_of: u64,
-    ) -> Result<Option<TodayProjectionState>, TodayError> {
-        let state = load_state(storage, context, projection_generation()?).await?;
-        let needs_upgrade = state
-            .as_ref()
-            .is_some_and(|value| !calendar_projection_ready(value))
-            || (state.is_none()
-                && (!calendar_migration::ready(storage).await?
-                    || calendar_migration::legacy_state(storage, context)
-                        .await?
-                        .is_some()));
-        if needs_upgrade {
-            self.phase1_refresh_today(context, as_of, TodayProjectionUpdate::Rebuild)
-                .await?;
-            load_state(storage, context, projection_generation()?).await
-        } else {
-            Ok(state)
-        }
     }
 
     /// Searches the current local projection using Today visibility and context rules.
@@ -1185,6 +1046,7 @@ fn project_state(
         media_cache: Phase1MediaCacheIndex::default(),
         query_scope: None,
         visibility_digest: None,
+        author_visibility_digest: None,
         quarantined_source_ids,
     })
 }
@@ -2306,6 +2168,7 @@ mod tests {
             platform_app: RwLock::new(None),
             store_public_key: None,
             today_projection_lock: Default::default(),
+            author_visibility_fence: Default::default(),
             mutations: Default::default(),
             settings_lock: tokio::sync::Mutex::new(()),
             recovery_status_lock: tokio::sync::Mutex::new(()),

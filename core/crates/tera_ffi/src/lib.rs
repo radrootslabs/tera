@@ -41,6 +41,7 @@ pub use operations::*;
 pub use recovery::*;
 pub use recovery_inventory::*;
 pub use runtime::{
+    FfiAuthorVisibility, FfiAuthorVisibilityEntry, FfiAuthorVisibilityPolicy,
     FfiNativeRecoveryReason, FfiNativeRecoverySchedule, FfiNativeRecoveryStatus,
     FfiRecoveryCompletionReceipt, FfiRecoveryUploadReceipt, FfiRestoreStore,
     FfiRevisionSourceRequest, ProtectedDataAvailability, TeraRuntime,

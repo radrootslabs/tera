@@ -8,6 +8,7 @@ final class TeraProductStores {
   let me: TeraMeStore
   let settings: TeraSettingsStore
   let media: TeraMediaStore
+  let visibility: TeraVisibilityStore
   private var generation = TeraSessionGeneration.initial
   private var startupTask: Task<Void, Never>?
 
@@ -21,6 +22,9 @@ final class TeraProductStores {
     me = TeraMeStore(runtimeClient: runtimeClient)
     settings = TeraSettingsStore(runtimeClient: runtimeClient)
     media = TeraMediaStore(runtimeClient: runtimeClient)
+    visibility = TeraVisibilityStore(runtimeClient: runtimeClient)
+    visibility.willChange = { [today] in today.invalidateVisibility() }
+    visibility.didChange = { [today] in await today.reload(refreshProjection: false) }
     today.mediaWillChange = { [media] previous, current, context in
       media.reconcileVisibility(previous: previous, current: current, context: context)
     }
@@ -52,6 +56,7 @@ final class TeraProductStores {
     me.configure(context: today.selectedContext)
     settings.configure(snapshot: snapshot)
     media.configure(snapshot: snapshot)
+    visibility.configure(snapshot: snapshot)
   }
 
   func start() {
@@ -94,6 +99,7 @@ final class TeraProductStores {
   }
 
   func stop() {
+    visibility.stop()
     cancelStartup()
     today.stop()
     add.stop()

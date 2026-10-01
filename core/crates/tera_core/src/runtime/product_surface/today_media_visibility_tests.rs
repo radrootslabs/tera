@@ -18,6 +18,100 @@ use tokio::{
 
 const NOW: u64 = 2_000_000_000;
 
+#[tokio::test]
+async fn author_block_prevents_hidden_fetch_and_late_network_admission() {
+    use crate::runtime::visibility::AuthorVisibility;
+    let f = fixture().await;
+    let author = keys().public_key().to_string();
+    f.runtime
+        .set_author_visibility(&author, AuthorVisibility::Blocked)
+        .await
+        .unwrap();
+    assert!(
+        retrieve(&f.runtime, &f.selected, f.fingerprint)
+            .await
+            .is_err()
+    );
+    assert!(
+        tokio::time::timeout(Duration::from_millis(30), f.listener.accept())
+            .await
+            .is_err()
+    );
+    f.runtime
+        .set_author_visibility(&author, AuthorVisibility::Visible)
+        .await
+        .unwrap();
+    f.runtime
+        .phase1_refresh_today(&f.selected, NOW + 3, TodayProjectionUpdate::Incremental)
+        .await
+        .unwrap();
+    let (started, entered) = oneshot::channel();
+    let (resume, wait) = oneshot::channel();
+    let server = tokio::spawn(serve(f.listener, f.bytes, started, wait));
+    let runtime = f.runtime.clone();
+    let selected = f.selected.clone();
+    let fingerprint = f.fingerprint;
+    let pending = tokio::spawn(async move { retrieve(&runtime, &selected, fingerprint).await });
+    tokio::time::timeout(Duration::from_secs(2), entered)
+        .await
+        .unwrap()
+        .unwrap();
+    f.runtime
+        .set_author_visibility(&author, AuthorVisibility::Muted)
+        .await
+        .unwrap();
+    resume.send(()).unwrap();
+    assert!(pending.await.unwrap().is_err());
+    server.await.unwrap();
+    assert_eq!(
+        f.runtime
+            .phase1_media_cache_status(&f.selected)
+            .await
+            .unwrap()
+            .artifacts,
+        0
+    );
+    f.runtime.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn author_block_revokes_cached_artifact_without_deleting_shared_bytes() {
+    use crate::runtime::visibility::AuthorVisibility;
+    let f = fixture().await;
+    let (started, entered) = oneshot::channel();
+    let (resume, wait) = oneshot::channel();
+    let server = tokio::spawn(serve(f.listener, f.bytes, started, wait));
+    resume.send(()).unwrap();
+    let artifact = retrieve(&f.runtime, &f.selected, f.fingerprint)
+        .await
+        .unwrap();
+    entered.await.unwrap();
+    server.await.unwrap();
+    f.runtime
+        .set_author_visibility(&keys().public_key().to_string(), AuthorVisibility::Blocked)
+        .await
+        .unwrap();
+    assert!(
+        f.runtime
+            .phase1_verified_media_artifact(&f.selected, artifact.artifact_id(), (NOW + 4) * 1000)
+            .await
+            .is_err()
+    );
+    f.runtime
+        .phase1_refresh_today(&f.selected, NOW + 5, TodayProjectionUpdate::Incremental)
+        .await
+        .unwrap();
+    assert!(
+        f.runtime
+            .phase1_verified_media_artifact(&f.selected, artifact.artifact_id(), (NOW + 6) * 1000)
+            .await
+            .unwrap()
+            .is_none()
+    );
+    assert!(artifact.local_path().exists());
+    f.runtime.shutdown().await.unwrap();
+}
+
 struct Fixture {
     _root: tempfile::TempDir,
     runtime: Arc<TeraRuntime>,

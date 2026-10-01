@@ -13,6 +13,7 @@ pub mod restore;
 pub mod sdk;
 pub mod store;
 mod today_projection;
+pub mod visibility;
 
 use chrono::Utc;
 use radroots_identity::PublicKey;
@@ -38,6 +39,7 @@ pub struct TeraRuntime {
     pub(crate) platform_app: RwLock<Option<AppInfoPlatform>>,
     pub(crate) store_public_key: Option<PublicKey>,
     today_projection_lock: today_projection::TodayProjectionFence,
+    author_visibility_fence: today_projection::TodayProjectionFence,
     #[cfg(feature = "mobile-social")]
     mutations: mutation_admission::MutationAdmission,
     #[cfg(feature = "mobile-social")]
@@ -106,6 +108,7 @@ impl TeraRuntime {
             platform_app: RwLock::new(None),
             store_public_key,
             today_projection_lock: Default::default(),
+            author_visibility_fence: Default::default(),
             #[cfg(feature = "mobile-social")]
             mutations: mutation_admission::MutationAdmission::default(),
             #[cfg(feature = "mobile-social")]

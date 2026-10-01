@@ -44,6 +44,8 @@ impl TeraRuntime {
             .ok_or(TodayError::ProjectionMissing)?;
         if state.query_scope != Some(query_scope)
             || state.visibility_digest.is_none()
+            || state.author_visibility_digest
+                != self.load_author_visibility().await?.cache_digest()?
             || expected_generation.is_some_and(|value| value != state.content_generation)
             || state.store_generation != current_store_generation(storage).await?
         {
