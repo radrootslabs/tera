@@ -184,19 +184,19 @@ struct OfflineMediaFixture {
   let picker: OfflineMediaPicker
   let transfer = BackgroundTransferHarness()
 
-  init() throws {
+  init(image: Data? = nil, filename: String = "input.png", mediaType: String = "image/png") throws {
     runtime = try MediaOwnershipFixture()
     roots = try TeraDurableMediaRoots.selectingStaging(in: RadrootsAppleFileRoots(appIdentifier: "test.offline-media",
                                                                                   dataRoot: runtime.root.appendingPathComponent("media/data"),
                                                                                   cacheRoot: runtime.root.appendingPathComponent("media/cache"),
                                                                                   temporaryRoot: runtime.root.appendingPathComponent("media/temporary")))
     try FileManager.default.createDirectory(at: roots.cacheRoot, withIntermediateDirectories: true)
-    let bytes = UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).pngData { context in
+    let bytes = image ?? UIGraphicsImageRenderer(size: CGSize(width: 2, height: 2)).pngData { context in
       UIColor.green.setFill()
       context.fill(CGRect(x: 0, y: 0, width: 2, height: 2))
     }
-    try bytes.write(to: roots.cacheRoot.appendingPathComponent("input.png"))
-    picker = OfflineMediaPicker(byteSize: UInt64(bytes.count))
+    try bytes.write(to: roots.cacheRoot.appendingPathComponent(filename))
+    picker = OfflineMediaPicker(byteSize: UInt64(bytes.count), filename: filename, mediaType: mediaType)
   }
 
   func coordinator() -> TeraAddMediaCoordinator {
@@ -222,13 +222,17 @@ struct OfflineMediaFixture {
 
 actor OfflineMediaPicker: RadrootsMediaPicker {
   let byteSize: UInt64
+  let filename: String
+  let mediaType: String
   private var denied = false
   private var available = true
   private(set) var importRequests: [RadrootsMediaImportRequest] = []
   private(set) var captureRequests: [RadrootsMediaCaptureRequest] = []
 
-  init(byteSize: UInt64) {
+  init(byteSize: UInt64, filename: String = "input.png", mediaType: String = "image/png") {
     self.byteSize = byteSize
+    self.filename = filename
+    self.mediaType = mediaType
   }
 
   func denyPermission() {
@@ -257,8 +261,8 @@ actor OfflineMediaPicker: RadrootsMediaPicker {
   private func asset(_ source: RadrootsMediaSource) throws -> RadrootsMediaAsset {
     guard !denied else { throw RadrootsCaptureIntakeError.permissionDenied }
     guard available else { throw RadrootsCaptureIntakeError.unavailable }
-    return try RadrootsMediaAsset(source: source, kind: .image, file: RadrootsFileReference(scope: .cache, relativePath: "input.png"),
-                                  mediaType: "image/png", suggestedFilename: "input.png", sizeBytes: byteSize,
+    return try RadrootsMediaAsset(source: source, kind: .image, file: RadrootsFileReference(scope: .cache, relativePath: filename),
+                                  mediaType: mediaType, suggestedFilename: filename, sizeBytes: byteSize,
                                   pixelWidth: 2, pixelHeight: 2, capturedAt: Date(timeIntervalSince1970: 1_800_000_000))
   }
 }

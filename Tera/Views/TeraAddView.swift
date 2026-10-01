@@ -45,6 +45,7 @@ struct TeraAddView: View {
             .foregroundStyle(.secondary)
         }
       } else {
+        TeraPublicationDisclosure()
         Group {
           Section("What are you sharing?") {
             Picker("Type", selection: typeBinding) {
@@ -142,7 +143,9 @@ struct TeraAddView: View {
     }
     .task { await store.start() }
   }
+}
 
+extension TeraAddView {
   @ViewBuilder
   private var composerFields: some View {
     switch store.form.commandType {
@@ -167,7 +170,7 @@ struct TeraAddView: View {
       )
       contentEditor(prompt: "Event details (optional)")
       formTextField(
-        label: "Location (optional)", text: optional(\.location), focus: .location,
+        label: "Public location (optional)", text: optional(\.location), focus: .location,
         identifier: "radroots.add.location"
       )
       TeraCalendarComposerFields(store: store)
@@ -187,7 +190,7 @@ struct TeraAddView: View {
       )
       contentEditor(prompt: "Details")
       formTextField(
-        label: "Location", text: optional(\.location), focus: .location,
+        label: "Public location", text: optional(\.location), focus: .location,
         identifier: "radroots.add.location"
       )
     }

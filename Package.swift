@@ -195,6 +195,7 @@ let package = Package(
         "Views/TeraSubmissionViews.swift",
         "Views/TeraPublicationTargetsView.swift",
         "Views/TeraAddView.swift",
+        "Views/TeraPublicationDisclosure.swift",
         "Views/TeraAddSaveStatus.swift",
         "Views/TeraDraftsSheet.swift",
         "Views/TeraEditingProtectionActions.swift",
