@@ -201,6 +201,17 @@ actor TeraIdentityStore {
         await custody.snapshot().appValue
     }
 
+    func removeSigningKey(expected: TeraAppIdentity) async throws -> TeraAppIdentity {
+        try Task.checkCancellation()
+        try await requireNoLegacyRecovery()
+        guard await snapshot() == expected, expected.state == .unlocked else {
+            throw TeraIdentityStoreError.unavailable
+        }
+        // The custody owner rechecks identity/generation after user presence.
+        // A returned absent snapshot is a committed fact even after late cancellation.
+        return try await custody.deleteIdentity().appValue
+    }
+
     func unlock() async throws -> TeraAppIdentity {
         try await custody.unlockIdentity().appValue
     }

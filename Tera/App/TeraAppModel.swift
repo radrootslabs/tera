@@ -176,6 +176,7 @@ final class TeraAppModel: ObservableObject {
   private func run(
     name: String,
     showsStarting: Bool = false,
+    retainsCompletedEffect: Bool = false,
     _ operation: @escaping @Sendable (TeraSessionStore) async -> Phase
   ) async {
     guard !isShellUITest else { return }
@@ -204,7 +205,9 @@ final class TeraAppModel: ObservableObject {
       return
     }
     let result = await operation(sessionStore)
-    guard generation == requestedGeneration, generation.isActive, !Task.isCancelled else {
+    guard generation == requestedGeneration, generation.isActive,
+          retainsCompletedEffect || !Task.isCancelled
+    else {
       await finishSessionOperation()
       return
     }
@@ -316,5 +319,18 @@ extension TeraAppModel {
     await TeraLifecycleBridge.shared.register { @Sendable [weak self] in
       await self?.shutdown() ?? true
     }
+  }
+}
+
+extension TeraAppModel {
+  func removeSigningKey(author: String, requests: [TeraKeyRemovalRequest]) async {
+    await run(name: "identity_key_removal", retainsCompletedEffect: true) { store in
+      await store.removeSigningKey(author: author, requests: requests)
+    }
+  }
+
+  func keyRemovalPage(author: String, cursor: String?) async throws -> TeraLegacyDraftPage {
+    guard let sessionStore else { throw TeraIdentityStoreError.unavailable }
+    return try await sessionStore.keyRemovalPage(author: author, cursor: cursor)
   }
 }

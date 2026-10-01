@@ -1,6 +1,8 @@
 use std::sync::Arc;
 #[path = "cache_cleanup.rs"]
 mod cache_cleanup;
+#[path = "key_removal.rs"]
+mod key_removal;
 pub use cache_cleanup::FfiMediaCacheCleanup;
 #[path = "backup/runtime.rs"]
 mod backup;

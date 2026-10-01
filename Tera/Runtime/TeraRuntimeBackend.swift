@@ -5,6 +5,7 @@ protocol TeraRuntimeSubscriptionToken: Sendable {
 }
 
 protocol TeraRuntimeBackend: Sendable {
+  func prepareRetractionForKeyRemoval(_ request: TeraKeyRemovalRequest) async throws
   func cleanupMediaCache(context: TeraLocalNetwork) async throws -> TeraMediaCacheCleanup
   func restoreStatus() async throws -> TeraRestoreStatus?
   func reconcileRestoredTarget(_ target: TeraRestoreTarget) async throws
@@ -130,6 +131,10 @@ protocol TeraRuntimeBackend: Sendable {
 }
 
 extension TeraRuntimeBackend {
+  func prepareRetractionForKeyRemoval(_: TeraKeyRemovalRequest) async throws {
+    throw addUnsupported()
+  }
+
   func legacyDraftPage(limit _: UInt16, cursor _: String?) async throws -> TeraLegacyDraftPage {
     throw addUnsupported()
   }

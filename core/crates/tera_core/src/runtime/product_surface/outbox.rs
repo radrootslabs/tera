@@ -48,6 +48,7 @@ use crate::runtime::TeraRuntime;
 
 mod advance;
 mod coordinate;
+mod key_removal;
 mod retraction;
 mod retraction_authority;
 pub(super) use coordinate::coordinate_plan;
@@ -3134,6 +3135,7 @@ mod tests {
     mod coordinate_recovery_tests;
     mod coordinate_support;
     mod coordinate_tests;
+    mod key_removal_tests;
     mod recovery_completion_tests;
     mod retraction_authority_tests;
     mod retraction_effect_tests;

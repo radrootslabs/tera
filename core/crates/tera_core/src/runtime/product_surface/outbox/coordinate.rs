@@ -51,6 +51,15 @@ impl TeraRuntime {
     ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         let _command = self.lifecycle.enter()?;
         let _admission = self.mutations.draft(draft_id)?;
+        self.sign_queued_draft_admitted(draft_id, expected_revision)
+            .await
+    }
+
+    pub(super) async fn sign_queued_draft_admitted(
+        &self,
+        draft_id: [u8; 16],
+        expected_revision: u64,
+    ) -> Result<Phase1DraftStatus, Phase1DraftError> {
         let draft_id =
             AuthoredDraftId::new(draft_id).map_err(|_| Phase1DraftError::InvalidDraft)?;
         let expected = AuthoredDraftRevision::new(expected_revision)

@@ -53,6 +53,9 @@ actor ResourceTestBackend: TeraRuntimeBackend {
   private var shutdownPause: ResourceTestPause?
   private var shutdownFailure: TeraRuntimeFailure?
   private var shutdownCompleted = false
+  private var removalPause: ResourceTestPause?
+  private var removalFailureID: String?
+  private(set) var preparedRemovals: [String] = []
   private(set) var profileMutations = 0
   private(set) var identityCommands = 0
   private var receive: (@Sendable (TeraRuntimeChange) async -> Void)?
@@ -83,6 +86,22 @@ actor ResourceTestBackend: TeraRuntimeBackend {
 
   func pauseShutdown(_ pause: ResourceTestPause) {
     shutdownPause = pause
+  }
+
+  func configureRemoval(pause: ResourceTestPause? = nil, failureID: String? = nil) {
+    removalPause = pause
+    removalFailureID = failureID
+  }
+
+  func prepareRetractionForKeyRemoval(_ request: TeraKeyRemovalRequest) async throws {
+    let pause = removalPause
+    removalPause = nil
+    await pause?.wait()
+    try Task.checkCancellation()
+    if request.id == removalFailureID {
+      throw unsupported()
+    }
+    preparedRemovals.append(request.id)
   }
 
   func failShutdownOnce(_ failure: TeraRuntimeFailure) {

@@ -677,7 +677,7 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
-          "path": "Tera/State/TeraSessionStore.swift",
+          "path": "Tera/State/TeraSessionRuntime.swift",
           "count": 1
         },
         {
@@ -1525,6 +1525,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraLateSigningTests.swift",
           "count": 1
         },
@@ -1552,6 +1556,10 @@
         },
         {
           "path": "TeraTests/TeraIdentityRecoveryTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
           "count": 1
         },
         {
@@ -1815,6 +1823,10 @@
           "count": 1
         },
         {
+          "path": "Tera/State/TeraSessionRuntime.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/State/TeraSessionStore.swift",
           "count": 1
         },
@@ -1852,6 +1864,10 @@
         },
         {
           "path": "TeraTests/TeraIdentityRecoveryTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
           "count": 1
         },
         {
@@ -2257,6 +2273,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
@@ -2272,6 +2292,10 @@
         },
         {
           "path": "TeraTests/TeraIdentityRecoveryTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
           "count": 1
         },
         {
@@ -2295,6 +2319,10 @@
         {
           "path": "TeraTests/TeraIdentityRecoveryTests.swift",
           "count": 6
+        },
+        {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
+          "count": 4
         },
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
@@ -2595,6 +2623,10 @@
           "count": 2
         },
         {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 1
         }
@@ -2647,6 +2679,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraRemoteQualificationTests.swift",
           "count": 1
         },
@@ -2673,6 +2709,10 @@
           "count": 2
         },
         {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
+          "count": 2
+        },
+        {
           "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 2
         }
@@ -2692,6 +2732,10 @@
         },
         {
           "path": "TeraTests/TeraIdentityRecoveryTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
           "count": 1
         },
         {
@@ -5629,6 +5673,10 @@
         {
           "path": "TeraTests/TeraIdentityRecoveryTests.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraKeyRemovalTests.swift",
+          "count": 1
         },
         {
           "path": "TeraTests/TeraLateSigningTests.swift",

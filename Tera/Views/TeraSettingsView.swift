@@ -8,6 +8,7 @@ struct TeraSettingsView: View {
   @ObservedObject var settingsStore: TeraSettingsStore
   @EnvironmentObject private var diagnosticsStore: TeraDiagnosticsStore
   @EnvironmentObject private var appModel: TeraAppModel
+  @State private var showsKeyRemoval = false
 
   var body: some View {
     List {
@@ -38,6 +39,8 @@ struct TeraSettingsView: View {
           Task { await appModel.lockIdentity() }
         }
         .accessibilityIdentifier("radroots.settings.identity.lock")
+        Button("Remove signing key…", role: .destructive) { showsKeyRemoval = true }
+          .accessibilityIdentifier("tera.settings.identity.remove")
       }
       Section("Profile") {
         TextField("Name", text: $settingsStore.profileName)
@@ -212,6 +215,9 @@ struct TeraSettingsView: View {
       }
     }
     .navigationTitle("Settings")
+    .sheet(isPresented: $showsKeyRemoval) {
+      TeraKeyRemovalView(author: snapshot.identity.publicKeyHex)
+    }
     .task { await settingsStore.load(profile: meStore.snapshot?.profile) }
     .radrootsDocumentExporter(preparedExport: $diagnosticsStore.preparedExport) { result in
       diagnosticsStore.completeExport(result)
