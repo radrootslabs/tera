@@ -1,13 +1,6 @@
 import Foundation
 import RadrootsKit
 
-struct TeraAddMediaSupport: Sendable, Equatable {
-  let library: Bool
-  let camera: Bool
-
-  static let unavailable = Self(library: false, camera: false)
-}
-
 struct TeraAddBackgroundUploadReceipt: Sendable, Equatable {
   let identifier: String
   let draftID: String
@@ -94,6 +87,7 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   private let preparer: RadrootsAppleMediaPreparer
   private let transfer: any RadrootsBackgroundTransfer
   private let clock: TeraClock
+  private let cameraAccess: @Sendable () -> TeraCameraAccess
   /// Reserve before request preparation or native callbacks. A cancelled waiter
   /// releases this caller's admission; OS transfer state remains authoritative.
   private var activeUploadDrafts: Set<String> = []
@@ -137,13 +131,15 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     picker: any RadrootsMediaPicker,
     preparer: RadrootsAppleMediaPreparer,
     transfer: any RadrootsBackgroundTransfer,
-    clock: TeraClock = .system
+    clock: TeraClock = .system,
+    cameraAccess: @escaping @Sendable () -> TeraCameraAccess = TeraCameraAccess.current
   ) {
     self.roots = roots
     self.picker = picker
     self.preparer = preparer
     self.transfer = transfer
     self.clock = clock
+    self.cameraAccess = cameraAccess
   }
 
   static func production(
@@ -179,7 +175,8 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
     let value = try await picker.currentSupport()
     return TeraAddMediaSupport(
       library: value.importAvailable && value.supportedImportKinds.contains(.image),
-      camera: value.cameraCaptureAvailable && value.supportedCaptureKinds.contains(.image)
+      camera: value.cameraCaptureAvailable && value.supportedCaptureKinds.contains(.image),
+      cameraAccess: cameraAccess()
     )
   }
 
@@ -201,6 +198,11 @@ actor TeraAddMediaCoordinator: TeraAddMediaHandling {
   }
 
   func captureImage() async throws -> TeraPreparedMedia {
+    let capability = try await support()
+    guard capability.camera else {
+      throw TeraRuntimeFailure.local(operation: "add.media.camera", code: "ios.camera.unavailable",
+                                     safeMessage: capability.cameraAccess.guidance)
+    }
     let mediaUse = try TeraMediaProcessUse.admit(root: roots.dataRoot)
     defer { withExtendedLifetime(mediaUse) {} }
     let result = try await picker.captureMedia(

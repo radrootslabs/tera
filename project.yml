@@ -98,6 +98,7 @@ targets:
       - path: TeraTests/TeraEditingReplacementFFITests.swift
       - path: TeraTests/TeraEditingOperationProtectionTests.swift
       - path: TeraTests/TeraOfflineMediaTests.swift
+      - path: TeraTests/TeraPermissionRecoveryTests.swift
       - path: TeraTests/TeraComposerStartupTests.swift
       - path: TeraTests/TeraRuntimeInvalidationTests.swift
       - path: TeraTests/TeraRuntimeBackpressureTests.swift

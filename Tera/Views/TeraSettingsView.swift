@@ -179,7 +179,7 @@ struct TeraSettingsView: View {
           "Photo library",
           value: addStore.mediaSupport.library ? "Ready" : "Unavailable"
         )
-        LabeledContent("Camera", value: addStore.mediaSupport.camera ? "Ready" : "Unavailable")
+        LabeledContent("Camera", value: addStore.mediaSupport.cameraAccess.label)
         Button {
           Task { await addStore.checkPhotoService() }
         } label: {

@@ -94,17 +94,17 @@
       {
         "bytes": 137212,
         "path": "source/aarch64-apple-darwin.json",
-        "sha256": "2d617ee8a7d9b589b0fdc72db78a3b5d23cb03f6ffee20450b6ff83e7b78e495"
+        "sha256": "f825968510e9d46fe06f0be6ea7b8af45726020db78a141c85527ace8c0bd78d"
       },
       {
         "bytes": 137056,
         "path": "source/aarch64-apple-ios-sim.json",
-        "sha256": "d7611b0e87609750520218db690ae5033f17dd0c286d5db76b6c3e3fde027ed3"
+        "sha256": "64c3ce643193068ea46a464fdc73b0638810afb8135731d3b7ebfa537e578e27"
       },
       {
         "bytes": 137052,
         "path": "source/aarch64-apple-ios.json",
-        "sha256": "1d1978fa7ea059af6b4699342c3483664b3d8f13b216f87155b700ac9d59508d"
+        "sha256": "daf8f6ce3d8ef68ae5eea9ffa9955cc7e23434095740f37d55a90aec38362189"
       }
     ],
     "language": "swift",
@@ -112,7 +112,7 @@
     "schema": "radroots.artifact-manifest.v2",
     "source": {
       "repository": "https://github.com/radrootslabs/tera",
-      "tree": "2c978511dd6c2890c21cb8df21de64602e23c7f8"
+      "tree": "730344c702e337496a3979e05facd626d62535ab"
     },
     "source_records": {
       "aarch64-apple-darwin": "source/aarch64-apple-darwin.json",
@@ -176,17 +176,17 @@
     {
       "bytes": 137212,
       "path": "TeraFFI/source/aarch64-apple-darwin.json",
-      "sha256": "2d617ee8a7d9b589b0fdc72db78a3b5d23cb03f6ffee20450b6ff83e7b78e495"
+      "sha256": "f825968510e9d46fe06f0be6ea7b8af45726020db78a141c85527ace8c0bd78d"
     },
     {
       "bytes": 137056,
       "path": "TeraFFI/source/aarch64-apple-ios-sim.json",
-      "sha256": "d7611b0e87609750520218db690ae5033f17dd0c286d5db76b6c3e3fde027ed3"
+      "sha256": "64c3ce643193068ea46a464fdc73b0638810afb8135731d3b7ebfa537e578e27"
     },
     {
       "bytes": 137052,
       "path": "TeraFFI/source/aarch64-apple-ios.json",
-      "sha256": "1d1978fa7ea059af6b4699342c3483664b3d8f13b216f87155b700ac9d59508d"
+      "sha256": "daf8f6ce3d8ef68ae5eea9ffa9955cc7e23434095740f37d55a90aec38362189"
     }
   ],
   "schema": "tera.installed-native-artifacts.v1"

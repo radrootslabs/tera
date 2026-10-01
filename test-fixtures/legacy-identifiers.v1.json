@@ -721,6 +721,16 @@
       ]
     },
     {
+      "identifier": "RadrootsApplePermissionStatusAdapters.live.cameraStatus",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraCameraAccess.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
       "identifier": "RadrootsApplePreparedImage",
       "category": "shared_apple_api",
       "occurrences": [
@@ -1736,6 +1746,10 @@
         },
         {
           "path": "Tera/Runtime/TeraBackupRuntimeStartup.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Runtime/TeraCameraAccess.swift",
           "count": 1
         },
         {

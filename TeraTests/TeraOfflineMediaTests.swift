@@ -199,9 +199,9 @@ struct OfflineMediaFixture {
     picker = OfflineMediaPicker(byteSize: UInt64(bytes.count), filename: filename, mediaType: mediaType)
   }
 
-  func coordinator() -> TeraAddMediaCoordinator {
+  func coordinator(cameraAccess: @escaping @Sendable () -> TeraCameraAccess = { .authorized }) -> TeraAddMediaCoordinator {
     TeraAddMediaCoordinator(roots: roots, picker: picker, preparer: RadrootsAppleMediaPreparer(roots: roots),
-                            transfer: transfer, clock: .fixed(unixSeconds: 1_800_000_000))
+                            transfer: transfer, clock: .fixed(unixSeconds: 1_800_000_000), cameraAccess: cameraAccess)
   }
 
   func configuration(_ signer: ComposerForbiddenSigner) -> TeraRuntimeLaunchConfiguration {

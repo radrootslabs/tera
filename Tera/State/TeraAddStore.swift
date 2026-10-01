@@ -21,7 +21,11 @@ final class TeraAddStore: ObservableObject {
   let protection = TeraEditingProtection()
   @Published private(set) var mediaRecoveryMessage: String?
   @Published private(set) var state: TeraAddLoadState = .idle
-  @Published private(set) var mediaSupport: TeraAddMediaSupport = .unavailable
+  var mediaSupport: TeraAddMediaSupport {
+    mediaAccess.support
+  }
+
+  private let mediaAccess: TeraMediaAccessStore
   @Published private(set) var blossomConfiguration: TeraBlossomConfigurationStatus?
   @Published private(set) var blossomEvidence: TeraBlossomEvidence?
   @Published private(set) var isCheckingBlossom = false
@@ -67,6 +71,7 @@ final class TeraAddStore: ObservableObject {
     composer = TeraComposerAutosave(persistence: TeraComposerPersistence(client: runtimeClient).protectingMedia(media))
     submissions = TeraSubmissionStore(client: runtimeClient, composer: composer, media: media)
     self.media = media
+    mediaAccess = TeraMediaAccessStore(media: media)
     self.identifier = identifier
     self.clock = clock
     self.observationDelay = observationDelay
@@ -75,6 +80,7 @@ final class TeraAddStore: ObservableObject {
       identifier: identifier,
       clock: clock
     )
+    mediaAccess.changed = { [weak self] in self?.objectWillChange.send() }
     submissions.changed = { [weak self] in self?.objectWillChange.send() }
     composer.stateChanged = { [weak self] in self?.composerState = $0 }
     protection.cancelled = { [weak self] in guard let self else { return }; generation = generation.invalidated() }
@@ -158,16 +164,19 @@ final class TeraAddStore: ObservableObject {
   }
 
   func importPhotos() async {
-    guard canAddMedia, let media else {
+    await prepareMedia(capture: false)
+  }
+
+  private func prepareMedia(capture: Bool) async {
+    guard canAddMedia, media != nil else {
       message = "Photo intake is unavailable."
       return
     }
     await perform { requestedGeneration in
       let remaining = self.mediaLimit - self.form.media.count
-      guard remaining > 0 else { return }
-      let imported = try await media.importImages(limit: remaining)
+      let prepared = try await self.mediaAccess.prepare(limit: remaining, capture: capture)
       try self.ensureCurrent(requestedGeneration)
-      self.form.media.append(contentsOf: imported.prefix(remaining))
+      self.form.media.append(contentsOf: prepared.prefix(remaining))
       self.message = "Photo prepared. Add descriptive text before publishing."
     }
   }
@@ -192,11 +201,11 @@ final class TeraAddStore: ObservableObject {
     do {
       let evidence = try await runtimeClient.probeBlossom()
       try ensureCurrent(requestedGeneration)
-      let support = try await loadMediaSupport()
+      let support = try await mediaAccess.inspect()
       try ensureCurrent(requestedGeneration)
       guard probe == probeGeneration, serviceRequest == blossomGeneration else { return }
       blossomEvidence = evidence
-      mediaSupport = support
+      mediaAccess.accept(support)
       message = "Photo service is reachable."
     } catch {
       guard isCurrent(requestedGeneration), probe == probeGeneration,
@@ -204,20 +213,6 @@ final class TeraAddStore: ObservableObject {
       guard await refreshBlossomSnapshot(), isCurrent(requestedGeneration),
             probe == probeGeneration else { return }
       message = TeraAddPresentation.message(for: error)
-    }
-  }
-
-  func capturePhoto() async {
-    guard canAddMedia, let media else {
-      message = "Camera intake is unavailable."
-      return
-    }
-    await perform { requestedGeneration in
-      let captured = try await media.captureImage()
-      try self.ensureCurrent(requestedGeneration)
-      guard self.form.media.count < self.mediaLimit else { return }
-      self.form.media.append(captured)
-      self.message = "Photo prepared. Add descriptive text before publishing."
     }
   }
 
@@ -412,11 +407,6 @@ final class TeraAddStore: ObservableObject {
     }
   }
 
-  private func loadMediaSupport() async throws -> TeraAddMediaSupport {
-    guard let media else { return .unavailable }
-    return try await media.support()
-  }
-
   @discardableResult
   private func refreshBlossomSnapshot() async -> Bool {
     let requestedGeneration = generation
@@ -531,6 +521,15 @@ final class TeraAddStore: ObservableObject {
 /// Lifecycle remains in the same lexical owner so private callback guards and
 /// editing authority cannot be bypassed by a second controller.
 extension TeraAddStore {
+  func capturePhoto() async {
+    await prepareMedia(capture: true)
+  }
+
+  func recheckMediaAccess() async {
+    guard !isWorking else { return }
+    await mediaAccess.recheck()
+  }
+
   func configure(snapshot: TeraRuntimeSnapshot) {
     let updated = TeraPresentationConfiguration(snapshot: snapshot)
     let scope = TeraComposerScope(authorPublicKey: updated.publicKey, localNetworkID: updated.context.id)
@@ -550,7 +549,7 @@ extension TeraAddStore {
         form = TeraAddPresentation.newForm(type: form.commandType, identifier: identifier, clock: clock)
       }
       state = .idle
-      mediaSupport = .unavailable
+      mediaAccess.accept(.unavailable)
       mediaRecoveryMessage = nil
       message = nil
       lastFailureCode = nil
@@ -576,7 +575,7 @@ extension TeraAddStore {
     let draftRequest = appliedDraftsGeneration
     let serviceConfiguration = configuration
     do {
-      let loaded = try await TeraAddStartupSnapshot.load(client: runtimeClient, support: loadMediaSupport) { schemas in
+      let loaded = try await TeraAddStartupSnapshot.load(client: runtimeClient, support: mediaAccess.inspect) { schemas in
         guard self.isCurrent(requestedGeneration) else { return }
         self.schemas = schemas
         self.state = .ready
@@ -594,7 +593,7 @@ extension TeraAddStore {
         drafts = TeraAddPresentation.sorted(loaded.drafts)
       }
       if serviceConfiguration == configuration {
-        mediaSupport = loaded.support
+        mediaAccess.accept(loaded.support)
       }
       state = .ready
       await submissions.refreshSelected()
@@ -605,6 +604,7 @@ extension TeraAddStore {
   }
 
   func stop() {
+    mediaAccess.invalidate()
     submissions.stop()
     protection.cancel()
     recovery.stop()

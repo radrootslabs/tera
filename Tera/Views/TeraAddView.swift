@@ -260,6 +260,7 @@ extension TeraAddView {
           mediaCameraButton
         }
       }
+      TeraMediaPermissionGuidance(support: store.mediaSupport) { await store.recheckMediaAccess() }
     }
   }
 

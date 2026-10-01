@@ -55,6 +55,10 @@ struct RuntimeStatusView: View {
                     Button("Retry", action: retry)
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("radroots.runtime.retry")
+                } else if canRecheckLocalState {
+                    Button("Check local state again", action: retry)
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("tera.runtime.recheck")
                 }
                 Spacer()
             }
@@ -99,6 +103,13 @@ struct RuntimeStatusView: View {
         case .running: "checkmark.circle"
         case .failed: "exclamationmark.triangle"
         case .stopped: "pause.circle"
+        }
+    }
+
+    var canRecheckLocalState: Bool {
+        switch phase {
+        case .protectedDataUnavailable, .corruptIdentity, .stopped: true
+        default: false
         }
     }
 

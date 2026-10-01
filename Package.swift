@@ -46,6 +46,9 @@ let package = Package(
         "tera.xcconfig",
       ],
       sources: [
+        "Runtime/TeraCameraAccess.swift",
+        "State/TeraMediaAccessStore.swift",
+        "Views/TeraMediaPermissionGuidance.swift",
         "Runtime/TeraAuthorVisibility.swift",
         "Runtime/TeraGeneratedAuthorVisibility.swift",
         "State/TeraVisibilityStore.swift",
