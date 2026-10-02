@@ -8,10 +8,29 @@ struct TeraSettingsView: View {
   @ObservedObject var settingsStore: TeraSettingsStore
   @EnvironmentObject private var diagnosticsStore: TeraDiagnosticsStore
   @EnvironmentObject private var appModel: TeraAppModel
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var showsKeyRemoval = false
 
   var body: some View {
     List {
+      Section("Privacy-safe diagnostics") {
+        if let message = diagnosticsStore.message {
+          Text(message)
+            .foregroundStyle(.secondary)
+        }
+        Button("Prepare diagnostics export") {
+          Task { await diagnosticsStore.prepare(snapshot: snapshot) }
+        }
+        .disabled(diagnosticsStore.isPreparing)
+        .accessibilityIdentifier("radroots.settings.diagnostics")
+        Text("Exports contain bounded lifecycle codes and runtime status only.")
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("tera.settings.diagnostics.contents")
+        Text("Posts, keys, credentials, endpoint URLs, and local paths are excluded.")
+          .fixedSize(horizontal: false, vertical: true)
+          .accessibilityIdentifier("tera.settings.diagnostics.exclusions")
+      }
+      TeraSupportSettingsSection()
       Section("Identity") {
         LabeledContent(
           "Local signer",
@@ -192,30 +211,16 @@ struct TeraSettingsView: View {
         .disabled(addStore.isCheckingBlossom || addStore.blossomConfiguration == nil)
         .accessibilityIdentifier("radroots.settings.retry.blossom")
       }
-      TeraSupportSettingsSection()
       Section("Runtime") {
         LabeledContent("Crate", value: snapshot.crateName)
         LabeledContent("Version", value: snapshot.crateVersion)
         LabeledContent("State", value: snapshot.isClosed ? "Closed" : "Running")
       }
-      Section {
-        if let message = diagnosticsStore.message {
-          Text(message)
-            .foregroundStyle(.secondary)
-        }
-        Button("Prepare diagnostics export") {
-          Task { await diagnosticsStore.prepare(snapshot: snapshot) }
-        }
-        .disabled(diagnosticsStore.isPreparing)
-        .accessibilityIdentifier("radroots.settings.diagnostics")
-      } header: {
-        Text("Privacy-safe diagnostics")
-      } footer: {
-        Text(
-          "Exports contain bounded lifecycle codes and runtime status only. Posts, keys, credentials, endpoint URLs, and local paths are excluded."
-        )
-      }
     }
+    // Native audits and system typography changes invalidate lazy row heights.
+    // Rebuild those measurements while retaining the existing settings store.
+    .id(dynamicTypeSize)
+    .teraReadableScrollEdges(dynamicTypeSize.isAccessibilitySize)
     .navigationTitle("Settings")
     .sheet(isPresented: $showsKeyRemoval) {
       TeraKeyRemovalView(author: snapshot.identity.publicKeyHex)

@@ -742,10 +742,16 @@
         "sha256": "d0701c2d7bce7af3c3d330c9e260cbcfa188c6578e63526c8cf9cb4b11214d13"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/repository.rs": {
-        "bytes": 8000,
-        "git_blob": "cb01acaebe1f8e7767ea270e75bb70307dfcbfa9",
+        "bytes": 8083,
+        "git_blob": "1670b2ab7d8dced24fb77ace06914b9ae13affab",
         "mode": "100644",
-        "sha256": "6b3930ca92c5067e7e9fb44b83694f7e6fcc0b61c2df500596724069dfa87285"
+        "sha256": "e0655510f5a92d81cc864a59c1ebcca01ff25190ae7a38294c6a7c8ed156a4aa"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/composer/repository_fault_reopen_tests.rs": {
+        "bytes": 4543,
+        "git_blob": "3329cd28fe4e5ded541218aa89cc3240ea825dc6",
+        "mode": "100644",
+        "sha256": "791186523a44990813746d78df0cbdf51abaf3dc22ac30236c5d1f42eada7036"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/repository_sqlite_tests.rs": {
         "bytes": 7276,
@@ -754,10 +760,10 @@
         "sha256": "29cd33d6dd8a45d8c86ace0f1f4cd48b1caf123159589a434079dd60a202c55d"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/repository_tests.rs": {
-        "bytes": 13514,
-        "git_blob": "ce7bdf83e00899a5c3a8b9a2738df97744988a6c",
+        "bytes": 13792,
+        "git_blob": "2f84a8abb70b26456b1b10de7a056ea6d8d4508c",
         "mode": "100644",
-        "sha256": "d31ec8e83f8483dff6f9fd061e1f0dcdd3237bda0da07bcb8383bd66cf1d717e"
+        "sha256": "7ae11903661ea602633a7fc3141a4b84f56e9f2de5fb4bc7d6c7c48ec191428f"
       },
       "core/crates/tera_core/src/runtime/product_surface/composer/storage.rs": {
         "bytes": 9586,
@@ -1300,10 +1306,16 @@
         "sha256": "76c7d5cb5f8bee41d6465c1d2d6765b3235a302cd26d456ab486a9e42aea6296"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/commit.rs": {
-        "bytes": 9360,
-        "git_blob": "92afd00ce53a5a8e42badbe580924ec3014a5413",
+        "bytes": 9439,
+        "git_blob": "3a55c4a0ee7402d16d1e102424fd79760bc530da",
         "mode": "100644",
-        "sha256": "07aefc18afab561a1739a16f01d192722a6146dddfd25974e0d2be43659ec034"
+        "sha256": "2a0e623d976f1a64a92ea6d573b214f764717815feb25ec0617da67109642e7f"
+      },
+      "core/crates/tera_core/src/runtime/product_surface/submission/commit_fault_reopen_tests.rs": {
+        "bytes": 6431,
+        "git_blob": "70e0ba788f2f8376a81354d2e5eaf3f555b38b09",
+        "mode": "100644",
+        "sha256": "b1cf9aa23bb0b9935b0428b4ab6b0b9de6feb44bb8cb75390bc4171f1b651d6c"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/commit_sqlite_tests.rs": {
         "bytes": 8868,
@@ -1312,10 +1324,10 @@
         "sha256": "f79b74d1c467bf9bbfb213c3ec98a02c7b24622319d56aaf83cfab34d75cab81"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/commit_tests.rs": {
-        "bytes": 14882,
-        "git_blob": "bedf06428fbe614d252abe1e7b70453fdc18214c",
+        "bytes": 14893,
+        "git_blob": "ff73e311e62e0b8df1a84bf462c094f2b720e4e4",
         "mode": "100644",
-        "sha256": "803965174b6b88b24b5d4f0f234165263547e5aeaa6b41068d873b0f0bd963b0"
+        "sha256": "fdfd7f1c4cb87c6417945e1788bec89d20ecd7efb461e9da03ff886fa5281aa8"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/configuration.rs": {
         "bytes": 6045,
@@ -1600,10 +1612,10 @@
         "sha256": "b2ab79fd048704a991252f6f974d2f026388dbc418988619d333c6334b0a2397"
       },
       "core/crates/tera_core/src/runtime/product_surface/submission/transaction_test_support.rs": {
-        "bytes": 1384,
-        "git_blob": "a0a48378fc45eecc1fc06b3cad735b30c0abb10f",
+        "bytes": 1643,
+        "git_blob": "7bfed3900c225e0a7632db7055ea85cb1b8ea4f8",
         "mode": "100644",
-        "sha256": "ec18505ac5efb7bfa1b6c351178aa7f6b15d8272d87dc567711acdd65ca372b7"
+        "sha256": "1d105fa23b9914c466009402f60bf3de83be3cf302be39b818392d5ae11faa6c"
       },
       "core/crates/tera_core/src/runtime/product_surface/today.rs": {
         "bytes": 129742,
@@ -2951,6 +2963,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "5b2ddf887733ca6e86f26893ccc3c852ac2dee67"
+    "tree": "c389c6e7e0ec6f765dc8bbfe585397b4e37097f2"
   }
 }

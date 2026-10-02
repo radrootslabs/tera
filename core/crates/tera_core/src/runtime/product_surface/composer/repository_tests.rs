@@ -69,18 +69,19 @@ async fn a_different_record_from_the_owner_cannot_be_read_or_saved_under_the_req
     assert_eq!(store.appends.load(Ordering::SeqCst), 0);
 }
 
-enum AppendFault {
+pub(super) enum AppendFault {
     None,
     BeforeCommit,
+    LostCallback,
     CapacityBefore,
     CapacityAfter,
     WrongReceipt,
 }
-struct FaultStore<'a> {
-    inner: &'a dyn AuthoredDraftStore,
-    fault: AppendFault,
-    head_override: Option<AuthoredDraft>,
-    appends: AtomicUsize,
+pub(super) struct FaultStore<'a> {
+    pub(super) inner: &'a dyn AuthoredDraftStore,
+    pub(super) fault: AppendFault,
+    pub(super) head_override: Option<AuthoredDraft>,
+    pub(super) appends: AtomicUsize,
 }
 impl AuthoredDraftStore for FaultStore<'_> {
     fn query_authored_drafts(
@@ -99,6 +100,10 @@ impl AuthoredDraftStore for FaultStore<'_> {
             match self.fault {
                 AppendFault::None => self.inner.append_authored_draft(draft, expected).await,
                 AppendFault::BeforeCommit => Err(Error::BackendUnavailable),
+                AppendFault::LostCallback => {
+                    self.inner.append_authored_draft(draft, expected).await?;
+                    Err(Error::BackendUnavailable)
+                }
                 AppendFault::CapacityBefore => Err(Error::SpaceInsufficient),
                 AppendFault::CapacityAfter => {
                     self.inner.append_authored_draft(draft, expected).await?;

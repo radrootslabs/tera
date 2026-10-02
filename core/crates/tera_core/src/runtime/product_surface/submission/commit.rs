@@ -25,6 +25,10 @@ mod sqlite_tests;
 #[path = "commit_tests.rs"]
 mod tests;
 
+#[cfg(test)]
+#[path = "commit_fault_reopen_tests.rs"]
+mod fault_reopen_tests;
+
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum SubmissionCommitError {
     #[error(transparent)]

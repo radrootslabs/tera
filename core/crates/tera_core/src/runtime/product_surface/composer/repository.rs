@@ -240,3 +240,7 @@ mod tests;
 #[cfg(test)]
 #[path = "repository_sqlite_tests.rs"]
 mod sqlite_tests;
+
+#[cfg(test)]
+#[path = "repository_fault_reopen_tests.rs"]
+mod fault_reopen_tests;

@@ -110,6 +110,7 @@ final class TeraAccessibilityUITests: XCTestCase {
     scroll(app, to: diagnostics)
     XCTAssertGreaterThanOrEqual(diagnostics.frame.height, 44)
     try audit(app)
+    auditFindings += try TeraAccessibilityNavigation.qualifySupportSettings(app, test: self)
     let back = app.navigationBars.buttons["Me"]
     XCTAssertTrue(back.waitForExistence(timeout: 5))
     back.tap()

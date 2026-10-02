@@ -21,7 +21,15 @@ struct TeraSupportSettingsSection: View {
         Link("Contact Radroots Support", destination: contact)
           .accessibilityIdentifier("tera.settings.support.contact")
       }
-      Text("Share diagnostics only after reviewing an export. Removing a local signing key does not erase copies already held by relays or other people.")
+      Text("Review a diagnostics export before you share it.")
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier("tera.settings.support.review")
+      Text("Removing a local signing key does not erase remote copies.")
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier("tera.settings.support.local_removal")
+      Text("Relays and other people may keep copies of public posts.")
+        .fixedSize(horizontal: false, vertical: true)
+        .accessibilityIdentifier("tera.settings.support.remote_copies")
     }
   }
 }

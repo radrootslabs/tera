@@ -12,6 +12,15 @@ pub(super) async fn capture<S: AuthoredDraftStore + ?Sized>(
     request: &SubmissionReservationRequest,
     media: bool,
 ) -> CapturedSubmission {
+    capture_with_policy(store, request, media, policy("wss://relay.example")).await
+}
+
+pub(super) async fn capture_with_policy<S: AuthoredDraftStore + ?Sized>(
+    store: &S,
+    request: &SubmissionReservationRequest,
+    media: bool,
+    policy: crate::runtime::product_surface::Phase1QueuePolicy,
+) -> CapturedSubmission {
     let mut input = input(if media {
         AddCommandType::CreatePhotoUpdate
     } else {
@@ -40,11 +49,5 @@ pub(super) async fn capture<S: AuthoredDraftStore + ?Sized>(
         .reserve(request, Some(NOW))
         .await
         .unwrap();
-    CapturedSubmission::capture(
-        reservation,
-        policy("wss://relay.example"),
-        Some(&blossom()),
-        bytes,
-    )
-    .unwrap()
+    CapturedSubmission::capture(reservation, policy, Some(&blossom()), bytes).unwrap()
 }

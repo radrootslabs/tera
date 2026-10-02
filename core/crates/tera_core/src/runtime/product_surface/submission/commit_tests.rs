@@ -7,7 +7,7 @@ use radroots_storage::authored_draft::AuthoredDraftStage;
 use super::super::fault_store::{Fault, FaultStore};
 use super::super::transaction_test_support::capture;
 
-async fn assert_records<S: AuthoredDraftStore + AuthoredAtomicStorage + ?Sized>(
+pub(super) async fn assert_records<S: AuthoredDraftStore + AuthoredAtomicStorage + ?Sized>(
     store: &S,
     capture: &CapturedSubmission,
     installed: bool,

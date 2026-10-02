@@ -60,22 +60,27 @@ extension TeraRemoteQualificationUITests {
       return XCTFail("The visible Drafts list was unavailable")
     }
 
-    for _ in 0 ..< 8 {
-      list.swipeDown()
-    }
+    // This sheet has just opened at its first page. Swiping downward at the
+    // top invokes native sheet dismissal rather than revealing saved rows.
     var identifiers = Set<String>()
-    let rows = app.descendants(matching: .any).matching(
+    let rows = sheet.descendants(matching: .any).matching(
       NSPredicate(format: "identifier BEGINSWITH 'tera.add.submission.' AND NOT identifier CONTAINS '.progress'")
     )
     for _ in 0 ..< 12 where identifiers.count < count {
       for index in 0 ..< rows.count {
-        let identifier = rows.element(boundBy: index).identifier
+        let row = rows.element(boundBy: index)
+        guard row.frame.height > 0, row.frame.intersects(list.frame) else { continue }
+        let identifier = row.identifier
         if identifier.range(of: "^tera\\.add\\.submission\\.[0-9a-f]{32}$", options: .regularExpression) != nil {
           identifiers.insert(identifier)
         }
       }
       if identifiers.count < count {
-        list.swipeUp()
+        // Overlapping, settled drags keep every row in the measured viewport.
+        let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.75))
+        let finish = list.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: 0.25))
+        start.press(forDuration: 0.05, thenDragTo: finish,
+                    withVelocity: .slow, thenHoldForDuration: 0.3)
       }
     }
     XCTAssertGreaterThanOrEqual(

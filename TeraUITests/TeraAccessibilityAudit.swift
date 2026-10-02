@@ -59,6 +59,25 @@ final class TeraAccessibilityAudit {
 
 @MainActor
 enum TeraAccessibilityNavigation {
+  static func qualifySupportSettings(_ app: XCUIApplication, test: XCTestCase) throws -> [String] {
+    var findings: [String] = []
+    for identifier in ["tera.settings.diagnostics.contents", "tera.settings.diagnostics.exclusions",
+                       "tera.settings.support.contact", "tera.settings.support.review",
+                       "tera.settings.support.local_removal", "tera.settings.support.remote_copies"]
+    {
+      let target = app.descendants(matching: .any)
+        .matching(NSPredicate(format: "identifier == %@", identifier)).firstMatch
+      scroll(app, to: target, requiresHit: identifier == "tera.settings.support.contact", test: test)
+      XCTAssertTrue(target.exists)
+      if identifier == "tera.settings.support.contact" {
+        XCTAssertTrue(target.isHittable)
+        XCTAssertGreaterThanOrEqual(target.frame.height, 44)
+      }
+      findings += try TeraAccessibilityAudit(test: test).run(app)
+    }
+    return findings
+  }
+
   static func viewport(_ app: XCUIApplication) -> (top: CGFloat, bottom: CGFloat) {
     let navigation = app.navigationBars.firstMatch
     let tabs = app.tabBars.firstMatch
