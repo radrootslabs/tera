@@ -616,7 +616,9 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       XCTFail("Settings was unavailable through the visible Me sheet")
       throw QualificationError.missingProductSurface
     }
-    guard publicKey.waitForExistence(timeout: 10) else {
+    guard revealSettingsPublicKey(app, publicKey: publicKey),
+      publicKey.waitForExistence(timeout: 10)
+    else {
       XCTFail("Settings did not present the native identity public key")
       throw QualificationError.missingProductSurface
     }
@@ -1202,29 +1204,6 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     let predicate = NSPredicate(format: "exists == true AND hittable == true")
     let expectation = XCTNSPredicateExpectation(predicate: predicate, object: element)
     return XCTWaiter.wait(for: [expectation], timeout: timeout) == .completed
-  }
-
-  @MainActor
-  private func openSettingsFromMe(
-    _ app: XCUIApplication,
-    meSheet: XCUIElement
-  ) -> Bool {
-    let meList = meSheet.descendants(matching: .collectionView).firstMatch
-    guard meList.waitForExistence(timeout: 10) else { return false }
-    let settings = app.descendants(matching: .any)["radroots.support.settings"]
-    for _ in 0 ..< 8 {
-      if settings.exists,
-        settings.isHittable,
-        settings.frame.minY >= meSheet.frame.minY,
-        settings.frame.maxY <= meSheet.frame.maxY
-      {
-        settings.tap()
-        return app.descendants(matching: .any)["radroots.support.settings.view"]
-          .waitForExistence(timeout: 20)
-      }
-      meList.swipeUp()
-    }
-    return false
   }
 
   @MainActor

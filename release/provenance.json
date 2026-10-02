@@ -2,11 +2,11 @@
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
     "ffi_api_sha256": "5d74060f97e52dad69ab7567c16d6b6b34acfab846f468450d89e2394a8a69d5",
-    "ffi_provenance_sha256": "507994df791418f0164c3b21873c9082e18a1d27cea93f2d8fff9414afad7691",
+    "ffi_provenance_sha256": "84fbc1e9a9f87da799629d1194660d4f8bdd7245b8b390c3fbebe4989577de05",
     "info_plist_sha256": "b55010dd73b34bf5ad910a888be0ea1ae45f2a5c14329fa6a57059a317bdbd42",
     "privacy_manifest_sha256": "0f2103257ba596fbcaeb1d6a4dffe3ae021e84c010178852c6bf500a8cfb0f19",
     "sbom_sha256": "f0a15c2c9ad7799539fbc52fd1fdbcf17f4046b6f86cfe0a9b8980adc0079e10",
-    "xcode_project_sha256": "21a4160b2df410f26e2c239ef411770588350d28b081d3ec0e7fea68ef1f7a6a"
+    "xcode_project_sha256": "49c796d1ac0693a7bb276ec927e5dcf8566719eb59feea7792fa4d31adde84a8"
   },
   "disposition": "unsigned",
   "platforms": [
@@ -22,7 +22,7 @@
     "lib_revision": "189c49b74b4bafc142b00b76b296477931139e72",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "8aec408132602a249111a65903c985cca5898ec316a45916d88ba756f08ea40d",
-    "tera_ffi_source_tree": "54d4ba5bdf90a7ec899df79bc1bb31dafe7b2d6d",
+    "tera_ffi_source_tree": "3f78cda10ef2c45f49b887f38619ce75dcc0eec0",
     "xcode_package_lock_sha256": "3656728f8251f3ea644aa150d154819766470ca7bd4f85b7c51fdf301d361d16"
   },
   "version": "0.1.0-alpha"

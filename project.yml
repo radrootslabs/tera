@@ -200,6 +200,7 @@ targets:
       - path: TeraUITests/TeraRecoveryUITests.swift
       - path: TeraUITests/TeraPhotoQualificationInput.swift
       - path: TeraUITests/TeraRemoteQualificationUITests.swift
+      - path: TeraUITests/TeraSettingsIdentityUI.swift
       - path: TeraUITests/TeraSubmissionQualificationSupport.swift
       - path: test-fixtures/local-social-personas.v1.json
         buildPhase: resources

@@ -5029,7 +5029,7 @@
           "count": 1
         },
         {
-          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
           "count": 1
         }
       ]
@@ -5043,8 +5043,8 @@
           "count": 1
         },
         {
-          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 1
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 2
         }
       ]
     },

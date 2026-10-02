@@ -42,6 +42,7 @@
 		39EC97809DDF74F40641AAE8 /* TeraAccessibilityAudit.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC5289B0C8C497EB52BF6DE1 /* TeraAccessibilityAudit.swift */; };
 		3D219E759CFB685936EB7068 /* TeraCalendarEditingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27C48B4B5442B1A404C1A328 /* TeraCalendarEditingTests.swift */; };
 		3DED3C2547AC6F8D00913FE8 /* TeraStoppedUploadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91D82A4781624F36870A6316 /* TeraStoppedUploadTests.swift */; };
+		3E373FF6F0BDE19F302097A6 /* TeraSettingsIdentityUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 719F870DBDC5105D134E678E /* TeraSettingsIdentityUI.swift */; };
 		41BD76CAA07F6071411F7AC1 /* TeraIdentityCancellationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F666094C5E385A2820F0FE82 /* TeraIdentityCancellationTests.swift */; };
 		41ED082A17594FE682A381DD /* TeraSubmissionQualificationSupport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 019FAA997BEDE9CC84785DAE /* TeraSubmissionQualificationSupport.swift */; };
 		45328FDB3E5F4715743FE7CD /* TeraRecoverySettlementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47E7B696B1BDDBF3B7FE838F /* TeraRecoverySettlementTests.swift */; };
@@ -239,6 +240,7 @@
 		70A358431863E54EDDAA24F4 /* TeraLocalBackupTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraLocalBackupTests.swift; sourceTree = "<group>"; };
 		70BECEA794AE8680BBCA54D0 /* legacy_upgrade_v1 */ = {isa = PBXFileReference; lastKnownFileType = folder; name = legacy_upgrade_v1; path = "test-fixtures/legacy_upgrade_v1"; sourceTree = SOURCE_ROOT; };
 		714B4DD70B881D29A89812C9 /* TeraTodayReconciliationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraTodayReconciliationTests.swift; sourceTree = "<group>"; };
+		719F870DBDC5105D134E678E /* TeraSettingsIdentityUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraSettingsIdentityUI.swift; sourceTree = "<group>"; };
 		7283D1C8F6E90A236BC84AF6 /* TeraTodayRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraTodayRenderingTests.swift; sourceTree = "<group>"; };
 		73EBD10E201ECA26DCED523F /* TeraRuntimeInvalidationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraRuntimeInvalidationTests.swift; sourceTree = "<group>"; };
 		74FCF1C4A8A7137623BBE223 /* TeraOpenedMediaCloseFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TeraOpenedMediaCloseFixture.swift; sourceTree = "<group>"; };
@@ -366,6 +368,7 @@
 				A5928D5CAC9F8EF904547DF8 /* TeraRecoveryUITests.swift */,
 				32CBDAE974FB8D7408108E69 /* TeraRemoteQualificationUITests.swift */,
 				5238B5F236C392C82CEF9838 /* TeraRootShellUITests.swift */,
+				719F870DBDC5105D134E678E /* TeraSettingsIdentityUI.swift */,
 				019FAA997BEDE9CC84785DAE /* TeraSubmissionQualificationSupport.swift */,
 			);
 			path = TeraUITests;
@@ -883,6 +886,7 @@
 				F8A87EA68BEF06EA7F0838D0 /* TeraRecoveryUITests.swift in Sources */,
 				C3177E827FE62639579C3EF5 /* TeraRemoteQualificationUITests.swift in Sources */,
 				DF97F408D7D32F72C5AF5939 /* TeraRootShellUITests.swift in Sources */,
+				3E373FF6F0BDE19F302097A6 /* TeraSettingsIdentityUI.swift in Sources */,
 				41ED082A17594FE682A381DD /* TeraSubmissionQualificationSupport.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
