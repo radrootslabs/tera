@@ -245,3 +245,6 @@ async fn dropping_today_refresh_closes_the_remote_request_and_keeps_local_reads_
         .await
         .unwrap();
 }
+
+#[path = "today_raw_ingress_tests.rs"]
+mod raw_ingress_tests;

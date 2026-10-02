@@ -1739,6 +1739,12 @@
         "mode": "100644",
         "sha256": "82066604130534748981481842ce5948a495454d96f761dcefa1779fa19faa17"
       },
+      "core/crates/tera_core/src/runtime/product_surface/today_raw_ingress_tests.rs": {
+        "bytes": 4973,
+        "git_blob": "6b5e39525d8338e083a2084bc6f352a441290536",
+        "mode": "100644",
+        "sha256": "a86244463cbf1b840706de7666459125729156305f398817a8e0f23014a58b7b"
+      },
       "core/crates/tera_core/src/runtime/product_surface/today_reconciliation.rs": {
         "bytes": 2370,
         "git_blob": "1282df42a3e8caf92ed663eb1392a41fa0f0f8f1",
@@ -1782,10 +1788,10 @@
         "sha256": "493023c67f10a27fd4506c28028d961ac1ac163a9569857d8b0222ae4610f87d"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_sync_live_tests.rs": {
-        "bytes": 8261,
-        "git_blob": "140567e8028d78ff7e869df5fa54719a8db96ecb",
+        "bytes": 8324,
+        "git_blob": "2878901a5814d094488a43537aa7c96e7f6bb9b3",
         "mode": "100644",
-        "sha256": "eb611943b487bc0a48428e0c8939a51d3d2f583f791eb9a734eab186860c5aab"
+        "sha256": "1b0484f7caa6ed45e4f4f7b39958cbf42fc44153d3442943a3ad8ca9386d9bde"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_sync_tests.rs": {
         "bytes": 9592,
@@ -1942,6 +1948,12 @@
         "git_blob": "92a1635ccbed873e6feec429b062a39893089364",
         "mode": "100644",
         "sha256": "b7bdcc8418e2feb8c17dee9e6d28f6e1097166e92dbdf49d30af3a636b0b1ad2"
+      },
+      "core/crates/tera_core/tests/input_resource_properties.rs": {
+        "bytes": 7545,
+        "git_blob": "f79fc18fe7e05474011b768a095f80d22dcfbe7b",
+        "mode": "100644",
+        "sha256": "6b4cbfdedbbab6c8189929b776562bad5eff533ba9d3be8a7ffbdfa064714094"
       },
       "core/crates/tera_core/tests/package_boundary.rs": {
         "bytes": 4248,
@@ -2959,6 +2971,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "c389c6e7e0ec6f765dc8bbfe585397b4e37097f2"
+    "tree": "10e9a06967e6aff750a8698abf08b03d7aa35ae2"
   }
 }
