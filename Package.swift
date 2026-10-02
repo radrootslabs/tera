@@ -100,6 +100,7 @@ let package = Package(
         "Runtime/TeraMediaProcessUse.swift",
         "Runtime/TeraRemoteQualificationMediaPicker.swift",
         "Runtime/TeraDiagnosticsStore.swift",
+        "Runtime/TeraDiagnosticPolicy.swift",
         "Runtime/TeraGeneratedRuntimeStartup.swift",
         "Runtime/TeraBackupRuntimeStartup.swift",
         "Runtime/TeraBackupFiles.swift",

@@ -1765,6 +1765,10 @@
           "count": 1
         },
         {
+          "path": "Tera/Runtime/TeraDiagnosticPolicy.swift",
+          "count": 1
+        },
+        {
           "path": "Tera/Runtime/TeraDiagnosticsStore.swift",
           "count": 1
         },
@@ -1878,6 +1882,10 @@
         },
         {
           "path": "TeraTests/TeraComposerMediaOwnershipTests.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraDiagnosticPolicyTests.swift",
           "count": 1
         },
         {
@@ -2195,6 +2203,10 @@
         {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 1
+        },
+        {
+          "path": "TeraTests/TeraDiagnosticPolicyTests.swift",
+          "count": 1
         }
       ]
     },
@@ -2253,16 +2265,6 @@
         {
           "path": "TeraTests/TeraIdentityRecoveryTests.swift",
           "count": 1
-        }
-      ]
-    },
-    {
-      "identifier": "RadrootsRedactingTelemetry",
-      "category": "shared_apple_api",
-      "occurrences": [
-        {
-          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
-          "count": 3
         }
       ]
     },
@@ -2425,8 +2427,16 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
+          "path": "Tera/Runtime/TeraDiagnosticPolicy.swift",
+          "count": 2
+        },
+        {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 3
+        },
+        {
+          "path": "TeraTests/TeraDiagnosticPolicyTests.swift",
+          "count": 1
         }
       ]
     },
@@ -2455,12 +2465,30 @@
       "category": "shared_apple_api",
       "occurrences": [
         {
+          "path": "Tera/Runtime/TeraDiagnosticPolicy.swift",
+          "count": 4
+        },
+        {
           "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
           "count": 3
         },
         {
+          "path": "TeraTests/TeraDiagnosticPolicyTests.swift",
+          "count": 5
+        },
+        {
           "path": "TeraTests/TeraLifecycleTests.swift",
           "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsTelemetryField",
+      "category": "shared_apple_api",
+      "occurrences": [
+        {
+          "path": "Tera/Runtime/TeraDiagnosticPolicy.swift",
+          "count": 2
         }
       ]
     },
@@ -2476,16 +2504,6 @@
     },
     {
       "identifier": "RadrootsTelemetryLevel",
-      "category": "shared_apple_api",
-      "occurrences": [
-        {
-          "path": "Tera/Runtime/TeraLifecycleCoordinator.swift",
-          "count": 1
-        }
-      ]
-    },
-    {
-      "identifier": "RadrootsTelemetryRedactionPolicy.default",
       "category": "shared_apple_api",
       "occurrences": [
         {

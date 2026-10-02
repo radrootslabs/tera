@@ -1,3 +1,4 @@
+mod privacy_format;
 mod writer;
 
 use std::fs;
@@ -76,12 +77,12 @@ fn initialize(options: LoggingOptions) -> Result<(), String> {
         tracing_subscriber::fmt::layer()
             .with_writer(writer.clone())
             .with_ansi(false)
-            .with_target(false)
+            .event_format(privacy_format::DiagnosticFormat)
     });
     let stdout_layer = options.stdout.then(|| {
         tracing_subscriber::fmt::layer()
             .with_writer(std::io::stdout)
-            .with_target(false)
+            .event_format(privacy_format::DiagnosticFormat)
     });
     tracing_subscriber::registry()
         .with(file_layer)
@@ -148,19 +149,22 @@ pub fn init_logging_stdout() -> Result<(), crate::TeraAppError> {
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 pub fn log_info(msg: String) -> Result<(), crate::TeraAppError> {
-    tracing::info!("{msg}");
+    drop(msg);
+    tracing::info!(code = "message_redacted");
     Ok(())
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 pub fn log_error(msg: String) -> Result<(), crate::TeraAppError> {
-    tracing::error!("{msg}");
+    drop(msg);
+    tracing::error!(code = "message_redacted");
     Ok(())
 }
 
 #[cfg_attr(not(coverage_nightly), uniffi::export)]
 pub fn log_debug(msg: String) -> Result<(), crate::TeraAppError> {
-    tracing::debug!("{msg}");
+    drop(msg);
+    tracing::debug!(code = "message_redacted");
     Ok(())
 }
 

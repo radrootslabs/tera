@@ -163,6 +163,7 @@ targets:
       - path: TeraTests/TeraCapacityRecoveryTests.swift
       - path: TeraTests/TeraCapacitySettingsTests.swift
       - path: TeraTests/TeraLifecycleTests.swift
+      - path: TeraTests/TeraDiagnosticPolicyTests.swift
       - path: TeraTests/TeraClockTests.swift
       - path: TeraTests/TeraCalendarFFICompatibilityTests.swift
       - path: TeraTests/TeraCalendarTimingTests.swift

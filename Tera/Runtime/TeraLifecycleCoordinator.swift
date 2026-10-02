@@ -111,7 +111,6 @@ actor TeraDiagnosticsBuffer: RadrootsTelemetry {
   }
 
   private let capacity: Int
-  private let policy = RadrootsTelemetryRedactionPolicy.default
   private var events: [Entry] = []
 
   init(capacity: Int = 128) {
@@ -119,6 +118,7 @@ actor TeraDiagnosticsBuffer: RadrootsTelemetry {
   }
 
   func record(_ event: RadrootsTelemetryEvent) {
+    guard let event = TeraDiagnosticPolicy.sanitized(event) else { return }
     guard let occurredAtUnixMilliseconds = try? TeraClock.signedUnixMilliseconds(
       from: event.occurredAt
     ) else {
@@ -126,7 +126,7 @@ actor TeraDiagnosticsBuffer: RadrootsTelemetry {
     }
     events.append(
       Entry(
-        event: policy.redacted(event),
+        event: event,
         occurredAtUnixMilliseconds: occurredAtUnixMilliseconds
       )
     )
@@ -142,11 +142,11 @@ actor TeraDiagnosticsBuffer: RadrootsTelemetry {
         name: event.name,
         category: event.category,
         level: event.level.rawValue,
-        fields: Dictionary(
-          uniqueKeysWithValues: event.fields.map { field in
-            (field.key, field.value.renderedValue)
+        fields: event.fields.reduce(into: [String: String]()) { values, field in
+          if values[field.key] == nil {
+            values[field.key] = field.value.renderedValue
           }
-        ),
+        },
         occurredAtUnixMilliseconds: entry.occurredAtUnixMilliseconds
       )
     }
@@ -189,7 +189,7 @@ actor TeraLifecycleCoordinator {
     transfer: (any RadrootsBackgroundTransfer)?,
     transferIdentifier: String?
   ) {
-    self.telemetry = telemetry
+    self.telemetry = TeraSanitizedTelemetry(sink: telemetry)
     self.buffer = buffer
     self.fileAccess = fileAccess
     self.transfer = transfer
@@ -211,7 +211,7 @@ actor TeraLifecycleCoordinator {
     let logger = RadrootsAppleLoggerTelemetry(subsystem: bundleIdentifier)
     let telemetry = RadrootsMultiplexTelemetry([
       logger,
-      RadrootsRedactingTelemetry(sink: buffer),
+      buffer,
     ])
     let identifier = try RadrootsBackgroundTransferValidation.normalizedIdentifier(
       TeraRemoteQualificationEnvironment.backgroundTransferIdentifier(
@@ -238,7 +238,7 @@ actor TeraLifecycleCoordinator {
   static func disabled() -> TeraLifecycleCoordinator {
     let buffer = TeraDiagnosticsBuffer()
     return TeraLifecycleCoordinator(
-      telemetry: RadrootsRedactingTelemetry(sink: buffer),
+      telemetry: buffer,
       buffer: buffer,
       fileAccess: nil,
       transfer: nil,
@@ -251,7 +251,7 @@ actor TeraLifecycleCoordinator {
   {
     let buffer = TeraDiagnosticsBuffer(capacity: capacity)
     return TeraLifecycleCoordinator(
-      telemetry: RadrootsRedactingTelemetry(sink: buffer),
+      telemetry: buffer,
       buffer: buffer,
       fileAccess: RadrootsAppleFileAccess(roots: roots),
       transfer: nil,
@@ -296,7 +296,7 @@ actor TeraLifecycleCoordinator {
     level: RadrootsTelemetryLevel = .info,
     fields: [String: String] = [:]
   ) async {
-    let values = fields.sorted(by: { $0.key < $1.key }).compactMap { key, value in
+    let values = fields.prefix(8).sorted(by: { $0.key < $1.key }).compactMap { key, value in
       try? RadrootsTelemetryField.string(key, value)
     }
     guard
@@ -330,13 +330,13 @@ actor TeraLifecycleCoordinator {
     let records = await buffer.records()
     let document = TeraDiagnosticsDocument(
       schema: "radroots.ios.diagnostics.v1",
-      appVersion: appVersion,
-      appBuild: appBuild,
-      runtimeCrate: snapshot.crateName,
-      runtimeVersion: snapshot.crateVersion,
-      runtimePhase: phase,
-      relayProfile: snapshot.relay?.profile,
-      relayState: snapshot.relay?.state,
+      appVersion: TeraDiagnosticPolicy.version(appVersion),
+      appBuild: TeraDiagnosticPolicy.build(appBuild),
+      runtimeCrate: TeraDiagnosticPolicy.code(snapshot.crateName, allowed: ["tera_ffi"]),
+      runtimeVersion: TeraDiagnosticPolicy.version(snapshot.crateVersion),
+      runtimePhase: TeraDiagnosticPolicy.code(phase, allowed: TeraDiagnosticPolicy.phases),
+      relayProfile: snapshot.relay.map { TeraDiagnosticPolicy.code($0.profile, allowed: ["public", "simulator_local", "simulator", "device_development", "unknown"]) },
+      relayState: snapshot.relay.map { TeraDiagnosticPolicy.code($0.state, allowed: ["configured", "connecting", "read_only", "writable", "degraded", "offline", "failed", "closed", "unknown"]) },
       relayCount: snapshot.relay?.relays.count ?? 0,
       records: records
     )

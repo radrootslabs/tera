@@ -115,12 +115,35 @@ final class TeraLifecycleTests: XCTestCase {
     XCTAssertEqual(object["schema"] as? String, "radroots.ios.diagnostics.v1")
     XCTAssertEqual(records.count, 16)
     XCTAssertLessThanOrEqual(data.count, 256 * 1024)
-    XCTAssertTrue(text.contains("[redacted]"))
+    XCTAssertTrue(text.contains("ios.diagnostics.redacted"))
+    XCTAssertTrue(records.allSatisfy { ($0["fields"] as? [String: String])?.isEmpty == true })
     XCTAssertFalse(text.contains(secret))
     XCTAssertFalse(text.contains(privateKey))
     XCTAssertFalse(text.contains(privatePath))
     XCTAssertFalse(text.contains("password@example.test"))
 
+    await coordinator.releaseDiagnostics(export)
+    XCTAssertFalse(FileManager.default.fileExists(atPath: export.fileURL.path))
+  }
+
+  func testActualExportExcludesUntrustedMetadataAndOrdinaryPrivateContent() async throws {
+    let roots = try makeRoots()
+    defer { try? FileManager.default.removeItem(at: roots.dataRoot.deletingLastPathComponent()) }
+    let coordinator = TeraLifecycleCoordinator.testing(roots: roots)
+    let canary = "plain post at 49.123456,-123.987654 Bearer CANARY /Users/private/file"
+    await coordinator.record("private_event", fields: ["value": canary, "phase": canary])
+    let export = try await coordinator.prepareDiagnostics(
+      snapshot: makeSnapshot(privateKey: String(repeating: "ab", count: 32), metadata: canary),
+      appVersion: canary, appBuild: canary, phase: canary
+    )
+    let data = try Data(contentsOf: export.fileURL)
+    let text = try XCTUnwrap(String(data: data, encoding: .utf8))
+    XCTAssertFalse(text.contains(canary))
+    let document = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    for key in ["appVersion", "appBuild", "runtimeCrate", "runtimeVersion", "runtimePhase", "relayProfile", "relayState"] {
+      XCTAssertEqual(document[key] as? String, "unavailable", key)
+    }
+    XCTAssertLessThanOrEqual(data.count, 256 * 1024)
     await coordinator.releaseDiagnostics(export)
     XCTAssertFalse(FileManager.default.fileExists(atPath: export.fileURL.path))
   }
@@ -138,15 +161,15 @@ final class TeraLifecycleTests: XCTestCase {
     )
   }
 
-  private func makeSnapshot(privateKey: String) -> TeraRuntimeSnapshot {
+  private func makeSnapshot(privateKey: String, metadata: String? = nil) -> TeraRuntimeSnapshot {
     TeraRuntimeSnapshot(
       identity: TeraRuntimeIdentity(
         publicKeyHex: privateKey,
         hostSignerConfigured: true
       ),
       relay: TeraRelayStatus(
-        profile: "simulator",
-        state: "configured",
+        profile: metadata ?? "simulator",
+        state: metadata ?? "configured",
         readAvailability: "available",
         writeAvailability: "available",
         relays: [
@@ -164,8 +187,8 @@ final class TeraLifecycleTests: XCTestCase {
       ),
       blossomConfiguration: nil,
       blossomEvidence: nil,
-      crateName: "tera_ffi",
-      crateVersion: "0.1.0-alpha",
+      crateName: metadata ?? "tera_ffi",
+      crateVersion: metadata ?? "0.1.0-alpha",
       isClosed: false
     )
   }
