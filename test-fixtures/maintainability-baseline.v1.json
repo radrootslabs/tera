@@ -8,47 +8,143 @@
     "python_function_complexity": 10
   },
   "swift_file_exception": [
-    {"path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift", "maximum_lines": 1188},
-    {"path": "Tera/Runtime/TeraRuntimeClient.swift", "maximum_lines": 820},
-    {"path": "Tera/Runtime/TeraRuntimeModels.swift", "maximum_lines": 1154},
-    {"path": "Tera/State/TeraAddStore.swift", "maximum_lines": 783},
-    {"path": "Tera/State/TeraConfigurationStore.swift", "maximum_lines": 759},
-    {"path": "TeraTests/TeraAddStoreTests.swift", "maximum_lines": 1366},
-    {"path": "TeraTests/TeraStateMigrationTests.swift", "maximum_lines": 718},
-    {"path": "TeraUITests/TeraRemoteQualificationUITests.swift", "maximum_lines": 1992}
+    {
+      "path": "Tera/Runtime/TeraGeneratedRuntimeBackend.swift",
+      "maximum_lines": 1188
+    },
+    {
+      "path": "Tera/Runtime/TeraRuntimeClient.swift",
+      "maximum_lines": 820
+    },
+    {
+      "path": "Tera/Runtime/TeraRuntimeModels.swift",
+      "maximum_lines": 1154
+    },
+    {
+      "path": "Tera/State/TeraAddStore.swift",
+      "maximum_lines": 783
+    },
+    {
+      "path": "Tera/State/TeraConfigurationStore.swift",
+      "maximum_lines": 759
+    },
+    {
+      "path": "TeraTests/TeraAddStoreTests.swift",
+      "maximum_lines": 1366
+    },
+    {
+      "path": "TeraTests/TeraStateMigrationTests.swift",
+      "maximum_lines": 718
+    },
+    {
+      "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+      "maximum_lines": 1992
+    }
   ],
   "python_file_exception": [
-    {"path": "scripts/local-social-fixture.py", "maximum_lines": 2626},
-    {"path": "scripts/test_local_social_fixture.py", "maximum_lines": 1188}
+    {
+      "path": "scripts/local-social-fixture.py",
+      "maximum_lines": 2626
+    },
+    {
+      "path": "scripts/test_local_social_fixture.py",
+      "maximum_lines": 1188
+    }
   ],
   "python_complexity_exception": [
-    {"function": "scripts/local-social-fixture.py:FixtureState._publish_persona_event", "maximum_complexity": 13},
-    {"function": "scripts/local-social-fixture.py:FixtureState.upload", "maximum_complexity": 14},
-    {"function": "scripts/local-social-fixture.py:RelayHandler.handle", "maximum_complexity": 26},
-    {"function": "scripts/local-social-fixture.py:bounded_directory_inventory", "maximum_complexity": 12},
-    {"function": "scripts/local-social-fixture.py:directory_digest", "maximum_complexity": 16},
-    {"function": "scripts/local-social-fixture.py:exact_persona_test_node", "maximum_complexity": 11},
-    {"function": "scripts/local-social-fixture.py:load_exported_persona_attachments", "maximum_complexity": 31},
-    {"function": "scripts/local-social-fixture.py:matches", "maximum_complexity": 22},
-    {"function": "scripts/local-social-fixture.py:photo_attempt_matches", "maximum_complexity": 12},
-    {"function": "scripts/local-social-fixture.py:reconstruct_persona_result_v2", "maximum_complexity": 66},
-    {"function": "scripts/local-social-fixture.py:simulator_metadata", "maximum_complexity": 23},
-    {"function": "scripts/local-social-fixture.py:valid_blossom_authorization", "maximum_complexity": 29},
-    {"function": "scripts/local-social-fixture.py:valid_bud11_server_domain", "maximum_complexity": 12},
-    {"function": "scripts/local-social-fixture.py:valid_nostr_event", "maximum_complexity": 16},
-    {"function": "scripts/local-social-fixture.py:validate_persona_attempt_evidence", "maximum_complexity": 59},
-    {"function": "scripts/local-social-fixture.py:validate_persona_evidence", "maximum_complexity": 31},
-    {"function": "scripts/local-social-fixture.py:validate_persona_result", "maximum_complexity": 43},
-    {"function": "scripts/local-social-fixture.py:validate_persona_suite", "maximum_complexity": 28},
-    {"function": "scripts/local-social-fixture.py:verify_bip340", "maximum_complexity": 11},
-    {"function": "scripts/local-social-fixture.py:verify_persona", "maximum_complexity": 18},
-    {"function": "scripts/test_local_social_fixture.py:mutate_bud11_event", "maximum_complexity": 29}
+    {
+      "function": "scripts/local-social-fixture.py:FixtureState._publish_persona_event",
+      "maximum_complexity": 13
+    },
+    {
+      "function": "scripts/local-social-fixture.py:FixtureState.upload",
+      "maximum_complexity": 14
+    },
+    {
+      "function": "scripts/local-social-fixture.py:RelayHandler.handle",
+      "maximum_complexity": 26
+    },
+    {
+      "function": "scripts/local-social-fixture.py:bounded_directory_inventory",
+      "maximum_complexity": 12
+    },
+    {
+      "function": "scripts/local-social-fixture.py:directory_digest",
+      "maximum_complexity": 16
+    },
+    {
+      "function": "scripts/local-social-fixture.py:exact_persona_test_node",
+      "maximum_complexity": 11
+    },
+    {
+      "function": "scripts/local-social-fixture.py:load_exported_persona_attachments",
+      "maximum_complexity": 31
+    },
+    {
+      "function": "scripts/local-social-fixture.py:matches",
+      "maximum_complexity": 22
+    },
+    {
+      "function": "scripts/local-social-fixture.py:photo_attempt_matches",
+      "maximum_complexity": 12
+    },
+    {
+      "function": "scripts/local-social-fixture.py:reconstruct_persona_result_v2",
+      "maximum_complexity": 66
+    },
+    {
+      "function": "scripts/local-social-fixture.py:simulator_metadata",
+      "maximum_complexity": 23
+    },
+    {
+      "function": "scripts/local-social-fixture.py:valid_blossom_authorization",
+      "maximum_complexity": 29
+    },
+    {
+      "function": "scripts/local-social-fixture.py:valid_bud11_server_domain",
+      "maximum_complexity": 12
+    },
+    {
+      "function": "scripts/local-social-fixture.py:valid_nostr_event",
+      "maximum_complexity": 16
+    },
+    {
+      "function": "scripts/local-social-fixture.py:validate_persona_attempt_evidence",
+      "maximum_complexity": 59
+    },
+    {
+      "function": "scripts/local-social-fixture.py:validate_persona_evidence",
+      "maximum_complexity": 31
+    },
+    {
+      "function": "scripts/local-social-fixture.py:validate_persona_result",
+      "maximum_complexity": 43
+    },
+    {
+      "function": "scripts/local-social-fixture.py:validate_persona_suite",
+      "maximum_complexity": 28
+    },
+    {
+      "function": "scripts/local-social-fixture.py:verify_bip340",
+      "maximum_complexity": 11
+    },
+    {
+      "function": "scripts/local-social-fixture.py:verify_persona",
+      "maximum_complexity": 18
+    },
+    {
+      "function": "scripts/test_local_social_fixture.py:mutate_bud11_event",
+      "maximum_complexity": 29
+    }
   ],
   "bounded_module": [
     "Tera/Runtime/TeraUserMessageClassifier.swift",
     "Tera/Runtime/TeraUserMessages.swift",
+    "Tera/Views/TeraSupportSettingsSection.swift",
     "scripts/maintainability_ratchet.py",
     "scripts/package_contract.py",
-    "scripts/test_package_contract.py"
+    "scripts/package_privacy.py",
+    "scripts/test_package_contract.py",
+    "scripts/test_package_privacy.py"
   ]
 }

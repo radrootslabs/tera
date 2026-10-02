@@ -14,7 +14,7 @@ let package = Package(
   dependencies: [
     .package(
       url: "https://github.com/radrootslabs/apple_kit.git",
-      revision: "1126a77ed87387719a6c6d3b4ce580582af29553"
+      revision: "d6b568213bf8d32fa79d8e94a78076a0b5b0e5d2"
     ),
   ],
   targets: [
@@ -216,6 +216,7 @@ let package = Package(
         "Views/TeraRecoveryUITestSurface.swift",
         "Views/TeraSupportingViews.swift",
         "Views/TeraSettingsView.swift",
+        "Views/TeraSupportSettingsSection.swift",
         "Views/TeraStorageSettingsSection.swift",
         "Views/TeraContextPicker.swift",
         "Views/TeraTodayDiscoveryView.swift",

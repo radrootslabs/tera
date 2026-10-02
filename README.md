@@ -429,3 +429,30 @@ files. Draft staging, pending operations, transfer receipts and backup media are
 not cleanup targets. Invalidation must persist first: if the store is completely
 full, free device space before trying again. Cache cleanup cannot resolve the
 independent bounded transfer-receipt envelope limit.
+
+
+Public posts and profile updates are linked to the public Nostr key and may be
+retained by relays and other people. Only deliberately included location text
+(such as a public venue or address) is posted; camera/library images have
+sensitive metadata removed before staging. The app does not automatically
+publish device location and has no tracking or automatic telemetry endpoint.
+Its privacy manifest covers public names, identifiers, deliberately supplied
+addresses, photos and other posted content for application functionality.
+
+File metadata is accessed only for owned storage. The generic file owner
+checks available capacity locally before a write and reports the existing
+insufficient-space outcome. This check is conservative and does not reserve
+space or replace actual write/quota error handling. Capacity values stay local.
+
+Diagnostics exports contain bounded status codes and counts; prepare and review
+one before explicitly sharing it. [Radroots Support](mailto:support@radroots.org)
+is the canonical contact for support, privacy and removal inquiries. Settings
+opens the system email handler only after an explicit choice; no report or attachment
+is sent automatically. Provisioning/monitoring and operational reporting drills
+remain distribution prerequisites, not engineering-test outcomes.
+
+Removing a local signing key does not erase public copies. Review and stage any
+desired signed deletion requests before removing the key. Requests and relay
+acknowledgements cannot prove erasure by every recipient. The implemented local
+removal flow preserves its existing source and user-presence checks; it does not
+claim a decentralized-account policy exemption or App Store approval.

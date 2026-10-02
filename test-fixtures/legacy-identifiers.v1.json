@@ -126,8 +126,16 @@
     },
     {
       "identifier": "Radroots",
-      "category": "retired_producer_rejection",
+      "category": "public_namespace",
       "occurrences": [
+        {
+          "path": "README.md",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraSupportSettingsSection.swift",
+          "count": 1
+        },
         {
           "path": "scripts/test_legacy_identifiers.py",
           "count": 1
@@ -4265,12 +4273,28 @@
           "count": 2
         },
         {
+          "path": "README.md",
+          "count": 1
+        },
+        {
           "path": "Tera/Config/Base.xcconfig",
           "count": 2
         },
         {
+          "path": "Tera/Info.plist",
+          "count": 1
+        },
+        {
           "path": "Tera/State/TeraConfigurationStore.swift",
           "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraSupportSettingsSection.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraPrivacyPackagingTests.swift",
+          "count": 6
         },
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
@@ -4295,6 +4319,10 @@
         {
           "path": "scripts/package_contract.py",
           "count": 2
+        },
+        {
+          "path": "scripts/package_privacy.py",
+          "count": 1
         },
         {
           "path": "scripts/test_local_social_fixture.py",

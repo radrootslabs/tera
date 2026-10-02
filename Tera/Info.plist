@@ -21,7 +21,7 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Tera uses the camera only when you choose to add a farm photo.</string>
+	<string>Tera uses the camera only when you choose to add a photo to a public post.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Tera uses Face ID only to unlock the local Nostr identity or approve a post or media upload you choose to sign.</string>
 	<key>NSLocalNetworkUsageDescription</key>
@@ -46,7 +46,6 @@
 			</array>
 		</dict>
 	</dict>
-
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
@@ -67,7 +66,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
 	<key>TERA_IOS_RUNTIME_MODE</key>
 	<string>$(TERA_IOS_RUNTIME_MODE)</string>
 	<key>TERA_IOS_NOSTR_RELAY_URLS</key>
@@ -76,5 +74,7 @@
 	<string>$(TERA_IOS_KEYCHAIN_SERVICE_PREFIX)</string>
 	<key>TERA_IOS_BLOSSOM_ORIGINS</key>
 	<string>$(TERA_IOS_BLOSSOM_ORIGINS)</string>
+	<key>TeraSupportEmail</key>
+	<string>support@radroots.org</string>
 </dict>
 </plist>

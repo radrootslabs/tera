@@ -192,6 +192,7 @@ struct TeraSettingsView: View {
         .disabled(addStore.isCheckingBlossom || addStore.blossomConfiguration == nil)
         .accessibilityIdentifier("radroots.settings.retry.blossom")
       }
+      TeraSupportSettingsSection()
       Section("Runtime") {
         LabeledContent("Crate", value: snapshot.crateName)
         LabeledContent("Version", value: snapshot.crateVersion)

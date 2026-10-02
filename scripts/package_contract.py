@@ -19,6 +19,7 @@ from typing import Any
 
 import app_dependency_graph
 import legacy_identifiers
+import package_privacy
 
 MAX_CONTRACT_BYTES = 2 * 1024 * 1024
 GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
@@ -266,19 +267,10 @@ def _apple_dependency_revision(dependency: object) -> object | None:
 
 
 def _validate_privacy(document: dict[str, Any]) -> None:
-    _exact(document.get("NSPrivacyTracking"), False, "privacy tracking")
-    _exact(document.get("NSPrivacyTrackingDomains"), [], "privacy tracking domains")
-    _exact(document.get("NSPrivacyCollectedDataTypes"), [], "privacy collected data")
-    _exact(
-        document.get("NSPrivacyAccessedAPITypes"),
-        [
-            {
-                "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-                "NSPrivacyAccessedAPITypeReasons": ["CA92.1"],
-            }
-        ],
-        "privacy accessed APIs",
-    )
+    try:
+        package_privacy.validate_manifest(document)
+    except ValueError as error:
+        raise PackageContractError(str(error)) from error
 
 
 def _validate_app_plist(document: dict[str, Any]) -> None:
@@ -290,6 +282,10 @@ def _validate_app_plist(document: dict[str, Any]) -> None:
         value = document.get(key)
         if not isinstance(value, str) or not value.strip():
             raise PackageContractError(f"required plist purpose is absent: {key}")
+    try:
+        package_privacy.validate_purposes(document)
+    except ValueError as error:
+        raise PackageContractError(str(error)) from error
     _exact(
         document.get("NSAppTransportSecurity"),
         {"NSAllowsLocalNetworking": True},
