@@ -233,9 +233,11 @@ struct TeraTodayCardView: View {
       }
 
       HStack(spacing: 12) {
-        Text(
-          Date(timeIntervalSince1970: TimeInterval(card.authoredAtUnixSeconds)), style: .relative
-        )
+        if let date = TeraCalendarPresentation(locale: locale, timeZone: timeZone).authoredDate(card.authoredAtUnixSeconds) {
+          Text(date, style: .relative)
+        } else {
+          Text("Date unavailable")
+        }
         if card.lifecycle != .active {
           Label(card.lifecycle.rawValue.capitalized, systemImage: "clock")
         }
@@ -268,11 +270,12 @@ struct TeraTodayCardView: View {
 
   @ViewBuilder
   private var foodMetadataLabels: some View {
-    if let price = card.priceSummary {
+    let food = TeraFoodPresentation(locale: locale)
+    if let price = food.price(card) {
       Label(presentation.label(price), systemImage: "tag")
     }
-    if let quantity = card.quantity, let unit = card.priceUnit {
-      Label(presentation.label("\(quantity) \(unit) available"), systemImage: "basket")
+    if let quantity = food.quantity(card) {
+      Label(presentation.label(quantity), systemImage: "basket")
     }
     if let location = card.location {
       Label(presentation.label(location), systemImage: "mappin.and.ellipse")

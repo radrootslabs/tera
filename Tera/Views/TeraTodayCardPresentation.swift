@@ -34,8 +34,12 @@ enum TeraTodayCardPresentation {
     if let timing = card.calendarTiming {
       parts.append(TeraCalendarPresentation(locale: locale, timeZone: timeZone).summary(timing))
     }
-    if let price = card.priceSummary {
+    let food = TeraFoodPresentation(locale: locale)
+    if let price = food.price(card) {
       parts.append(label(price))
+    }
+    if let quantity = food.quantity(card) {
+      parts.append(label(quantity))
     }
     if card.lifecycle != .active {
       parts.append(card.lifecycle.rawValue)

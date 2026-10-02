@@ -112,6 +112,8 @@ let package = Package(
         "Runtime/TeraCalendarEditing.swift",
         "Runtime/TeraCivilDateInput.swift",
         "Runtime/TeraFoodDecimalEntry.swift",
+        "Runtime/TeraExactDecimalPresentation.swift",
+        "Runtime/TeraFoodPresentation.swift",
         "Runtime/TeraCivilDateFormat.swift",
         "Runtime/TeraCheckedTime.swift",
         "Runtime/TeraComposerModels.swift",

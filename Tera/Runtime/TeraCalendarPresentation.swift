@@ -29,16 +29,30 @@ struct TeraCalendarPresentation {
     }
   }
 
+  func authoredSummary(_ seconds: UInt64) -> String {
+    instant(seconds, zone: timeZone, label: "Posted")
+  }
+
+  func authoredDate(_ seconds: UInt64) -> Date? {
+    displayDate(seconds, zone: timeZone)
+  }
+
+  private func displayDate(_ seconds: UInt64, zone: TimeZone) -> Date? {
+    guard let date = TeraCalendarTiming.presentationInstant(seconds) else { return nil }
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = zone
+    return (1 ... 9999).contains(calendar.component(.year, from: date)) ? date : nil
+  }
+
   private func sourceInstant(_ seconds: UInt64, zoneID: String, label: String) -> String {
     guard zoneID.utf8.count <= 255, let zone = TimeZone(identifier: zoneID) else { return "Date unavailable" }
     return "\(instant(seconds, zone: zone, label: label)) (\(zoneID))"
   }
 
   private func instant(_ seconds: UInt64, zone: TimeZone, label: String) -> String {
-    guard let date = TeraCalendarTiming.presentationInstant(seconds) else { return "Date unavailable" }
+    guard let date = displayDate(seconds, zone: zone) else { return "Date unavailable" }
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = zone
-    guard (1 ... 9999).contains(calendar.component(.year, from: date)) else { return "Date unavailable" }
     let format = DateFormatter()
     format.locale = locale
     format.calendar = calendar
@@ -65,8 +79,12 @@ extension TeraTodayCard {
     if let calendarTiming {
       parts.append(TeraCalendarPresentation(locale: locale, timeZone: timeZone).summary(calendarTiming))
     }
-    if let priceSummary {
-      parts.append(priceSummary)
+    let food = TeraFoodPresentation(locale: locale)
+    if let price = food.price(self) {
+      parts.append(price)
+    }
+    if let quantity = food.quantity(self) {
+      parts.append(quantity)
     }
     if lifecycle != .active {
       parts.append(lifecycle.rawValue)
