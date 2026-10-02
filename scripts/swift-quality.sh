@@ -10,6 +10,7 @@ readonly -a SOURCE_PATHS=(
   TeraPublicAPITests
   TeraTests
   TeraUITests
+  scripts/legacy_fixture_writers
 )
 readonly -a MAINTAINABILITY_RULES=(
   cyclomatic_complexity
@@ -41,6 +42,9 @@ readonly -a PYTHON_QUALITY_PATHS=(
   scripts/kotlin_smoke.py
   scripts/test_kotlin_smoke.py
   scripts/test_xcode_selection.py
+  scripts/legacy_upgrade_fixture_producer.py
+  scripts/legacy_upgrade_fixture_admission.py
+  scripts/test_legacy_upgrade_fixture.py
 )
 
 command -v swiftformat >/dev/null || {

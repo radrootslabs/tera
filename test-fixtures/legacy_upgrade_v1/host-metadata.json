@@ -1,0 +1,11 @@
+{
+  "bundle_identifier" : "dev.local.radroots",
+  "generation_created_at_unix_ms" : 1700000000000,
+  "keychain_service_prefix" : "org.radroots.field_ios.local",
+  "media_bytes" : 176,
+  "media_height" : 3,
+  "media_sha256" : "f5a9dd09c72ed6962fabde80d1c866e871e9195efdb385c8eac2bf372215016d",
+  "media_width" : 2,
+  "source_generation" : "0f71049d3c9674edc170cd02c6f6c8589591befb2646590bc0dc54d5274433ba",
+  "staged_relative_path" : "tmp\/staged_blobs\/f5a9dd09c72ed6962fabde80d1c866e871e9195efdb385c8eac2bf372215016d"
+}

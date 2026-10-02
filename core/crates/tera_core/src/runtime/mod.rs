@@ -271,3 +271,6 @@ mod tests {
         assert!(json.contains("sdk"));
     }
 }
+
+#[cfg(all(test, feature = "mobile-social"))]
+mod legacy_upgrade_tests;

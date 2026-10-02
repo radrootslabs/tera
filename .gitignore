@@ -40,6 +40,10 @@ justfile
 
 # OS
 .DS_Store
+
+# Frozen historical owner media is input evidence, including its original path.
+!test-fixtures/legacy_upgrade_v1/tmp/
+!test-fixtures/legacy_upgrade_v1/tmp/**
 Thumbs.db
 
 # Secrets

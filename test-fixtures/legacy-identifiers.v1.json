@@ -93,6 +93,16 @@
       ]
     },
     {
+      "identifier": "RADROOTS_CONSUMER_REVISION",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 1
+        }
+      ]
+    },
+    {
       "identifier": "RADROOTS_LIB_REVISION",
       "category": "shared_foundation_api",
       "occurrences": [
@@ -106,6 +116,10 @@
         },
         {
           "path": "scripts/ffi_build.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
           "count": 1
         },
         {
@@ -135,6 +149,10 @@
         {
           "path": "Tera/Views/TeraSupportSettingsSection.swift",
           "count": 1
+        },
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 3
         },
         {
           "path": "scripts/test_legacy_identifiers.py",
@@ -283,7 +301,15 @@
           "count": 2
         },
         {
+          "path": "TeraTests/TeraHistoricalOwnerTests.swift",
+          "count": 2
+        },
+        {
           "path": "TeraTests/TeraMediaCleanupTests.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
           "count": 1
         }
       ]
@@ -333,6 +359,10 @@
           "count": 2
         },
         {
+          "path": "TeraTests/TeraHistoricalOwnerTests.swift",
+          "count": 3
+        },
+        {
           "path": "TeraTests/TeraLocalBackupTests.swift",
           "count": 1
         },
@@ -347,6 +377,10 @@
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
           "count": 10
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 2
         }
       ]
     },
@@ -549,6 +583,14 @@
           "count": 2
         },
         {
+          "path": "TeraTests/TeraHistoricalOwnerFixture.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraHistoricalOwnerTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraLifecycleTests.swift",
           "count": 2
         },
@@ -575,6 +617,10 @@
         {
           "path": "TeraTests/TeraStateTestFixtures.swift",
           "count": 2
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 4
         }
       ]
     },
@@ -604,6 +650,10 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraAddMediaCoordinator.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
           "count": 1
         }
       ]
@@ -680,6 +730,10 @@
         },
         {
           "path": "TeraTests/TeraOfflineMediaTests.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
           "count": 1
         }
       ]
@@ -1025,6 +1079,10 @@
         {
           "path": "TeraTests/TeraRecoveryInventoryTests.swift",
           "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
         }
       ]
     },
@@ -1044,6 +1102,16 @@
       "occurrences": [
         {
           "path": "Tera/Runtime/TeraUploadRenewal.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsBackgroundTransferProgress",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
           "count": 1
         }
       ]
@@ -1071,6 +1139,10 @@
         {
           "path": "TeraTests/TeraNativeExecutionFixture.swift",
           "count": 3
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
         }
       ]
     },
@@ -1102,6 +1174,10 @@
         },
         {
           "path": "TeraTests/TeraUploadRenewalTests.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
           "count": 1
         }
       ]
@@ -1179,6 +1255,10 @@
         {
           "path": "TeraTests/TeraUploadRenewalTests.swift",
           "count": 4
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
         }
       ]
     },
@@ -1334,6 +1414,46 @@
       "occurrences": [
         {
           "path": "TeraTests/TeraUserMessagesTests.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsCheckedTime.swift",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsConfigurationBootstrap",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsConfigurationStore",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsConfigurationStore.swift",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
           "count": 1
         }
       ]
@@ -1499,6 +1619,10 @@
           "count": 5
         },
         {
+          "path": "TeraTests/TeraHistoricalOwnerTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraLocalRestoreTests.swift",
           "count": 1
         },
@@ -1517,6 +1641,10 @@
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
           "count": 7
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
         }
       ]
     },
@@ -1531,6 +1659,16 @@
         {
           "path": "Tera/Runtime/TeraMediaProcessUse.swift",
           "count": 2
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsHostSigner",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_fixture_writers/historical_writer.rs",
+          "count": 1
         }
       ]
     },
@@ -1901,6 +2039,14 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraHistoricalOwnerFixture.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraTests/TeraHistoricalOwnerTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraIdentityCancellationTests.swift",
           "count": 1
         },
@@ -2011,6 +2157,14 @@
         {
           "path": "project.yml",
           "count": 2
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 1
         },
         {
           "path": "scripts/package_contract.py",
@@ -2301,6 +2455,46 @@
       ]
     },
     {
+      "identifier": "RadrootsRuntime",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_fixture_writers/historical_writer.rs",
+          "count": 3
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsRuntimeAppMetadata",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsRuntimeModels.swift",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "RadrootsRuntimeSignerAvailability",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 1
+        }
+      ]
+    },
+    {
       "identifier": "RadrootsSecretAccessPolicy",
       "category": "shared_apple_api",
       "occurrences": [
@@ -2421,11 +2615,23 @@
           "count": 2
         },
         {
+          "path": "TeraTests/TeraHistoricalOwnerFixture.swift",
+          "count": 2
+        },
+        {
+          "path": "TeraTests/TeraHistoricalOwnerTests.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraLocalBackupTests.swift",
           "count": 1
         },
         {
           "path": "TeraTests/TeraLocalRestoreTests.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
           "count": 1
         }
       ]
@@ -2879,6 +3085,10 @@
           "count": 1
         },
         {
+          "path": "TeraTests/TeraHistoricalOwnerFixture.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraLifecycleTests.swift",
           "count": 1
         },
@@ -2900,6 +3110,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/builder_draft_tests.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/legacy_upgrade_tests/fixture.rs",
           "count": 1
         },
         {
@@ -2967,8 +3181,24 @@
           "count": 1
         },
         {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 3
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/historical_writer.rs",
+          "count": 2
+        },
+        {
           "path": "scripts/legacy_identifiers.py",
           "count": 3
+        },
+        {
+          "path": "scripts/legacy_upgrade_fixture_admission.py",
+          "count": 3
+        },
+        {
+          "path": "scripts/test_legacy_upgrade_fixture.py",
+          "count": 1
         },
         {
           "path": "scripts/test_local_social_fixture.py",
@@ -3202,6 +3432,10 @@
         },
         {
           "path": "TeraTests/TeraRecoveryInventoryTests.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
           "count": 1
         }
       ]
@@ -3848,6 +4082,18 @@
       "occurrences": [
         {
           "path": "Tera/Config/Debug.xcconfig",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_upgrade_fixture_admission.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_legacy_upgrade_fixture.py",
           "count": 1
         }
       ]
@@ -5351,6 +5597,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore_source.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/authoring.rs",
           "count": 2
         },
@@ -5649,6 +5899,10 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore_source.rs",
+          "count": 2
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/mod.rs",
           "count": 1
         },
@@ -5837,6 +6091,14 @@
         {
           "path": "scripts/app_dependency_graph.py",
           "count": 1
+        },
+        {
+          "path": "scripts/legacy_fixture_writers/historical_writer.rs",
+          "count": 1
+        },
+        {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 1
         }
       ]
     },
@@ -5971,6 +6233,36 @@
       ]
     },
     {
+      "identifier": "radroots_runtime_authored_artifacts",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_admission.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_runtime_authored_draft_revisions",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_admission.py",
+          "count": 1
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_runtime_authored_draft_revisions_update_guard",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/legacy_upgrade_fixture_admission.py",
+          "count": 1
+        }
+      ]
+    },
+    {
       "identifier": "radroots_sdk",
       "category": "shared_foundation_api",
       "occurrences": [
@@ -5992,6 +6284,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/info.rs",
+          "count": 2
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore_source.rs",
           "count": 2
         },
         {
@@ -6352,6 +6648,10 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/invalidation.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/legacy_upgrade_tests/fixture.rs",
           "count": 1
         },
         {
@@ -6855,6 +7155,14 @@
           "count": 1
         },
         {
+          "path": "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore_host.rs",
+          "count": 1
+        },
+        {
+          "path": "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore_source.rs",
+          "count": 6
+        },
+        {
           "path": "core/crates/tera_core/src/runtime/product_surface/context.rs",
           "count": 1
         },
@@ -6999,6 +7307,10 @@
           "count": 1
         },
         {
+          "path": "scripts/legacy_upgrade_fixture_producer.py",
+          "count": 3
+        },
+        {
           "path": "scripts/package_contract.py",
           "count": 4
         },
@@ -7012,6 +7324,10 @@
         },
         {
           "path": "scripts/test_ffi_provenance.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_legacy_upgrade_fixture.py",
           "count": 1
         },
         {

@@ -1,0 +1,19 @@
+{
+  "activationState" : "current",
+  "blossom" : {
+    "endpointAuthority" : "public_web_pki",
+    "fallbackOrigins" : [
+
+    ],
+    "hostKind" : "physical_device",
+    "primaryOrigin" : "https:\/\/blossom.example"
+  },
+  "bootstrapFingerprint" : "1ed66ae4cba2412c1a4ec83aeec12c7fbeed48febb5ac41666e69fef026a1139",
+  "format" : "radroots_ios_configuration_v3",
+  "generation" : 1,
+  "profile" : "public",
+  "writableRelays" : [
+    "wss:\/\/relay-one.example",
+    "wss:\/\/relay-two.example"
+  ]
+}

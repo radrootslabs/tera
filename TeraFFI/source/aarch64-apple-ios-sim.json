@@ -653,6 +653,42 @@
         "mode": "100644",
         "sha256": "aab4ad29944763aca319e26f32868719ad9459a9949c6089fa31b577ee49762e"
       },
+      "core/crates/tera_core/src/runtime/legacy_upgrade_tests/fixture.rs": {
+        "bytes": 7589,
+        "git_blob": "55439bee9ebc8876324c97b6e414299db7eaac63",
+        "mode": "100644",
+        "sha256": "2a6fc787e96acdb1496e34d8ac0fba536520b57464c63dd217e3baffeb32cc01"
+      },
+      "core/crates/tera_core/src/runtime/legacy_upgrade_tests/mod.rs": {
+        "bytes": 77,
+        "git_blob": "b3aab8631f7bd623e419edc4ccbf6a34876dbbff",
+        "mode": "100644",
+        "sha256": "2f270474cf6fb8c847641a665c9ae58bdf9f8b899c0f573a115e72d89508bc1a"
+      },
+      "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore.rs": {
+        "bytes": 4971,
+        "git_blob": "702770bbf4aa4954f6370f2ee252b289ab495c0d",
+        "mode": "100644",
+        "sha256": "9e565ab59530187ef722b73e728295dfd7b9543785f5509128c9547bdd2a6223"
+      },
+      "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore_host.rs": {
+        "bytes": 4209,
+        "git_blob": "33ab4f9f4848a5d08585336444c2c2e130bd0221",
+        "mode": "100644",
+        "sha256": "739da14d2627b617ebc0564d083d43f8b5a9ac87ac33b5fc769cc8988646e6dd"
+      },
+      "core/crates/tera_core/src/runtime/legacy_upgrade_tests/restore_source.rs": {
+        "bytes": 5373,
+        "git_blob": "2c1cbdd4964e2b360e5fb891290298bee9fa3b62",
+        "mode": "100644",
+        "sha256": "34d294db5a5b26ae53a322be27f4a667172ad752910781154d789b0222dcfd39"
+      },
+      "core/crates/tera_core/src/runtime/legacy_upgrade_tests/upgrade.rs": {
+        "bytes": 3953,
+        "git_blob": "cb40a80e30f1adda42dd8ab1258e312e2750cab8",
+        "mode": "100644",
+        "sha256": "8d1b871f37f9cc7725f25915bcadb137f0df7b220abfaeffce69bd48ccced84d"
+      },
       "core/crates/tera_core/src/runtime/lifecycle.rs": {
         "bytes": 8764,
         "git_blob": "ddc39b7e6002b3a7a2abe2b560cb2e9919488e4f",
@@ -660,10 +696,10 @@
         "sha256": "00229721cd2224f4b481c20bfd75144ea7755232eb03f81eb6fc8b556683872a"
       },
       "core/crates/tera_core/src/runtime/mod.rs": {
-        "bytes": 9963,
-        "git_blob": "3ddb9dedd7e25de64e4047d44a9f360496b567c6",
+        "bytes": 10035,
+        "git_blob": "66bcdd6404ead15ad02459de079369ab50bccf76",
         "mode": "100644",
-        "sha256": "234ff71c8c15c9b05c5de32792e0df13f00f93e48813fa1139fba58c2d84b50d"
+        "sha256": "cb914ed4751ebe78215de64e503f55ae9487257a015b13395ebce1dcc4fd0ec3"
       },
       "core/crates/tera_core/src/runtime/mutation_admission.rs": {
         "bytes": 2327,
@@ -2801,11 +2837,35 @@
         "mode": "100644",
         "sha256": "5a45f7d5a71408feeac1318d7fe1cd30da70836a3d983f903b7bfc18ccc3cb0c"
       },
+      "scripts/legacy_fixture_writers/TeraHistoricalHostWriter.swift": {
+        "bytes": 7445,
+        "git_blob": "8e5082c36460dd5c020ba5b5724ef30aa145a889",
+        "mode": "100644",
+        "sha256": "cd4100127b031467beb82c229a95157f12366d80e612a961b916cf2b524117f3"
+      },
+      "scripts/legacy_fixture_writers/historical_writer.rs": {
+        "bytes": 13832,
+        "git_blob": "1e69faac2c4420ca03d13749350e4e58348be11f",
+        "mode": "100644",
+        "sha256": "adb33c04b6305091ff5bd98d7ac854c318d72c1d9eda5ca85d9bbc6785d397dc"
+      },
       "scripts/legacy_identifiers.py": {
         "bytes": 9279,
         "git_blob": "30789f03dd290c3aab72ee266747ce660a466ea8",
         "mode": "100644",
         "sha256": "e7ba8cbd3c07bdf5f2ac16afb883af397969b3a668b59b8769b1e64522bb0f28"
+      },
+      "scripts/legacy_upgrade_fixture_admission.py": {
+        "bytes": 9840,
+        "git_blob": "9ca74ad285a2d37988c5ab181a85c1e5073d9b02",
+        "mode": "100644",
+        "sha256": "fc22d9a02286d9989ae881dbacb2a14e400e781f702b44ba0cea88248c9063e3"
+      },
+      "scripts/legacy_upgrade_fixture_producer.py": {
+        "bytes": 12421,
+        "git_blob": "2d45141a1e2291267a0b84b85b5eedd37b550eda",
+        "mode": "100644",
+        "sha256": "5f20839c4fa395e93fba536ac83f7e8f733bf773167d7babee3385f5f75fbe29"
       },
       "scripts/linux-shared-rust.sh": {
         "bytes": 1489,
@@ -2880,10 +2940,10 @@
         "sha256": "1803572abdb2e22bedd275724edae5f09c523b132bc59086aacca0f5183905d0"
       },
       "scripts/swift-quality.sh": {
-        "bytes": 2143,
-        "git_blob": "0dea0e430dcc4e246bc951938faaa25db2596074",
+        "bytes": 2308,
+        "git_blob": "f07b465c125de12548d523a293a96a3837c1193d",
         "mode": "100755",
-        "sha256": "9bb734eafe3c375ef30732e59a837ec345da438d96dc7882ec7f6ee1de43c13a"
+        "sha256": "07cd900d465744eab373c07d90b954758732a0564cab42f7bd4df88dd42bdeee"
       },
       "scripts/test_app_dependency_graph.py": {
         "bytes": 4007,
@@ -2921,6 +2981,12 @@
         "mode": "100644",
         "sha256": "256f4358edcb861f3819b1b2159b7278bb88fff6b9b9f460871f4c8ecb6f76ea"
       },
+      "scripts/test_legacy_upgrade_fixture.py": {
+        "bytes": 13543,
+        "git_blob": "a29c87aa80c13787c416a0169f51eca7e749cc11",
+        "mode": "100644",
+        "sha256": "00a1b2412a5054bb5c527fc4a7261d6c4a8de946a10d1821616c79ae054d4d1a"
+      },
       "scripts/test_local_social_fixture.py": {
         "bytes": 50502,
         "git_blob": "8164e4c983bfef50bedcdb32599492158e179881",
@@ -2952,10 +3018,10 @@
         "sha256": "a917dfbc1d8ecac7d1539670651e4b468059bc77dfe31aeefbc6c6eb21bebbfb"
       },
       "scripts/verify-package-contract.sh": {
-        "bytes": 1532,
-        "git_blob": "88f15a643269a8851d7fef68fe14208e71e2d843",
+        "bytes": 1575,
+        "git_blob": "7dd58131736db25391e8731d21d0137d00c16a2a",
         "mode": "100755",
-        "sha256": "028a8310c4a61a4cc04f1d0f86b8b953413b8efef5cb2059fbb0c84338483428"
+        "sha256": "682ca03f4cb6aec0ea5d2e5c4205d36cfb3c41b6207e8bff3fa0329be29d6a92"
       },
       "scripts/xcode.sh": {
         "bytes": 22437,
@@ -2964,13 +3030,13 @@
         "sha256": "4e174e14512c1b12994dea63f58bf39d234d96c3bf245eb5d7eaa0fcf2b4fd24"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 187553,
-        "git_blob": "c0ce4d1c11ad8683bf9c45029db89c77dc8fc4f7",
+        "bytes": 196305,
+        "git_blob": "aa7969f2917ba4e752b16930b7b31e3ac29521a5",
         "mode": "100644",
-        "sha256": "e62d91d5b47a9565ca7cc46008be68cc780236cda46b7acb83234e59f538bcc7"
+        "sha256": "1d38428ad8618e117c538eb3f02ac7974d10ecb086c5eee4bccafa337b7281da"
       }
     },
     "policy": "staged_inputs",
-    "tree": "10e9a06967e6aff750a8698abf08b03d7aa35ae2"
+    "tree": "54d4ba5bdf90a7ec899df79bc1bb31dafe7b2d6d"
   }
 }

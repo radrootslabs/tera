@@ -22,7 +22,8 @@ sh "$repo_root/scripts/ffi-provenance.sh" contract-check
 		scripts/test_ffi_installed.py \
 		scripts/test_kotlin_smoke.py \
 		scripts/test_xcode_selection.py \
-		scripts/test_local_social_fixture.py
+		scripts/test_local_social_fixture.py \
+		scripts/test_legacy_upgrade_fixture.py
 )
 
 sh "$repo_root/scripts/persona-verifier.sh" verify-bud11-corpus \
