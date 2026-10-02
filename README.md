@@ -233,7 +233,14 @@ of the release lane.
 `make package-contract-check` evaluates the Swift package manifest and parses
 the TOML, plist, JSON, xcconfig, project-package, and lock inputs as structured,
 bounded data. It also runs the locked fixture and verifier unit suites.
-The check evaluates Cargo's workspace graph and rejects members or local
+
+For focused UI iteration, `make ui-test UI_TEST_SELECTOR=TeraAccessibilityUITests/testFormAskAtLargestTextWithReduceMotionAndLocalSave`
+selects an existing owned class and method through the same artifact, package,
+project and output-routing checks. An omitted selector runs the full UI target.
+Unknown classes, methods, malformed selectors and extra arguments fail before
+Xcode starts. Focused runs do not replace complete required qualification.
+
+The package check evaluates Cargo's workspace graph and rejects members or local
 dependencies outside this standalone repository, including implicit sibling
 checkouts. The default Rust lane selects `tera_core`, `tera_ffi`, and
 `tera_bindgen`; `tera_wasm` remains non-default. The resolved graph must use

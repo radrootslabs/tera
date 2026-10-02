@@ -38,6 +38,7 @@ readonly -a PYTHON_QUALITY_PATHS=(
   scripts/test_package_contract.py
   scripts/kotlin_smoke.py
   scripts/test_kotlin_smoke.py
+  scripts/test_xcode_selection.py
 )
 
 command -v swiftformat >/dev/null || {

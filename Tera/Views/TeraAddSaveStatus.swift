@@ -7,19 +7,30 @@ struct TeraAddSaveStatus: View {
   var mediaMessage: String?
   let protection: TeraEditingProtection
   @ObservedObject var repairs: TeraNativeRepairStore
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
   var body: some View {
     Section {
       Text(state.label)
         .foregroundStyle(.secondary)
+        .id("tera.add.save-state")
         .accessibilityIdentifier("tera.add.save-state")
       if let mediaMessage {
         Text(mediaMessage).accessibilityIdentifier("tera.add.media-recovery")
       }
       if let message {
-        Label(message, systemImage: symbol)
+        HStack(alignment: .firstTextBaseline) {
+          if !dynamicTypeSize.isAccessibilitySize {
+            Image(systemName: symbol).accessibilityHidden(true)
+          }
+          Text(message)
+            .id("tera.add.operation-status")
+            .accessibilityIdentifier("radroots.add.status")
+        }
+          .accessibilityElement(children: .contain)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .lineLimit(nil)
           .foregroundStyle(.secondary)
-          .accessibilityIdentifier("radroots.add.status")
       }
     }
     TeraEditingProtectionActions(protection: protection)

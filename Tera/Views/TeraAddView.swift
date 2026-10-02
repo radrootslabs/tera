@@ -15,10 +15,12 @@ struct TeraAddView: View {
 
   @ObservedObject var store: TeraAddStore
   @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  @ScaledMetric(relativeTo: .body) private var editorMinimumHeight: CGFloat = 110
   @State private var showsDrafts = false
   @FocusState private var focusedField: FocusedField?
 
   var body: some View {
+    ScrollViewReader { proxy in
     Form {
       switch store.state {
       case .idle, .loading:
@@ -69,7 +71,13 @@ struct TeraAddView: View {
       }
 
       Section {
-        Button("Save draft") { Task { await store.save() } }
+        Button("Save draft") {
+          Task {
+            await store.save()
+            proxy.scrollTo("tera.add.save-state", anchor: .top)
+            UIAccessibility.post(notification: .announcement, argument: store.composerState.label)
+          }
+        }
           .buttonStyle(.borderedProminent)
           .tint(.primary)
           .disabled(!store.canSave)
@@ -82,30 +90,28 @@ struct TeraAddView: View {
           .disabled(store.isWorking)
           .accessibilityIdentifier("radroots.add.cancel")
         }
-        Text(
-          "Submit saves an immutable local snapshot first. If signing, media, or a relay is unavailable, the saved operation remains available to retry."
-        )
-        .font(.footnote)
-        .foregroundStyle(.primary)
+        Text("Submit saves an immutable local snapshot first.")
+          .foregroundStyle(.primary)
+          .id("tera.add.submit-capture-disclosure")
+        Text("Signing, media, or a relay may be unavailable.")
+          .foregroundStyle(.primary)
+          .id("tera.add.submit-effects-disclosure")
+        Text("The saved operation remains available to retry.")
+          .foregroundStyle(.primary)
+          .id("tera.add.submit-retry-disclosure")
 
-        if dynamicTypeSize.isAccessibilitySize {
-          submitButton
-        }
+        submitButton
       }
     }
+    // Rebuild native row measurements when typography changes, including
+    // while this tab is hidden. Editing remains owned by the existing store.
+    .id(dynamicTypeSize)
     .headerProminence(.increased)
     .tint(.primary)
+    .buttonBorderShape(.roundedRectangle(radius: 12))
+    .teraReadableScrollEdges(dynamicTypeSize.isAccessibilitySize)
     .accessibilityIdentifier("radroots.add.root")
     .accessibilityValue(store.isWorking ? "Working" : "Ready")
-    .safeAreaInset(edge: .bottom, spacing: 0) {
-      if !dynamicTypeSize.isAccessibilitySize {
-        submitButton
-          .padding(.horizontal)
-          .padding(.vertical, 8)
-          .padding(.bottom, 72)
-          .background(.bar)
-      }
-    }
     .disabled(store.isWorking)
     .overlay {
       if store.isWorking {
@@ -116,11 +122,14 @@ struct TeraAddView: View {
       }
     }
     .navigationTitle("Add")
+    .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
     .toolbarBackground(Color(uiColor: .systemBackground), for: .navigationBar)
     .toolbarBackground(.visible, for: .navigationBar)
     .toolbar {
       ToolbarItem(placement: .topBarLeading) {
-        Button("Drafts") { showsDrafts = true }
+        Button { showsDrafts = true } label: {
+          Label("Drafts", systemImage: "tray.full").labelStyle(.iconOnly)
+        }
           .accessibilityIdentifier("radroots.add.drafts")
       }
       ToolbarItem(placement: .topBarTrailing) {
@@ -142,6 +151,7 @@ struct TeraAddView: View {
       TeraDraftsSheet(store: store)
     }
     .task { await store.start() }
+    }
   }
 }
 
@@ -233,9 +243,11 @@ extension TeraAddView {
             text: Binding(
               get: { media.alt },
               set: { store.updateMediaAlt(id: media.id, alt: $0) }
-            )
+            ), axis: .vertical
           )
+          .lineLimit(2 ... 6)
           .focused($focusedField, equals: .media(media.id))
+          .accessibilityLabel("Describe this photo")
           .accessibilityIdentifier("radroots.add.media.alt")
           Button("Remove photo", role: .destructive) { store.removeMedia(id: media.id) }
         }
@@ -296,7 +308,7 @@ extension TeraAddView {
   private func contentEditor(prompt: LocalizedStringKey) -> some View {
     ZStack(alignment: .topLeading) {
       TextEditor(text: required(\.content))
-        .frame(minHeight: 110)
+        .frame(minHeight: editorMinimumHeight)
         .focused($focusedField, equals: .content)
         .accessibilityLabel(Text(prompt))
         .accessibilityIdentifier("radroots.add.content")

@@ -4,6 +4,7 @@ final class TeraRecoveryUITests: XCTestCase {
   @MainActor
   func testUnknownLockedQuotaAndMismatchKeepEditingAndExposeSelectedCheck() {
     let app = XCUIApplication()
+    app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
     app.launchEnvironment["TERA_IOS_UI_TEST_SHELL"] = "1"
     app.launchEnvironment["TERA_IOS_UI_TEST_RECOVERY"] = "1"
     app.launch()

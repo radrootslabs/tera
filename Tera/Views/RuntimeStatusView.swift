@@ -11,20 +11,22 @@ struct RuntimeStatusView: View {
     let recoverIdentity: () -> Void
     let applyConfigurationReconfiguration: () -> Void
     @State private var showsIdentityImport = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 20) {
-                Spacer()
+            ScrollView {
+              VStack(spacing: 20) {
                 Image(systemName: symbolName)
                     .font(.system(size: 48, weight: .medium))
                     .foregroundStyle(symbolColor)
                     .accessibilityHidden(true)
                 Text(title)
                     .font(.title2.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
                 Text(detail)
                     .font(.body)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.primary)
                     .multilineTextAlignment(.center)
                 if case let .failed(failure) = phase {
                     Text("Error code \(failure.code)")
@@ -60,35 +62,53 @@ struct RuntimeStatusView: View {
                         .buttonStyle(.borderedProminent)
                         .accessibilityIdentifier("tera.runtime.recheck")
                 }
-                Spacer()
+              }
+              .frame(maxWidth: .infinity)
+              .padding(24)
             }
-            .padding(24)
             .navigationTitle("Tera")
+            .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
+            .teraReadableScrollEdges(dynamicTypeSize.isAccessibilitySize)
+            .tint(.primary)
+            .buttonBorderShape(.roundedRectangle(radius: 12))
         }
         .sheet(isPresented: $showsIdentityImport) {
             NavigationStack {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Enter an nsec or 64-character secret key. It is transferred directly to Apple custody and is never stored in view state.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                Form {
+                  Section {
+                    importInstruction("Enter an nsec or 64-character secret key.")
+                    importInstruction("It is transferred directly to Apple custody.")
+                    importInstruction("Secret input is never stored in view state.")
+                  }
+                  Section {
                     TeraSecureIdentityImportField { material in
                         showsIdentityImport = false
                         importIdentity(material)
                     }
-                    Spacer()
+                  }
                 }
-                .padding()
                 .navigationTitle("Import identity")
+                .navigationBarTitleDisplayMode(.inline)
+                .teraReadableScrollEdges(dynamicTypeSize.isAccessibilitySize)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") { showsIdentityImport = false }
+                        Button { showsIdentityImport = false } label: {
+                            Label("Cancel", systemImage: "xmark")
+                                .labelStyle(.iconOnly)
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
                     }
                 }
             }
-            .presentationDetents([.medium])
+            .tint(.primary)
+            .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
             .interactiveDismissDisabled()
         }
         .accessibilityIdentifier("radroots.runtime.status")
+    }
+
+    private func importInstruction(_ text: String) -> some View {
+        TeraIdentityImportInstruction(text: text)
     }
 
     private var symbolName: String {
@@ -165,21 +185,25 @@ struct RuntimeStatusView: View {
 
 struct TeraSecureIdentityImportField: UIViewRepresentable {
     let submit: @MainActor (RadrootsIdentitySecretMaterial) -> Void
+    @State private var errorMessage: String?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(submit: submit)
+        Coordinator(errorChanged: { errorMessage = $0 }, submit: submit)
     }
 
     func makeUIView(context: Context) -> UIView {
         let field = UITextField()
         field.borderStyle = .roundedRect
+        field.font = .preferredFont(forTextStyle: .body)
+        field.adjustsFontForContentSizeCategory = true
         field.isSecureTextEntry = true
         field.textContentType = .password
         field.autocapitalizationType = .none
         field.autocorrectionType = .no
         field.spellCheckingType = .no
         field.returnKeyType = .done
-        field.placeholder = "nsec1… or secret hex"
+        field.placeholder = "Secret key"
+        field.accessibilityLabel = "Secret identity key"
         field.accessibilityIdentifier = "radroots.identity.import.secret"
         field.delegate = context.coordinator
 
@@ -187,11 +211,13 @@ struct TeraSecureIdentityImportField: UIViewRepresentable {
         var configuration = UIButton.Configuration.filled()
         configuration.title = "Import securely"
         button.configuration = configuration
+        button.titleLabel?.numberOfLines = 0
         button.accessibilityIdentifier = "radroots.identity.import.submit"
         button.addTarget(context.coordinator, action: #selector(Coordinator.submitIdentity), for: .touchUpInside)
 
         let error = UILabel()
         error.font = .preferredFont(forTextStyle: .footnote)
+        error.adjustsFontForContentSizeCategory = true
         error.textColor = .secondaryLabel
         error.numberOfLines = 0
         error.accessibilityIdentifier = "radroots.identity.import.error"
@@ -206,13 +232,28 @@ struct TeraSecureIdentityImportField: UIViewRepresentable {
           stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
           stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
           stack.topAnchor.constraint(equalTo: container.topAnchor),
+          stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
+          field.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
+          button.heightAnchor.constraint(greaterThanOrEqualToConstant: 44),
         ])
         context.coordinator.field = field
         context.coordinator.errorLabel = error
         return container
     }
 
-    func updateUIView(_: UIView, context _: Context) {}
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.errorLabel?.text = errorMessage
+        uiView.invalidateIntrinsicContentSize()
+        uiView.setNeedsLayout()
+    }
+
+    func sizeThatFits(_ proposal: ProposedViewSize, uiView: UIView, context _: Context) -> CGSize? {
+        uiView.systemLayoutSizeFitting(
+          CGSize(width: proposal.width ?? 320, height: 0),
+          withHorizontalFittingPriority: .required,
+          verticalFittingPriority: .fittingSizeLevel
+        )
+    }
 
     static func dismantleUIView(_: UIView, coordinator: Coordinator) {
         coordinator.field?.text = nil
@@ -228,8 +269,18 @@ struct TeraSecureIdentityImportField: UIViewRepresentable {
         weak var field: UITextField?
         weak var errorLabel: UILabel?
         private let submit: @MainActor (RadrootsIdentitySecretMaterial) -> Void
+        private let announce: @MainActor (String) -> Void
+        private let errorChanged: @MainActor (String?) -> Void
 
-        init(submit: @escaping @MainActor (RadrootsIdentitySecretMaterial) -> Void) {
+        init(
+          announce: @escaping @MainActor (String) -> Void = {
+                UIAccessibility.post(notification: .announcement, argument: $0)
+            },
+          errorChanged: @escaping @MainActor (String?) -> Void = { _ in },
+          submit: @escaping @MainActor (RadrootsIdentitySecretMaterial) -> Void
+        ) {
+            self.announce = announce
+            self.errorChanged = errorChanged
             self.submit = submit
         }
 
@@ -245,10 +296,14 @@ struct TeraSecureIdentityImportField: UIViewRepresentable {
             do {
                 let material = try RadrootsIdentitySecretMaterial(importText: input)
                 errorLabel?.text = nil
+                errorChanged(nil)
                 submit(material)
             } catch {
-                errorLabel?.text = "Enter a valid Nostr secret key."
+                let message = "Enter a valid Nostr secret key."
+                errorLabel?.text = message
+                errorChanged(message)
                 field.becomeFirstResponder()
+                announce(message)
             }
         }
     }

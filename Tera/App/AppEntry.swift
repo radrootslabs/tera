@@ -18,6 +18,20 @@ struct AppEntry: View {
   @EnvironmentObject private var appModel: TeraAppModel
 
   var body: some View {
+    #if DEBUG
+      if ProcessInfo.processInfo.environment["TERA_IOS_UI_TEST_SHELL"] == "1",
+        ProcessInfo.processInfo.environment["TERA_IOS_UI_TEST_ACCESSIBILITY"] != nil
+      {
+        TeraAccessibilityUITestSurface()
+      } else {
+        product
+      }
+    #else
+      product
+    #endif
+  }
+
+  private var product: some View {
     Group {
       if case let .running(snapshot) = appModel.phase {
         TeraRootShell(

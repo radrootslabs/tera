@@ -150,6 +150,36 @@ final class TeraIdentityRecoveryTests: XCTestCase {
     }
 
     @MainActor
+    func testImportValidationAnnouncesOnlySafeGuidanceAndClearsInput() {
+        var announcements: [String] = []
+        var errorChanges: [String?] = []
+        var submissions = 0
+        let coordinator = TeraSecureIdentityImportField.Coordinator(
+          announce: { announcements.append($0) }, errorChanged: { errorChanges.append($0) },
+          submit: { _ in submissions += 1 }
+        )
+        let field = UITextField()
+        let error = UILabel()
+        coordinator.field = field
+        coordinator.errorLabel = error
+        field.text = "invalid-private-input-canary"
+        coordinator.submitIdentity()
+        XCTAssertEqual(field.text ?? "", "")
+        XCTAssertEqual(announcements, ["Enter a valid Nostr secret key."])
+        XCTAssertEqual(error.text, announcements.first)
+        XCTAssertEqual(errorChanges, ["Enter a valid Nostr secret key."])
+        XCTAssertEqual(submissions, 0)
+
+        field.text = String(repeating: "01", count: 32)
+        coordinator.submitIdentity()
+        XCTAssertEqual(field.text ?? "", "")
+        XCTAssertNil(error.text)
+        XCTAssertEqual(errorChanges, ["Enter a valid Nostr secret key.", nil])
+        XCTAssertEqual(submissions, 1)
+        XCTAssertEqual(announcements.count, 1)
+    }
+
+    @MainActor
     func testImportTeardownClearsSecretAndRejectsLateSubmit() {
         var submissions = 0
         let coordinator = TeraSecureIdentityImportField.Coordinator { _ in submissions += 1 }

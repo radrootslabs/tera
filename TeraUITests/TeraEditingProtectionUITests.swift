@@ -4,6 +4,7 @@ final class TeraEditingProtectionUITests: XCTestCase {
   @MainActor
   func testCancelDiscardConfirmationKeepsEditingAndExplicitDiscardAppliesOnce() {
     let app = XCUIApplication()
+    app.launchArguments = ["-UIPreferredContentSizeCategoryName", "UICTContentSizeCategoryL"]
     app.launchEnvironment["TERA_IOS_UI_TEST_SHELL"] = "1"
     app.launchEnvironment["TERA_IOS_UI_TEST_EDITING_PROTECTION"] = "1"
     app.launch()

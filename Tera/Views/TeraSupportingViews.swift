@@ -102,6 +102,7 @@ struct TeraMeSheet: View {
   let revise: (TeraTodayCard) -> Void
   let retract: (TeraTodayCard) -> Void
   @Environment(\.dismiss) private var dismiss
+  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
   @State private var showsDrafts = false
 
   var body: some View {
@@ -123,6 +124,8 @@ struct TeraMeSheet: View {
         }
       }
       .navigationTitle("Me")
+      .navigationBarTitleDisplayMode(dynamicTypeSize.isAccessibilitySize ? .inline : .automatic)
+      .teraReadableScrollEdges(dynamicTypeSize.isAccessibilitySize)
       .toolbar {
         ToolbarItem(placement: .confirmationAction) {
           Button("Done") { dismiss() }
@@ -136,7 +139,7 @@ struct TeraMeSheet: View {
       store.configure(context: context)
       await store.start()
     }
-    .presentationDetents([.medium, .large])
+    .presentationDetents(dynamicTypeSize.isAccessibilitySize ? [.large] : [.medium, .large])
     .accessibilityIdentifier("radroots.support.me.sheet")
   }
 

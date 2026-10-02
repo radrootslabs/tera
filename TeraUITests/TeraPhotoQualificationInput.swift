@@ -35,6 +35,7 @@ extension TeraRemoteQualificationUITests {
     let preparedStatus = app.staticTexts.matching(
       NSPredicate(format: "label == 'Photo prepared. Add descriptive text before publishing.'")
     ).firstMatch
+    TeraAccessibilityNavigation.scroll(app, to: preparedStatus, up: false, test: self)
     guard preparedStatus.waitForExistence(timeout: 60) else {
       XCTFail("The selected Photo update did not report the visible prepared state")
       return nil

@@ -63,19 +63,44 @@ case "$operation" in
             build
         ;;
     project-test)
+        if [[ $# -lt 3 || $# -gt 4 ]]; then
+            echo "error: project-test requires destination, target and optional UI selector" >&2
+            exit 64
+        fi
         destination=${2:?project-test requires a simulator destination}
         test_target=${3:?project-test requires a test target}
         case "$test_target" in
             TeraTests|TeraUITests) ;;
             *) echo "error: unsupported test target: $test_target" >&2; exit 1 ;;
         esac
+        selector=${4:-}
+        selected_target=$test_target
+        if [[ -n "$selector" ]]; then
+            if [[ "$test_target" != TeraUITests || ! "$selector" =~ ^([A-Za-z][A-Za-z0-9]*UITests)(/(test[A-Za-z0-9]+))?$ ]]; then
+                echo "error: unsupported UI test selector" >&2
+                exit 64
+            fi
+            test_class=${BASH_REMATCH[1]}
+            test_method=${BASH_REMATCH[3]:-}
+            repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+            test_source="$repo_root/TeraUITests/$test_class.swift"
+            if [[ ! -f "$test_source" ]] || ! grep -Eq "^final class $test_class: XCTestCase" "$test_source"; then
+                echo "error: UI test class is not an owned test source" >&2
+                exit 64
+            fi
+            if [[ -n "$test_method" ]] && ! grep -Eq "^[[:space:]]+func $test_method\(\)" "$test_source"; then
+                echo "error: UI test method is not an owned test source" >&2
+                exit 64
+            fi
+            selected_target="$test_target/$selector"
+        fi
         exec xcodebuild \
             -project Tera.xcodeproj \
             -scheme Tera \
             -destination "$destination" \
             "${output_args[@]}" \
             "${offline_args[@]}" \
-            "-only-testing:$test_target" \
+            "-only-testing:$selected_target" \
             test
         ;;
     physical-app-build)

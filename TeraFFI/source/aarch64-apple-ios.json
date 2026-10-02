@@ -4,7 +4,7 @@
       "iphoneos_sdk": "23F81a",
       "iphonesimulator_sdk": "23F81a",
       "swift": "Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)\nTarget: arm64-apple-macosx26.0",
-      "swiftformat": "0.63.0",
+      "swiftformat": "0.63.1",
       "xcode": "Xcode 26.6\nBuild version 17F113"
     },
     "config": "core/crates/tera_ffi/uniffi.toml",
@@ -509,10 +509,10 @@
         "sha256": "0de901bfc37140b31a4fcbd0a813f9fc1a8c277c20410c0be3068e60d3446802"
       },
       "Makefile": {
-        "bytes": 3934,
-        "git_blob": "84eeeb038bc0262e65dd9100fc76a9132be01daa",
+        "bytes": 3976,
+        "git_blob": "91897a30656e65215cc73620b4d9eb8ede682ef5",
         "mode": "100644",
-        "sha256": "a772f1a6b7a004603c40b2f60b5f8f3914e7bff952cac21c49ea62363fa8d523"
+        "sha256": "0c7c343f51fe8503c29047ad3b93ff45582b5e5bff2768baa7883d9826c4be69"
       },
       "TeraFFI/Makefile": {
         "bytes": 374,
@@ -2837,10 +2837,10 @@
         "sha256": "1803572abdb2e22bedd275724edae5f09c523b132bc59086aacca0f5183905d0"
       },
       "scripts/swift-quality.sh": {
-        "bytes": 2046,
-        "git_blob": "cd574c9e901a596142e8785828f5cb33cc4f0f3e",
+        "bytes": 2080,
+        "git_blob": "65b81671c82fe4102e6599532b4d2d802cedf4a0",
         "mode": "100755",
-        "sha256": "d876131049757d241f7490c16992224110cdcd1c78a40a76a3b2d1a420cd2aeb"
+        "sha256": "15c98b26fdae1e6db8032b3201a8ab7e820800c721f0a4791ff374f81e6a004d"
       },
       "scripts/test_app_dependency_graph.py": {
         "bytes": 4007,
@@ -2896,26 +2896,32 @@
         "mode": "100644",
         "sha256": "9073f8edaa80c71f7c1f718c4dcff954a30ac42218fbd19378803ecfb9b3b33f"
       },
+      "scripts/test_xcode_selection.py": {
+        "bytes": 4745,
+        "git_blob": "b633afbccd765a106e2ad591881926a9add542ac",
+        "mode": "100644",
+        "sha256": "a917dfbc1d8ecac7d1539670651e4b468059bc77dfe31aeefbc6c6eb21bebbfb"
+      },
       "scripts/verify-package-contract.sh": {
-        "bytes": 1460,
-        "git_blob": "335f5ec00f343bf5dc984a117f365273949d34e2",
+        "bytes": 1496,
+        "git_blob": "b21f0d5e48bcedd71460f7c0f4cf0c8f1070b27a",
         "mode": "100755",
-        "sha256": "eb8c7dd6eaa04fd72c876925d3caadeddfd90f2e18f67597df57064ac2fafa1e"
+        "sha256": "8ecb7b9fc1997e1cdb37d642d6dbfa59194bf9182218aceab470077f721fcd85"
       },
       "scripts/xcode.sh": {
-        "bytes": 21183,
-        "git_blob": "2cd94ce793f8dd4591bc7f410cfb06ca39ed7025",
+        "bytes": 22437,
+        "git_blob": "78cca176324eb56079598090626a01698273f707",
         "mode": "100755",
-        "sha256": "b052a73a824e8f8b26af2646a4758f13655e04de9551a8271890d3cf2b63209d"
+        "sha256": "4e174e14512c1b12994dea63f58bf39d234d96c3bf245eb5d7eaa0fcf2b4fd24"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 186011,
-        "git_blob": "01800d808f9a03d7fbe4265b34975e19c5d48b10",
+        "bytes": 186460,
+        "git_blob": "ca81e3e1c1628650dceb01ebd2d3e6046c7a9b00",
         "mode": "100644",
-        "sha256": "4ff0635697621d4f3ba9754fd59e17b2556bb8f8f3d5b965cc2af9909f21ff7a"
+        "sha256": "7f5053f449d49ff9220e2ba57db5749c813dfe40f04965b0107ce7e49a15966c"
       }
     },
     "policy": "staged_inputs",
-    "tree": "730344c702e337496a3979e05facd626d62535ab"
+    "tree": "59106fa182618636b8a257584168019d5ed3e9f8"
   }
 }

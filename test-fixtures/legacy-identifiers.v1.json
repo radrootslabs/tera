@@ -525,6 +525,10 @@
           "count": 2
         },
         {
+          "path": "Tera/Views/TeraAccessibilityUITestSurface.swift",
+          "count": 1
+        },
+        {
           "path": "TeraTests/TeraBackgroundUploadFixtures.swift",
           "count": 2
         },
@@ -678,6 +682,10 @@
       "occurrences": [
         {
           "path": "Tera/State/TeraSessionRuntime.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraAccessibilityUITestSurface.swift",
           "count": 1
         },
         {
@@ -1846,6 +1854,10 @@
         },
         {
           "path": "Tera/Views/RuntimeStatusView.swift",
+          "count": 1
+        },
+        {
+          "path": "Tera/Views/TeraAccessibilityUITestSurface.swift",
           "count": 1
         },
         {
@@ -3520,7 +3532,7 @@
         },
         {
           "path": "TeraUITests/TeraSubmissionQualificationSupport.swift",
-          "count": 1
+          "count": 2
         }
       ]
     },
@@ -3562,7 +3574,7 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 3
+          "count": 2
         }
       ]
     },
@@ -3604,7 +3616,11 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSubmissionQualificationSupport.swift",
+          "count": 1
         }
       ]
     },

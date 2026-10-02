@@ -15,7 +15,7 @@
     {"path": "Tera/State/TeraConfigurationStore.swift", "maximum_lines": 759},
     {"path": "TeraTests/TeraAddStoreTests.swift", "maximum_lines": 1366},
     {"path": "TeraTests/TeraStateMigrationTests.swift", "maximum_lines": 718},
-    {"path": "TeraUITests/TeraRemoteQualificationUITests.swift", "maximum_lines": 2140}
+    {"path": "TeraUITests/TeraRemoteQualificationUITests.swift", "maximum_lines": 1992}
   ],
   "python_file_exception": [
     {"path": "scripts/local-social-fixture.py", "maximum_lines": 2626},

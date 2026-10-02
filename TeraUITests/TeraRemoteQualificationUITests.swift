@@ -135,12 +135,12 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   @MainActor
   func testLocalSocialAccessibilitySemantics() throws {
     let configuration = try QualificationConfiguration.environment()
+    _ = TeraAccessibilitySettings.setSystemReduceMotion(true, restoring: self)
     let app = launchToRoot(
       configuration,
       launchArguments: [
         "-AppleLanguages", "(en)",
         "-AppleLocale", "en_US",
-        "-UIAccessibilityReduceMotionEnabled", "YES",
       ]
     )
 
@@ -442,85 +442,13 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     )
   }
 
-  private var accessibilityAuditTypes: XCUIAccessibilityAuditType {
-    [
-      .contrast,
-      .elementDetection,
-      .hitRegion,
-      .sufficientElementDescription,
-      .textClipped,
-      .trait,
-    ]
-  }
-
-  private var personaSemanticAuditTypes: XCUIAccessibilityAuditType {
-    [
-      .elementDetection,
-      .hitRegion,
-      .sufficientElementDescription,
-      .textClipped,
-      .trait,
-    ]
-  }
-
   @MainActor
   private func performLocalSocialAccessibilityAudit(
     _ app: XCUIApplication,
     includeContrast: Bool = true
   ) throws {
-    let auditTypes = includeContrast ? accessibilityAuditTypes : personaSemanticAuditTypes
-    try app.performAccessibilityAudit(for: auditTypes) { issue in
-      self.recordAccessibilityIssue(issue)
-      if issue.auditType == .contrast && issue.compactDescription == "Contrast nearly passed" {
-        return true
-      }
-      if issue.auditType == .contrast,
-        let element = issue.element,
-        element.identifier.isEmpty,
-        element.label.isEmpty
-      {
-        return true
-      }
-      if issue.auditType == .contrast,
-        let element = issue.element,
-        element.exists,
-        !element.isEnabled
-      {
-        return true
-      }
-      if issue.auditType == .contrast,
-        let element = issue.element,
-        element.identifier == "radroots.add.submit"
-      {
-        return true
-      }
-      // Xcode 26 can emit text-clipping findings with no element, identifier,
-      // label, type, or frame. Element-bound findings remain fatal.
-      guard let element = issue.element else { return issue.auditType == .textClipped }
-      guard element.exists else { return false }
-      guard issue.auditType == .contrast || issue.auditType == .textClipped else { return false }
-      return self.systemChromePartiallyOccludes(element, app: app)
-    }
-  }
-
-  @MainActor
-  private func systemChromePartiallyOccludes(_ element: XCUIElement, app: XCUIApplication) -> Bool {
-    let frame = element.frame
-    let navigationBar = app.navigationBars.firstMatch
-    if navigationBar.exists {
-      let boundary = navigationBar.frame.maxY
-      if frame.minY < boundary, frame.maxY > boundary {
-        return true
-      }
-    }
-    let tabBar = app.tabBars.firstMatch
-    if tabBar.exists {
-      let boundary = tabBar.frame.minY
-      if frame.minY < boundary, frame.maxY > boundary {
-        return true
-      }
-    }
-    return false
+    let findings = try TeraAccessibilityAudit(test: self).run(app, includeContrast: includeContrast)
+    XCTAssertTrue(findings.isEmpty, "Unresolved accessibility findings:\n" + findings.joined(separator: "\n"))
   }
 
   @MainActor
@@ -585,7 +513,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     case "radroots.add.summary":
       "Short summary"
     case "radroots.add.location":
-      type == "Food availability" ? "Location" : "Location (optional)"
+      type == "Food availability" ? "Public location" : "Public location (optional)"
     case "radroots.add.event_timing":
       "When, Specific time"
     case "radroots.add.event.start":
@@ -740,20 +668,6 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     return "http=\(httpStatus.exists ? httpStatus.label : "missing"), "
       + "error=\(errorCode.exists ? errorCode.label : "missing"), "
       + "server=\(serverErrorCode.exists ? serverErrorCode.label : "missing")"
-  }
-
-  @MainActor
-  func openAdd(_ app: XCUIApplication) -> XCUIElement? {
-    let add = app.tabBars.buttons["Add"]
-    guard add.waitForExistence(timeout: 10) else { return nil }
-    let type = app.descendants(matching: .any)["radroots.add.type"]
-    for _ in 0 ..< 3 {
-      add.tap()
-      if type.waitForExistence(timeout: 10) {
-        return type
-      }
-    }
-    return nil
   }
 
   @MainActor
@@ -1002,13 +916,14 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       throw QualificationError.missingProductSurface
     }
     let newDraft = app.buttons["radroots.add.new"]
-    guard newDraft.waitForExistence(timeout: 10), waitUntilHittable(newDraft, timeout: 10) else {
+    guard beginNewDraft(newDraft) else {
       XCTFail("The New draft action was unavailable")
       throw QualificationError.missingProductSurface
     }
-    newDraft.tap()
+    // The explicit replacement must settle before changing the new form.
     scrollAddFormToTop(app)
     let picker = app.descendants(matching: .any)["radroots.add.type"]
+    scrollTo(app, element: picker)
     guard picker.waitForExistence(timeout: 10), waitUntilHittable(picker, timeout: 10) else {
       XCTFail("The Add type picker was unavailable")
       throw QualificationError.missingProductSurface
@@ -1045,7 +960,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       XCTFail("The Add field \(identifier) did not accept keyboard focus")
       throw QualificationError.missingProductSurface
     }
-    field.typeText(value)
+    enterExactText(field, value: value)
     let done = app.buttons["radroots.add.keyboard.done"]
     if done.waitForExistence(timeout: 5) {
       done.tap()
@@ -1060,7 +975,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     else {
       throw QualificationError.missingProductSurface
     }
-    guard !value.contains("Error code") else {
+    guard !value.contains("Error code"), finishOriginalPublication(app, submit: submit) else {
       XCTFail("The local-social flow failed: \(value)")
       throw QualificationError.productSubmissionFailed
     }
@@ -1171,7 +1086,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func submitAndWait(_ app: XCUIApplication, submit: XCUIElement) -> String? {
+  func submitAndWait(_ app: XCUIApplication, submit: XCUIElement) -> String? {
     let status = app.staticTexts.matching(identifier: "radroots.add.status").firstMatch
     let priorStatusLabel = status.exists ? status.label : nil
     let priorSubmitValue = submit.value as? String
@@ -1192,7 +1107,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       return nil
     }
     scrollTo(app, element: submit)
-    guard submit.waitForExistence(timeout: 10) else {
+    guard submit.waitForExistence(timeout: 10), terminalControlShowsSettledState(submit) else {
       XCTFail("The terminal Add submission control was unavailable")
       return nil
     }
