@@ -103,8 +103,8 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     guard let retrySubmit = readySubmit(app),
       let retryValue = submitAndWait(app, submit: retrySubmit)
     else { return }
-    XCTAssertFalse(
-      retryValue.contains("Error code"),
+    XCTAssertTrue(
+      !retryValue.contains("Error code") && finishOriginalPublication(app, submit: retrySubmit),
       "The preserved media draft did not publish after retry; submit.value=\(retryValue)"
     )
 
