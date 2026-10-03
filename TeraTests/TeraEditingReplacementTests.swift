@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 @testable import TeraApp
 import XCTest
@@ -18,6 +19,11 @@ final class TeraEditingReplacementTests: XCTestCase {
     let pause = await backend.pause(.composer)
     store.updateForm(\.content, "  newer event  ")
     let editing = TeraComposerForm(editing: store.form)
+    var observedNewAvailability: [Bool] = []
+    let observation = store.objectWillChange.sink {
+      observedNewAvailability.append(store.canCreateNewComposer)
+    }
+    defer { observation.cancel() }
     store.selectType(.createAsk)
     await pause.entered.wait()
     XCTAssertEqual(TeraComposerForm(editing: store.form), editing)
@@ -26,6 +32,8 @@ final class TeraEditingReplacementTests: XCTestCase {
     await TeraScopeFixtures.eventually { !store.protection.isWorking }
     XCTAssertEqual(store.form.commandType, .createAsk)
     XCTAssertEqual(store.form.content, "")
+    XCTAssertEqual(observedNewAvailability.last, true,
+                   "Add observers must see New enabled after the preservation worker settles")
     let saved = try await client.loadComposer(scope: original.scope, id: original.id)
     XCTAssertEqual(saved.form, editing)
     XCTAssertEqual(saved.revision, original.revision + 1)

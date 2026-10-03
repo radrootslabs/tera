@@ -81,7 +81,7 @@ final class TeraAddStore: ObservableObject {
       clock: clock
     )
     mediaAccess.changed = { [weak self] in self?.objectWillChange.send() }
-    submissions.changed = { [weak self] in self?.objectWillChange.send() }
+    observeChildAffordances()
     composer.stateChanged = { [weak self] in self?.composerState = $0 }
     protection.cancelled = { [weak self] in guard let self else { return }; generation = generation.invalidated() }
   }

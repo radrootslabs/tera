@@ -1,6 +1,11 @@
 import Foundation
 
 extension TeraAddStore {
+  func observeChildAffordances() {
+    submissions.changed = { [weak self] in self?.objectWillChange.send() }
+    protection.changed = { [weak self] in self?.objectWillChange.send() }
+  }
+
   var canCreateNewComposer: Bool {
     !isWorking && submissions.canReplaceEditing && !protection.isWorking && !protection.failed
   }

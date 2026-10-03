@@ -5,8 +5,23 @@ import Foundation
 @MainActor
 final class TeraEditingProtection: ObservableObject {
   enum Kind { case editing, reopen }
-  @Published private(set) var failed = false
-  @Published private(set) var isWorking = false
+  @Published private(set) var failed = false {
+    didSet {
+      if failed != oldValue {
+        changed()
+      }
+    }
+  }
+
+  @Published private(set) var isWorking = false {
+    didSet {
+      if isWorking != oldValue {
+        changed()
+      }
+    }
+  }
+
+  var changed: () -> Void = {}
   @Published private(set) var reopened: UUID?
   var cancelled: () -> Void = {}
   private struct Pending {
