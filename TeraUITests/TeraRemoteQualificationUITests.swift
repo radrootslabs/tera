@@ -802,10 +802,8 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     guard let submit = readySubmit(app), let value = submitAndWait(app, submit: submit) else {
       throw QualificationError.missingProductSurface
     }
-    XCTAssertTrue(value.contains("Error code"))
     let content = app.descendants(matching: .any)["radroots.add.content"]
-    scrollTo(app, element: content)
-    XCTAssertEqual(content.value as? String, attempt.marker)
+    try recoverRejectedEvent(app, content: content, marker: attempt.marker, failure: value)
     try enterText(app, identifier: "radroots.add.title", value: attempt.marker)
     try submitSuccessfully(app)
     return PersonaInteractionObservation(
@@ -912,7 +910,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func beginDraft(_ app: XCUIApplication, type: String) throws {
+  func beginDraft(_ app: XCUIApplication, type: String) throws {
     guard openAdd(app) != nil else {
       XCTFail("The Add bottom tab did not present the real Add store")
       throw QualificationError.missingProductSurface
@@ -971,7 +969,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
   }
 
   @MainActor
-  private func submitSuccessfully(_ app: XCUIApplication) throws {
+  func submitSuccessfully(_ app: XCUIApplication) throws {
     guard let submit = readySubmit(app),
       let value = submitAndWait(app, submit: submit)
     else {
