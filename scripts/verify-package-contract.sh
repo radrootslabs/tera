@@ -23,6 +23,7 @@ sh "$repo_root/scripts/ffi-provenance.sh" contract-check
 		scripts/test_kotlin_smoke.py \
 		scripts/test_xcode_selection.py \
 		scripts/test_local_social_fixture.py \
+		scripts/test_persona_attachment_selection.py \
 		scripts/test_local_social_relay.py \
 		scripts/test_legacy_upgrade_fixture.py
 )

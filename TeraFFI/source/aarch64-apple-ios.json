@@ -2874,10 +2874,10 @@
         "sha256": "087faddef16e99f10bb7ad7b39d649e7e410b558ed1f9f4f4e498ab861eea622"
       },
       "scripts/local-social-fixture.py": {
-        "bytes": 101032,
-        "git_blob": "4cbe745064f3bed7a9c0a359c40dd5996c5d7478",
+        "bytes": 100982,
+        "git_blob": "3d8c072afa7878ae3a40b5a9eaff5274b7c5f2f7",
         "mode": "100644",
-        "sha256": "31b482693d217eb2859847e197c434c43fc104da63917d93e11c69ebfebca9a0"
+        "sha256": "9dbb354f4656e1827143033fcb475afb2f247c6c32263c71bfce3b9b6ede5843"
       },
       "scripts/local_social_test_support.py": {
         "bytes": 582,
@@ -2920,6 +2920,12 @@
         "git_blob": "2b6aea10b8ea24b6cdc1075e78ed7a37fb88249d",
         "mode": "100644",
         "sha256": "af175b24907863f548d0d93a585ceab8d65a686e5152f70739384dd5b8ef2b96"
+      },
+      "scripts/persona_attachment_selection.py": {
+        "bytes": 6266,
+        "git_blob": "a7daf9b0a35bed60804a64f517870e77cd7aae19",
+        "mode": "100644",
+        "sha256": "0fd26ba301a301caaba97d3bba314a9fe322c12a26e99f8fce5f272eb2cf39fc"
       },
       "scripts/release-evidence.sh": {
         "bytes": 8527,
@@ -3017,6 +3023,12 @@
         "mode": "100644",
         "sha256": "651fc803fe3e3dd1636aec75f9ea79d81b9407317f93a02e4074a8369558bc33"
       },
+      "scripts/test_persona_attachment_selection.py": {
+        "bytes": 5355,
+        "git_blob": "13bd0cece4ea4c73c2807275fad51ebf6582590e",
+        "mode": "100644",
+        "sha256": "56797c8dd8b1e1efc3c1f469f86c542baecaf12db60bcc799585f475438379f5"
+      },
       "scripts/test_xcode_selection.py": {
         "bytes": 4745,
         "git_blob": "b633afbccd765a106e2ad591881926a9add542ac",
@@ -3024,10 +3036,10 @@
         "sha256": "a917dfbc1d8ecac7d1539670651e4b468059bc77dfe31aeefbc6c6eb21bebbfb"
       },
       "scripts/verify-package-contract.sh": {
-        "bytes": 1614,
-        "git_blob": "170f25c675b29871a46cbfa5675a5d8cf919eebb",
+        "bytes": 1663,
+        "git_blob": "76674ddf0dbdb54e39dd788bf8ad5515af47f1c8",
         "mode": "100755",
-        "sha256": "e9f3dfdc2932b7a5b32154c08c8ff4512f80ff40ebd05f1ee8d0a2154fa14441"
+        "sha256": "8798d003a8a0ac9e5aff6fc89093fd7af9f6de95a32be1c5e0391727a2461eb2"
       },
       "scripts/xcode.sh": {
         "bytes": 22437,
@@ -3043,6 +3055,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "2b657cd1eb84af0fd5559c9e841845b489e9ef80"
+    "tree": "9c3f9ea1dea95b4ad49e82848008c0eb4762bb2e"
   }
 }

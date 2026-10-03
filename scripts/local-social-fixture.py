@@ -8,6 +8,7 @@ import base64
 import hashlib
 import http.server
 import importlib.metadata
+import importlib.util
 import ipaddress
 import json
 import os
@@ -20,7 +21,6 @@ import stat
 import subprocess
 import struct
 import sys
-import tempfile
 import threading
 import time
 import unicodedata
@@ -2065,41 +2065,33 @@ def extract_persona_attempt_attachments(
     *,
     require_measured_network: bool,
 ) -> list[tuple[bytes, dict[str, Any]]]:
-    tests = run_json_command_bounded(
-        [
-            "xcrun",
-            "xcresulttool",
-            "get",
-            "test-results",
-            "tests",
-            "--path",
-            str(result_bundle),
-        ],
-        MAX_XCRESULT_JSON_BYTES,
+    spec = importlib.util.spec_from_file_location(
+        "tera_persona_attachment_selection",
+        Path(__file__).with_name("persona_attachment_selection.py"),
     )
-    exact_persona_test_node(tests)
-    with tempfile.TemporaryDirectory() as directory:
-        export_directory = Path(directory)
-        subprocess.run(
-            [
-                "xcrun",
-                "xcresulttool",
-                "export",
-                "attachments",
-                "--test-id",
-                PERSONA_XCRESULT_NODE_URL,
-                "--path",
-                str(result_bundle),
-                "--output-path",
-                str(export_directory),
-            ],
-            check=True,
-        )
-        return load_exported_persona_attachments(
-            export_directory,
-            suite,
-            require_measured_network=require_measured_network,
-        )
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    tools = module.ExtractionTools(
+        run_json_command_bounded,
+        exact_persona_test_node,
+        read_json_bounded,
+        bounded_directory_inventory,
+        directory_digest,
+        load_exported_persona_attachments,
+        xcresult_attachment_attempt_id,
+        PERSONA_XCRESULT_NODE_IDENTIFIER,
+        PERSONA_XCRESULT_NODE_URL,
+        PERSONA_ATTACHMENT_NAMES,
+        MAX_XCRESULT_JSON_BYTES,
+        MAX_PERSONA_ATTACHMENT_BYTES,
+    )
+    return module.extract(
+        result_bundle,
+        suite,
+        tools,
+        require_measured_network=require_measured_network,
+    )
 
 
 def reconstruct_persona_result_v2(
