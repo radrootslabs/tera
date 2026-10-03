@@ -2874,10 +2874,10 @@
         "sha256": "087faddef16e99f10bb7ad7b39d649e7e410b558ed1f9f4f4e498ab861eea622"
       },
       "scripts/local-social-fixture.py": {
-        "bytes": 100862,
-        "git_blob": "2246c8d14a780f282be9bb5dce3ae51e6ce3e5e2",
+        "bytes": 101032,
+        "git_blob": "4cbe745064f3bed7a9c0a359c40dd5996c5d7478",
         "mode": "100644",
-        "sha256": "c1eb9051388f99b0aae5a8211108565f414ae90fec9cb6876b76bd1c68440631"
+        "sha256": "31b482693d217eb2859847e197c434c43fc104da63917d93e11c69ebfebca9a0"
       },
       "scripts/local_social_test_support.py": {
         "bytes": 582,
@@ -2993,6 +2993,12 @@
         "mode": "100644",
         "sha256": "81ff78918d1c7ef642f1ebc598d48ea0d8445ea31be783493a0d75581b0d73b1"
       },
+      "scripts/test_local_social_relay.py": {
+        "bytes": 4454,
+        "git_blob": "1d2ab5387568effe45fcbc9ce2f4c0782272ab1e",
+        "mode": "100644",
+        "sha256": "8e9fad61bc7d1c951502ecc4c1305db7bbf51d426cd5fd4c445443884509e5da"
+      },
       "scripts/test_maintainability_ratchet.py": {
         "bytes": 6308,
         "git_blob": "7d1cb1bb3a154895640f2e6d83a6f8a6e29367f1",
@@ -3018,10 +3024,10 @@
         "sha256": "a917dfbc1d8ecac7d1539670651e4b468059bc77dfe31aeefbc6c6eb21bebbfb"
       },
       "scripts/verify-package-contract.sh": {
-        "bytes": 1575,
-        "git_blob": "7dd58131736db25391e8731d21d0137d00c16a2a",
+        "bytes": 1614,
+        "git_blob": "170f25c675b29871a46cbfa5675a5d8cf919eebb",
         "mode": "100755",
-        "sha256": "682ca03f4cb6aec0ea5d2e5c4205d36cfb3c41b6207e8bff3fa0329be29d6a92"
+        "sha256": "e9f3dfdc2932b7a5b32154c08c8ff4512f80ff40ebd05f1ee8d0a2154fa14441"
       },
       "scripts/xcode.sh": {
         "bytes": 22437,
@@ -3037,6 +3043,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "3f78cda10ef2c45f49b887f38619ce75dcc0eec0"
+    "tree": "2b657cd1eb84af0fd5559c9e841845b489e9ef80"
   }
 }

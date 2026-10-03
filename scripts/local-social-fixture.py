@@ -12,6 +12,7 @@ import ipaddress
 import json
 import os
 import re
+import select
 import signal
 import socket
 import socketserver
@@ -1183,6 +1184,9 @@ def read_exact(stream: socket.socket, length: int) -> bytes:
 
 def read_frame(stream: socket.socket) -> tuple[int, bytes] | None:
     try:
+        # Idle is not a failure vector; partial frames retain the read deadline.
+        while not select.select([stream], [], [], 15)[0]:
+            pass
         first, second = read_exact(stream, 2)
     except (ConnectionError, OSError, TimeoutError):
         return None
