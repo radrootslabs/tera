@@ -1028,16 +1028,14 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       XCTFail("The local relay refresh did not materialize the Today feed")
       throw QualificationError.missingProductSurface
     }
-    for marker in markers.reversed() {
-      for _ in 0 ..< 8 {
-        feed.swipeDown()
-      }
+    let maximumCards = try loadPersonaSuite().personas.reduce(0) { $0 + $1.attempts.count }
+    let missing = TeraTodayQualificationNavigation.unseenMarkers(
+      app, feed: feed, markers: markers, maximumCards: maximumCards
+    )
+    for marker in markers.reversed() where missing.contains(marker) {
       let card = app.descendants(matching: .any).matching(
         NSPredicate(format: "label CONTAINS %@", marker)
       ).firstMatch
-      for _ in 0 ..< 6 where !card.exists {
-        feed.swipeUp()
-      }
       guard card.waitForExistence(timeout: 30) else {
         XCTFail("Missing Today card \(marker)")
         throw QualificationError.missingProductSurface

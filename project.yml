@@ -200,6 +200,7 @@ targets:
       - path: TeraUITests/TeraRecoveryUITests.swift
       - path: TeraUITests/TeraPhotoQualificationInput.swift
       - path: TeraUITests/TeraRemoteQualificationUITests.swift
+      - path: TeraUITests/TeraTodayQualificationNavigation.swift
       - path: TeraUITests/TeraSettingsIdentityUI.swift
       - path: TeraUITests/TeraAddViewportUI.swift
       - path: TeraUITests/TeraValidationRecoveryUI.swift
