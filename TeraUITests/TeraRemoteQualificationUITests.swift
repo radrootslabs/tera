@@ -759,16 +759,15 @@ final class TeraRemoteQualificationUITests: XCTestCase {
       XCTAssertTrue(library.isEnabled)
       library.tap()
       let prepared = app.descendants(matching: .any)["radroots.add.media.prepared"]
-      scrollTo(app, element: prepared)
       guard prepared.waitForExistence(timeout: 60) else {
         XCTFail("The governed prepared Photo update was unavailable through the visible UI")
         throw QualificationError.missingProductSurface
       }
+      try enterPhotoDescription(app)
       guard prepared.isHittable else {
         XCTFail("The governed prepared Photo update was obscured")
         throw QualificationError.missingProductSurface
       }
-      try enterPhotoDescription(app)
     case .event:
       try enterText(app, identifier: "radroots.add.title", value: marker)
     case .foodAvailability:
