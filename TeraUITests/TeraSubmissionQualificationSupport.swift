@@ -54,7 +54,7 @@ extension TeraRemoteQualificationUITests {
 
   @MainActor
   func assertDraftOutboxContainsAtLeast(_ app: XCUIApplication, count: Int) {
-    let sheet = app.descendants(matching: .any)["radroots.add.drafts.sheet"]
+    let sheet = qualificationDraftsSheet(app)
     let list = sheet.descendants(matching: .collectionView).firstMatch
     guard list.waitForExistence(timeout: 10) else {
       return XCTFail("The visible Drafts list was unavailable")
@@ -160,6 +160,65 @@ extension TeraRemoteQualificationUITests {
     let completed = submit.exists && submit.label == "Delivery policy complete"
     XCTAssertTrue(completed, "The original publication did not complete within three visible status/continuation attempts")
     return completed
+  }
+
+  @MainActor
+  func continueSavedPersonaSubmission(_ app: XCUIApplication, marker: String) -> Bool {
+    let sheet = qualificationDraftsSheet(app)
+    let view = sheet.buttons["View submission"].firstMatch
+    guard revealSavedSubmissionControl(sheet, element: view) else { return false }
+    view.tap()
+    let captured = sheet.buttons["tera.add.submission.captured"].firstMatch
+    guard revealSavedSubmissionControl(sheet, element: captured) else { return false }
+    captured.tap()
+    guard sheet.staticTexts[marker].waitForExistence(timeout: 20) else {
+      XCTFail("The saved submission must retain the exact captured attempt marker")
+      return false
+    }
+    let continuation = sheet.buttons["tera.add.submission.continue"]
+    guard revealSavedSubmissionControl(sheet, element: continuation),
+          continuation.waitForExistence(timeout: 20), continuation.isEnabled
+    else {
+      XCTFail("The transport-retry submission did not expose its original continuation")
+      return false
+    }
+    continuation.tap()
+    let status = sheet.staticTexts["tera.add.submission.status"]
+    let complete = NSPredicate { _, _ in
+      status.exists && status.label == "Delivery completed for the saved relay policy."
+    }
+    let expectation = XCTNSPredicateExpectation(predicate: complete, object: app)
+    let finished = XCTWaiter.wait(for: [expectation], timeout: 180) == .completed
+    XCTAssertTrue(finished, "The original saved submission did not complete its delivery policy")
+    return finished
+  }
+
+  @MainActor
+  private func qualificationDraftsSheet(_ app: XCUIApplication) -> XCUIElement {
+    app.descendants(matching: .any)["radroots.add.drafts.sheet"]
+  }
+
+  @MainActor
+  private func revealSavedSubmissionControl(_ sheet: XCUIElement, element: XCUIElement) -> Bool {
+    let list = sheet.descendants(matching: .collectionView).firstMatch
+    let navigation = sheet.navigationBars.firstMatch
+    guard list.waitForExistence(timeout: 10), navigation.exists else { return false }
+    for _ in 0 ..< 12 {
+      guard sheet.exists, list.exists else { return false }
+      let top = max(list.frame.minY, navigation.frame.maxY)
+      if element.exists, element.isHittable, element.frame.height > 0,
+         element.frame.minY >= top, element.frame.maxY <= list.frame.maxY
+      {
+        return true
+      }
+      let reverse = element.exists && element.frame.height > 0 && element.frame.minY < top
+      let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: reverse ? 0.25 : 0.75))
+      let finish = list.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: reverse ? 0.75 : 0.25))
+      start.press(forDuration: 0.05, thenDragTo: finish,
+                  withVelocity: .slow, thenHoldForDuration: 0.3)
+    }
+    XCTFail("The saved submission control was unavailable within the bounded native viewport")
+    return false
   }
 
   @MainActor

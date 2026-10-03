@@ -837,15 +837,9 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     guard openAdd(relaunched) != nil, openDrafts(relaunched) else {
       throw QualificationError.missingProductSurface
     }
-    let retry = relaunched.buttons["Retry"].firstMatch
-    guard retry.waitForExistence(timeout: 20) else {
-      XCTFail("The transport-retry draft did not expose the Retry action")
+    guard continueSavedPersonaSubmission(relaunched, marker: attempt.marker) else {
       throw QualificationError.missingProductSurface
     }
-    retry.tap()
-    let retryCompleted = NSPredicate { _, _ in !retry.exists || !retry.isEnabled }
-    let expectation = XCTNSPredicateExpectation(predicate: retryCompleted, object: relaunched)
-    XCTAssertEqual(XCTWaiter.wait(for: [expectation], timeout: 180), .completed)
     let done = relaunched.buttons["Done"]
     XCTAssertTrue(done.waitForExistence(timeout: 10))
     done.tap()

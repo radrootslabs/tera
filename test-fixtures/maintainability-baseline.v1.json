@@ -38,7 +38,7 @@
     },
     {
       "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-      "maximum_lines": 1951
+      "maximum_lines": 1945
     }
   ],
   "python_file_exception": [
