@@ -176,7 +176,7 @@ extension TeraRemoteQualificationUITests {
       return false
     }
     let continuation = sheet.buttons["tera.add.submission.continue"]
-    guard revealSavedSubmissionControl(sheet, element: continuation),
+    guard revealSavedSubmissionControl(sheet, element: continuation, searchingBackward: true),
           continuation.waitForExistence(timeout: 20), continuation.isEnabled
     else {
       XCTFail("The transport-retry submission did not expose its original continuation")
@@ -199,7 +199,9 @@ extension TeraRemoteQualificationUITests {
   }
 
   @MainActor
-  private func revealSavedSubmissionControl(_ sheet: XCUIElement, element: XCUIElement) -> Bool {
+  private func revealSavedSubmissionControl(_ sheet: XCUIElement, element: XCUIElement,
+                                            searchingBackward: Bool = false) -> Bool
+  {
     let list = sheet.descendants(matching: .collectionView).firstMatch
     let navigation = sheet.navigationBars.firstMatch
     guard list.waitForExistence(timeout: 10), navigation.exists else { return false }
@@ -211,7 +213,8 @@ extension TeraRemoteQualificationUITests {
       {
         return true
       }
-      let reverse = element.exists && element.frame.height > 0 && element.frame.minY < top
+      // The continuation precedes Captured form, even when its lazy row has no frame.
+      let reverse = element.exists && element.frame.height > 0 ? element.frame.minY < top : searchingBackward
       let start = list.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: reverse ? 0.25 : 0.75))
       let finish = list.coordinate(withNormalizedOffset: CGVector(dx: 0.05, dy: reverse ? 0.75 : 0.25))
       start.press(forDuration: 0.05, thenDragTo: finish,
