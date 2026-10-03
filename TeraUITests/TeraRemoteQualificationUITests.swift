@@ -990,7 +990,8 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     for attempt in 0 ..< 16 where !isVisibleInAddViewport(
       element,
       root: root,
-      above: tabBar
+      above: tabBar,
+      below: app.navigationBars["Add"]
     ) {
       if element.exists {
         let targetFrame = element.frame
@@ -1006,22 +1007,6 @@ final class TeraRemoteQualificationUITests: XCTestCase {
         root.swipeDown()
       }
     }
-  }
-
-  @MainActor
-  private func isVisibleInAddViewport(
-    _ element: XCUIElement,
-    root: XCUIElement,
-    above obstruction: XCUIElement
-  ) -> Bool {
-    guard element.exists, element.isHittable, root.exists, obstruction.exists else {
-      return false
-    }
-    let frame = element.frame
-    let rootFrame = root.frame
-    return frame.height > 0
-      && frame.minY >= rootFrame.minY
-      && frame.maxY <= min(rootFrame.maxY, obstruction.frame.minY)
   }
 
   @MainActor
