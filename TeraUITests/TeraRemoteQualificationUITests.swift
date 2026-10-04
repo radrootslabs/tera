@@ -9,6 +9,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     let configuration = try QualificationConfiguration.environment()
     let app = launchToRoot(configuration)
     let publicKey = try readPublicKey(app)
+    try exerciseSettingsIdentityOverscroll(app, expectedPublicKey: publicKey)
     try writeBootstrapReceipt(configuration: configuration, publicKey: publicKey)
 
     XCUIDevice.shared.press(.home)
@@ -19,6 +20,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     app.launch()
     reachRoot(app)
     XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 20))
+    XCTAssertEqual(try readPublicKey(app), publicKey)
   }
 
   @MainActor
@@ -573,29 +575,6 @@ final class TeraRemoteQualificationUITests: XCTestCase {
         "radroots.add.quantity",
       ],
     ]
-  }
-
-  @MainActor
-  private func reachRoot(_ app: XCUIApplication) {
-    for _ in 0 ..< 6 {
-      if app.tabBars.firstMatch.waitForExistence(timeout: 3) {
-        return
-      }
-      for identifier in [
-        "radroots.identity.create",
-        "radroots.identity.unlock",
-        "radroots.configuration.reconfigure",
-        "radroots.identity.recover",
-        "radroots.runtime.retry",
-      ] {
-        let action = app.descendants(matching: .any)[identifier]
-        if action.exists, action.isHittable {
-          action.tap()
-          break
-        }
-      }
-    }
-    XCTFail("Tera did not reach the two-tab root without interactive authentication")
   }
 
   @MainActor

@@ -3998,7 +3998,11 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4122,7 +4126,11 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4176,7 +4184,11 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4190,7 +4202,11 @@
         },
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
-          "count": 2
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4649,7 +4665,7 @@
           "count": 1
         },
         {
-          "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
           "count": 1
         }
       ]
@@ -4759,6 +4775,10 @@
         {
           "path": "Tera/Views/TeraSettingsView.swift",
           "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4827,6 +4847,10 @@
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
           "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4836,6 +4860,10 @@
       "occurrences": [
         {
           "path": "Tera/Views/TeraSettingsView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
           "count": 1
         }
       ]
@@ -4867,6 +4895,10 @@
         {
           "path": "Tera/Views/TeraSettingsView.swift",
           "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 2
         }
       ]
     },
@@ -4897,6 +4929,10 @@
         {
           "path": "Tera/Views/TeraSettingsView.swift",
           "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4916,6 +4952,10 @@
       "occurrences": [
         {
           "path": "Tera/Views/TeraSettingsView.swift",
+          "count": 1
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
           "count": 1
         }
       ]
@@ -4945,6 +4985,10 @@
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
           "count": 2
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -4979,6 +5023,10 @@
         {
           "path": "TeraUITests/TeraRemoteQualificationUITests.swift",
           "count": 3
+        },
+        {
+          "path": "TeraUITests/TeraSettingsIdentityUI.swift",
+          "count": 1
         }
       ]
     },
@@ -5044,7 +5092,7 @@
         },
         {
           "path": "TeraUITests/TeraSettingsIdentityUI.swift",
-          "count": 2
+          "count": 3
         }
       ]
     },
