@@ -15,9 +15,11 @@ from pathlib import Path
 from typing import Any
 
 import ffi_artifacts as artifacts
+import ffi_build as builder
 import ffi_installed as installed
 import ffi_provenance as provenance
 import ffi_source as source
+import package_contract as contract
 
 HARNESS = "scripts/kotlin_smoke"
 HOST = "aarch64-apple-darwin"
@@ -114,8 +116,22 @@ def native_input(
 ) -> tuple[dict[str, Any], Path, dict[str, Any]]:
     manifest = installed.check(root)
     candidate = manifest["candidate"]
-    tree = candidate["source"]["tree"]
-    base = output.parent / "tera_ffi/candidates" / tree
+    records = {
+        target: contract._read_json(root / "TeraFFI/source" / f"{target}.json")
+        for target in artifacts.TARGETS
+    }
+    for target, record in records.items():
+        data = provenance.encoded(record)
+        require(
+            {
+                "path": f"source/{target}.json",
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+            }
+            in candidate["files"],
+            "Kotlin smoke source record does not match the installed producer",
+        )
+    base = builder.candidate_path(output.parent.parent, records)
     require(base.resolve() == base, "Kotlin native candidate contains a symlink")
     record = artifacts.file_record(base, LIBRARY)
     require(
@@ -271,6 +287,7 @@ def main() -> int:
         ET.ParseError,
         subprocess.SubprocessError,
         source.ProvenanceError,
+        contract.PackageContractError,
     ) as error:
         print(f"Kotlin binding smoke failed: {error}", file=sys.stderr)
         return 1

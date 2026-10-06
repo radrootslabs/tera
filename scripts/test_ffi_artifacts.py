@@ -129,6 +129,28 @@ class NativeArtifactTests(unittest.TestCase):
         with self.assertRaisesRegex(source.ProvenanceError, "tuples disagree"):
             artifacts.check(self.root, records)
 
+    def test_complete_tuple_candidates_coexist_without_cache_cleaning(self) -> None:
+        original = builder.candidate_path(self.root, self.records)
+        self.assertEqual(original, builder.candidate_path(self.root, self.records))
+        original.mkdir(parents=True)
+        (original / "preserved").write_text("old native tuple")
+        for section in ("build", "generator"):
+            changed = copy.deepcopy(self.records)
+            changed[artifacts.TARGETS[0]].setdefault(section, {})["native"] = {
+                "sdk": "changed native tuple"
+            }
+            with self.subTest(section=section):
+                candidate = builder.candidate_path(self.root, changed)
+                self.assertNotEqual(candidate, original)
+                self.assertEqual(
+                    changed[artifacts.TARGETS[0]]["source"]["tree"],
+                    self.records[artifacts.TARGETS[0]]["source"]["tree"],
+                )
+                candidate.mkdir()
+                self.assertEqual(
+                    (original / "preserved").read_text(), "old native tuple"
+                )
+
     def test_cross_target_abi_mismatch_is_rejected(self) -> None:
         symbols = contract._read_json(self.root / "abi_symbols.json")
         symbols[artifacts.TARGETS[0]] = ["ffi_tera_ffi_other"]
@@ -165,6 +187,44 @@ class NativeArtifactTests(unittest.TestCase):
         self.assertEqual(
             environment["SOURCE_DATE_EPOCH"], str(config["build"]["source_date_epoch"])
         )
+
+    def test_abi_symbol_reader_digest_drift_rejects_before_and_after_use(self) -> None:
+        import ffi_native as native
+
+        reader = self.root / "reader"
+        original = b"synthetic symbol reader"
+        reader.write_bytes(original)
+        records = copy.deepcopy(self.records)
+        for record in records.values():
+            record["build"].update(
+                {"symbol_reader_identity": native.file_identity(reader), "native": {}}
+            )
+            record["generator"] = {"native": {}}
+
+        def changed_after_run(*args):
+            reader.write_bytes(b"changed reader")
+            log = self.root / "symbols.txt"
+            log.write_text("_ffi_tera_ffi_fixture\n")
+            return log
+
+        with patch.object(provenance, "symbol_reader", return_value=reader):
+            reader.write_bytes(b"changed reader")
+            with patch.object(builder, "run_native") as run:
+                with self.assertRaisesRegex(
+                    source.ProvenanceError, "reader drift before"
+                ):
+                    builder.record_abi(
+                        SCRIPTS.parent, self.root, self.root, {}, records
+                    )
+                run.assert_not_called()
+            reader.write_bytes(original)
+            with patch.object(builder, "run_native", side_effect=changed_after_run):
+                with self.assertRaisesRegex(
+                    source.ProvenanceError, "reader drift after"
+                ):
+                    builder.record_abi(
+                        SCRIPTS.parent, self.root, self.root, {}, records
+                    )
 
 
 if __name__ == "__main__":

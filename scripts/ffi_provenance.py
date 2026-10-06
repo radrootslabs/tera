@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import ffi_source as source
+import ffi_native as native
 import package_contract as contract
 
 
@@ -23,7 +24,12 @@ def capture(root: Path, target: str) -> dict[str, Any]:
     if target not in build["targets"]:
         raise source.ProvenanceError("producer target is not governed")
     snapshot = source.source_snapshot(root, config["source_inputs"])
-    rustc = source.command(root, ["rustc", "-Vv"]).decode().strip()
+    native_target = native.capture(root, target)
+    native_host = native.capture(root, build["host"])
+    environment = native.inspection_environment()
+    rustc = (
+        source.command(root, ["rustc", "-Vv"], environment=environment).decode().strip()
+    )
     if f"release: {build['rust_version']}\n" not in rustc + "\n":
         raise source.ProvenanceError(
             "active Rust compiler differs from producer contract"
@@ -47,14 +53,23 @@ def capture(root: Path, target: str) -> dict[str, Any]:
             "package_rust_flags": source.library_rust_flags(build, target),
             "source_date_epoch": build["source_date_epoch"],
             "rustc": rustc,
+            "symbol_reader_identity": native.file_identity(
+                symbol_reader(root, build["host"])
+            ),
             "symbol_reader": source.command(
-                root, [str(symbol_reader(root, build["host"])), "--version"]
+                root,
+                [str(symbol_reader(root, build["host"])), "--version"],
+                environment=environment,
             )
             .decode()
             .strip(),
             "apple_toolchain": apple_toolchain(root),
+            "native": native_target,
             "feature_graph": source.feature_graph(
-                root, config["ffi"]["package"], target
+                root,
+                config["ffi"]["package"],
+                target,
+                environment=environment,
             ),
         },
         "generator": {
@@ -62,20 +77,32 @@ def capture(root: Path, target: str) -> dict[str, Any]:
             "target": build["host"],
             "profile": "dev",
             "profile_overrides": source.allowed_profile_overrides(),
+            "native": native_host,
             "feature_graph": source.feature_graph(
-                root, config["generator"]["package"], build["host"]
+                root,
+                config["generator"]["package"],
+                build["host"],
+                environment=environment,
             ),
         },
         "disposition": "local_staged_source_only",
     }
     if source.source_snapshot(root, config["source_inputs"]) != snapshot:
         raise source.ProvenanceError("producer source changed during capture")
+    native.verify(root, native_target)
+    native.verify(root, native_host)
     return result
 
 
 def symbol_reader(root: Path, host: str) -> Path:
     sysroot = Path(
-        source.command(root, ["rustc", "--print", "sysroot"]).decode().strip()
+        source.command(
+            root,
+            ["rustc", "--print", "sysroot"],
+            environment=native.inspection_environment(),
+        )
+        .decode()
+        .strip()
     )
     reader = sysroot / "lib/rustlib" / host / "bin/llvm-nm"
     if not reader.is_file() or not os.access(reader, os.X_OK):
@@ -97,7 +124,9 @@ def apple_toolchain(root: Path) -> dict[str, str]:
         ],
     }
     return {
-        name: source.command(root, argv).decode().strip()
+        name: source.command(root, argv, environment=native.inspection_environment())
+        .decode()
+        .strip()
         for name, argv in commands.items()
     }
 

@@ -22,6 +22,11 @@ readonly -a MAINTAINABILITY_RULES=(
 )
 readonly -a PYTHON_QUALITY_PATHS=(
   scripts/ffi_source.py
+  scripts/ffi_native.py
+  scripts/test_ffi_native.py
+  scripts/test_ffi_native_cache.py
+  scripts/unittest_report.py
+  scripts/test_unittest_report.py
   scripts/ffi_artifacts.py
   scripts/ffi_build.py
   scripts/ffi_installed.py

@@ -12,7 +12,7 @@ UI_TEST_SELECTOR ?=
 .PHONY: all doctor bootstrap persona-verifier-bootstrap ffi-bootstrap artifact-check package-contract-check \
 	ffi-source-write ffi-source-check \
 	ffi-candidate-build ffi-candidate-check \
-	swift-quality maintainability-check \
+	swift-quality native-cache-check maintainability-check \
 	linux-shared-rust kotlin-smoke kotlin-smoke-bootstrap \
 	package-resolve package-build package-test project xcodegen xcode-resolve \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-write \
@@ -49,6 +49,10 @@ package-contract-check: doctor
 
 swift-quality: doctor
 	cargo extbuild run -- scripts/swift-quality.sh
+
+native-cache-check: doctor
+	cargo extbuild run -- uv run --project scripts/persona-verifier --offline --frozen \
+		python -m unittest -v scripts.test_ffi_native_cache
 
 maintainability-check: doctor
 	cargo extbuild run -- uv run --offline --project scripts/persona-verifier \
@@ -104,7 +108,7 @@ release-evidence-write: doctor
 release-preflight: artifact-check package-contract-check
 	cargo extbuild run -- scripts/release-preflight.sh
 
-verify: swift-quality linux-shared-rust kotlin-smoke artifact-check package-contract-check package-build package-test \
+verify: swift-quality native-cache-check linux-shared-rust kotlin-smoke artifact-check package-contract-check package-build package-test \
 	xcode-build-debug xcode-build-release unit-test ui-test api-snapshot-check
 
 clean: doctor

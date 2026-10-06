@@ -369,6 +369,116 @@
     ],
     "features": [],
     "ios_deployment_target": "18.0",
+    "native": {
+      "compiler_arguments": [
+        "--no-default-config"
+      ],
+      "compiler_resources": {
+        "bytes": 83967222,
+        "nodes": 377,
+        "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21",
+        "sha256": "dd5989662272c61af2fb63d0eaf970f66d9c5a1f10ef3a8d481a2592f80578cf"
+      },
+      "deployment": {
+        "IPHONEOS_DEPLOYMENT_TARGET": "18.0"
+      },
+      "developer_dir": "/Applications/Xcode.app/Contents/Developer",
+      "inherited": {
+        "generator_profile_overrides": {
+          "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+        },
+        "path_sha256": "e4bfec31ceb26bfa330c30b81c526b8429ba650cf8a92c77e5c3971924187a16"
+      },
+      "inspection_limits": {
+        "maximum_inspection_seconds": 120,
+        "maximum_sdk_aggregate_bytes": 2000000000,
+        "maximum_sdk_nodes": 100000,
+        "stream_chunk_bytes": 65536
+      },
+      "linker_driver_arguments": [
+        "--no-default-config",
+        "-fuse-ld=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld"
+      ],
+      "policy": "closed_apple_c_v1",
+      "sdk": {
+        "bytes": 179460531,
+        "nodes": 9862,
+        "path": "/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk",
+        "sha256": "3c024cd45fbe1fa2e0c389b565449215f787ef1f013d52eac260ae0a5e54a6f2"
+      },
+      "sdk_build": "23F81a",
+      "sdk_name": "iphoneos",
+      "sdk_version": "26.5",
+      "target": "aarch64-apple-ios",
+      "tools": {
+        "archiver": {
+          "bytes": 73520,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar",
+          "sha256": "e49ffad64ad1cee722540fc5ecb00a230fd8071680682c60d9c851029d20e814"
+        },
+        "compiler": {
+          "bytes": 141373024,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+          "sha256": "7def90dd8829726686213a747fc5bff1583df933dae5edc55d755479e0bfe00a"
+        },
+        "linker": {
+          "bytes": 2331792,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+          "sha256": "5897b275efd93b201b6df5832dd541262b3f20f290859ba78f2200a6a66ef38b"
+        },
+        "ranlib": {
+          "bytes": 210800,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/libtool",
+          "sha256": "229eb9d8027953d2aee0590f983eed587d52bdd1ebc21114a62ce693f77b03f1"
+        },
+        "swift": {
+          "bytes": 171036592,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+          "sha256": "2ed38571e92c0283091838c1649e27650ad9c99950288e883c7b2dc6c4ce89fb"
+        },
+        "swift_format": {
+          "bytes": 8035472,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-format",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-format",
+          "sha256": "48317544bec55d5dee83e15738a342c0c31bf9c60273599f85601a8faea0016c"
+        },
+        "swift_symbolgraph_extract": {
+          "bytes": 171036592,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-symbolgraph-extract",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+          "sha256": "2ed38571e92c0283091838c1649e27650ad9c99950288e883c7b2dc6c4ce89fb"
+        },
+        "swiftc": {
+          "bytes": 171036592,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+          "sha256": "2ed38571e92c0283091838c1649e27650ad9c99950288e883c7b2dc6c4ce89fb"
+        },
+        "swiftformat": {
+          "bytes": 4700024,
+          "path": "/opt/homebrew/bin/swiftformat",
+          "resolved_path": "/opt/homebrew/Cellar/swiftformat/0.63.1/bin/swiftformat",
+          "sha256": "5495efaea582c21d93d344dfbfe3f05893b8bf3c99f7fd2962972c4a80caa685"
+        },
+        "xcodebuild": {
+          "bytes": 100528,
+          "path": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+          "sha256": "d508f0e1901151843804e4af512d4587ad0e422039e43e14abf22792360ad3d4"
+        },
+        "xcrun": {
+          "bytes": 117392,
+          "path": "/usr/bin/xcrun",
+          "resolved_path": "/usr/bin/xcrun",
+          "sha256": "a439970aea2b4e435eac6518ff62c97fd1c57d8c731974027ad211b515c7a7b8"
+        }
+      }
+    },
     "package": "tera_ffi",
     "package_rust_flags": [],
     "profile": "release",
@@ -380,6 +490,10 @@
     "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)\nbinary: rustc\ncommit-hash: 8bab26f4f68e0e26f0bb7960be334d5b520ea452\ncommit-date: 2026-07-14\nhost: aarch64-apple-darwin\nrelease: 1.97.1\nLLVM version: 22.1.6",
     "source_date_epoch": 1787871027,
     "symbol_reader": "llvm-nm, compatible with GNU nm\nLLVM (http://llvm.org/):\n  LLVM version 22.1.6-rust-1.97.1-stable\n  Optimized build.",
+    "symbol_reader_identity": {
+      "bytes": 45024888,
+      "sha256": "35ce10ff99cd452e3767c4dfa7ed998a3265a960a3b393c307117f85dcb1f4e5"
+    },
     "target": "aarch64-apple-ios"
   },
   "cargo_lock_sha256": "31aced473ddc097b2a3508b9247a336f8598b31dabdca320f10f9b720195424f",
@@ -486,6 +600,114 @@
       "zmij v1.0.23|"
     ],
     "features": [],
+    "native": {
+      "compiler_arguments": [
+        "--no-default-config"
+      ],
+      "compiler_resources": {
+        "bytes": 83967222,
+        "nodes": 377,
+        "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/21",
+        "sha256": "dd5989662272c61af2fb63d0eaf970f66d9c5a1f10ef3a8d481a2592f80578cf"
+      },
+      "deployment": {},
+      "developer_dir": "/Applications/Xcode.app/Contents/Developer",
+      "inherited": {
+        "generator_profile_overrides": {
+          "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
+        },
+        "path_sha256": "e4bfec31ceb26bfa330c30b81c526b8429ba650cf8a92c77e5c3971924187a16"
+      },
+      "inspection_limits": {
+        "maximum_inspection_seconds": 120,
+        "maximum_sdk_aggregate_bytes": 2000000000,
+        "maximum_sdk_nodes": 100000,
+        "stream_chunk_bytes": 65536
+      },
+      "linker_driver_arguments": [
+        "--no-default-config",
+        "-fuse-ld=/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld"
+      ],
+      "policy": "closed_apple_c_v1",
+      "sdk": {
+        "bytes": 765532437,
+        "nodes": 49700,
+        "path": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+        "sha256": "20c43e843e92669de61c29972eb0b1cf18f67e5fa534822dd6d897bec1dc20f8"
+      },
+      "sdk_build": "25F70",
+      "sdk_name": "macosx",
+      "sdk_version": "26.5",
+      "target": "aarch64-apple-darwin",
+      "tools": {
+        "archiver": {
+          "bytes": 73520,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar",
+          "sha256": "e49ffad64ad1cee722540fc5ecb00a230fd8071680682c60d9c851029d20e814"
+        },
+        "compiler": {
+          "bytes": 141373024,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang",
+          "sha256": "7def90dd8829726686213a747fc5bff1583df933dae5edc55d755479e0bfe00a"
+        },
+        "linker": {
+          "bytes": 2331792,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld",
+          "sha256": "5897b275efd93b201b6df5832dd541262b3f20f290859ba78f2200a6a66ef38b"
+        },
+        "ranlib": {
+          "bytes": 210800,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/libtool",
+          "sha256": "229eb9d8027953d2aee0590f983eed587d52bdd1ebc21114a62ce693f77b03f1"
+        },
+        "swift": {
+          "bytes": 171036592,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+          "sha256": "2ed38571e92c0283091838c1649e27650ad9c99950288e883c7b2dc6c4ce89fb"
+        },
+        "swift_format": {
+          "bytes": 8035472,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-format",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-format",
+          "sha256": "48317544bec55d5dee83e15738a342c0c31bf9c60273599f85601a8faea0016c"
+        },
+        "swift_symbolgraph_extract": {
+          "bytes": 171036592,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-symbolgraph-extract",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+          "sha256": "2ed38571e92c0283091838c1649e27650ad9c99950288e883c7b2dc6c4ce89fb"
+        },
+        "swiftc": {
+          "bytes": 171036592,
+          "path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-frontend",
+          "sha256": "2ed38571e92c0283091838c1649e27650ad9c99950288e883c7b2dc6c4ce89fb"
+        },
+        "swiftformat": {
+          "bytes": 4700024,
+          "path": "/opt/homebrew/bin/swiftformat",
+          "resolved_path": "/opt/homebrew/Cellar/swiftformat/0.63.1/bin/swiftformat",
+          "sha256": "5495efaea582c21d93d344dfbfe3f05893b8bf3c99f7fd2962972c4a80caa685"
+        },
+        "xcodebuild": {
+          "bytes": 100528,
+          "path": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+          "resolved_path": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+          "sha256": "d508f0e1901151843804e4af512d4587ad0e422039e43e14abf22792360ad3d4"
+        },
+        "xcrun": {
+          "bytes": 117392,
+          "path": "/usr/bin/xcrun",
+          "resolved_path": "/usr/bin/xcrun",
+          "sha256": "a439970aea2b4e435eac6518ff62c97fd1c57d8c731974027ad211b515c7a7b8"
+        }
+      }
+    },
     "package": "tera_bindgen",
     "profile": "dev",
     "profile_overrides": {
@@ -510,10 +732,10 @@
         "sha256": "5382cbc1cb6314cd0bd45be4cb4b6475d2d74d422d296ea3b51b16b7f45dc84f"
       },
       "Makefile": {
-        "bytes": 3976,
-        "git_blob": "91897a30656e65215cc73620b4d9eb8ede682ef5",
+        "bytes": 4182,
+        "git_blob": "2cbf6cc9fec52ab0a50308ae5e180f807712035d",
         "mode": "100644",
-        "sha256": "0c7c343f51fe8503c29047ad3b93ff45582b5e5bff2768baa7883d9826c4be69"
+        "sha256": "4d585db8759d621215884b7727ff0aea74902abb3daa6f3c8974f5e94a286180"
       },
       "TeraFFI/Makefile": {
         "bytes": 374,
@@ -522,10 +744,10 @@
         "sha256": "7e9bc238cc27041e3f6b63d40d28712f3276bf0b3f3deb7609f4fb962db4f4c1"
       },
       "TeraFFI/producer.toml": {
-        "bytes": 1084,
-        "git_blob": "23e07f3d818f7f3d57a77fca3bca6b32b9218e74",
+        "bytes": 1264,
+        "git_blob": "4ac636cfd39722fb027db8935fa2536dfd1add0a",
         "mode": "100644",
-        "sha256": "eebaf5b181e9b27c3854201c6f6ac1662b7a7045168f960a5c1dac8c5de29013"
+        "sha256": "67b1a8182cd20a445df7e9e94ab4d6ffdcd210f5362819fbf5f6d5b8182bcdad"
       },
       "TeraFFI/scripts/verify-installed-artifacts.sh": {
         "bytes": 255,
@@ -2700,10 +2922,10 @@
         "sha256": "568ee230a99a907cc9063c203fbecc80e6ba4aca3db6c1e3af93abdbc904b7d5"
       },
       "scripts/ffi_build.py": {
-        "bytes": 13121,
-        "git_blob": "0e4f11cd56003b562bccb90eeb30ca706a272863",
+        "bytes": 14912,
+        "git_blob": "3c56911a3d761ae12be76c8511903e4196b3755e",
         "mode": "100644",
-        "sha256": "eafe2189e97a436522fdf18909aa494392ab0347da28b338cc999b30044fc90d"
+        "sha256": "76ec2f8c38883c63709bfb2cce79dc5851533e981f41e7bd065c29ea69f7f4cf"
       },
       "scripts/ffi_installed.py": {
         "bytes": 8207,
@@ -2711,17 +2933,23 @@
         "mode": "100644",
         "sha256": "2f14e83fe08d70b4c92361d9bccd08dd6c480eebd767a692a8b5f03fdb0e5380"
       },
-      "scripts/ffi_provenance.py": {
-        "bytes": 6808,
-        "git_blob": "de2c086a110501f8bd11f1e5b26b2473c468ce28",
+      "scripts/ffi_native.py": {
+        "bytes": 17880,
+        "git_blob": "ee6f4024858b0fca71f6f6bb3f851b64ba52eb81",
         "mode": "100644",
-        "sha256": "2a1a89db83bfd1b1a2e80c1fbd31288dcf2f75a1439ba3446633c755dec0255f"
+        "sha256": "4b4ba6fd87c53b3d263404b4e1d62474fab27456f23574ce89af5f1f56871e37"
+      },
+      "scripts/ffi_provenance.py": {
+        "bytes": 7683,
+        "git_blob": "d011914a27d88e08ff2d38f6841a8e948cb40a40",
+        "mode": "100644",
+        "sha256": "e88886ba1485e49585c6e595d6f2ce9a9211efc703b1087fe66668c2534ee985"
       },
       "scripts/ffi_source.py": {
-        "bytes": 13564,
-        "git_blob": "42a767ceb4ee1e5f00be6d0f31101450a78c16e5",
+        "bytes": 14339,
+        "git_blob": "20cc49423ced887c47df7c9b29e4c6d8a3bd50fb",
         "mode": "100644",
-        "sha256": "49f7995b46c22c2c64c808e2bf3ff2d7d1041040697b1c3f61a4f07d021a7712"
+        "sha256": "62b2a12982e11f62f70e60b1f16cc1f164c2fdfd3ab915c92b9ea1dbf7ed6eca"
       },
       "scripts/generate-project.sh": {
         "bytes": 2964,
@@ -2736,10 +2964,10 @@
         "sha256": "26046966bece8c811a5b3edef191e2ea5b5c4be3187cf65a29f7edbe93cbb487"
       },
       "scripts/kotlin_smoke.py": {
-        "bytes": 10695,
-        "git_blob": "7e68d51111202626ff46d146b37cdebbf9121370",
+        "bytes": 11310,
+        "git_blob": "fd294e2b6e291624a52fc9276676ed471776f198",
         "mode": "100644",
-        "sha256": "48277943e29720c3713326990e74fd50c6e2c805cd7c6fd5b62b0016cfdac1ad"
+        "sha256": "c28be2b7d25dd5a19d8ca014f8e2f2e829fdf62f164a6436c0995427534e3e58"
       },
       "scripts/kotlin_smoke/build.gradle.kts": {
         "bytes": 1479,
@@ -2946,10 +3174,10 @@
         "sha256": "1803572abdb2e22bedd275724edae5f09c523b132bc59086aacca0f5183905d0"
       },
       "scripts/swift-quality.sh": {
-        "bytes": 2308,
-        "git_blob": "f07b465c125de12548d523a293a96a3837c1193d",
+        "bytes": 2459,
+        "git_blob": "13a1843e6ae14d91b2bffb8085bb2130dd74e5fc",
         "mode": "100755",
-        "sha256": "07cd900d465744eab373c07d90b954758732a0564cab42f7bd4df88dd42bdeee"
+        "sha256": "1e4f4e2f36e9ae476c88da975ba97fe7868ba11529d02ed76fa27ef4bc4fb99e"
       },
       "scripts/test_app_dependency_graph.py": {
         "bytes": 4007,
@@ -2958,10 +3186,10 @@
         "sha256": "d336abd6368ad3b0d0171b32aaa4a44d9c1a8551899d39a1445eca05b67d8b30"
       },
       "scripts/test_ffi_artifacts.py": {
-        "bytes": 7460,
-        "git_blob": "e933763e0f8329e5b97f9a5115b7fadf6504eb15",
+        "bytes": 10184,
+        "git_blob": "a1dd396b883ebe3c9933d19d9c2194103ed907b6",
         "mode": "100644",
-        "sha256": "b45a467dd04903f12550f7ad83ca438dee08e2113ba7146b7f4f1184e273d1f9"
+        "sha256": "5aa2802564104a5d32bcf322e52148ae2eb7d38379e3b10cf82dc657fd0a911c"
       },
       "scripts/test_ffi_installed.py": {
         "bytes": 5140,
@@ -2969,17 +3197,29 @@
         "mode": "100644",
         "sha256": "1a60456d7780dfb26dbc71c3c3a07190f6d78c44521f264e0d8aa3ee41c7ff59"
       },
-      "scripts/test_ffi_provenance.py": {
-        "bytes": 11247,
-        "git_blob": "cc1140c5a4153ea2a9526a69a231ed65037209f7",
+      "scripts/test_ffi_native.py": {
+        "bytes": 33161,
+        "git_blob": "bb0b05666d892062b496eadc36dfc35db16988d3",
         "mode": "100644",
-        "sha256": "cda3773df7ec0ed0c6bc508167f65f9f0a9a2f81ca461078c0313dbd57785584"
+        "sha256": "782dd020ef450d207e12896a9bb781edbecd25bc4b795df2664be102b05ae4b0"
+      },
+      "scripts/test_ffi_native_cache.py": {
+        "bytes": 12040,
+        "git_blob": "528174a7c73739d30bf0defb5f774da7f088c5b2",
+        "mode": "100644",
+        "sha256": "4d930c13d3f6446073a87419d7a7ac91d01aadc31b19964789a261ba8699a5f6"
+      },
+      "scripts/test_ffi_provenance.py": {
+        "bytes": 11856,
+        "git_blob": "0fe4fe8c93d72fcc1055e9c2bc6b8b2a54f06081",
+        "mode": "100644",
+        "sha256": "9cf479a3126635500c0d1b487b298769bc93f4894f08204b05e1b41308d532af"
       },
       "scripts/test_kotlin_smoke.py": {
-        "bytes": 3609,
-        "git_blob": "0e3fb31aaba13316c533c166ea5bee4a5903fae8",
+        "bytes": 13269,
+        "git_blob": "eeb4ed3c56d16a0cea55c43645834a12c64c933e",
         "mode": "100644",
-        "sha256": "f97d7e8cea2fb18b5a4dc9b3f2ea20938343c363934471a5647fa5795204a34d"
+        "sha256": "2906c6a93678def240cc43042845dcecfdc2c2e5efc4bdad7600c693c9bc72ba"
       },
       "scripts/test_legacy_identifiers.py": {
         "bytes": 6406,
@@ -3029,17 +3269,29 @@
         "mode": "100644",
         "sha256": "56797c8dd8b1e1efc3c1f469f86c542baecaf12db60bcc799585f475438379f5"
       },
+      "scripts/test_unittest_report.py": {
+        "bytes": 33055,
+        "git_blob": "1e2b8a07baa061d13b70221fa725a8872d9be924",
+        "mode": "100644",
+        "sha256": "a1b1ef1ac7533bad0af80bf66790a8954aa990b279d8f417bd15e040f3bfb521"
+      },
       "scripts/test_xcode_selection.py": {
         "bytes": 4745,
         "git_blob": "b633afbccd765a106e2ad591881926a9add542ac",
         "mode": "100644",
         "sha256": "a917dfbc1d8ecac7d1539670651e4b468059bc77dfe31aeefbc6c6eb21bebbfb"
       },
+      "scripts/unittest_report.py": {
+        "bytes": 20276,
+        "git_blob": "319eb74779ee70a119e997979ac2d6a65d6b243b",
+        "mode": "100644",
+        "sha256": "c1bbdc3c0ad9df4679eb110f9e145b5e399e7e5f74298a56028f46ff1269ff98"
+      },
       "scripts/verify-package-contract.sh": {
-        "bytes": 1663,
-        "git_blob": "76674ddf0dbdb54e39dd788bf8ad5515af47f1c8",
+        "bytes": 1730,
+        "git_blob": "a9e22505700f690dfaf8714eadad3c5128b9ecd4",
         "mode": "100755",
-        "sha256": "8798d003a8a0ac9e5aff6fc89093fd7af9f6de95a32be1c5e0391727a2461eb2"
+        "sha256": "836e0ab1fbf3535c8f26f4a3540fe6f51ccae7f78ebada79ca703dd4420d83f6"
       },
       "scripts/xcode.sh": {
         "bytes": 22437,
@@ -3055,6 +3307,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "16436eff2c5f2f69b6d2d767b1d0264bb9051992"
+    "tree": "a7f7ef68f86606405e16d5b51ecd57a8bdf02fd4"
   }
 }

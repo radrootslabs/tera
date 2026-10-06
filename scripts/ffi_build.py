@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import plistlib
@@ -16,6 +17,7 @@ from typing import Any
 
 import ffi_artifacts as artifacts
 import ffi_installed as installed
+import ffi_native as native
 import ffi_provenance as provenance
 import ffi_source as source
 import package_contract as contract
@@ -42,6 +44,7 @@ def build_environment(
     }
     environment = dict(os.environ)
     environment.pop("TERA_CONSUMER_REVISION", None)
+    environment.pop("DYLD_FALLBACK_LIBRARY_PATH", None)
     environment.update(
         {
             "CARGO_ENCODED_RUSTFLAGS": "\x1f".join(
@@ -107,15 +110,22 @@ def library_command(root: Path, target: str, project: Path) -> list[str]:
 
 
 def build_libraries(
-    root: Path, bundle: Path, target_root: Path, logs: Path, env: dict[str, str]
+    root: Path,
+    bundle: Path,
+    target_root: Path,
+    logs: Path,
+    env: dict[str, str],
+    records: dict[str, dict[str, Any]],
 ) -> None:
     for target in artifacts.TARGETS:
-        run(
+        run_native(
             root,
             logs,
             "build-" + target,
             library_command(root, target, Path(env["EXT_BUILD_PROJECT_DIR"])),
             env,
+            records[target]["build"]["native"],
+            records[target]["generator"]["native"],
         )
         extension = "dylib" if target == artifacts.TARGETS[-1] else "a"
         destination = bundle / "native" / target
@@ -127,11 +137,15 @@ def build_libraries(
 
 
 def generate_bindings(
-    root: Path, bundle: Path, logs: Path, env: dict[str, str]
+    root: Path,
+    bundle: Path,
+    logs: Path,
+    env: dict[str, str],
+    host: dict[str, Any],
 ) -> None:
     generated = bundle / "generated"
     generated.mkdir()
-    run(
+    run_native(
         root,
         logs,
         "generate-swift",
@@ -156,6 +170,8 @@ def generate_bindings(
             str(root / "core/crates/tera_ffi/uniffi.toml"),
         ],
         env,
+        host,
+        host,
     )
     headers = bundle / "headers"
     headers.mkdir()
@@ -164,9 +180,14 @@ def generate_bindings(
 
 
 def package_framework(
-    root: Path, bundle: Path, logs: Path, env: dict[str, str]
+    root: Path,
+    bundle: Path,
+    logs: Path,
+    env: dict[str, str],
+    context: dict[str, Any],
+    host: dict[str, Any],
 ) -> None:
-    argv = ["xcodebuild", "-create-xcframework"]
+    argv = [context["tools"]["xcodebuild"]["path"], "-create-xcframework"]
     for target in artifacts.TARGETS[:2]:
         argv += [
             "-library",
@@ -175,7 +196,7 @@ def package_framework(
             str(bundle / "headers"),
         ]
     argv += ["-output", str(bundle / artifacts.FRAMEWORK)]
-    run(root, logs, "package-xcframework", argv, env)
+    run_native(root, logs, "package-xcframework", argv, env, context, host)
     canonicalize_framework_info(bundle / artifacts.FRAMEWORK / "Info.plist")
 
 
@@ -192,12 +213,10 @@ def generate_api(
     logs: Path,
     env: dict[str, str],
     deployment: str,
+    context: dict[str, Any],
+    host: dict[str, Any],
 ) -> None:
-    sdk = (
-        source.command(root, ["xcrun", "--sdk", "iphonesimulator", "--show-sdk-path"])
-        .decode()
-        .strip()
-    )
+    sdk = context["sdk"]["path"]
     module = work / "module"
     symbols = work / "symbols"
     module.mkdir()
@@ -214,15 +233,12 @@ def generate_api(
         "-module-cache-path",
         str(work / "module-cache"),
     ]
-    run(
+    run_native(
         root,
         logs,
         "compile-swift-module",
         [
-            "xcrun",
-            "--sdk",
-            "iphonesimulator",
-            "swiftc",
+            context["tools"]["swiftc"]["path"],
             "-emit-module",
             "-parse-as-library",
             *common,
@@ -231,16 +247,15 @@ def generate_api(
             str(bundle / "generated/TeraKitBindings.swift"),
         ],
         env,
+        context,
+        host,
     )
-    run(
+    run_native(
         root,
         logs,
         "extract-swift-api",
         [
-            "xcrun",
-            "--sdk",
-            "iphonesimulator",
-            "swift-symbolgraph-extract",
+            context["tools"]["swift_symbolgraph_extract"]["path"],
             *common,
             "-I",
             str(module),
@@ -252,6 +267,8 @@ def generate_api(
             str(symbols),
         ],
         env,
+        context,
+        host,
     )
     graph = json.loads((symbols / f"{artifacts.MODULE}.symbols.json").read_text())
     output = normalize_api(graph)
@@ -288,14 +305,23 @@ def normalize_api(graph: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def record_abi(root: Path, bundle: Path, logs: Path, env: dict[str, str]) -> None:
+def record_abi(
+    root: Path,
+    bundle: Path,
+    logs: Path,
+    env: dict[str, str],
+    records: dict[str, dict[str, Any]],
+) -> None:
     symbols = {}
     reader = provenance.symbol_reader(
         root, source.producer_contract(root)["build"]["host"]
     )
     for target in artifacts.TARGETS:
+        expected_reader = records[target]["build"]["symbol_reader_identity"]
+        if native.file_identity(reader) != expected_reader:
+            raise source.ProvenanceError("native symbol reader drift before use")
         extension = "dylib" if target == artifacts.TARGETS[-1] else "a"
-        log = run(
+        log = run_native(
             root,
             logs,
             "symbols-" + target,
@@ -307,7 +333,11 @@ def record_abi(root: Path, bundle: Path, logs: Path, env: dict[str, str]) -> Non
                 str(bundle / "native" / target / f"libtera_ffi.{extension}"),
             ],
             env,
+            records[target]["build"]["native"],
+            records[target]["generator"]["native"],
         )
+        if native.file_identity(reader) != expected_reader:
+            raise source.ProvenanceError("native symbol reader drift after use")
         symbols[target] = sorted(
             set(
                 re.findall(
@@ -324,6 +354,29 @@ def capture_sources(root: Path) -> dict[str, dict[str, Any]]:
     return {target: provenance.capture(root, target) for target in artifacts.TARGETS}
 
 
+def candidate_path(project: Path, records: dict[str, dict[str, Any]]) -> Path:
+    tree = records[artifacts.TARGETS[0]]["source"]["tree"]
+    identity = hashlib.sha256(provenance.encoded(records)).hexdigest()
+    return project / "target/tera_ffi/candidates" / (tree + "-" + identity)
+
+
+def run_native(
+    root: Path,
+    logs: Path,
+    name: str,
+    argv: list[str],
+    environment: dict[str, str],
+    context: dict[str, Any],
+    host: dict[str, Any],
+) -> Path:
+    bound = native.execution_environment(root, environment, context, host)
+    try:
+        return run(root, logs, name, argv, bound)
+    finally:
+        native.verify(root, context)
+        native.verify(root, host)
+
+
 def build(
     root: Path,
     project: Path,
@@ -333,6 +386,8 @@ def build(
 ) -> dict[str, Any]:
     config = source.producer_contract(root)
     environment = build_environment(root, project, config)
+    host = records[native.HOST]["generator"]["native"]
+    simulator = records["aarch64-apple-ios-sim"]["build"]["native"]
     destination.parent.mkdir(parents=True, exist_ok=True)
     logs = Path(tempfile.mkdtemp(prefix="build-", dir=destination.parent))
     # Logs survive failure. Only this invocation's temporary workspace is cleaned.
@@ -342,9 +397,9 @@ def build(
         work = Path(temporary)
         bundle = work / "bundle"
         bundle.mkdir()
-        build_libraries(root, bundle, target_root, logs, environment)
-        generate_bindings(root, bundle, logs, environment)
-        package_framework(root, bundle, logs, environment)
+        build_libraries(root, bundle, target_root, logs, environment, records)
+        generate_bindings(root, bundle, logs, environment, host)
+        package_framework(root, bundle, logs, environment, simulator, host)
         generate_api(
             root,
             bundle,
@@ -352,8 +407,10 @@ def build(
             logs,
             environment,
             config["build"]["ios_deployment_target"],
+            simulator,
+            host,
         )
-        record_abi(root, bundle, logs, environment)
+        record_abi(root, bundle, logs, environment, records)
         if capture_sources(root) != records:
             raise source.ProvenanceError(
                 "producer changed during native artifact build"
@@ -389,7 +446,7 @@ def main() -> int:
             return 0
         records = capture_sources(root)
         tree = records[artifacts.TARGETS[0]]["source"]["tree"]
-        destination = project / "target/tera_ffi/candidates" / tree
+        destination = candidate_path(project, records)
         if args.mode in ("build", "install") and not destination.exists():
             build(root, project, target_root, records, destination)
         artifacts.check(destination, records)

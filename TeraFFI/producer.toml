@@ -22,6 +22,7 @@ features = []
 [build]
 rust_version = "1.97.1"
 profile = "release"
+native_input_policy = "closed_apple_c_v1"
 ios_deployment_target = "18.0"
 rust_flags = [
   "--remap-path-prefix={producer_root}=/tera",
@@ -34,3 +35,9 @@ host_dylib_install_name = "@rpath/libtera_ffi.dylib"
 host_linker_reproducible = true
 host_oso_prefix = "{extbuild_root}"
 targets = ["aarch64-apple-ios", "aarch64-apple-ios-sim", "aarch64-apple-darwin"]
+
+[native]
+maximum_sdk_nodes = 100000
+maximum_sdk_aggregate_bytes = 2000000000
+maximum_inspection_seconds = 120
+stream_chunk_bytes = 65536

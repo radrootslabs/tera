@@ -34,12 +34,27 @@ class ProvenanceError(Exception):
     """A source-free, fail-closed provenance rejection."""
 
 
-def command(root: Path, argv: list[str], data: bytes | None = None) -> bytes:
+def command(
+    root: Path,
+    argv: list[str],
+    data: bytes | None = None,
+    *,
+    environment: dict[str, str] | None = None,
+    timeout: float = 120,
+) -> bytes:
+    if not 0 < timeout <= 120:
+        raise ProvenanceError("producer inspection deadline is expired or invalid")
     if argv[0] == "git":
         argv = ["git", "--no-replace-objects", *argv[1:]]
     try:
         result = subprocess.run(
-            argv, cwd=root, input=data, capture_output=True, check=False, timeout=120
+            argv,
+            cwd=root,
+            input=data,
+            env=environment,
+            capture_output=True,
+            check=False,
+            timeout=timeout,
         )
     except (OSError, subprocess.TimeoutExpired) as error:
         raise ProvenanceError("producer inspection command unavailable") from error
@@ -70,6 +85,7 @@ def producer_contract(root: Path) -> dict[str, Any]:
         "ffi",
         "generator",
         "build",
+        "native",
     }
     contract._exact(set(value), expected, "producer contract fields")
     contract._exact(value["schema"], "tera.native-producer.v1", "producer schema")
@@ -104,6 +120,11 @@ def producer_contract(root: Path) -> dict[str, Any]:
         "generator selection",
     )
     validate_build(value["build"])
+    import ffi_native
+
+    contract._exact(
+        value["native"], ffi_native.INSPECTION_LIMITS, "native inspection limits"
+    )
     cargo = contract._read_toml(root / "Cargo.toml")
     lock = contract._read_toml(root / value["foundation_lock"])
     validate_foundation(cargo, lock)
@@ -142,11 +163,17 @@ def validate_build(value: Any) -> None:
             "host_linker_reproducible",
             "host_oso_prefix",
             "targets",
+            "native_input_policy",
         },
         "producer build fields",
     )
     contract._exact(value["rust_version"], "1.97.1", "producer Rust version")
     contract._exact(value["profile"], "release", "producer build profile")
+    contract._exact(
+        value["native_input_policy"],
+        "closed_apple_c_v1",
+        "producer native input policy",
+    )
     contract._exact(
         value["ios_deployment_target"], "18.0", "producer deployment target"
     )
@@ -346,6 +373,9 @@ def tree_identity(tree: dict[str, Any]) -> str:
 
 
 def reject_build_overrides() -> None:
+    import ffi_native
+
+    ffi_native.reject_inherited(os.environ)
     forbidden = (
         "RUSTFLAGS",
         "RUSTC",
@@ -383,7 +413,9 @@ def allowed_profile_overrides() -> dict[str, str]:
     return {}
 
 
-def feature_graph(root: Path, package: str, target: str) -> list[str]:
+def feature_graph(
+    root: Path, package: str, target: str, *, environment: dict[str, str] | None = None
+) -> list[str]:
     raw = command(
         root,
         [
@@ -402,5 +434,6 @@ def feature_graph(root: Path, package: str, target: str) -> list[str]:
             "--format",
             "{p}|{f}",
         ],
+        environment=environment,
     ).decode()
     return sorted(set(raw.replace(str(root), "<producer-root>").splitlines()))

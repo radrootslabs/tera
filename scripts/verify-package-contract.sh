@@ -18,6 +18,8 @@ sh "$repo_root/scripts/ffi-provenance.sh" contract-check
 		scripts/test_legacy_identifiers.py \
 		scripts/test_app_dependency_graph.py \
 		scripts/test_ffi_provenance.py \
+		scripts/test_ffi_native.py \
+		scripts/test_unittest_report.py \
 		scripts/test_ffi_artifacts.py \
 		scripts/test_ffi_installed.py \
 		scripts/test_kotlin_smoke.py \

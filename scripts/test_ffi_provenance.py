@@ -157,6 +157,18 @@ class ProducerSourceTests(unittest.TestCase):
                 with self.assertRaisesRegex(source.ProvenanceError, "ungoverned"):
                     source.reject_build_overrides()
 
+    def test_inherited_native_inputs_are_rejected_before_capture(self) -> None:
+        for key, value in (
+            ("LIBSQLITE3_FLAGS", "-USQLITE_ENABLE_API_ARMOR"),
+            ("LIBSQLITE3_SYS_USE_PKG_CONFIG", ""),
+            ("CC_aarch64-apple-ios", "unrecorded-clang"),
+            ("HOST_CFLAGS", "-DUNRECORDED_NATIVE_INPUT=1"),
+            ("SDKROOT", "/unrecorded-sdk"),
+        ):
+            with self.subTest(key=key), patch.dict(os.environ, {key: value}):
+                with self.assertRaisesRegex(source.ProvenanceError, "ungoverned"):
+                    source.reject_build_overrides()
+
     def test_local_cargo_build_configuration_cannot_escape_source_identity(
         self,
     ) -> None:
