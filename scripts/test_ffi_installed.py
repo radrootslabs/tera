@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import copy
+import json
 import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from contextlib import ExitStack
 from unittest.mock import patch
 
 SCRIPTS = Path(__file__).resolve().parent
@@ -16,6 +18,7 @@ import ffi_artifacts as artifacts  # noqa: E402
 import ffi_installed as installed  # noqa: E402
 import ffi_provenance as provenance  # noqa: E402
 import ffi_source as source  # noqa: E402
+import package_contract as contract  # noqa: E402
 import test_ffi_artifacts as fixtures  # noqa: E402
 
 
@@ -35,6 +38,79 @@ class InstalledArtifactTests(unittest.TestCase):
             path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(fixture.root / relative, path)
         (self.root / installed.MANIFEST).write_bytes(provenance.encoded(self.manifest))
+
+    def epoch_fixture(self, epoch: int) -> ExitStack:
+        """Substitute native-source admission only; verify real fixture lock bytes."""
+        config = source.producer_contract(SCRIPTS.parent)
+        foundation = contract._read_toml(SCRIPTS.parent / config["foundation_lock"])
+        snapshot = {"tree": self.manifest["candidate"]["source"]["tree"]}
+        (self.root / "TeraFFI/producer.toml").write_text(
+            f"[build]\nsource_date_epoch = {epoch}\n"
+        )
+        (self.root / config["foundation_lock"]).write_bytes(
+            (SCRIPTS.parent / config["foundation_lock"]).read_bytes()
+        )
+        for target in artifacts.TARGETS:
+            record = {
+                "source": snapshot,
+                "foundation": foundation,
+                "build": {"target": target, "source_date_epoch": epoch},
+            }
+            (self.root / "TeraFFI/source" / f"{target}.json").write_bytes(
+                provenance.encoded(record)
+            )
+        candidate = copy.deepcopy(self.manifest["candidate"])
+        paths = installed.installed_paths()
+        for index, item in enumerate(candidate["files"]):
+            if item["path"].startswith("source/"):
+                candidate["files"][index] = {
+                    **artifacts.file_record(self.root, paths[item["path"]]),
+                    "path": item["path"],
+                }
+        self.manifest = installed.installed_manifest(candidate)
+        (self.root / installed.MANIFEST).write_bytes(provenance.encoded(self.manifest))
+        (self.root / installed.LOCK).write_bytes(
+            installed.encoded_lock(self.manifest, foundation, epoch)
+        )
+
+        def admitted_producer(root: Path) -> dict:
+            value = contract.producer_source_epoch(root)
+            return {**config, "build": {**config["build"], "source_date_epoch": value}}
+
+        stack = ExitStack()
+        stack.enter_context(
+            patch.object(source, "producer_contract", side_effect=admitted_producer)
+        )
+        stack.enter_context(
+            patch.object(source, "source_snapshot", return_value=snapshot)
+        )
+        return stack
+
+    def test_coherent_alternate_epoch_preserves_installed_manifest_contract(
+        self,
+    ) -> None:
+        for epoch in (1787871027, 12345, 1):
+            with self.subTest(epoch=epoch), self.epoch_fixture(epoch):
+                self.assertEqual(installed.check(self.root), self.manifest)
+
+    def test_changed_or_invalid_installed_epoch_rejects(self) -> None:
+        with self.epoch_fixture(1):
+            path = self.root / installed.LOCK
+            before = path.read_bytes()
+            for epoch in (None, "1", 0, -1, True, 2):
+                with self.subTest(epoch=epoch):
+                    replacement = (
+                        b""
+                        if epoch is None
+                        else f"source_date_epoch = {json.dumps(epoch)}\n".encode()
+                    )
+                    path.write_bytes(
+                        before.replace(b"source_date_epoch = 1\n", replacement)
+                    )
+                    with self.assertRaisesRegex(
+                        source.ProvenanceError, "lock is stale"
+                    ):
+                        installed.check(self.root)
 
     def test_installed_inventory_retains_exact_candidate_file_identities(self) -> None:
         installed.verify_files(self.root, self.manifest)

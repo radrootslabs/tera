@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 import plistlib
 import sys
@@ -198,6 +199,73 @@ class PackageContractTests(unittest.TestCase):
                 + "\n",
                 "RadrootsKit",
             )
+
+
+class ProducerEpochTests(unittest.TestCase):
+    def setUp(self) -> None:
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        (self.root / "TeraFFI").mkdir()
+        self.foundation = {
+            "repository": contract.LIB_REMOTE,
+            "revision": "a" * 40,
+            "version": "0.1.0",
+        }
+        self.manifest = b'{"synthetic": "installed manifest"}\n'
+        (self.root / "TeraFFI/provenance.json").write_bytes(self.manifest)
+
+    def fixture(self, canonical: object, installed: object) -> None:
+        field = (
+            ""
+            if canonical is None
+            else f"source_date_epoch = {json.dumps(canonical)}\n"
+        )
+        (self.root / "TeraFFI/producer.toml").write_text("[build]\n" + field)
+        values = {
+            "schema": "tera.installed-source.v1",
+            "repository": contract._read_toml(SCRIPTS.parent / "TeraFFI/producer.toml")[
+                "repository"
+            ],
+            "source_tree": "b" * 40,
+            "manifest_sha256": hashlib.sha256(self.manifest).hexdigest(),
+        }
+        if installed is not None:
+            values["source_date_epoch"] = installed
+        text = "".join(
+            f"{key} = {json.dumps(value)}\n" for key, value in values.items()
+        )
+        text += "\n[foundation]\n" + "".join(
+            f"{key} = {json.dumps(value)}\n" for key, value in self.foundation.items()
+        )
+        (self.root / "TeraFFI/source.lock").write_text(text)
+
+    def test_installed_epoch_matches_coherent_canonical_producer_update(self) -> None:
+        for epoch in (1787871027, 12345, 1):
+            with self.subTest(epoch=epoch):
+                self.fixture(epoch, epoch)
+                contract._verify_owned_source_lock(self.root, self.foundation)
+
+    def test_canonical_epoch_missing_and_invalid_values_reject(self) -> None:
+        for epoch in (None, "1787871027", 0, -1, True):
+            with self.subTest(epoch=epoch):
+                self.fixture(epoch, 1787871027)
+                with self.assertRaises(contract.PackageContractError):
+                    contract._verify_owned_source_lock(self.root, self.foundation)
+
+    def test_installed_epoch_mismatch_and_invalid_values_reject(self) -> None:
+        for canonical, epoch in (
+            (1787871027, 12345),
+            (1787871027, None),
+            (1787871027, "1787871027"),
+            (1787871027, 0),
+            (1787871027, -1),
+            (1, True),
+        ):
+            with self.subTest(canonical=canonical, epoch=epoch):
+                self.fixture(canonical, epoch)
+                with self.assertRaises(contract.PackageContractError):
+                    contract._verify_owned_source_lock(self.root, self.foundation)
 
 
 if __name__ == "__main__":

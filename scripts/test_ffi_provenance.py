@@ -39,6 +39,24 @@ class ProducerSourceTests(unittest.TestCase):
     def snapshot(self) -> dict:
         return source.source_snapshot(self.root, self.inputs)
 
+    def test_producer_build_accepts_positive_epochs(self) -> None:
+        build = source.producer_contract(SCRIPTS.parent)["build"]
+        for epoch in (1787871027, 12345, 1):
+            with self.subTest(epoch=epoch):
+                source.validate_build({**build, "source_date_epoch": epoch})
+
+    def test_producer_build_rejects_absent_and_invalid_epoch(self) -> None:
+        build = source.producer_contract(SCRIPTS.parent)["build"]
+        absent = {
+            key: value for key, value in build.items() if key != "source_date_epoch"
+        }
+        with self.assertRaises(contract.PackageContractError):
+            source.validate_build(absent)
+        for epoch in (None, "1787871027", 0, -1, True):
+            with self.subTest(epoch=epoch):
+                with self.assertRaises(source.ProvenanceError):
+                    source.validate_build({**build, "source_date_epoch": epoch})
+
     def test_tree_is_real_and_deterministic_without_an_introducing_commit(self) -> None:
         first = self.snapshot()
         self.assertEqual(first, self.snapshot())
@@ -56,6 +74,28 @@ class ProducerSourceTests(unittest.TestCase):
             self.snapshot()
         self.git("add", "core/lib.rs")
         self.assertNotEqual(first["tree"], self.snapshot()["tree"])
+
+    def test_intent_to_add_empty_and_nonempty_inputs_reject(self) -> None:
+        path = self.root / "core/intent.rs"
+        for content in (b"", b"// intent-to-add input\n"):
+            with self.subTest(empty=not content):
+                path.write_bytes(content)
+                self.git("add", "--intent-to-add", "core/intent.rs")
+                with self.assertRaises(source.ProvenanceError):
+                    self.snapshot()
+                self.git("update-index", "--force-remove", "core/intent.rs")
+                path.unlink()
+
+    def test_coherent_staging_of_empty_and_nonempty_inputs_matches_git_tree(
+        self,
+    ) -> None:
+        path = self.root / "core/intent.rs"
+        for content in (b"", b"// staged input\n"):
+            with self.subTest(empty=not content):
+                path.write_bytes(content)
+                self.git("add", "--intent-to-add", "core/intent.rs")
+                self.git("add", "core/intent.rs")
+                self.assertEqual(self.snapshot()["tree"], self.git("write-tree"))
 
     def test_untracked_and_missing_source_fail_closed(self) -> None:
         (self.root / "core/extra.rs").write_text("// untracked input\n")

@@ -20,6 +20,77 @@ offline_args=(
     -skipPackagePluginValidation
 )
 
+physical_child_pid=
+physical_child_ready=0
+physical_pending_signal=
+
+physical_deliver_pending_signal() {
+    if [[ "$physical_child_ready" == 1 && -n "$physical_child_pid" && -n "$physical_pending_signal" ]]; then
+        kill -s "$physical_pending_signal" "$physical_child_pid" 2>/dev/null || true
+        physical_pending_signal=
+    fi
+}
+
+physical_forward_signal() {
+    physical_pending_signal=$1
+    physical_deliver_pending_signal
+}
+
+physical_wait_for_child() {
+    local status
+    while true; do
+        if wait "$physical_child_pid"; then status=0; else status=$?; fi
+        if ! kill -0 "$physical_child_pid" 2>/dev/null; then
+            # A trap can interrupt wait as the child settles. Read its retained
+            # real status rather than returning the trap's 128+signal status.
+            if wait "$physical_child_pid"; then status=0; else status=$?; fi
+            physical_child_pid=
+            return "$status"
+        fi
+    done
+}
+
+physical_cleanup() {
+    local status=$?
+    trap - EXIT
+    if [[ -n "$physical_child_pid" ]]; then
+        if physical_wait_for_child; then status=0; else status=$?; fi
+    fi
+    unlink "$lock_state_file" 2>/dev/null || true
+    return "$status"
+}
+
+physical_own_lock() {
+    trap 'physical_forward_signal INT' INT
+    trap 'physical_forward_signal TERM' TERM
+    trap 'physical_child_ready=1; physical_deliver_pending_signal' USR1
+    lock_state_file=$(mktemp "${TMPDIR:-/tmp}/tera-ios-lock-state.XXXXXX")
+    trap 'physical_cleanup' EXIT
+}
+
+supervise_physical_xcode_child() {
+    local repo_root python_executable status
+    repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+    if python_executable=$(uv run --project "$repo_root/scripts/persona-verifier" --offline --frozen \
+        python -c 'import sys; print(sys.executable)'); then
+        :
+    else
+        status=$?
+        return "$status"
+    fi
+    if [[ -n "$physical_pending_signal" ]]; then
+        case "$physical_pending_signal" in INT) return 130 ;; TERM) return 143 ;; esac
+    fi
+    if [[ "$python_executable" != /* || ! -x "$python_executable" ]]; then
+        echo "error: locked physical-wrapper interpreter is unavailable" >&2
+        return 126
+    fi
+    "$python_executable" "$repo_root/scripts/xcode_child.py" "$@" &
+    physical_child_pid=$!
+    physical_deliver_pending_signal
+    physical_wait_for_child
+}
+
 operation=${1:-}
 case "$operation" in
     resolve)
@@ -125,8 +196,7 @@ case "$operation" in
             exit 64
         fi
         device_id=${destination#id=}
-        lock_state_file=$(mktemp "${TMPDIR:-/tmp}/tera-ios-lock-state.XXXXXX")
-        trap 'unlink "$lock_state_file"' EXIT
+        physical_own_lock
         if ! xcrun devicectl device info lockState \
             --device "$device_id" \
             --quiet \
@@ -144,7 +214,7 @@ case "$operation" in
             echo "error: physical app build device is locked; refusing to invoke Xcode" >&2
             exit 1
         fi
-        exec xcodebuild \
+        supervise_physical_xcode_child xcodebuild \
             -project Tera.xcodeproj \
             -scheme Tera \
             -configuration Debug \
@@ -434,8 +504,7 @@ case "$operation" in
             exit 64
         fi
         device_id=${destination#id=}
-        lock_state_file=$(mktemp "${TMPDIR:-/tmp}/tera-ios-lock-state.XXXXXX")
-        trap 'unlink "$lock_state_file"' EXIT
+        physical_own_lock
         if ! xcrun devicectl device info lockState \
             --device "$device_id" \
             --quiet \
@@ -470,7 +539,8 @@ case "$operation" in
             "TERA_IOS_UI_TEST_NETWORK_PROFILE=public"
         )
         if [[ "$operation" == "physical-ui-build" ]]; then
-            exec xcodebuild "${physical_args[@]}" build-for-testing
+            supervise_physical_xcode_child xcodebuild "${physical_args[@]}" build-for-testing
+            exit $?
         fi
         if [[ ! "$result_name" =~ ^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$ ]]; then
             echo "error: physical-ui-test result name is invalid" >&2
@@ -482,7 +552,7 @@ case "$operation" in
             exit 1
         fi
         mkdir -p "$XCODE_RESULTS"
-        exec xcodebuild \
+        supervise_physical_xcode_child xcodebuild \
             "${physical_args[@]}" \
             -resultBundlePath "$result_bundle" \
             test-without-building

@@ -8,7 +8,7 @@ case "$mode" in
     *) echo "usage: $0 {write|check}" >&2; exit 64 ;;
 esac
 
-for tool in cargo jq shasum
+for tool in cargo jq shasum git uv rg
 do
     command -v "$tool" >/dev/null 2>&1 || {
         echo "error: required release-evidence tool is unavailable: $tool" >&2
@@ -21,6 +21,13 @@ trap 'rm -rf "$tmp_root"' EXIT HUP INT TERM
 metadata="$tmp_root/cargo-metadata.json"
 rendered_sbom="$tmp_root/sbom.cdx.json"
 rendered_provenance="$tmp_root/provenance.json"
+authored_app="$tmp_root/authored-app.json"
+authored_app_final="$tmp_root/authored-app-final.json"
+capture_authored_app() {
+    uv run --project "$repo_root/scripts/persona-verifier" --offline --frozen \
+        python "$repo_root/scripts/app_source.py" --repo-root "$repo_root"
+}
+capture_authored_app > "$authored_app"
 
 cargo metadata --locked --format-version 1 > "$metadata"
 
@@ -117,7 +124,7 @@ hash_file() {
 }
 
 lib_revision=$(jq -er '.foundation.revision' "$repo_root/TeraFFI/source/aarch64-apple-ios.json")
-source_date_epoch=$(jq -er '.build.source_date_epoch' "$repo_root/TeraFFI/source/aarch64-apple-ios.json")
+source_date_epoch=$(jq -er '.source_date_epoch' "$authored_app")
 tera_ffi_source_tree=$(jq -er '.candidate.source.tree' "$repo_root/TeraFFI/provenance.json")
 consumer_lock_sha256=$(hash_file "$repo_root/radroots.lib.source-lock.v1.toml")
 cargo_lock_sha256=$(hash_file "$repo_root/Cargo.lock")
@@ -133,6 +140,7 @@ xcode_project_sha256=$(hash_file "$repo_root/Tera.xcodeproj/project.pbxproj")
 sbom_sha256=$(hash_file "$rendered_sbom")
 
 jq -nS \
+    --slurpfile authored_app "$authored_app" \
     --arg version "$version" \
     --arg lib_revision "$lib_revision" \
     --arg tera_ffi_source_tree "$tera_ffi_source_tree" \
@@ -154,6 +162,7 @@ jq -nS \
         version: $version,
         repository: "https://github.com/radrootslabs/tera",
         source: {
+            authored_app: $authored_app[0].source,
             lib_revision: $lib_revision,
             tera_ffi_source_tree: $tera_ffi_source_tree,
             source_date_epoch: $source_date_epoch,
@@ -204,10 +213,24 @@ jq -e \
     .disposition == "unsigned"
 ' "$rendered_provenance" >/dev/null
 
-if rg -n '/Users/|/Volumes/|BEGIN [A-Z ]*PRIVATE KEY' \
-    "$rendered_sbom" "$rendered_provenance"
-then
-    echo "error: release evidence contains forbidden host or protected material" >&2
+scan_status=0
+rg --quiet '/Users/|/Volumes/|BEGIN [A-Z ]*PRIVATE KEY' \
+    "$rendered_sbom" "$rendered_provenance" >/dev/null 2>&1 || scan_status=$?
+case "$scan_status" in
+    1) ;;
+    0)
+        echo "error: release evidence contains forbidden host or protected material" >&2
+        exit 1
+        ;;
+    *)
+        echo "error: release evidence scan is incomplete" >&2
+        exit 1
+        ;;
+esac
+
+capture_authored_app > "$authored_app_final"
+if ! cmp -s "$authored_app" "$authored_app_final"; then
+    echo "error: authored app source changed during release rendering" >&2
     exit 1
 fi
 

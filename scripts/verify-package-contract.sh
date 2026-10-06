@@ -13,6 +13,8 @@ sh "$repo_root/scripts/ffi-provenance.sh" contract-check
 	cd "$repo_root"
 	uv run --project "$python_project" --offline --frozen \
 		python -m unittest \
+		scripts/test_app_source.py \
+		scripts/test_release_evidence.py \
 		scripts/test_package_contract.py \
 		scripts/test_package_privacy.py \
 		scripts/test_legacy_identifiers.py \

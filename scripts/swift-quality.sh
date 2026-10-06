@@ -21,6 +21,10 @@ readonly -a MAINTAINABILITY_RULES=(
   type_body_length
 )
 readonly -a PYTHON_QUALITY_PATHS=(
+  scripts/app_source.py
+  scripts/test_app_source.py
+  scripts/test_release_evidence.py
+  scripts/xcode_child.py
   scripts/ffi_source.py
   scripts/ffi_native.py
   scripts/test_ffi_native.py

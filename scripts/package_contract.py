@@ -66,6 +66,18 @@ def _read_toml(path: Path) -> dict[str, Any]:
     return value
 
 
+def validate_source_date_epoch(value: object) -> int:
+    if type(value) is not int or value <= 0:
+        raise PackageContractError("producer source epoch is invalid")
+    return value
+
+
+def producer_source_epoch(root: Path) -> int:
+    producer = _read_toml(root / "TeraFFI/producer.toml")
+    build = _mapping(producer.get("build"), "producer build")
+    return validate_source_date_epoch(build.get("source_date_epoch"))
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         value = json.loads(_read_text(path))
@@ -468,7 +480,11 @@ def _verify_owned_source_lock(root: Path, foundation: dict[str, Any]) -> None:
         or GIT_REVISION.fullmatch(lock["source_tree"]) is None
     ):
         raise PackageContractError("installed source tree is invalid")
-    _exact(lock["source_date_epoch"], 1787871027, "installed source epoch")
+    _exact(
+        validate_source_date_epoch(lock["source_date_epoch"]),
+        producer_source_epoch(root),
+        "installed source epoch",
+    )
     _exact(
         lock["manifest_sha256"],
         hashlib.sha256(_read_regular(root / "TeraFFI/provenance.json")).hexdigest(),

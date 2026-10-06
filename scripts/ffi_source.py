@@ -209,8 +209,10 @@ def validate_build(value: Any) -> None:
         ],
         "producer targets",
     )
-    if type(value["source_date_epoch"]) is not int or value["source_date_epoch"] <= 0:
-        raise ProvenanceError("producer source epoch is invalid")
+    try:
+        contract.validate_source_date_epoch(value["source_date_epoch"])
+    except contract.PackageContractError as error:
+        raise ProvenanceError("producer source epoch is invalid") from error
 
 
 def library_rust_flags(build: dict[str, Any], target: str) -> list[str]:
@@ -254,12 +256,35 @@ def validate_foundation(cargo: dict[str, Any], lock: dict[str, Any]) -> None:
         )
 
 
+def staged_diff_views(paths: list[str]) -> tuple[list[str], list[str]]:
+    arguments = [
+        "diff",
+        "--cached",
+        "--raw",
+        "--no-abbrev",
+        "-z",
+        "--no-ext-diff",
+        "--no-textconv",
+    ]
+    return (
+        [*arguments, "--ita-visible-in-index", *paths],
+        [*arguments, "--ita-invisible-in-index", *paths],
+    )
+
+
+def reject_intent_to_add(root: Path, inputs: list[str]) -> None:
+    visible, invisible = staged_diff_views(["--", *inputs])
+    if command(root, ["git", *visible]) != command(root, ["git", *invisible]):
+        raise ProvenanceError("producer input is intent-to-add or index changed")
+
+
 def source_snapshot(root: Path, inputs: list[str]) -> dict[str, Any]:
     actual_root = (
         command(root, ["git", "rev-parse", "--show-toplevel"]).decode().strip()
     )
     if actual_root != str(root):
         raise ProvenanceError("producer source must use its own repository root")
+    reject_intent_to_add(root, inputs)
     if command(
         root, ["git", "ls-files", "--others", "--exclude-standard", "-z", "--", *inputs]
     ):

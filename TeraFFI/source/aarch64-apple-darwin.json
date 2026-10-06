@@ -2905,6 +2905,12 @@
         "mode": "100644",
         "sha256": "307d03f30d75c9a88b323328926c92624ae02b699cd1df10674aa183bac0ee81"
       },
+      "scripts/app_source.py": {
+        "bytes": 11587,
+        "git_blob": "9449f631f5d13dee72bd2938430c22368ed13483",
+        "mode": "100644",
+        "sha256": "12c9c0a59af7e79a745dffd036b8446923dc74e2407d96218fd21d4475c173b1"
+      },
       "scripts/ffi-artifacts.sh": {
         "bytes": 210,
         "git_blob": "be7f39d8f358ae34087232abe318d13ab867471c",
@@ -2948,10 +2954,10 @@
         "sha256": "e88886ba1485e49585c6e595d6f2ce9a9211efc703b1087fe66668c2534ee985"
       },
       "scripts/ffi_source.py": {
-        "bytes": 14339,
-        "git_blob": "20cc49423ced887c47df7c9b29e4c6d8a3bd50fb",
+        "bytes": 15093,
+        "git_blob": "308347a7393547442bfbc4a6ca15de938876d8f3",
         "mode": "100644",
-        "sha256": "62b2a12982e11f62f70e60b1f16cc1f164c2fdfd3ab915c92b9ea1dbf7ed6eca"
+        "sha256": "debbb8f694204d7d14c85820f894e31b18acf24cffbfeceab4f3563ef1fb0ce6"
       },
       "scripts/generate-project.sh": {
         "bytes": 2964,
@@ -3122,10 +3128,10 @@
         "sha256": "fff99e755f35fa9f00708427b1b29290c0ecc2733c0ea070f5807ec7c37f6f11"
       },
       "scripts/package_contract.py": {
-        "bytes": 25574,
-        "git_blob": "ea94df8c0f106abc85e47295c2da7b023c168123",
+        "bytes": 26077,
+        "git_blob": "da49a8a84213d884c7a030dd162105df151241e6",
         "mode": "100755",
-        "sha256": "f00372d39a5f9849b6a535ed829a50f52810c3ac9e0695e80a71c802e23f0394"
+        "sha256": "93d5011daa590d5d9fd77b0e317cc89bb758f3755349da0ccb3beb99cf28e105"
       },
       "scripts/package_privacy.py": {
         "bytes": 2718,
@@ -3158,10 +3164,10 @@
         "sha256": "0fd26ba301a301caaba97d3bba314a9fe322c12a26e99f8fce5f272eb2cf39fc"
       },
       "scripts/release-evidence.sh": {
-        "bytes": 8527,
-        "git_blob": "8c3a82074f4bceddbe14cee5d6b642c39e551f05",
+        "bytes": 9305,
+        "git_blob": "0412b8667ca44eacb0800bbd00f7e88b13c8cb93",
         "mode": "100755",
-        "sha256": "e6670ab6b56c9f39c157fadcf84de46772d69aedb9387734225f94a0c3e0a877"
+        "sha256": "dd9f1858badbedfbb9d83782187db74670fd6bbdb21a1f208a4ce2b139a9f498"
       },
       "scripts/release-preflight.sh": {
         "bytes": 334,
@@ -3176,16 +3182,22 @@
         "sha256": "1803572abdb2e22bedd275724edae5f09c523b132bc59086aacca0f5183905d0"
       },
       "scripts/swift-quality.sh": {
-        "bytes": 2459,
-        "git_blob": "13a1843e6ae14d91b2bffb8085bb2130dd74e5fc",
+        "bytes": 2572,
+        "git_blob": "3a253f4e3b40a8b3429076898a805d53141df673",
         "mode": "100755",
-        "sha256": "1e4f4e2f36e9ae476c88da975ba97fe7868ba11529d02ed76fa27ef4bc4fb99e"
+        "sha256": "f4a6f0c865afc3c193d175de20e1d1a8b587ec1c2b8b99e1dbfa775d86292cfc"
       },
       "scripts/test_app_dependency_graph.py": {
         "bytes": 4007,
         "git_blob": "615b4054a6b968bdde3c2107e349b352dfb0fa34",
         "mode": "100644",
         "sha256": "d336abd6368ad3b0d0171b32aaa4a44d9c1a8551899d39a1445eca05b67d8b30"
+      },
+      "scripts/test_app_source.py": {
+        "bytes": 15101,
+        "git_blob": "5ebe7d9d9e7bcad69c0ad9d3e2a4bece994fb238",
+        "mode": "100644",
+        "sha256": "168fb27e9412a4a49754cfb8748ae04422cd619f3a4f043e539d0e24dab1cb5c"
       },
       "scripts/test_ffi_artifacts.py": {
         "bytes": 10184,
@@ -3194,10 +3206,10 @@
         "sha256": "5aa2802564104a5d32bcf322e52148ae2eb7d38379e3b10cf82dc657fd0a911c"
       },
       "scripts/test_ffi_installed.py": {
-        "bytes": 5140,
-        "git_blob": "d0ba920eb013484353940eb21b9a68128e2a4c3c",
+        "bytes": 8513,
+        "git_blob": "ebc8ae4ee6d1475b498edbc21a9855b5d45cd94f",
         "mode": "100644",
-        "sha256": "1a60456d7780dfb26dbc71c3c3a07190f6d78c44521f264e0d8aa3ee41c7ff59"
+        "sha256": "72fa6f6e3d481d7d91a8c650539af108a43c0bb9c9fd06a170ee929a478b17d1"
       },
       "scripts/test_ffi_native.py": {
         "bytes": 33161,
@@ -3212,10 +3224,10 @@
         "sha256": "4d930c13d3f6446073a87419d7a7ac91d01aadc31b19964789a261ba8699a5f6"
       },
       "scripts/test_ffi_provenance.py": {
-        "bytes": 11856,
-        "git_blob": "0fe4fe8c93d72fcc1055e9c2bc6b8b2a54f06081",
+        "bytes": 13806,
+        "git_blob": "3e327c722189fab5218bb8f0d50649dea3bfde2f",
         "mode": "100644",
-        "sha256": "9cf479a3126635500c0d1b487b298769bc93f4894f08204b05e1b41308d532af"
+        "sha256": "d54d1b569aa43460cbdc93e7bc246c1a886954d98cae1f20c81678d47b3427a3"
       },
       "scripts/test_kotlin_smoke.py": {
         "bytes": 13269,
@@ -3254,10 +3266,10 @@
         "sha256": "1a5384a6109d495477dd7848a367c2452f87c36e46dbab2c20b98940a4d4fed6"
       },
       "scripts/test_package_contract.py": {
-        "bytes": 8414,
-        "git_blob": "02af049946156f96c79c4b4129f7e4d532be2dc6",
+        "bytes": 11243,
+        "git_blob": "f482dbb020a37091805280c7e29139674ac95cd4",
         "mode": "100644",
-        "sha256": "9073f8edaa80c71f7c1f718c4dcff954a30ac42218fbd19378803ecfb9b3b33f"
+        "sha256": "8c6c00a77fc5020bb6a543e5dec0f13f5d8250f13574e8aef8ee6b79f12ab882"
       },
       "scripts/test_package_privacy.py": {
         "bytes": 4467,
@@ -3271,6 +3283,12 @@
         "mode": "100644",
         "sha256": "56797c8dd8b1e1efc3c1f469f86c542baecaf12db60bcc799585f475438379f5"
       },
+      "scripts/test_release_evidence.py": {
+        "bytes": 14064,
+        "git_blob": "e2efe54531f0a7e2995fb61989f8616314d3d618",
+        "mode": "100644",
+        "sha256": "446651dd8c2cd194fb0bba06c11149c56726f9f63ecaaead32073f0c574e8e24"
+      },
       "scripts/test_unittest_report.py": {
         "bytes": 33055,
         "git_blob": "1e2b8a07baa061d13b70221fa725a8872d9be924",
@@ -3278,10 +3296,10 @@
         "sha256": "a1b1ef1ac7533bad0af80bf66790a8954aa990b279d8f417bd15e040f3bfb521"
       },
       "scripts/test_xcode_selection.py": {
-        "bytes": 4745,
-        "git_blob": "b633afbccd765a106e2ad591881926a9add542ac",
+        "bytes": 17439,
+        "git_blob": "371ea8d59714eef121871e96721ad11bccf5861d",
         "mode": "100644",
-        "sha256": "a917dfbc1d8ecac7d1539670651e4b468059bc77dfe31aeefbc6c6eb21bebbfb"
+        "sha256": "876409c92a48c45c5bd7e25accf9d6de8a754ee4182d03a4ad3fe8f187a1b094"
       },
       "scripts/unittest_report.py": {
         "bytes": 20276,
@@ -3290,16 +3308,22 @@
         "sha256": "c1bbdc3c0ad9df4679eb110f9e145b5e399e7e5f74298a56028f46ff1269ff98"
       },
       "scripts/verify-package-contract.sh": {
-        "bytes": 1730,
-        "git_blob": "a9e22505700f690dfaf8714eadad3c5128b9ecd4",
+        "bytes": 1798,
+        "git_blob": "05fba60dd9a21de054208a2dde389f509013fc5e",
         "mode": "100755",
-        "sha256": "836e0ab1fbf3535c8f26f4a3540fe6f51ccae7f78ebada79ca703dd4420d83f6"
+        "sha256": "94fea1e33e46f298112072326ff16f1a1c669ddb902c06809536cf71aa6a615e"
       },
       "scripts/xcode.sh": {
-        "bytes": 22437,
-        "git_blob": "78cca176324eb56079598090626a01698273f707",
+        "bytes": 24697,
+        "git_blob": "bfb8fc257259ab3de3664b1fbc125a619eb8e550",
         "mode": "100755",
-        "sha256": "4e174e14512c1b12994dea63f58bf39d234d96c3bf245eb5d7eaa0fcf2b4fd24"
+        "sha256": "8040301c6efecda1d2901af0b56993477e1e5954b3e0fb2543849d9f58fe496c"
+      },
+      "scripts/xcode_child.py": {
+        "bytes": 835,
+        "git_blob": "5142a6d341f216be379bce4179f5905de9335d5a",
+        "mode": "100644",
+        "sha256": "0164f2b369fdcf734f73bd1df2a2f5b2e05b7bbd94c2d3ae75869fff6d876140"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
         "bytes": 197529,
@@ -3309,6 +3333,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "a7f7ef68f86606405e16d5b51ecd57a8bdf02fd4"
+    "tree": "413ea1de23644613b27ac4d066e2f130edac1fb6"
   }
 }
