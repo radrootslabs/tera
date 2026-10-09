@@ -224,6 +224,54 @@ class SocketLifetimeTests(unittest.TestCase):
 
 
 class HTTPLifetimeTests(unittest.TestCase):
+    def test_teardown_keeps_owned_descriptor_until_late_reader_settles(self):
+        started = threading.Event()
+        release = threading.Event()
+        observed = []
+
+        class Handler:
+            def __init__(self, request, client_address, server):
+                del client_address, server
+                started.set()
+                if not release.wait(connections.TEARDOWN_SECONDS):
+                    observed.append("reader was not released")
+                    return
+                try:
+                    observed.append(request.recv(1))
+                except OSError as error:
+                    observed.append(type(error).__name__)
+
+        class JoinedReader(threading.Thread):
+            def join(self, timeout=None):
+                observed.append(("descriptor_at_join", accepted.fileno() >= 0))
+                release.set()
+                return super().join(timeout)
+
+        client, accepted = socket.socketpair()
+        sentinel_a, sentinel_b = socket.socketpair()
+        server = connections.OwnedHTTPServer(("127.0.0.1", 0), Handler)
+        try:
+            with mock.patch.object(connections.threading, "Thread", JoinedReader):
+                server.process_request(accepted, ("127.0.0.1", 1))
+            self.assertTrue(started.wait(connections.TEARDOWN_SECONDS))
+            server.server_close()
+            self.assertEqual(observed, [("descriptor_at_join", True), b""])
+            self.assertEqual(server.active_handlers, 0)
+            self.assertTrue(
+                all(not item.is_alive() for item in server._handler_threads)
+            )
+            self.assertEqual(accepted.fileno(), -1)
+            server.server_close()
+            sentinel_a.sendall(b"alive")
+            sentinel_b.settimeout(1)
+            self.assertEqual(sentinel_b.recv(5), b"alive")
+        finally:
+            release.set()
+            client.close()
+            server.server_close()
+            sentinel_a.close()
+            sentinel_b.close()
+
     def test_complete_authorized_body_remains_admitted(self):
         body = b"canonical-bud11-photo"
         headers = upload_headers(body)

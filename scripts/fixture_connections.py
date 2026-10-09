@@ -122,20 +122,23 @@ class OwnedConnectionsMixin:
                 self._owned.pop(request, None)
 
     def server_close(self):
+        until = time.monotonic() + TEARDOWN_SECONDS
         with self._owned_lock:
             self._closing = True
             owned = list(self._owned.items())
             threads = list(self._handler_threads)
-        super().server_close()
-        for request, _ in owned:
-            try:
-                request.shutdown(socket.SHUT_RDWR)
-            except OSError:
-                pass
-            request.close()
-        until = time.monotonic() + TEARDOWN_SECONDS
-        for thread in threads:
-            thread.join(max(0, until - time.monotonic()))
+        try:
+            super().server_close()
+            for request, _ in owned:
+                try:
+                    request.shutdown(socket.SHUT_RDWR)
+                except OSError:
+                    pass
+            for thread in threads:
+                thread.join(max(0, until - time.monotonic()))
+        finally:
+            for request, _ in owned:
+                request.close()
         if any(thread.is_alive() for thread in threads):
             raise RuntimeError("fixture owned handler teardown is incomplete")
 
