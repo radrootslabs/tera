@@ -3,7 +3,6 @@
 import json
 from pathlib import Path
 import re
-import subprocess
 import tempfile
 from typing import Any, Callable, NamedTuple
 
@@ -40,6 +39,7 @@ class ExtractionTools(NamedTuple):
     names: tuple[str, ...]
     maximum_json_bytes: int
     maximum_attempt_bytes: int
+    run_export: Callable
 
 
 def filename(value: object) -> str:
@@ -160,7 +160,7 @@ def extract(
         tempfile.TemporaryDirectory() as selected_directory,
     ):
         raw, selected = Path(raw_directory), Path(selected_directory)
-        subprocess.run(
+        tools.run_export(
             [
                 "xcrun",
                 "xcresulttool",
@@ -173,7 +173,6 @@ def extract(
                 "--output-path",
                 str(raw),
             ],
-            check=True,
         )
         project(raw, selected, tools)
         # This parser still requires exactly fifteen canonical, bounded,

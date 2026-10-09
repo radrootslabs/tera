@@ -113,7 +113,8 @@ This test-only JVM harness is part of `make verify` and does not qualify Android
 UI or a published release.
 
 `make swift-quality` also applies the exact checked SwiftLint complexity
-baseline and the repository-owned Swift/Python maintainability ratchet. New
+baseline, the repository-owned Swift/Python maintainability ratchet, and the
+complete authored Python fixture and verifier test inventory. New
 Swift files are capped at 600 physical lines, new Python files at 800, and new
 Python functions at complexity 10. Existing larger files and functions are a
 closed, non-growing inventory; the newly separated user-message classifier
@@ -232,7 +233,10 @@ of the release lane.
 
 `make package-contract-check` evaluates the Swift package manifest and parses
 the TOML, plist, JSON, xcconfig, project-package, and lock inputs as structured,
-bounded data. It also runs the locked fixture and verifier unit suites.
+bounded data, then verifies the canonical mutation corpus and persona fixtures.
+The complete locked fixture and verifier unit suites run in `make swift-quality`,
+so package builds and release preflight retain their contract checks without
+repeating the full test inventory. Complete qualification requires both lanes.
 
 For focused UI iteration, `make ui-test UI_TEST_SELECTOR=TeraAccessibilityUITests/testFormAskAtLargestTextWithReduceMotionAndLocalSave`
 selects an existing owned class and method through the same artifact, package,

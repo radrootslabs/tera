@@ -35,7 +35,7 @@ def relay_socket(wait):
 
     class ScaledReadSocket:
         def settimeout(self, value):
-            assert value == 15
+            assert 0 < value <= 15
             server.settimeout(0.05)
 
         def recv(self, length):

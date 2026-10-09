@@ -20,41 +20,6 @@ readonly -a MAINTAINABILITY_RULES=(
   large_tuple
   type_body_length
 )
-readonly -a PYTHON_QUALITY_PATHS=(
-  scripts/app_source.py
-  scripts/test_app_source.py
-  scripts/test_release_evidence.py
-  scripts/xcode_child.py
-  scripts/ffi_source.py
-  scripts/ffi_native.py
-  scripts/test_ffi_native.py
-  scripts/test_ffi_native_cache.py
-  scripts/unittest_report.py
-  scripts/test_unittest_report.py
-  scripts/ffi_artifacts.py
-  scripts/ffi_build.py
-  scripts/ffi_installed.py
-  scripts/test_ffi_installed.py
-  scripts/test_ffi_artifacts.py
-  scripts/ffi_provenance.py
-  scripts/test_ffi_provenance.py
-  scripts/maintainability_ratchet.py
-  scripts/package_contract.py
-  scripts/package_privacy.py
-  scripts/test_package_privacy.py
-  scripts/legacy_identifiers.py
-  scripts/test_legacy_identifiers.py
-  scripts/app_dependency_graph.py
-  scripts/test_app_dependency_graph.py
-  scripts/test_maintainability_ratchet.py
-  scripts/test_package_contract.py
-  scripts/kotlin_smoke.py
-  scripts/test_kotlin_smoke.py
-  scripts/test_xcode_selection.py
-  scripts/legacy_upgrade_fixture_producer.py
-  scripts/legacy_upgrade_fixture_admission.py
-  scripts/test_legacy_upgrade_fixture.py
-)
 
 command -v swiftformat >/dev/null || {
   echo "swift-quality: swiftformat is unavailable" >&2
@@ -88,6 +53,7 @@ swiftlint lint \
   "${metric_arguments[@]}" \
   "${SOURCE_PATHS[@]}"
 
-uv run --offline --project scripts/persona-verifier ruff format --check "${PYTHON_QUALITY_PATHS[@]}"
-uv run --offline --project scripts/persona-verifier ruff check "${PYTHON_QUALITY_PATHS[@]}"
+uv run --offline --frozen --project scripts/persona-verifier python scripts/authored_source_inventory.py format
+uv run --offline --frozen --project scripts/persona-verifier python scripts/authored_source_inventory.py lint
 uv run --offline --project scripts/persona-verifier python scripts/maintainability_ratchet.py verify
+uv run --offline --frozen --project scripts/persona-verifier python scripts/authored_source_inventory.py test

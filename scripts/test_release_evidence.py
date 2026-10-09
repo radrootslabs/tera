@@ -4,16 +4,191 @@ from __future__ import annotations
 
 import json
 import os
+import selectors
+import shlex
+import signal
 import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
+
+from scripts.fixture_tool_dispatch import FixtureToolDispatcher
+from scripts.fixture_test_policy import limit as fixture_limit, load_policy
 
 SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
+
+
+class ReleaseCommand:
+    """Bounded capture and cleanup while the unreaped leader reserves its PGID."""
+
+    LIMITS = {"stdout": 1024 * 1024, "stderr": 64 * 1024}
+
+    def __init__(self, argv: list[str], cwd: Path, environment: dict, timeout: float):
+        if not 0 < timeout <= fixture_limit("release_command"):
+            raise ValueError("release fixture deadline must be within 30 seconds")
+        self.argv, self.cwd, self.environment, self.timeout = (
+            argv,
+            cwd,
+            environment,
+            timeout,
+        )
+        self.output = {name: bytearray() for name in self.LIMITS}
+        self.selector = selectors.DefaultSelector()
+        self.process = None
+        self.started = time.monotonic()
+        self.record = {
+            "argv": argv,
+            "cwd": str(cwd),
+            "timeout": timeout,
+            "policy_id": load_policy()["id"],
+            "policy_sha256": load_policy()["source_sha256"],
+            "started_ns": time.time_ns(),
+            "signals": [],
+            "wait_reaped": False,
+            "group_absent": False,
+        }
+
+    def execute(self) -> subprocess.CompletedProcess:
+        try:
+            self.process = subprocess.Popen(
+                self.argv,
+                cwd=self.cwd,
+                env=self.environment,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                bufsize=0,
+                start_new_session=True,
+            )
+            self.record.update(pid=self.process.pid, pgid=self.process.pid)
+            for name in self.LIMITS:
+                stream = getattr(self.process, name)
+                os.set_blocking(stream.fileno(), False)
+                self.selector.register(stream, selectors.EVENT_READ, name)
+            self.capture(self.started + self.timeout)
+        except BaseException as error:
+            self.record["error"] = type(error).__name__
+            raise
+        finally:
+            try:
+                if self.process is not None:
+                    self.settle()
+            finally:
+                self.selector.close()
+                self.record["elapsed_seconds"] = time.monotonic() - self.started
+                self.record["ended_ns"] = time.time_ns()
+        return subprocess.CompletedProcess(
+            self.argv,
+            self.process.returncode,
+            bytes(self.output["stdout"]),
+            bytes(self.output["stderr"]),
+        )
+
+    def exited(self) -> bool:
+        # WNOWAIT leaves the leader's PID reserved until the last group signal.
+        state = os.waitid(
+            os.P_PID, self.process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT
+        )
+        return state is not None and state.si_pid == self.process.pid
+
+    def capture(self, deadline: float) -> None:
+        while self.selector.get_map() or not self.exited():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(
+                    self.argv,
+                    self.timeout,
+                    output=bytes(self.output["stdout"]),
+                    stderr=bytes(self.output["stderr"]),
+                )
+            self.read_ready(min(remaining, 0.05), reject_excess=True)
+
+    def read_ready(self, timeout: float, *, reject_excess: bool) -> None:
+        for key, _ in self.selector.select(timeout):
+            name = key.data
+            available = self.LIMITS[name] - len(self.output[name])
+            size = min(65536, available + 1) if reject_excess else 65536
+            data = os.read(key.fd, size)
+            if not data:
+                self.selector.unregister(key.fileobj)
+                key.fileobj.close()
+                continue
+            self.output[name].extend(data[:available])
+            if len(data) > available:
+                self.record.setdefault("output_excess", name)
+                if reject_excess:
+                    raise RuntimeError(f"release fixture {name} exceeds capture limit")
+
+    def group_present(self) -> bool:
+        try:
+            os.killpg(self.process.pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            # Darwin can report EPERM for an unreaped, exited group leader.
+            return True
+        return True
+
+    def send(self, number: int) -> None:
+        # No wait/poll/reap is permitted before the final signal: PID reuse is fenced.
+        try:
+            os.killpg(self.process.pid, number)
+        except ProcessLookupError:
+            return
+        except PermissionError:
+            self.record.setdefault("signal_errors", []).append(
+                {"signal": number, "errno": 1}
+            )
+            if not self.exited():
+                raise
+            return
+        self.record["signals"].append({"signal": number, "at_ns": time.time_ns()})
+
+    def drain_until(self, deadline: float) -> None:
+        while self.selector.get_map() and time.monotonic() < deadline:
+            self.read_ready(
+                min(0.01, max(0, deadline - time.monotonic())), reject_excess=False
+            )
+
+    def finish_cleanup(self, deadline: float) -> None:
+        self.send(signal.SIGKILL)
+        self.process.wait(timeout=max(0.001, deadline - time.monotonic()))
+        self.record.update(wait_reaped=True, exit=self.process.returncode)
+        self.drain_until(deadline)
+        while self.group_present() and time.monotonic() < deadline:
+            time.sleep(0.005)
+        self.record["group_absent"] = not self.group_present()
+        if not self.record["group_absent"] or self.selector.get_map():
+            raise RuntimeError(
+                "release fixture cleanup did not settle its group and pipes"
+            )
+
+    def settle(self) -> None:
+        deadline = time.monotonic() + fixture_limit("leaf_cleanup")
+        try:
+            self.send(signal.SIGTERM)
+            grace = time.monotonic() + 0.2
+            self.drain_until(grace)
+            # Closed pipes do not prove a descendant exited; keep the leader reserved.
+            while self.group_present() and time.monotonic() < grace:
+                time.sleep(0.005)
+        except BaseException as error:
+            self.record["cleanup_error"] = type(error).__name__
+            raise
+        finally:
+            try:
+                self.finish_cleanup(deadline)
+            except BaseException as error:
+                self.record["cleanup_error"] = type(error).__name__
+                raise
+            finally:
+                for name in self.LIMITS:
+                    getattr(self.process, name).close()
 
 
 class ReleaseFixture(unittest.TestCase):
@@ -27,6 +202,9 @@ class ReleaseFixture(unittest.TestCase):
             self.root = Path(temporary.name).resolve()
         self.tools = self.root / "tools"
         self.tools.mkdir()
+        self.dispatcher = FixtureToolDispatcher(
+            self.tools, ("cargo", "uv", "install", "rg")
+        )
         (self.root / "scripts").mkdir()
         for name in (
             "release-evidence.sh",
@@ -147,11 +325,7 @@ class ReleaseFixture(unittest.TestCase):
         path.write_text(text)
 
     def executable(self, name: str, body: str) -> None:
-        path = self.tools / name
-        if path.is_symlink():
-            path.unlink()
-        path.write_text(f"#!{sys.executable}\n" + body)
-        path.chmod(0o700)
+        self.dispatcher.executable(name, body)
 
     def git(self, *arguments: str) -> str:
         return subprocess.check_output(
@@ -170,30 +344,23 @@ class ReleaseFixture(unittest.TestCase):
             ),
         )
 
-    def run_release(self, mode: str) -> subprocess.CompletedProcess:
+    def run_release(self, mode: str, *, timeout=None) -> subprocess.CompletedProcess:
         argv = ["/bin/sh", str(self.root / "scripts/release-evidence.sh"), mode]
-        result = subprocess.run(
+        command = ReleaseCommand(
             argv,
-            cwd=self.root,
-            env=self.environment,
-            capture_output=True,
-            check=False,
-            timeout=30,
+            self.root,
+            self.environment,
+            fixture_limit("release_command") if timeout is None else timeout,
         )
         self.commands += 1
-        self.write(
-            f"command-{self.commands:02}.json",
-            json.dumps(
-                {
-                    "argv": argv,
-                    "cwd": str(self.root),
-                    "exit": result.returncode,
-                    "stdout": result.stdout.decode(),
-                    "stderr": result.stderr.decode(),
-                }
-            ),
-        )
-        return result
+        try:
+            return command.execute()
+        finally:
+            record = command.record
+            for name, output in command.output.items():
+                (self.root / f"command-{self.commands:02}.{name}").write_bytes(output)
+                record[name] = output.decode(errors="replace")
+            self.write(f"command-{self.commands:02}.json", json.dumps(record))
 
     def prior(self) -> dict[str, bytes]:
         return {
@@ -356,6 +523,149 @@ class ReleaseScannerTests(ReleaseFixture):
         for mode in ("write", "check"):
             with self.subTest(mode=mode):
                 self.assert_rejected_unchanged(mode, prior)
+
+
+class ReleaseProcessTests(ReleaseFixture):
+    def control(self, body: str) -> None:
+        self.write(
+            "control.py",
+            "import json, os, signal, sys, time\nfrom pathlib import Path\n"
+            "root = Path(__file__).parent\n"
+            "(root / 'direct.json').write_text(json.dumps({"
+            "'pid': os.getpid(), 'pgid': os.getpgrp(), 'sid': os.getsid(0)}))\n" + body,
+        )
+        self.write(
+            "scripts/release-evidence.sh",
+            f"exec {shlex.quote(sys.executable)} {shlex.quote(str(self.root / 'control.py'))}\n",
+        )
+
+    def settled(self) -> dict:
+        record = json.loads(
+            (self.root / f"command-{self.commands:02}.json").read_text()
+        )
+        direct = json.loads((self.root / "direct.json").read_text())
+        self.assertEqual(
+            (direct["pid"], direct["pgid"], direct["sid"]), (record["pid"],) * 3
+        )
+        self.assertTrue(record["wait_reaped"])
+        self.assertTrue(record["group_absent"])
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(record["pgid"], 0)
+        self.assertLessEqual(record["elapsed_seconds"], record["timeout"] + 2.5)
+        return record
+
+    def test_normal_and_rejected_commands_preserve_bytes_status_and_deadline(
+        self,
+    ) -> None:
+        for status in (0, 7):
+            with self.subTest(status=status):
+                self.control(
+                    f"print('ordinary stdout'); print('ordinary stderr', file=sys.stderr); sys.exit({status})\n"
+                )
+                result = self.run_release("write")
+                self.assertEqual(result.returncode, status)
+                self.assertEqual(result.stdout, b"ordinary stdout\n")
+                self.assertEqual(result.stderr, b"ordinary stderr\n")
+                self.assertEqual(
+                    self.settled()["timeout"], fixture_limit("release_command")
+                )
+
+    def test_stdin_is_closed_even_when_the_caller_has_input(self) -> None:
+        self.control("print(repr(sys.stdin.buffer.read()))\n")
+        reader, writer = os.pipe()
+        original = os.dup(0)
+        try:
+            os.write(writer, b"P139R_SYNTHETIC_INHERITED_INPUT")
+            os.close(writer)
+            os.dup2(reader, 0)
+            result = self.run_release("write", timeout=1)
+        finally:
+            os.dup2(original, 0)
+            os.close(original)
+            os.close(reader)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"b''\n")
+        self.settled()
+
+    def test_exact_output_limits_are_preserved(self) -> None:
+        self.control(
+            "sys.stdout.buffer.write(b'x' * 1048576); sys.stderr.buffer.write(b'y' * 65536)\n"
+        )
+        result = self.run_release("write", timeout=2)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"x" * 1048576)
+        self.assertEqual(result.stderr, b"y" * 65536)
+        self.settled()
+
+    def test_output_excess_rejects_and_settles(self) -> None:
+        for stream, limit in ReleaseCommand.LIMITS.items():
+            with self.subTest(stream=stream):
+                self.control(
+                    f"while True: sys.{stream}.buffer.write(b'x' * {limit + 1}); sys.{stream}.flush()\n"
+                )
+                with self.assertRaisesRegex(RuntimeError, "exceeds capture limit"):
+                    self.run_release("write", timeout=2)
+                record = self.settled()
+                self.assertEqual(record["output_excess"], stream)
+                output = self.root / f"command-{self.commands:02}.{stream}"
+                self.assertEqual(output.stat().st_size, limit)
+
+    def child_control(self, *, ignore_term: bool, close_pipes: bool) -> None:
+        handler = "(root / 'term.txt').write_text('received TERM')"
+        if not ignore_term:
+            handler += "; sys.exit(0)"
+        self.control(
+            "child = os.fork()\n"
+            "if child == 0:\n"
+            f"    signal.signal(signal.SIGTERM, lambda *_: ({handler.replace('; ', ', ')}))\n"
+            "    (root / 'ready.json').write_text(json.dumps({'pid': os.getpid(), 'pgid': os.getpgrp(), 'sid': os.getsid(0)}))\n"
+            + ("    os.close(1); os.close(2)\n" if close_pipes else "")
+            + "    time.sleep(1.2)\n"
+            "    (root / 'late.txt').write_text('escaped late write')\n"
+            "    while True: time.sleep(1)\n"
+            "while not (root / 'ready.json').exists(): time.sleep(0.005)\n"
+            "print('ready child', flush=True)\n"
+        )
+
+    def assert_child_settled(self, *, ignore_term: bool) -> dict:
+        record = self.settled()
+        child = json.loads((self.root / "ready.json").read_text())
+        self.assertEqual(child["pgid"], record["pgid"])
+        self.assertEqual(child["sid"], record["pgid"])
+        self.assertEqual((self.root / "term.txt").read_text(), "received TERM")
+        with self.assertRaises(ProcessLookupError):
+            os.kill(child["pid"], 0)
+        if ignore_term:
+            self.assertIn(
+                signal.SIGKILL, [event["signal"] for event in record["signals"]]
+            )
+        # Ready, actual TERM and absent PID/group establish what the scheduled writer did.
+        time.sleep(1.25)
+        self.assertFalse((self.root / "late.txt").exists())
+        return record
+
+    def test_timeout_settles_child_retaining_capture_pipes(self) -> None:
+        self.child_control(ignore_term=False, close_pipes=False)
+        with self.assertRaises(subprocess.TimeoutExpired) as observed:
+            self.run_release("write", timeout=0.3)
+        self.assertEqual(observed.exception.timeout, 0.3)
+        self.assertEqual(observed.exception.stdout, b"ready child\n")
+        self.assertEqual(
+            self.assert_child_settled(ignore_term=False)["error"], "TimeoutExpired"
+        )
+
+    def test_timeout_kills_child_ignoring_term(self) -> None:
+        self.child_control(ignore_term=True, close_pipes=False)
+        with self.assertRaises(subprocess.TimeoutExpired):
+            self.run_release("write", timeout=0.3)
+        self.assert_child_settled(ignore_term=True)
+
+    def test_normal_completion_settles_child_with_closed_capture_pipes(self) -> None:
+        self.child_control(ignore_term=True, close_pipes=True)
+        result = self.run_release("write", timeout=2)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout, b"ready child\n")
+        self.assert_child_settled(ignore_term=True)
 
 
 if __name__ == "__main__":

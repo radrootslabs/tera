@@ -86,7 +86,7 @@ class PersonaAttachmentExtractionTests(unittest.TestCase):
         }
         with (
             mock.patch.object(fixture, "run_json_command_bounded", return_value=tests),
-            mock.patch.object(fixture.subprocess, "run", side_effect=run),
+            mock.patch.object(fixture, "run_selector_command", side_effect=run),
         ):
             return fixture.extract_persona_attempt_attachments(
                 Path("synthetic.xcresult"), self.suite, require_measured_network=True

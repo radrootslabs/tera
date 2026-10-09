@@ -8,17 +8,212 @@ import subprocess
 import sys
 import tempfile
 import time
+import traceback
 import unittest
 from pathlib import Path
+
+from scripts.fixture_tool_dispatch import CompilerCommand, FixtureToolDispatcher
+from scripts.fixture_test_policy import limit, load_policy
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
+class OwnedFixtureProcess:
+    """Reserve a fixture group leader until its descendants have settled."""
+
+    def __init__(self, argv, *, cwd, env, stdout, stderr, record_path):
+        self.argv = argv
+        self.record_path = record_path
+        self.started = time.monotonic()
+        self.deadline = self.started + limit("xcode_wrapper")
+        self.process = subprocess.Popen(
+            argv, cwd=cwd, env=env, stdout=stdout, stderr=stderr, start_new_session=True
+        )
+        self.pid = self.process.pid
+        self.returncode = None
+        self.attempted_cleanup = False
+        self.settled = False
+        self.record = {
+            "argv": argv,
+            "cwd": str(cwd),
+            "pid": self.pid,
+            "pgid": self.pid,
+            "started_ns": time.time_ns(),
+            "signals": [],
+            "observations": [],
+            "policy_id": load_policy()["id"],
+            "policy_sha256": load_policy()["source_sha256"],
+        }
+
+    def poll(self):
+        if self.settled:
+            return self.returncode
+        result = os.waitid(os.P_PID, self.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        if result is not None:
+            self.returncode = (
+                result.si_status
+                if result.si_code == os.CLD_EXITED
+                else -result.si_status
+            )
+            self.record.setdefault("exit_observed_ns", time.time_ns())
+        return self.returncode
+
+    def wait(self, timeout):
+        deadline = min(self.deadline, time.monotonic() + timeout)
+        while self.poll() is None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(self.argv, timeout)
+            time.sleep(min(0.01, remaining))
+        return self.returncode
+
+    def send_signal(self, number):
+        if self.poll() is None:
+            os.kill(self.pid, number)
+            self.record["signals"].append(
+                {"pid": self.pid, "signal": number, "at_ns": time.time_ns()}
+            )
+
+    def group_signal(self, number):
+        try:
+            os.killpg(self.pid, number)
+            self.record["signals"].append(
+                {"pgid": self.pid, "signal": number, "at_ns": time.time_ns()}
+            )
+        except ProcessLookupError:
+            pass
+
+    def signal_live_group(self, number, deadline):
+        if self.poll() is not None and not self.members(deadline):
+            return False
+        try:
+            self.group_signal(number)
+        except PermissionError:
+            self.record.setdefault("signal_errors", []).append(
+                {
+                    "signal": number,
+                    "at_ns": time.time_ns(),
+                    "error": traceback.format_exc(),
+                }
+            )
+            if self.poll() is None or self.members(deadline):
+                raise
+            return False
+        return True
+
+    def capture_members(self, deadline):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0.05:
+            raise AssertionError("owned observer cleanup budget is exhausted")
+        argv = ["ps", "-axo", "pid=,ppid=,pgid=,uid=,lstart="]
+        observer = subprocess.Popen(
+            argv,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,
+        )
+        command = {"argv": argv, "pid": observer.pid, "pgid": observer.pid}
+        self.record["observations"].append(command)
+        try:
+            try:
+                stdout, stderr = observer.communicate(
+                    timeout=min(0.25, remaining - 0.05)
+                )
+            except subprocess.TimeoutExpired:
+                observer.kill()
+                command["timeout"] = True
+                stdout, stderr = observer.communicate(
+                    timeout=max(0.001, deadline - time.monotonic())
+                )
+        except BaseException:
+            command["cleanup_exception"] = traceback.format_exc()
+            raise
+        finally:
+            command.update(
+                exit=observer.returncode,
+                wait_reaped=observer.returncode is not None,
+                at_ns=time.time_ns(),
+            )
+        try:
+            os.killpg(observer.pid, 0)
+            command["group_absent"] = False
+        except ProcessLookupError:
+            command["group_absent"] = True
+        if not command["group_absent"]:
+            raise AssertionError("owned process observer group remains")
+        return stdout, stderr, command
+
+    def members(self, deadline):
+        stdout, stderr, command = self.capture_members(deadline)
+        prefix = str(self.record_path) + f".ps-{len(self.record['observations']):02}"
+        Path(prefix + ".stdout").write_bytes(stdout)
+        Path(prefix + ".stderr").write_bytes(stderr)
+        if len(stdout) > 2_000_000 or len(stderr) > 65_536 or command["exit"]:
+            raise AssertionError("owned fixture group observation failed")
+        rows = []
+        for line in stdout.decode().splitlines():
+            fields = line.split(None, 4)
+            if len(fields) == 5 and int(fields[2]) == self.pid:
+                rows.append(dict(zip(("pid", "ppid", "pgid", "uid", "birth"), fields)))
+        command["members"] = rows
+        return [row for row in rows if int(row["pid"]) != self.pid]
+
+    def require_group_absent(self):
+        try:
+            os.killpg(self.pid, 0)
+        except ProcessLookupError:
+            return
+        raise AssertionError("owned fixture group remains after leader reaping")
+
+    def close(self):
+        if self.attempted_cleanup:
+            if not self.settled:
+                raise AssertionError("previous owned fixture cleanup failed")
+            return
+        self.attempted_cleanup = True
+        started = time.monotonic()
+        deadline = started + limit("leaf_cleanup")
+        self.record["cleanup_started_ns"] = time.time_ns()
+        try:
+            if self.signal_live_group(signal.SIGTERM, deadline):
+                time.sleep(0.1)
+            self.signal_live_group(signal.SIGKILL, deadline)
+            while self.members(deadline):
+                if time.monotonic() >= deadline:
+                    raise AssertionError("owned fixture descendants did not settle")
+                time.sleep(min(0.01, max(0, deadline - time.monotonic())))
+            self.record["descendants_absent_ns"] = time.time_ns()
+            self.returncode = self.process.wait(
+                timeout=max(0.001, deadline - time.monotonic())
+            )
+            self.record.update(exit=self.returncode, wait_reaped=True)
+            self.require_group_absent()
+            self.record["group_absent"] = True
+            if time.monotonic() > deadline:
+                raise AssertionError("owned fixture cleanup exceeded two seconds")
+            self.settled = True
+        except BaseException:
+            self.record["cleanup_exception"] = traceback.format_exc()
+            raise
+        finally:
+            self.record.update(
+                settled=self.settled,
+                cleanup_seconds=time.monotonic() - started,
+                cleanup_ended_ns=time.time_ns(),
+            )
+            self.record_path.write_text(json.dumps(self.record, indent=2) + "\n")
+
+
 class XcodeSelectionTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.directory = tempfile.TemporaryDirectory()
-        self.addCleanup(self.directory.cleanup)
-        self.root = Path(self.directory.name)
+        evidence = os.environ.get("TERA_C138_TEST_EVIDENCE")
+        if evidence:
+            self.root = Path(tempfile.mkdtemp(prefix="xcode-selector-", dir=evidence))
+        else:
+            self.directory = tempfile.TemporaryDirectory()
+            self.addCleanup(self.directory.cleanup)
+            self.root = Path(self.directory.name)
         (self.root / "scripts").mkdir()
         shutil.copyfile(ROOT / "scripts/xcode.sh", self.root / "scripts/xcode.sh")
         (self.root / "TeraUITests").mkdir()
@@ -27,14 +222,14 @@ class XcodeSelectionTests(unittest.TestCase):
             self.root / "TeraUITests/TeraAccessibilityUITests.swift",
         )
         self.arguments = self.root / "arguments.json"
-        executable = self.root / "xcodebuild"
-        executable.write_text(
-            f"#!{sys.executable}\n"
+        self.selector_sequence = 0
+        self.dispatcher = FixtureToolDispatcher(self.root, ("xcodebuild",))
+        self.dispatcher.executable(
+            "xcodebuild",
             "import json, os, sys\n"
             "from pathlib import Path\n"
-            "Path(os.environ['TEST_XCODE_ARGUMENTS']).write_text(json.dumps(sys.argv[1:]))\n"
+            "Path(os.environ['TEST_XCODE_ARGUMENTS']).write_text(json.dumps(sys.argv[1:]))\n",
         )
-        executable.chmod(0o700)
         self.environment = {
             **os.environ,
             "PATH": f"{self.root}:{os.environ['PATH']}",
@@ -45,7 +240,8 @@ class XcodeSelectionTests(unittest.TestCase):
         }
 
     def run_selector(self, target: str, *selector: str) -> subprocess.CompletedProcess:
-        return subprocess.run(
+        self.selector_sequence += 1
+        command = CompilerCommand(
             [
                 "/bin/bash",
                 str(self.root / "scripts/xcode.sh"),
@@ -54,10 +250,21 @@ class XcodeSelectionTests(unittest.TestCase):
                 target,
                 *selector,
             ],
+            self.root,
             env=self.environment,
-            capture_output=True,
-            text=True,
-            check=False,
+            budget="selector_command",
+        )
+        try:
+            result = command.execute()
+        finally:
+            (self.root / f"selector-{self.selector_sequence:02}.json").write_text(
+                json.dumps(command.record, indent=2)
+            )
+        return subprocess.CompletedProcess(
+            result.args,
+            result.returncode,
+            result.stdout.decode(),
+            result.stderr.decode(),
         )
 
     def assert_selection(self, target: str, *selector: str) -> None:
@@ -132,6 +339,9 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
                 shutil.copyfile(ROOT / "scripts" / name, self.root / "scripts" / name)
         self.tools = self.root / "tools"
         self.tools.mkdir()
+        self.dispatcher = FixtureToolDispatcher(
+            self.tools, ("xcrun", "uv", "xcodebuild")
+        )
         self.locks = self.root / "locks"
         self.locks.mkdir()
         self.sentinel = self.locks / "tera-ios-lock-state.unrelated"
@@ -186,14 +396,20 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
             "sys.exit(status)\n",
         )
         self.sequence = 0
+        self.active_process = None
 
     def executable(self, name: str, body: str) -> None:
-        path = self.tools / name
-        path.write_text(f"#!{sys.executable}\n" + body)
-        path.chmod(0o700)
+        self.dispatcher.executable(name, body)
 
-    def await_file(self, path: Path, process: subprocess.Popen) -> dict:
-        deadline = time.monotonic() + 5
+    def await_file(
+        self, path: Path, process: subprocess.Popen, *, timeout=None
+    ) -> dict:
+        deadline = min(
+            process.deadline,
+            process.started + limit("xcode_readiness")
+            if timeout is None
+            else time.monotonic() + timeout,
+        )
         while time.monotonic() < deadline:
             if path.exists():
                 try:
@@ -207,14 +423,24 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
             time.sleep(0.01)
         self.fail("wrapper fixture readiness deadline expired")
 
-    def settle_on_failure(self, process: subprocess.Popen) -> None:
-        if process.poll() is None:
-            process.terminate()
-            try:
-                process.wait(timeout=3)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=3)
+    def settle_on_failure(self, process) -> None:
+        if process is not None:
+            process.close()
+
+    def check_previous_cleanup(self) -> None:
+        if self.active_process is not None and not self.active_process.settled:
+            raise AssertionError("prior physical fixture cleanup is incomplete")
+
+    def restore_role(self, process, mode, xcode, previous_mode, prefix) -> None:
+        self.settle_on_failure(process)
+        started = time.time_ns()
+        if mode == "missing":
+            (self.tools / "saved-xcode").rename(xcode)
+        else:
+            xcode.chmod(previous_mode)
+        Path(str(prefix) + ".role-restoration.json").write_text(
+            json.dumps({"started_ns": started, "ended_ns": time.time_ns()}) + "\n"
+        )
 
     def observe_child(self, process, paths, mode, forwarded):
         ready, event, release, settled = paths
@@ -224,7 +450,7 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
         self.assertTrue(Path(data["lock"]).exists())
         if forwarded is not None:
             process.send_signal(forwarded)
-            signal_data = self.await_file(event, process)
+            signal_data = self.await_file(event, process, timeout=5)
             self.assertEqual(signal_data["pid"], data["pid"])
             self.assertEqual(signal_data["signal"], forwarded)
             self.assertTrue(signal_data["lock_exists"])
@@ -244,6 +470,7 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
     def lifecycle(
         self, operation: str, mode: str, forwarded: int | None = None
     ) -> None:
+        self.check_previous_cleanup()
         self.sequence += 1
         prefix = self.root / f"run-{self.sequence:02}"
         preflight, ready, release, event, settled = (
@@ -296,14 +523,21 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
             xcode.rename(self.tools / "saved-xcode")
         elif mode == "not-executable":
             xcode.chmod(0o600)
+        process = None
         try:
             with (
                 Path(str(prefix) + ".stdout").open("wb") as stdout,
                 Path(str(prefix) + ".stderr").open("wb") as stderr,
             ):
-                process = subprocess.Popen(
-                    argv, cwd=self.root, env=environment, stdout=stdout, stderr=stderr
+                process = OwnedFixtureProcess(
+                    argv,
+                    cwd=self.root,
+                    env=environment,
+                    stdout=stdout,
+                    stderr=stderr,
+                    record_path=Path(str(prefix) + ".ownership.json"),
                 )
+                self.active_process = process
                 self.addCleanup(self.settle_on_failure, process)
                 if mode == "early":
                     uv_log = Path(str(prefix) + ".uv")
@@ -349,10 +583,7 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
                     self.sentinel.read_bytes(), b"unrelated invocation lock\n"
                 )
         finally:
-            if mode == "missing":
-                (self.tools / "saved-xcode").rename(xcode)
-            else:
-                xcode.chmod(previous_mode)
+            self.restore_role(process, mode, xcode, previous_mode, prefix)
 
     def every_branch(self, mode: str, forwarded: int | None = None) -> None:
         for operation in self.OPERATIONS:
@@ -391,6 +622,155 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
 
     def test_unrelated_lock_file_survives_cleanup(self) -> None:
         self.every_branch("success")
+
+
+class XcodeFixtureOwnershipTests(unittest.TestCase):
+    def setUp(self):
+        evidence = os.environ.get("TERA_C138_TEST_EVIDENCE")
+        if evidence:
+            self.root = Path(tempfile.mkdtemp(prefix="owned-xcode-", dir=evidence))
+        else:
+            temporary = tempfile.TemporaryDirectory()
+            self.addCleanup(temporary.cleanup)
+            self.root = Path(temporary.name).resolve()
+        self.ready = self.root / "ready.json"
+        self.late = self.root / "late"
+        self.sentinel = self.root / "unrelated"
+        self.sentinel.write_bytes(b"unrelated invocation\n")
+
+    def start_owned(self, leader_finish):
+        child = self.root / "child.py"
+        child.write_text(
+            "import json, os, signal, time\nfrom pathlib import Path\n"
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            "signal.signal(signal.SIGINT, signal.SIG_IGN)\n"
+            f"Path({str(self.ready)!r}).write_text(json.dumps({{'pid': os.getpid(), 'parent': os.getppid(), 'pgid': os.getpgrp()}}))\n"
+            "os.close(1); os.close(2)\n"
+            "time.sleep(8)\n"
+            f"Path({str(self.late)!r}).write_text('actual late writer ran\\n')\n"
+        )
+        leader = self.root / "leader.py"
+        leader.write_text(
+            "import os, subprocess, sys, time\nfrom pathlib import Path\n"
+            f"subprocess.Popen([sys.executable, {str(child)!r}], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
+            f"deadline=time.monotonic()+5\nwhile not Path({str(self.ready)!r}).exists() and time.monotonic()<deadline: time.sleep(.01)\n"
+            + leader_finish
+        )
+        with (
+            (self.root / "stdout").open("wb") as stdout,
+            (self.root / "stderr").open("wb") as stderr,
+        ):
+            process = OwnedFixtureProcess(
+                [sys.executable, str(leader)],
+                cwd=self.root,
+                env=os.environ,
+                stdout=stdout,
+                stderr=stderr,
+                record_path=self.root / "ownership.json",
+            )
+        self.addCleanup(process.close)
+        deadline = time.monotonic() + 5
+        while not self.ready.exists() and time.monotonic() < deadline:
+            time.sleep(0.01)
+        data = json.loads(self.ready.read_text())
+        self.assertEqual(data["pgid"], process.pid)
+        return process, data
+
+    def assert_settlement(self, process, data):
+        with self.assertRaises(ProcessLookupError):
+            os.kill(data["pid"], 0)
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(process.pid, 0)
+        self.assertFalse(self.late.exists())
+        self.assertEqual(self.sentinel.read_bytes(), b"unrelated invocation\n")
+        record = json.loads((self.root / "ownership.json").read_text())
+        self.assertTrue(record["group_absent"])
+        self.assertTrue(record["wait_reaped"])
+        self.assertLess(record["descendants_absent_ns"], record["cleanup_ended_ns"])
+        self.assertLessEqual(record["cleanup_seconds"], 2)
+        self.assertIn(signal.SIGKILL, [row["signal"] for row in record["signals"]])
+        for observer in record["observations"]:
+            self.assertTrue(observer["wait_reaped"])
+            self.assertTrue(observer["group_absent"])
+        process.close()
+
+    def test_exited_leader_keeps_identity_until_ignored_term_child_settles(self):
+        process, data = self.start_owned("sys.exit(7)\n")
+        self.assertEqual(process.wait(timeout=5), 7)
+        os.kill(process.pid, 0)
+        os.kill(data["pid"], 0)
+        process.close()
+        self.assertEqual(process.returncode, 7)
+        self.assert_settlement(process, data)
+
+    def test_closed_stdio_live_leader_and_ignored_term_child_are_owned(self):
+        process, data = self.start_owned("os.close(1); os.close(2)\ntime.sleep(8)\n")
+        self.assertIsNone(process.poll())
+        process.close()
+        self.assertEqual(process.returncode, -signal.SIGTERM)
+        self.assert_settlement(process, data)
+
+    def test_exited_leader_without_descendants_reaps_actual_status(self):
+        body = self.root / "exit.py"
+        body.write_text("import sys\nsys.exit(7)\n")
+        with (
+            (self.root / "stdout").open("wb") as stdout,
+            (self.root / "stderr").open("wb") as stderr,
+        ):
+            process = OwnedFixtureProcess(
+                [sys.executable, str(body)],
+                cwd=self.root,
+                env=os.environ,
+                stdout=stdout,
+                stderr=stderr,
+                record_path=self.root / "ownership.json",
+            )
+        self.addCleanup(process.close)
+        self.assertEqual(process.wait(timeout=5), 7)
+        held = os.waitid(os.P_PID, process.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT)
+        self.assertEqual((held.si_pid, held.si_status), (process.pid, 7))
+        process.close()
+        self.assertEqual(process.returncode, 7)
+        with self.assertRaises(ProcessLookupError):
+            os.killpg(process.pid, 0)
+        record = json.loads((self.root / "ownership.json").read_text())
+        self.assertTrue(record["wait_reaped"])
+        self.assertTrue(record["group_absent"])
+        self.assertEqual(record["signals"], [])
+        self.assertLessEqual(record["cleanup_seconds"], 2)
+
+    def test_timeout_settles_before_missing_role_restore_and_next_subcase(self):
+        fixture = PhysicalXcodeLifecycleTests()
+        fixture.setUp()
+        self.addCleanup(fixture.doCleanups)
+        original = (fixture.tools / "xcrun.body.py").read_text()
+        fixture.executable(
+            "xcrun",
+            "import json, os, signal, time\nfrom pathlib import Path\n"
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN)\n"
+            "signal.signal(signal.SIGINT, signal.SIG_IGN)\n"
+            "Path(os.environ['MOCK_READY']).write_text(json.dumps({'pid': os.getpid(), 'parent': os.getppid(), 'pgid': os.getpgrp()}))\n"
+            "time.sleep(8)\n"
+            "Path(os.environ['MOCK_READY']+'.late').write_text('actual late writer ran\\n')\n"
+            + original,
+        )
+        with self.assertRaises(subprocess.TimeoutExpired):
+            fixture.lifecycle("physical-app-build", "missing")
+        ready = json.loads((fixture.root / "run-01.ready").read_text())
+        with self.assertRaises(ProcessLookupError):
+            os.kill(ready["pid"], 0)
+        ownership = json.loads((fixture.root / "run-01.ownership.json").read_text())
+        restored = json.loads(
+            (fixture.root / "run-01.role-restoration.json").read_text()
+        )
+        self.assertTrue(ownership["group_absent"])
+        self.assertLessEqual(ownership["cleanup_seconds"], 2)
+        self.assertLessEqual(ownership["cleanup_ended_ns"], restored["started_ns"])
+        self.assertTrue(os.access(fixture.tools / "xcodebuild", os.X_OK))
+        self.assertFalse((fixture.root / "run-01.ready.late").exists())
+        fixture.executable("xcrun", original)
+        fixture.lifecycle("physical-app-build", "not-executable")
+        self.assertEqual(fixture.sentinel.read_bytes(), b"unrelated invocation lock\n")
 
 
 if __name__ == "__main__":

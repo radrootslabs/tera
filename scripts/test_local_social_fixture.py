@@ -54,22 +54,28 @@ def sign_bud11_event(event: dict) -> dict:
             strict=True,
         )
     )
-    nonce = int.from_bytes(
-        fixture.tagged_hash("BIP0340/nonce", masked_secret + public_key + message),
-        "big",
-    ) % fixture.SECP256K1_ORDER
+    nonce = (
+        int.from_bytes(
+            fixture.tagged_hash("BIP0340/nonce", masked_secret + public_key + message),
+            "big",
+        )
+        % fixture.SECP256K1_ORDER
+    )
     assert nonce != 0
     nonce_point = fixture.point_multiply(nonce, fixture.SECP256K1_GENERATOR)
     assert nonce_point is not None
     if nonce_point[1] & 1:
         nonce = fixture.SECP256K1_ORDER - nonce
-    challenge = int.from_bytes(
-        fixture.tagged_hash(
-            "BIP0340/challenge",
-            nonce_point[0].to_bytes(32, "big") + public_key + message,
-        ),
-        "big",
-    ) % fixture.SECP256K1_ORDER
+    challenge = (
+        int.from_bytes(
+            fixture.tagged_hash(
+                "BIP0340/challenge",
+                nonce_point[0].to_bytes(32, "big") + public_key + message,
+            ),
+            "big",
+        )
+        % fixture.SECP256K1_ORDER
+    )
     signature = nonce_point[0].to_bytes(32, "big") + (
         (nonce + challenge * secret) % fixture.SECP256K1_ORDER
     ).to_bytes(32, "big")
@@ -320,7 +326,9 @@ class LocalSocialFixtureTests(unittest.TestCase):
             fixture.verify_bip340(public_key, message, signature[:-1] + b"\x00")
         )
 
-    def test_bud11_corpus_is_exact_bounded_and_contains_no_sensitive_evidence(self) -> None:
+    def test_bud11_corpus_is_exact_bounded_and_contains_no_sensitive_evidence(
+        self,
+    ) -> None:
         path = Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
         raw, corpus = fixture.load_bud11_mutation_corpus(path)
         self.assertLessEqual(len(raw), fixture.MAX_JSON_BYTES)
@@ -349,7 +357,9 @@ class LocalSocialFixtureTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "duplicate JSON member"):
                 fixture.load_bud11_mutation_corpus(duplicate)
 
-    def test_bud11_scalar_bounds_and_server_domain_grammar_are_fail_closed(self) -> None:
+    def test_bud11_scalar_bounds_and_server_domain_grammar_are_fail_closed(
+        self,
+    ) -> None:
         self.assertEqual(fixture.canonical_unsigned_decimal("0"), 0)
         self.assertEqual(
             fixture.canonical_unsigned_decimal(str(0xFFFF_FFFF_FFFF_FFFF)),
@@ -369,9 +379,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
             "media-.example",
         ]:
             self.assertFalse(fixture.valid_bud11_server_domain(value), value)
-        oversized = "Nostr " + "a" * (
-            fixture.BUD11_AUTHORIZATION_ENCODED_MAX_BYTES + 1
-        )
+        oversized = "Nostr " + "a" * (fixture.BUD11_AUTHORIZATION_ENCODED_MAX_BYTES + 1)
         self.assertFalse(
             fixture.valid_blossom_authorization(
                 oversized,
@@ -381,7 +389,9 @@ class LocalSocialFixtureTests(unittest.TestCase):
             )
         )
 
-    def test_bud11_mutation_corpus_matches_strict_admission_and_relay_denial(self) -> None:
+    def test_bud11_mutation_corpus_matches_strict_admission_and_relay_denial(
+        self,
+    ) -> None:
         _, corpus = fixture.load_bud11_mutation_corpus(
             Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
         )
@@ -421,11 +431,21 @@ class LocalSocialFixtureTests(unittest.TestCase):
             control.touch()
             state = fixture.FixtureState(root / "evidence.json", control, 0)
             with blossom_server(fixture.BlossomHandler, state):
-                cases = [(v, "/upload", digest) for v in corpus["vectors"] if v["surface"] == "http"]
+                cases = [
+                    (v, "/upload", digest)
+                    for v in corpus["vectors"]
+                    if v["surface"] == "http"
+                ]
                 valid = next(v for v, _, _ in cases if v["expected_accepted"])
-                cases += [(valid, f"/{digest}.png", digest), (valid, "/upload", ""), (valid, "/upload", digest.upper())]
+                cases += [
+                    (valid, f"/{digest}.png", digest),
+                    (valid, "/upload", ""),
+                    (valid, "/upload", digest.upper()),
+                ]
                 for vector, path, supplied_hash in cases:
-                    with self.subTest(vector=vector["id"], path=path, supplied_hash=supplied_hash):
+                    with self.subTest(
+                        vector=vector["id"], path=path, supplied_hash=supplied_hash
+                    ):
                         _, header = mutate_bud11_event(
                             bud11_event(now, digest), vector["mutation"], now
                         )
@@ -448,7 +468,9 @@ class LocalSocialFixtureTests(unittest.TestCase):
                         connection.close()
                         self.assertEqual(
                             response.status == 200,
-                            vector["expected_accepted"] and path == "/upload" and supplied_hash == digest,
+                            vector["expected_accepted"]
+                            and path == "/upload"
+                            and supplied_hash == digest,
                         )
             evidence = json.loads((root / "evidence.json").read_text(encoding="utf-8"))
             self.assertEqual(evidence["accepted_uploads"], 1)
@@ -489,9 +511,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
             Path("test-fixtures/bud11-upload-authorization-mutations.v1.json")
         )
         _, corpus_schema = fixture.load_schema_file(
-            Path(
-                "test-fixtures/bud11-upload-authorization-mutations.v1.schema.json"
-            ),
+            Path("test-fixtures/bud11-upload-authorization-mutations.v1.schema.json"),
             "https://radroots.org/schemas/ios/bud11-upload-authorization-mutations.v1.schema.json",
         )
         fixture.validate_schema_instance(corpus_schema, corpus, "BUD-11 corpus")
@@ -608,9 +628,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             control = root / "control.json"
-            state = fixture.FixtureState(
-                root / "evidence.json", control, 21100, suite
-            )
+            state = fixture.FixtureState(root / "evidence.json", control, 21100, suite)
             self.write_persona_control(control, "P01")
             with mock.patch.object(
                 fixture, "valid_blossom_authorization", return_value=True
@@ -621,9 +639,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
             self.write_persona_control(control, "P02")
             self.assertIsNotNone(state.retrieve(digest))
 
-            evidence = json.loads(
-                (root / "evidence.json").read_text(encoding="utf-8")
-            )
+            evidence = json.loads((root / "evidence.json").read_text(encoding="utf-8"))
             self.assertEqual(evidence["retrievals"], 1)
             self.assertEqual(evidence["personas"][0]["retrievals"], 1)
             self.assertEqual(evidence["personas"][1]["retrievals"], 0)
@@ -642,18 +658,12 @@ class LocalSocialFixtureTests(unittest.TestCase):
             root = Path(directory)
             control = root / "control.json"
             self.write_persona_control(control, "P05")
-            state = fixture.FixtureState(
-                root / "evidence.json", control, 21100, suite
-            )
-            with mock.patch.object(
-                fixture, "classify_attempt", return_value=attempt
-            ):
+            state = fixture.FixtureState(root / "evidence.json", control, 21100, suite)
+            with mock.patch.object(fixture, "classify_attempt", return_value=attempt):
                 self.assertIsNone(state._publish_persona_event(event))
                 self.assertTrue(state._publish_persona_event(event))
 
-            evidence = json.loads(
-                (root / "evidence.json").read_text(encoding="utf-8")
-            )
+            evidence = json.loads((root / "evidence.json").read_text(encoding="utf-8"))
             self.assertEqual(evidence["expected_failure_rejections"], 1)
             self.assertEqual(evidence["accepted_events"], 1)
 
@@ -722,7 +732,9 @@ class LocalSocialFixtureTests(unittest.TestCase):
                     value, suite, require_measured_network=True
                 )
 
-    def test_attempt_evidence_rejects_one_field_identity_and_outcome_drift(self) -> None:
+    def test_attempt_evidence_rejects_one_field_identity_and_outcome_drift(
+        self,
+    ) -> None:
         suite, attachments = self.persona_attempt_attachments()
         _, canonical = attachments[0]
         mutations = (
@@ -754,7 +766,9 @@ class LocalSocialFixtureTests(unittest.TestCase):
                     changed, suite, require_measured_network=True
                 )
 
-    def test_persona_result_v2_is_reconstructed_only_from_measured_attempts(self) -> None:
+    def test_persona_result_v2_is_reconstructed_only_from_measured_attempts(
+        self,
+    ) -> None:
         suite, attachments = self.persona_attempt_attachments()
         result = fixture.reconstruct_persona_result_v2(
             suite,
@@ -774,9 +788,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
         self.assertEqual(result["non_loopback_attempts"], 0)
         self.assertEqual(len(result["attachments"]), 15)
         _, attempt_schema = fixture.load_schema_file(
-            Path(
-                "test-fixtures/local-social-persona-attempt-evidence.v1.schema.json"
-            ),
+            Path("test-fixtures/local-social-persona-attempt-evidence.v1.schema.json"),
             "https://radroots.org/schemas/ios/local-social-persona-attempt-evidence.v1.schema.json",
         )
         for _, attempt in attachments:
@@ -824,9 +836,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
             ],
             "testPlanConfigurations": [],
         }
-        self.assertEqual(
-            fixture.exact_persona_test_node(tests)["result"], "Passed"
-        )
+        self.assertEqual(fixture.exact_persona_test_node(tests)["result"], "Passed")
         for mutation in (
             lambda value: value["testNodes"][0]["children"][0].update(
                 {"result": "Failed"}
@@ -850,9 +860,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
                 zip(fixture.PERSONA_ATTACHMENT_NAMES, attachments, strict=True)
             ):
                 exported = "exported-" + name
-                suggested = (
-                    f"{name[:-5]}_0_00000000-0000-0000-0000-{index:012X}.json"
-                )
+                suggested = f"{name[:-5]}_0_00000000-0000-0000-0000-{index:012X}.json"
                 (root / exported).write_bytes(raw)
                 rows.append(
                     {
@@ -871,9 +879,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
                     "attachments": rows,
                 }
             ]
-            (root / "manifest.json").write_text(
-                json.dumps(manifest), encoding="utf-8"
-            )
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             loaded = fixture.load_exported_persona_attachments(
                 root, suite, require_measured_network=True
             )
@@ -891,20 +897,14 @@ class LocalSocialFixtureTests(unittest.TestCase):
             rows[0]["suggestedHumanReadableName"] = rows[1][
                 "suggestedHumanReadableName"
             ]
-            (root / "manifest.json").write_text(
-                json.dumps(manifest), encoding="utf-8"
-            )
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaises(ValueError):
                 fixture.load_exported_persona_attachments(
                     root, suite, require_measured_network=True
                 )
 
-            rows[0]["suggestedHumanReadableName"] = (
-                "radroots-local-social-P01-A01.json"
-            )
-            (root / "manifest.json").write_text(
-                json.dumps(manifest), encoding="utf-8"
-            )
+            rows[0]["suggestedHumanReadableName"] = "radroots-local-social-P01-A01.json"
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaises(ValueError):
                 fixture.load_exported_persona_attachments(
                     root, suite, require_measured_network=True
@@ -936,8 +936,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
                 fixture.PERSONA_ATTACHMENT_NAMES[1:], 1
             ):
                 other_name = (
-                    f"{canonical_name[:-5]}_0_"
-                    f"00000000-0000-0000-0000-{index:012X}.json"
+                    f"{canonical_name[:-5]}_0_00000000-0000-0000-0000-{index:012X}.json"
                 )
                 other_exported = f"exported-{index}.json"
                 (root / other_exported).write_bytes(attachments[index][0])
@@ -1014,9 +1013,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
         self.assertNotIn("spawn", commands[0] + commands[1])
 
         patch_summary = copy.deepcopy(result_summary)
-        patch_summary["devicesAndConfigurations"][0]["device"]["osVersion"] = (
-            "26.5.1"
-        )
+        patch_summary["devicesAndConfigurations"][0]["device"]["osVersion"] = "26.5.1"
         patch_devices = {
             "devices": {
                 "com.apple.CoreSimulator.SimRuntime.iOS-26-5-1": [
@@ -1154,9 +1151,7 @@ class LocalSocialFixtureTests(unittest.TestCase):
             ],
         }
 
-        self.assertIs(
-            fixture.classify_attempt(event, {"P01-A02": attempt}), attempt
-        )
+        self.assertIs(fixture.classify_attempt(event, {"P01-A02": attempt}), attempt)
         for mutation in (
             lambda value: value.update({"content": marker}),
             lambda value: value.update({"content": f"prefix {marker}\n{url}"}),
@@ -1167,15 +1162,11 @@ class LocalSocialFixtureTests(unittest.TestCase):
         ):
             changed = copy.deepcopy(event)
             mutation(changed)
-            self.assertIsNone(
-                fixture.classify_attempt(changed, {"P01-A02": attempt})
-            )
+            self.assertIsNone(fixture.classify_attempt(changed, {"P01-A02": attempt}))
 
         text_attempt = {"flow": "Update", "marker": "rr-p01-a01-update"}
         embedded = {"content": "prefix rr-p01-a01-update", "tags": []}
-        self.assertIsNone(
-            fixture.classify_attempt(embedded, {"P01-A01": text_attempt})
-        )
+        self.assertIsNone(fixture.classify_attempt(embedded, {"P01-A01": text_attempt}))
 
 
 if __name__ == "__main__":

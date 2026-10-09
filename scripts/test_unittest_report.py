@@ -14,8 +14,44 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from scripts.fixture_tool_dispatch import CompilerCommand
+from scripts.fixture_test_policy import limit
+
 SECRET = "private exception, skip reason, and subtest parameter"
 SCRIPTS = Path(__file__).resolve().parent
+
+
+def observer_code_mutations(failure):
+    for table in ["", "executables", "methods"]:
+        for restored in [False, True]:
+            action = (
+                "function = type(result).addFailure; original = function.__code__; "
+            )
+            if restored:
+                action += "self.addCleanup(setattr, function, '__code__', original); "
+            action += "function.__code__ = (lambda self, test, err: self.addSuccess(test)).__code__; "
+            if table:
+                action += (
+                    "import sys; owner = sys.modules['__main__']; "
+                    "names = ['CALLBACK_EXECUTABLES', 'CALLBACK_METHODS']; "
+                    "previous = {name: getattr(owner, name, None) for name in names}; "
+                )
+                if restored:
+                    action += "self.addCleanup(lambda: [(setattr(owner, name, value) if value is not None else delattr(owner, name)) for name, value in previous.items() if value is not None or hasattr(owner, name)]); "
+                action += (
+                    "baseline = {**getattr(owner, 'CALLBACK_METHODS', {}), 'addFailure': function}; "
+                    "owner.CALLBACK_EXECUTABLES = {name: owner.origin.callable_identity(method) for name, method in baseline.items()}; "
+                )
+                if table == "methods":
+                    action += "owner.CALLBACK_METHODS = baseline; "
+            yield (
+                action,
+                (
+                    "try: " + failure + "\n        except AssertionError:\n"
+                    "            Path(__name__ + '.failure.executed').write_text(self.id())\n"
+                    "            raise"
+                ),
+            )
 
 
 class StandaloneReportTests(unittest.TestCase):
@@ -24,12 +60,14 @@ class StandaloneReportTests(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
         (self.root / "scripts").mkdir()
-        subprocess.run(
-            ["git", "init", "--quiet", str(self.root)], check=True, timeout=10
-        )
         shutil.copyfile(
             SCRIPTS / "unittest_report.py", self.root / "scripts/unittest_report.py"
         )
+        if (SCRIPTS / "unittest_report_origin.py").is_file():
+            shutil.copyfile(
+                SCRIPTS / "unittest_report_origin.py",
+                self.root / "scripts/unittest_report_origin.py",
+            )
         self.output = self.root / "report.json"
 
     def module(self, source, name="test_observed"):
@@ -38,24 +76,46 @@ class StandaloneReportTests(unittest.TestCase):
         return "scripts." + name
 
     def run_process(self, modules, output=None):
-        arguments = [
-            sys.executable,
-            "-m",
-            "scripts.unittest_report",
-            "--report",
-            str(output or self.output),
-            *modules,
-        ]
+        entry = getattr(self, "report_entry", ["scripts/unittest_report.py"])
+        output_path = str(output or self.output)
+        arguments = [sys.executable, *entry, "--report", output_path, *modules]
         record = self.probe_record(arguments, modules)
-        result = subprocess.run(
+        command = CompilerCommand(
             arguments,
-            cwd=self.root,
-            capture_output=True,
-            text=True,
-            timeout=30,
+            self.root,
+            getattr(self, "process_timeout", limit("reporter_child")),
             env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+            budget="reporter_child",
+        )
+        failure = None
+        try:
+            command.execute()
+        except BaseException as error:
+            failure = error
+        process = command.process
+        if process is None:
+            raise failure
+        result = subprocess.CompletedProcess(
+            arguments,
+            process.returncode,
+            bytes(command.output["stdout"]).decode(),
+            bytes(command.output["stderr"]).decode(),
         )
         if record is not None:
+            (record / "capture.json").write_text(json.dumps(command.record, indent=2))
+            (record / "settlement.json").write_text(
+                json.dumps(
+                    {
+                        "pid": process.pid,
+                        "reaped": process.poll() is not None,
+                        "timed_out": isinstance(failure, subprocess.TimeoutExpired),
+                        "group_absent": command.record["group_absent"],
+                        "pid_absent": not Path("/proc", str(process.pid)).exists()
+                        if sys.platform == "linux"
+                        else self.pid_absent(process.pid),
+                    }
+                )
+            )
             (record / "exit.txt").write_text(str(result.returncode))
             (record / "stdout.txt").write_text(result.stdout)
             (record / "stderr.txt").write_text(result.stderr)
@@ -65,7 +125,17 @@ class StandaloneReportTests(unittest.TestCase):
                 else b""
             )
             (record / "report.json").write_bytes(raw)
+        if failure:
+            raise failure
         return result
+
+    @staticmethod
+    def pid_absent(pid):
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return True
+        return False
 
     def probe_record(self, arguments, modules):
         evidence = os.environ.get("TERA_REPORT_TEST_EVIDENCE")
@@ -74,6 +144,7 @@ class StandaloneReportTests(unittest.TestCase):
         record = Path(tempfile.mkdtemp(prefix="probe-", dir=evidence))
         (record / "argv.json").write_text(json.dumps(arguments))
         (record / "cwd.txt").write_text(str(self.root))
+        (record / "test_id.txt").write_text(self.id())
         (record / "producer.py").write_bytes(
             (self.root / "scripts/unittest_report.py").read_bytes()
         )
@@ -587,7 +658,7 @@ class OutputIntegrityTests(unittest.TestCase):
             "schema": self.producer.SCHEMA,
             "test_ids": inventory,
             "tests_run": result.testsRun,
-            "callbacks": result.callbacks,
+            "callbacks": [dict(event) for event in result.callbacks],
         }
 
     def output(self, name):
@@ -716,7 +787,7 @@ class ObserverBoundTests(unittest.TestCase):
             root = Path(temporary).resolve()
             (root / "scripts").mkdir()
             (root / "scripts/test_observed.py").write_text("pass\n")
-            with patch.object(producer.importlib.util, "find_spec") as find:
+            with patch.object(importlib.util, "find_spec") as find:
                 find.return_value.origin = str(root / "foreign.py")
                 with self.assertRaises(producer.ReportError):
                     producer.load_modules(root, ["scripts.test_observed"])

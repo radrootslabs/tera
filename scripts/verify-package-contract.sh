@@ -9,29 +9,6 @@ uv run --project "$python_project" --offline --frozen \
 
 sh "$repo_root/scripts/ffi-provenance.sh" contract-check
 
-(
-	cd "$repo_root"
-	uv run --project "$python_project" --offline --frozen \
-		python -m unittest \
-		scripts/test_app_source.py \
-		scripts/test_release_evidence.py \
-		scripts/test_package_contract.py \
-		scripts/test_package_privacy.py \
-		scripts/test_legacy_identifiers.py \
-		scripts/test_app_dependency_graph.py \
-		scripts/test_ffi_provenance.py \
-		scripts/test_ffi_native.py \
-		scripts/test_unittest_report.py \
-		scripts/test_ffi_artifacts.py \
-		scripts/test_ffi_installed.py \
-		scripts/test_kotlin_smoke.py \
-		scripts/test_xcode_selection.py \
-		scripts/test_local_social_fixture.py \
-		scripts/test_persona_attachment_selection.py \
-		scripts/test_local_social_relay.py \
-		scripts/test_legacy_upgrade_fixture.py
-)
-
 sh "$repo_root/scripts/persona-verifier.sh" verify-bud11-corpus \
 	--corpus "$repo_root/test-fixtures/bud11-upload-authorization-mutations.v1.json" \
 	--schema "$repo_root/test-fixtures/bud11-upload-authorization-mutations.v1.schema.json"

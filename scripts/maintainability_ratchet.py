@@ -10,11 +10,63 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from authored_source_inventory import InventoryError, source_files
+
 MAX_BASELINE_BYTES = 256 * 1024
 BASELINE_PATH = Path("test-fixtures/maintainability-baseline.v1.json")
-SWIFT_ROOTS = (Path("Tera"), Path("TeraTests"), Path("TeraUITests"))
-PYTHON_ROOT = Path("scripts")
-EXCLUDED_SWIFT_ROOT = Path("Tera/Generated")
+
+# Approved pre-ratchet ceilings. Candidate baseline changes cannot enlarge them.
+APPROVED_EXCEPTIONS = {
+    "swift_file_exception": {
+        "Tera/Runtime/TeraGeneratedRuntimeBackend.swift": 1188,
+        "Tera/Runtime/TeraRuntimeClient.swift": 820,
+        "Tera/Runtime/TeraRuntimeModels.swift": 1154,
+        "Tera/State/TeraAddStore.swift": 783,
+        "Tera/State/TeraConfigurationStore.swift": 759,
+        "TeraTests/TeraAddStoreTests.swift": 1366,
+        "TeraTests/TeraStateMigrationTests.swift": 718,
+        "TeraUITests/TeraRemoteQualificationUITests.swift": 1924,
+    },
+    "python_file_exception": {
+        "scripts/local-social-fixture.py": 2626,
+        "scripts/test_local_social_fixture.py": 1188,
+    },
+    "python_complexity_exception": {
+        "scripts/local-social-fixture.py:FixtureState._publish_persona_event": 13,
+        "scripts/local-social-fixture.py:FixtureState.upload": 14,
+        "scripts/local-social-fixture.py:RelayHandler.handle": 26,
+        "scripts/local-social-fixture.py:bounded_directory_inventory": 12,
+        "scripts/local-social-fixture.py:directory_digest": 16,
+        "scripts/local-social-fixture.py:exact_persona_test_node": 11,
+        "scripts/local-social-fixture.py:load_exported_persona_attachments": 31,
+        "scripts/local-social-fixture.py:matches": 22,
+        "scripts/local-social-fixture.py:photo_attempt_matches": 12,
+        "scripts/local-social-fixture.py:reconstruct_persona_result_v2": 66,
+        "scripts/local-social-fixture.py:simulator_metadata": 23,
+        "scripts/local-social-fixture.py:valid_blossom_authorization": 29,
+        "scripts/local-social-fixture.py:valid_bud11_server_domain": 12,
+        "scripts/local-social-fixture.py:valid_nostr_event": 16,
+        "scripts/local-social-fixture.py:validate_persona_attempt_evidence": 59,
+        "scripts/local-social-fixture.py:validate_persona_evidence": 31,
+        "scripts/local-social-fixture.py:validate_persona_result": 43,
+        "scripts/local-social-fixture.py:validate_persona_suite": 28,
+        "scripts/local-social-fixture.py:verify_bip340": 11,
+        "scripts/local-social-fixture.py:verify_persona": 18,
+        "scripts/test_local_social_fixture.py:mutate_bud11_event": 29,
+    },
+}
+ORIGINAL_BOUNDED_MODULES = frozenset(
+    (
+        "Tera/Runtime/TeraUserMessageClassifier.swift",
+        "Tera/Runtime/TeraUserMessages.swift",
+        "Tera/Views/TeraSupportSettingsSection.swift",
+        "scripts/maintainability_ratchet.py",
+        "scripts/package_contract.py",
+        "scripts/package_privacy.py",
+        "scripts/test_package_contract.py",
+        "scripts/test_package_privacy.py",
+    )
+)
 
 
 class MaintainabilityError(Exception):
@@ -145,19 +197,12 @@ def _load_baseline(repo_root: Path) -> dict[str, Any]:
 
 
 def _source_files(repo_root: Path) -> tuple[list[Path], list[Path]]:
-    swift = sorted(
-        path
-        for root in SWIFT_ROOTS
-        for path in (repo_root / root).rglob("*.swift")
-        if not path.is_symlink()
-        and not path.relative_to(repo_root).is_relative_to(EXCLUDED_SWIFT_ROOT)
-    )
-    python = sorted(
-        path for path in (repo_root / PYTHON_ROOT).glob("*.py") if not path.is_symlink()
-    )
-    if not swift or not python:
-        raise MaintainabilityError("maintainability source inventory is empty")
-    return swift, python
+    try:
+        return source_files(repo_root)
+    except InventoryError as error:
+        raise MaintainabilityError(
+            "maintainability source inventory is invalid"
+        ) from error
 
 
 def _line_inventory(repo_root: Path, paths: list[Path]) -> dict[str, int]:
@@ -252,6 +297,15 @@ def _thresholds(baseline: dict[str, Any]) -> dict[str, int]:
     return value
 
 
+def _verify_exception_ceilings(category: str, exceptions: dict[str, int]) -> None:
+    approved = APPROVED_EXCEPTIONS[category]
+    for identity, ceiling in exceptions.items():
+        if identity not in approved or ceiling > approved[identity]:
+            raise MaintainabilityError(
+                "approved exception inventory or ceiling regressed"
+            )
+
+
 def _verify_observed_metrics(
     baseline: dict[str, Any],
     observed: dict[str, dict[str, int]],
@@ -287,6 +341,7 @@ def _verify_observed_metrics(
         exceptions = _closed_exception_map(
             baseline[baseline_key], key_name=identity, ceiling_name=ceiling
         )
+        _verify_exception_ceilings(baseline_key, exceptions)
         _verify_metric(observed[metric], exceptions, thresholds[threshold], label)
 
 
@@ -298,6 +353,8 @@ def _verify_bounded_modules(
     modules = baseline["bounded_module"]
     if not isinstance(modules, list) or modules != sorted(set(modules)):
         raise MaintainabilityError("bounded module inventory differs")
+    if not ORIGINAL_BOUNDED_MODULES <= set(modules):
+        raise MaintainabilityError("original bounded module inventory regressed")
     all_lines = observed["swift_lines"] | observed["python_lines"]
     for path in modules:
         if path not in all_lines:

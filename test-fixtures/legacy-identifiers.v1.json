@@ -59,6 +59,20 @@
   },
   "entries": [
     {
+      "identifier": "radroots.tera.fixture-test-policy.v1",
+      "category": "verification_compatibility",
+      "occurrences": [
+        {
+          "path": "scripts/fixture_test_policy.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/fixture_test_policy.v1.json",
+          "count": 1
+        }
+      ]
+    },
+    {
       "identifier": "RADROOTS",
       "category": "public_namespace",
       "occurrences": [

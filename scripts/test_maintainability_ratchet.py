@@ -20,8 +20,17 @@ class MaintainabilityRatchetTests(unittest.TestCase):
         (root / "Tera").mkdir()
         (root / "TeraTests").mkdir()
         (root / "TeraUITests").mkdir()
+        (root / "TeraPublicAPITests").mkdir()
         (root / "scripts").mkdir()
+        (root / "scripts/legacy_fixture_writers").mkdir()
         (root / "test-fixtures").mkdir()
+        (root / "Package.swift").write_text("// package\n", encoding="utf-8")
+        for relative in ratchet.ORIGINAL_BOUNDED_MODULES:
+            path = root / relative
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "// bounded\n" if path.suffix == ".swift" else "# bounded\n"
+            )
         (root / "Tera/App.swift").write_text("struct App {}\n", encoding="utf-8")
         (root / "scripts/check.py").write_text(
             "def check():\n    return True\n", encoding="utf-8"
@@ -42,7 +51,13 @@ class MaintainabilityRatchetTests(unittest.TestCase):
             "swift_file_exception": [],
             "python_file_exception": [],
             "python_complexity_exception": [],
-            "bounded_module": ["Tera/App.swift", "scripts/check.py"],
+            "bounded_module": sorted(
+                {
+                    *ratchet.ORIGINAL_BOUNDED_MODULES,
+                    "Tera/App.swift",
+                    "scripts/check.py",
+                }
+            ),
         }
         baseline.update(overrides)
         (root / ratchet.BASELINE_PATH).write_text(
@@ -62,9 +77,11 @@ class MaintainabilityRatchetTests(unittest.TestCase):
     def test_exception_cannot_grow_or_become_stale(self) -> None:
         temporary, root = self._repository()
         with temporary:
-            path = root / "Tera/App.swift"
+            path = root / "Tera/Runtime/TeraRuntimeClient.swift"
             path.write_text("x\n" * 602, encoding="utf-8")
-            exception = [{"path": "Tera/App.swift", "maximum_lines": 601}]
+            exception = [
+                {"path": "Tera/Runtime/TeraRuntimeClient.swift", "maximum_lines": 601}
+            ]
             self._write_baseline(root, swift_file_exception=exception)
             with self.assertRaisesRegex(ratchet.MaintainabilityError, "regressed"):
                 ratchet.verify(root)
@@ -119,13 +136,20 @@ class MaintainabilityRatchetTests(unittest.TestCase):
     def test_bounded_module_must_exist_and_remain_small(self) -> None:
         temporary, root = self._repository()
         with temporary:
-            self._write_baseline(root, bounded_module=["Tera/Missing.swift"])
-            with self.assertRaisesRegex(ratchet.MaintainabilityError, "absent"):
-                ratchet.verify(root)
-            (root / "Tera/App.swift").write_text("x\n" * 601, encoding="utf-8")
             self._write_baseline(
                 root,
-                swift_file_exception=[{"path": "Tera/App.swift", "maximum_lines": 601}],
+                bounded_module=sorted(
+                    {*ratchet.ORIGINAL_BOUNDED_MODULES, "Tera/Missing.swift"}
+                ),
+            )
+            with self.assertRaisesRegex(ratchet.MaintainabilityError, "absent"):
+                ratchet.verify(root)
+            path = "Tera/Runtime/TeraRuntimeClient.swift"
+            (root / path).write_text("x\n" * 601, encoding="utf-8")
+            self._write_baseline(
+                root,
+                swift_file_exception=[{"path": path, "maximum_lines": 601}],
+                bounded_module=sorted({*ratchet.ORIGINAL_BOUNDED_MODULES, path}),
             )
             with self.assertRaisesRegex(ratchet.MaintainabilityError, "bounded"):
                 ratchet.verify(root)
@@ -148,6 +172,95 @@ class MaintainabilityRatchetTests(unittest.TestCase):
                     ratchet._closed_exception_map(
                         rows, key_name="path", ceiling_name="maximum_lines"
                     )
+
+    def test_joint_source_and_baseline_cannot_add_an_exception(self) -> None:
+        temporary, root = self._repository()
+        with temporary:
+            (root / "Tera/New.swift").write_text("x\n" * 601)
+            self._write_baseline(
+                root,
+                swift_file_exception=[{"path": "Tera/New.swift", "maximum_lines": 601}],
+            )
+            with self.assertRaisesRegex(
+                ratchet.MaintainabilityError, "approved exception"
+            ):
+                ratchet.verify(root)
+
+    def test_joint_source_and_baseline_cannot_increase_original_ceilings(self) -> None:
+        cases = [
+            (
+                "swift_file_exception",
+                "Tera/Runtime/TeraRuntimeClient.swift",
+                821,
+                "x\n",
+            ),
+            (
+                "python_file_exception",
+                "scripts/local-social-fixture.py",
+                2627,
+                "x = 1\n",
+            ),
+        ]
+        for category, path, ceiling, line in cases:
+            with self.subTest(category=category):
+                temporary, root = self._repository()
+                with temporary:
+                    (root / path).write_text(line * ceiling)
+                    self._write_baseline(
+                        root, **{category: [{"path": path, "maximum_lines": ceiling}]}
+                    )
+                    with self.assertRaisesRegex(
+                        ratchet.MaintainabilityError, "approved exception"
+                    ):
+                        ratchet.verify(root)
+
+    def test_joint_complexity_and_baseline_increase_is_rejected(self) -> None:
+        temporary, root = self._repository()
+        with temporary:
+            branches = "".join(
+                f"    if value == {index}:\n        return {index}\n"
+                for index in range(16)
+            )
+            (root / "scripts/local-social-fixture.py").write_text(
+                "def valid_nostr_event(value):\n" + branches + "    return -1\n"
+            )
+            self._write_baseline(
+                root,
+                python_complexity_exception=[
+                    {
+                        "function": "scripts/local-social-fixture.py:valid_nostr_event",
+                        "maximum_complexity": 17,
+                    }
+                ],
+            )
+            with self.assertRaisesRegex(
+                ratchet.MaintainabilityError, "approved exception"
+            ):
+                ratchet.verify(root)
+
+    def test_original_bounded_entry_cannot_be_removed(self) -> None:
+        temporary, root = self._repository()
+        with temporary:
+            original = set(ratchet.ORIGINAL_BOUNDED_MODULES)
+            original.remove("scripts/package_privacy.py")
+            self._write_baseline(root, bounded_module=sorted(original))
+            with self.assertRaisesRegex(
+                ratchet.MaintainabilityError, "original bounded"
+            ):
+                ratchet.verify(root)
+
+    def test_original_exception_can_decrease_and_disappear(self) -> None:
+        temporary, root = self._repository()
+        with temporary:
+            path = "Tera/Runtime/TeraRuntimeClient.swift"
+            (root / path).write_text("x\n" * 810)
+            self._write_baseline(
+                root, swift_file_exception=[{"path": path, "maximum_lines": 810}]
+            )
+            ratchet.verify(root)
+            (root / path).write_text("x\n" * 600)
+            self._write_baseline(root)
+            ratchet.verify(root)
 
 
 if __name__ == "__main__":

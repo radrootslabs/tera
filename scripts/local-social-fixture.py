@@ -18,7 +18,6 @@ import signal
 import socket
 import socketserver
 import stat
-import subprocess
 import struct
 import sys
 import threading
@@ -29,6 +28,15 @@ from typing import Any
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import SchemaError, ValidationError
+
+try:
+    from scripts.fixture_tool_dispatch import selector_command as run_selector_command
+    from scripts import fixture_connections as connections
+except ModuleNotFoundError as error:
+    if error.name != "scripts":
+        raise
+    from fixture_tool_dispatch import selector_command as run_selector_command
+    import fixture_connections as connections
 
 MAX_HTTP_BODY = 16 * 1024 * 1024
 MAX_WEBSOCKET_MESSAGE = 2 * 1024 * 1024
@@ -229,21 +237,15 @@ def validate_persona_suite(value: Any) -> dict[str, Any]:
             ):
                 raise ValueError("persona attempt is not exact")
             attempts.append(attempt)
-    if (
-        [item["expected_failure"] for item in attempts].count("validation_recovery")
-        != 1
-    ):
+    if [item["expected_failure"] for item in attempts].count(
+        "validation_recovery"
+    ) != 1:
         raise ValueError("persona suite must contain one validation-recovery vector")
-    if (
-        [item["expected_failure"] for item in attempts].count(
-            "transport_retry_relaunch"
-        )
-        != 1
-    ):
+    if [item["expected_failure"] for item in attempts].count(
+        "transport_retry_relaunch"
+    ) != 1:
         raise ValueError("persona suite must contain one transport-retry vector")
-    if any(
-        sum(item["flow"] == flow for item in attempts) != 3 for flow in FLOW_KINDS
-    ):
+    if any(sum(item["flow"] == flow for item in attempts) != 3 for flow in FLOW_KINDS):
         raise ValueError("each Add flow must have exactly three attempts")
     return root
 
@@ -357,9 +359,7 @@ def schema_contains_external_reference(value: Any) -> bool:
     return False
 
 
-def validate_schema_instance(
-    schema: dict[str, Any], value: Any, name: str
-) -> None:
+def validate_schema_instance(schema: dict[str, Any], value: Any, name: str) -> None:
     try:
         Draft202012Validator(schema).validate(value)
     except ValidationError as error:
@@ -433,9 +433,7 @@ class FixtureState:
         self._identity_by_persona: dict[str, str] = {}
         self._persona_by_identity: dict[str, str] = {}
         self._accepted_uploads_by_persona = {alias: 0 for alias in PERSONA_ALIASES}
-        self._uploaded_digests_by_persona = {
-            alias: set() for alias in PERSONA_ALIASES
-        }
+        self._uploaded_digests_by_persona = {alias: set() for alias in PERSONA_ALIASES}
         self._retrievals_by_persona = {alias: set() for alias in PERSONA_ALIASES}
         self._unknown_attempts = 0
         self._duplicate_attempts = 0
@@ -506,9 +504,8 @@ class FixtureState:
             public_key = event["pubkey"]
             existing_identity = self._identity_by_persona.get(persona)
             existing_persona = self._persona_by_identity.get(public_key)
-            if (
-                (existing_identity is not None and existing_identity != public_key)
-                or (existing_persona is not None and existing_persona != persona)
+            if (existing_identity is not None and existing_identity != public_key) or (
+                existing_persona is not None and existing_persona != persona
             ):
                 self._unintended_publications += 1
                 self._write_evidence_locked()
@@ -833,8 +830,7 @@ def photo_attempt_matches(event: dict[str, Any], attempt: dict[str, Any]) -> boo
         if isinstance(tag, list) and tag[:1] == ["imeta"]
     ]
     return len(imeta) == 1 and all(
-        field in imeta[0]
-        for field in (f"url {url}", f"x {digest}", "m image/png")
+        field in imeta[0] for field in (f"url {url}", f"x {digest}", "m image/png")
     )
 
 
@@ -842,8 +838,7 @@ def identity_digest(public_key: str | None) -> str:
     if public_key is None:
         return "0" * 64
     return hashlib.sha256(
-        b"radroots.ios.local-social.persona-identity.v1\0"
-        + bytes.fromhex(public_key)
+        b"radroots.ios.local-social.persona-identity.v1\0" + bytes.fromhex(public_key)
     ).hexdigest()
 
 
@@ -869,9 +864,7 @@ def point_add(
             return None
         slope = (3 * left[0] * left[0]) * pow(2 * left[1], -1, SECP256K1_FIELD)
     else:
-        slope = (right[1] - left[1]) * pow(
-            right[0] - left[0], -1, SECP256K1_FIELD
-        )
+        slope = (right[1] - left[1]) * pow(right[0] - left[0], -1, SECP256K1_FIELD)
     slope %= SECP256K1_FIELD
     x = (slope * slope - left[0] - right[0]) % SECP256K1_FIELD
     y = (slope * (left[0] - x) - left[1]) % SECP256K1_FIELD
@@ -908,10 +901,13 @@ def verify_bip340(public_key: bytes, message: bytes, signature: bytes) -> bool:
         return False
     if y & 1:
         y = SECP256K1_FIELD - y
-    challenge = int.from_bytes(
-        tagged_hash("BIP0340/challenge", signature[:32] + public_key + message),
-        "big",
-    ) % SECP256K1_ORDER
+    challenge = (
+        int.from_bytes(
+            tagged_hash("BIP0340/challenge", signature[:32] + public_key + message),
+            "big",
+        )
+        % SECP256K1_ORDER
+    )
     negative = (x, (-y) % SECP256K1_FIELD)
     candidate = point_add(
         point_multiply(s, SECP256K1_GENERATOR),
@@ -946,8 +942,7 @@ def valid_bud11_server_domain(value: Any) -> bool:
         labels = value.split(".")
         return not all(label.isdigit() for label in labels) and all(
             1 <= len(label) <= 63
-            and re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label)
-            is not None
+            and re.fullmatch(r"[a-z0-9](?:[a-z0-9-]*[a-z0-9])?", label) is not None
             for label in labels
         )
     return isinstance(address, ipaddress.IPv4Address) and str(address) == value
@@ -960,8 +955,7 @@ def valid_bud11_content(value: Any) -> bool:
         and len(value.encode("utf-8")) <= BUD11_CONTENT_MAX_BYTES
         and value.strip() == value
         and not any(
-            unicodedata.category(character) == "Cc"
-            and character not in "\t\n\r"
+            unicodedata.category(character) == "Cc" and character not in "\t\n\r"
             for character in value
         )
     )
@@ -1039,6 +1033,10 @@ def valid_blossom_authorization(
 class ObservableLoopbackServerMixin:
     _fixture_state: FixtureState
 
+    def __init__(self, server_address, handler, state):
+        self._fixture_state = state
+        super().__init__(server_address, handler)
+
     def verify_request(
         self, request: socket.socket, client_address: tuple[str, int]
     ) -> bool:
@@ -1047,32 +1045,18 @@ class ObservableLoopbackServerMixin:
 
 
 class ReusableThreadingServer(
-    ObservableLoopbackServerMixin, socketserver.ThreadingTCPServer
+    ObservableLoopbackServerMixin,
+    connections.OwnedConnectionsMixin,
+    socketserver.ThreadingTCPServer,
 ):
     allow_reuse_address = True
     daemon_threads = True
 
-    def __init__(
-        self,
-        server_address: tuple[str, int],
-        handler: type[socketserver.BaseRequestHandler],
-        state: FixtureState,
-    ) -> None:
-        self._fixture_state = state
-        super().__init__(server_address, handler)
-
 
 class ObservableLoopbackHTTPServer(
-    ObservableLoopbackServerMixin, http.server.ThreadingHTTPServer
+    ObservableLoopbackServerMixin, connections.OwnedHTTPServer
 ):
-    def __init__(
-        self,
-        server_address: tuple[str, int],
-        handler: type[http.server.BaseHTTPRequestHandler],
-        state: FixtureState,
-    ) -> None:
-        self._fixture_state = state
-        super().__init__(server_address, handler)
+    pass
 
 
 class LoopbackConnectionFactory:
@@ -1082,9 +1066,7 @@ class LoopbackConnectionFactory:
 
     @staticmethod
     def blossom(port: int, state: FixtureState) -> ObservableLoopbackHTTPServer:
-        return ObservableLoopbackHTTPServer(
-            ("127.0.0.1", port), BlossomHandler, state
-        )
+        return ObservableLoopbackHTTPServer(("127.0.0.1", port), BlossomHandler, state)
 
 
 class RelayHandler(socketserver.BaseRequestHandler):
@@ -1161,25 +1143,11 @@ class RelayHandler(socketserver.BaseRequestHandler):
 
 
 def read_until(stream: socket.socket, marker: bytes, maximum: int) -> bytes:
-    value = bytearray()
-    while marker not in value:
-        chunk = stream.recv(4096)
-        if not chunk:
-            raise ConnectionError("socket closed")
-        value.extend(chunk)
-        if len(value) > maximum:
-            raise ValueError("request too large")
-    return bytes(value)
+    return connections.recv_until(stream, marker, maximum)
 
 
-def read_exact(stream: socket.socket, length: int) -> bytes:
-    value = bytearray()
-    while len(value) < length:
-        chunk = stream.recv(length - len(value))
-        if not chunk:
-            raise ConnectionError("socket closed")
-        value.extend(chunk)
-    return bytes(value)
+def read_exact(stream: socket.socket, length: int, until=None) -> bytes:
+    return connections.recv_exact(stream, length, until)
 
 
 def read_frame(stream: socket.socket) -> tuple[int, bytes] | None:
@@ -1187,20 +1155,24 @@ def read_frame(stream: socket.socket) -> tuple[int, bytes] | None:
         # Idle is not a failure vector; partial frames retain the read deadline.
         while not select.select([stream], [], [], 15)[0]:
             pass
-        first, second = read_exact(stream, 2)
-    except (ConnectionError, OSError, TimeoutError):
+        return read_frame_body(stream, connections.deadline())
+    except (ConnectionError, OSError, ValueError):
         return None
+
+
+def read_frame_body(stream: socket.socket, until: float) -> tuple[int, bytes] | None:
+    first, second = read_exact(stream, 2, until)
     if first & 0x80 == 0 or second & 0x80 == 0:
         return None
     length = second & 0x7F
     if length == 126:
-        length = struct.unpack("!H", read_exact(stream, 2))[0]
+        length = struct.unpack("!H", read_exact(stream, 2, until))[0]
     elif length == 127:
-        length = struct.unpack("!Q", read_exact(stream, 8))[0]
+        length = struct.unpack("!Q", read_exact(stream, 8, until))[0]
     if length > MAX_WEBSOCKET_MESSAGE:
         return None
-    mask = read_exact(stream, 4)
-    payload = bytearray(read_exact(stream, length))
+    mask = read_exact(stream, 4, until)
+    payload = bytearray(read_exact(stream, length, until))
     for index in range(length):
         payload[index] ^= mask[index % 4]
     return first & 0x0F, bytes(payload)
@@ -1228,6 +1200,11 @@ class BlossomHandler(http.server.BaseHTTPRequestHandler):
     state: FixtureState
     protocol_version = "HTTP/1.1"
 
+    def setup(self) -> None:
+        super().setup()
+        self.rfile.close()
+        self.rfile = connections.http_reader(self.connection)
+
     def do_PUT(self) -> None:  # noqa: N802
         if self.path != "/upload":
             self.send_error(404)
@@ -1249,6 +1226,9 @@ class BlossomHandler(http.server.BaseHTTPRequestHandler):
             self.send_error(400)
             return
         body = self.rfile.read(length)
+        if len(body) != length:
+            self.send_error(400)
+            return
         accepted, descriptor = self.state.upload(
             body, media_type, expected_hash, authorization
         )
@@ -1564,11 +1544,23 @@ def simulator_metadata(udid: str, result_bundle: Path) -> dict[str, str]:
 
 def validate_persona_evidence(value: Any, suite: dict[str, Any]) -> dict[str, Any]:
     keys = {
-        "schema", "schema_version", "personas", "flow_counts", "accepted_events",
-        "event_kind_counts", "upload_attempts", "accepted_uploads", "retrievals",
-        "distinct_identities", "unknown_attempts", "duplicate_attempts",
-        "expected_failure_rejections", "events_accepted_during_expected_failures",
-        "accepted_connections", "rejected_connections", "non_loopback_attempts",
+        "schema",
+        "schema_version",
+        "personas",
+        "flow_counts",
+        "accepted_events",
+        "event_kind_counts",
+        "upload_attempts",
+        "accepted_uploads",
+        "retrievals",
+        "distinct_identities",
+        "unknown_attempts",
+        "duplicate_attempts",
+        "expected_failure_rejections",
+        "events_accepted_during_expected_failures",
+        "accepted_connections",
+        "rejected_connections",
+        "non_loopback_attempts",
         "production_network_contacts",
         "unintended_publications",
         "final_candidate_data_loss",
@@ -1650,8 +1642,7 @@ def validate_persona_evidence(value: Any, suite: dict[str, Any]) -> dict[str, An
                 or attempt["accepted"] is not True
                 or attempt["expected_failure_rejections"]
                 != int(
-                    expected_attempt["expected_failure"]
-                    == "transport_retry_relaunch"
+                    expected_attempt["expected_failure"] == "transport_retry_relaunch"
                 )
             ):
                 raise ValueError("attempt evidence row is invalid")
@@ -1733,15 +1724,11 @@ def validate_persona_attempt_evidence(
         or not lowercase_hex(attempt["public_identity_sha256"], 64)
         or attempt["public_identity_sha256"] == "0" * 64
         or not lowercase_hex(attempt["endpoint_policy_sha256"], 64)
-        or not re.fullmatch(
-            r"[a-z0-9][a-z0-9-]{6,62}[a-z0-9]", attempt["run_id"]
-        )
+        or not re.fullmatch(r"[a-z0-9][a-z0-9-]{6,62}[a-z0-9]", attempt["run_id"])
     ):
         raise ValueError("persona attempt evidence header is invalid")
     source = exact_keys(attempt["source"], {"commit", "tree"}, "attempt source")
-    if not lowercase_hex(source["commit"], 40) or not lowercase_hex(
-        source["tree"], 40
-    ):
+    if not lowercase_hex(source["commit"], 40) or not lowercase_hex(source["tree"], 40):
         raise ValueError("persona attempt source identity is invalid")
     simulator = exact_keys(
         attempt["simulator"], {"udid", "os", "architecture"}, "attempt simulator"
@@ -1852,8 +1839,7 @@ def validate_persona_attempt_evidence(
     )
     if (
         accessibility["locale"] != "en_US"
-        or accessibility["content_size"]
-        != "accessibility-extra-extra-extra-large"
+        or accessibility["content_size"] != "accessibility-extra-extra-extra-large"
         or accessibility["reduce_motion"] is not True
         or any(
             type(accessibility[key]) is not bool
@@ -1868,9 +1854,13 @@ def validate_persona_attempt_evidence(
         or accessibility["visible_actions"] is not True
         or accessibility["voiceover_user_observed"] is not False
         or accessibility["progressive_disclosure"]
-        is not (expected_persona["interaction_profile"] == "novice_progressive_disclosure")
+        is not (
+            expected_persona["interaction_profile"] == "novice_progressive_disclosure"
+        )
         or accessibility["keyboard_focus"]
-        is not (expected_persona["interaction_profile"] == "novice_accessibility_keyboard")
+        is not (
+            expected_persona["interaction_profile"] == "novice_accessibility_keyboard"
+        )
     ):
         raise ValueError("persona attempt accessibility evidence is invalid")
     artifacts = attempt["artifact_digests"]
@@ -1932,18 +1922,8 @@ def exact_persona_test_node(value: Any) -> dict[str, Any]:
     return match
 
 
-def run_json_command_bounded(command: list[str], maximum: int) -> Any:
-    process = subprocess.Popen(command, stdout=subprocess.PIPE)
-    assert process.stdout is not None
-    raw = process.stdout.read(maximum + 1)
-    process.stdout.close()
-    if len(raw) > maximum:
-        process.kill()
-        process.wait()
-        raise ValueError("command JSON output exceeds its byte bound")
-    return_code = process.wait()
-    if return_code != 0:
-        raise subprocess.CalledProcessError(return_code, command)
+def run_json_command_bounded(command: list[str], maximum: int, *, timeout=None) -> Any:
+    raw = run_selector_command(command, maximum_stdout=maximum, timeout=timeout).stdout
     if not raw:
         raise ValueError("command JSON output exceeds its byte bound")
     return json.loads(raw, object_pairs_hook=strict_object)
@@ -2007,14 +1987,18 @@ def load_exported_persona_attachments(
         "arguments",
     }
     for row_value in group["attachments"]:
-        if not isinstance(row_value, dict) or not {
-            "exportedFileName",
-            "suggestedHumanReadableName",
-            "isAssociatedWithFailure",
-            "configurationName",
-            "deviceName",
-            "deviceId",
-        }.issubset(row_value) or not set(row_value).issubset(allowed_manifest_keys):
+        if (
+            not isinstance(row_value, dict)
+            or not {
+                "exportedFileName",
+                "suggestedHumanReadableName",
+                "isAssociatedWithFailure",
+                "configurationName",
+                "deviceName",
+                "deviceId",
+            }.issubset(row_value)
+            or not set(row_value).issubset(allowed_manifest_keys)
+        ):
             raise ValueError("xcresult attachment row is invalid")
         exported = row_value["exportedFileName"]
         name = row_value["suggestedHumanReadableName"]
@@ -2050,7 +2034,9 @@ def load_exported_persona_attachments(
             raise ValueError("xcresult attachment name does not bind its attempt")
         total_bytes += len(raw)
         if total_bytes > MAX_PERSONA_ATTACHMENTS_BYTES:
-            raise ValueError("xcresult attempt attachments exceed their aggregate bound")
+            raise ValueError(
+                "xcresult attempt attachments exceed their aggregate bound"
+            )
         attachments_by_name[canonical_name] = (raw, attempt)
     if tuple(sorted(attachments_by_name)) != tuple(sorted(PERSONA_ATTACHMENT_NAMES)):
         raise ValueError("xcresult persona attachment inventory is incomplete")
@@ -2085,6 +2071,7 @@ def extract_persona_attempt_attachments(
         PERSONA_ATTACHMENT_NAMES,
         MAX_XCRESULT_JSON_BYTES,
         MAX_PERSONA_ATTACHMENT_BYTES,
+        run_selector_command,
     )
     return module.extract(
         result_bundle,
@@ -2159,9 +2146,7 @@ def reconstruct_persona_result_v2(
             raise ValueError("persona result identity reuse is invalid")
         identity = identities.pop()
         identity_by_persona[alias] = identity
-        subscriptions = sum(
-            row["network_observation"]["subscriptions"] for row in rows
-        )
+        subscriptions = sum(row["network_observation"]["subscriptions"] for row in rows)
         if subscriptions < 1:
             raise ValueError("persona result is missing a subscription")
         persona_rows.append(
@@ -2219,7 +2204,8 @@ def reconstruct_persona_result_v2(
         "unknown_attempts": len(
             set(expected_ids) - {row["attempt_id"] for row in attempts}
         ),
-        "duplicate_attempts": len(attempts) - len({row["attempt_id"] for row in attempts}),
+        "duplicate_attempts": len(attempts)
+        - len({row["attempt_id"] for row in attempts}),
         "expected_failure_rejections": sum(
             attempt["ui_observation"]["validation_rejected"]
             or attempt["ui_observation"]["retry_attempts"] > 0
@@ -2228,9 +2214,15 @@ def reconstruct_persona_result_v2(
         "events_accepted_during_expected_failures": sum(
             row["events_accepted_during_expected_failure"] for row in network_rows
         ),
-        "accepted_connections": sum(row["accepted_connections"] for row in network_rows),
-        "rejected_connections": sum(row["rejected_connections"] for row in network_rows),
-        "non_loopback_attempts": sum(row["non_loopback_attempts"] for row in network_rows),
+        "accepted_connections": sum(
+            row["accepted_connections"] for row in network_rows
+        ),
+        "rejected_connections": sum(
+            row["rejected_connections"] for row in network_rows
+        ),
+        "non_loopback_attempts": sum(
+            row["non_loopback_attempts"] for row in network_rows
+        ),
         "unintended_publications": sum(
             row["unintended_publications"] for row in network_rows
         ),
@@ -2429,8 +2421,7 @@ def validate_persona_result(
                 or attempt["accepted"] is not True
                 or attempt["expected_failure_rejections"]
                 != int(
-                    expected_attempt["expected_failure"]
-                    == "transport_retry_relaunch"
+                    expected_attempt["expected_failure"] == "transport_retry_relaunch"
                 )
             ):
                 raise ValueError("attempt result row is invalid")
@@ -2499,7 +2490,10 @@ def verify_persona(arguments: argparse.Namespace) -> int:
     output = Path(arguments.output).resolve()
     output.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     raw, reloaded = read_json(output)
-    if raw != (json.dumps(reloaded, indent=2) + "\n").encode("utf-8") or reloaded != result:
+    if (
+        raw != (json.dumps(reloaded, indent=2) + "\n").encode("utf-8")
+        or reloaded != result
+    ):
         raise ValueError("persona v2 result is noncanonical")
     print(
         "local-social measured persona result verified: "

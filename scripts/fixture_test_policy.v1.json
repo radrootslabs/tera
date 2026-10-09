@@ -1,0 +1,23 @@
+{
+  "schema": "radroots.tera.fixture-test-policy.v1",
+  "id": "tera_fixture_busy_workstation_v1",
+  "phase": "pre_mvp_20261008",
+  "limits": {
+    "compiler": 30,
+    "native_helper": 30,
+    "release_command": 120,
+    "reporter_child": 120,
+    "selector_command": 120,
+    "xcode_readiness": 30,
+    "xcode_wrapper": 60,
+    "aggregate": 600,
+    "partition": 900,
+    "hostile_parser": 3,
+    "leaf_cleanup": 2,
+    "root_cleanup": 4
+  },
+  "caps": {"stdout": 1048576, "stderr": 65536},
+  "clock": "one monotonic deadline before the existing spawn call",
+  "functional_short_intervals_unchanged": true,
+  "quiet_workstation_required": false
+}
