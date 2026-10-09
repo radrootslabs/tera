@@ -149,6 +149,10 @@ mod admission_tests;
 mod visibility_tests;
 
 #[cfg(all(test, feature = "mobile-social"))]
+#[path = "today_interruption_tests.rs"]
+mod interruption_tests;
+
+#[cfg(all(test, feature = "mobile-social"))]
 #[path = "today_author_visibility_tests.rs"]
 mod author_visibility_tests;
 
