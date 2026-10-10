@@ -20,6 +20,59 @@ mod retraction;
 mod support;
 
 #[tokio::test]
+async fn context_aggregate_admission_and_debug_remain_typed_at_native_boundary() {
+    let (_root, runtime) = support::runtime().await;
+    let context = FfiLocalNetworkRecord {
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        id: "nearby".into(),
+        label: "private-label-sentinel".into(),
+        relay_urls: vec!["wss://relay.example".into()],
+        locality: Some("private-location-sentinel".into()),
+        followed_authors: (0..4096).map(|index| format!("{index:064x}")).collect(),
+        generation: 7,
+    };
+    assert_eq!(
+        runtime.phase1_local_network(context.clone()).unwrap(),
+        context
+    );
+    let debug = format!("{context:?}");
+    for sentinel in [
+        &context.id,
+        &context.label,
+        &context.relay_urls[0],
+        context.locality.as_ref().unwrap(),
+        &context.followed_authors[0],
+    ] {
+        assert!(!debug.contains(sentinel));
+    }
+    assert!(debug.contains("followed_author_count: 4096"));
+    assert!(debug.contains("generation: 7"));
+    let mut over = context.clone();
+    over.followed_authors.push(format!("{:064x}", 4096));
+    let mut duplicate = context.clone();
+    duplicate.followed_authors = vec!["a".repeat(64), "a".repeat(64)];
+    let mut malformed = context.clone();
+    malformed.followed_authors = vec!["A".repeat(64)];
+    let mut aggregate = context.clone();
+    aggregate.followed_authors = vec!["x".repeat(262_145)];
+    for invalid in [over, duplicate, malformed, aggregate] {
+        let TeraAppError::Failure { report } = runtime
+            .phase1_search(invalid, "carrot".into(), 20, 1_800_000_000, "UTC".into())
+            .await
+            .unwrap_err();
+        assert_eq!(report.code, "invalid_local_network");
+        assert!(!report.retryable);
+        assert_eq!(report.recovery_actions, ["correct_input"]);
+    }
+    runtime.shutdown().await.unwrap();
+    let TeraAppError::Failure { report } = runtime
+        .phase1_search(context, "carrot".into(), 20, 1_800_000_000, "UTC".into())
+        .await
+        .unwrap_err();
+    assert_eq!(report.code, "client_closed");
+}
+
+#[tokio::test]
 async fn search_byte_admission_preserves_typed_native_failure() {
     let (_root, runtime) = support::runtime().await;
     let context = FfiLocalNetworkRecord {

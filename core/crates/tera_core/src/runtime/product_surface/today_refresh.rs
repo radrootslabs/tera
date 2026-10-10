@@ -12,6 +12,7 @@ impl TeraRuntime {
         if now_unix_seconds == 0 {
             return Err(TodayError::InvalidRequest);
         }
+        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
         let requested_updated_at_unix_ms = now_unix_seconds
             .checked_mul(1_000)
             .ok_or(TodayError::InvalidRequest)?;
@@ -37,8 +38,6 @@ impl TeraRuntime {
             Some(state) => Some(state),
             None => calendar_migration::legacy_state(storage, context).await?,
         };
-        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
-
         if update == TodayProjectionUpdate::Incremental
             && prior.as_ref().is_some_and(|state| {
                 state.source_events == event_status.raw_events()

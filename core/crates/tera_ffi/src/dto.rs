@@ -41,6 +41,7 @@ pub use viewer_calendar::{FfiViewerCalendarContext, TODAY_PAGE_FFI_SCHEMA_VERSIO
 mod calendar;
 pub use calendar::{FfiCalendarTiming, FfiCivilDate, TODAY_CARD_FFI_SCHEMA_VERSION};
 
+mod local_network_debug;
 mod today_sync;
 pub use today_sync::{
     FfiTodayDiscoveryRecord, FfiTodayRelaySyncState, FfiTodaySyncRecord, FfiTodaySyncTermination,
@@ -464,7 +465,7 @@ pub struct FfiCardAddParityRecord {
     pub command_type: FfiAddCommandType,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+#[derive(Clone, Eq, PartialEq, uniffi::Record)]
 pub struct FfiLocalNetworkRecord {
     pub schema_version: u16,
     pub id: String,

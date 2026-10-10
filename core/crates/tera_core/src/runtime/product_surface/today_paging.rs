@@ -46,6 +46,7 @@ impl TeraRuntime {
         } else if request.as_of.is_none() || request.viewer_time_zone.is_none() {
             return Err(TodayError::InvalidRequest);
         }
+        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
         let first_calendar = request
             .as_of
             .map(|as_of| {
@@ -64,7 +65,6 @@ impl TeraRuntime {
             .as_deref()
             .map(TodayCursor::scope)
             .transpose()?;
-        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
         if let Some(scope) = &decoded_scope {
             if scope.context_id != context.id
                 || scope.context_generation != context.generation

@@ -12,6 +12,151 @@ const EVENT_COUNT: u64 = 10_000;
 const NOW: u64 = 2_000_000_000;
 
 #[tokio::test]
+async fn context_rejection_precedes_all_scoped_storage_work() {
+    let (_root, runtime, counts) = counted_sqlite().await;
+    let original = context(None, 1);
+    let mut invalid = Vec::new();
+    let mut value = original.clone();
+    value.followed_authors = (0..4097).map(|index| format!("{index:064x}")).collect();
+    invalid.push(value);
+    for authors in [
+        vec!["a".repeat(64), "a".repeat(64)],
+        vec!["A".repeat(64)],
+        vec!["x".repeat(262_145)],
+    ] {
+        let mut value = original.clone();
+        value.followed_authors = authors;
+        invalid.push(value);
+    }
+    for relays in [
+        vec![],
+        vec![
+            "wss://relay.example".into(),
+            "WSS://RELAY.EXAMPLE:443/".into(),
+        ],
+        vec!["invalid".into()],
+        vec!["x".repeat(2049)],
+        (0..65)
+            .map(|index| format!("wss://relay{index}.example"))
+            .collect(),
+    ] {
+        let mut value = original.clone();
+        value.relay_urls = relays;
+        invalid.push(value);
+    }
+    let mut value = original.clone();
+    value.label = "x".repeat(1_048_576);
+    invalid.push(value);
+    let mut value = original.clone();
+    value.locality = Some("invalid\0location".into());
+    invalid.push(value);
+    let mut wire = serde_json::to_value(&original).unwrap();
+    wire["followedAuthors"] = serde_json::json!(["a".repeat(63)]);
+    invalid.push(serde_json::from_value(wire).unwrap());
+    for selected in &invalid {
+        for operation in 0..5 {
+            counts.take();
+            let result = match operation {
+                0 => runtime
+                    .phase1_search(selected, "carrot", 20, NOW, "UTC")
+                    .await
+                    .map(|_| ()),
+                1 => runtime
+                    .phase1_me(selected, &keys().public_key().to_string(), NOW, "UTC")
+                    .await
+                    .map(|_| ()),
+                2 => runtime
+                    .phase1_today_page(selected, TodayPageRequest::first(20, NOW, "UTC"))
+                    .await
+                    .map(|_| ()),
+                3 => runtime
+                    .phase1_today_reconcile(selected, NOW, &[], None, "UTC")
+                    .await
+                    .map(|_| ()),
+                _ => runtime
+                    .phase1_refresh_today(selected, NOW, TodayProjectionUpdate::Rebuild)
+                    .await
+                    .map(|_| ()),
+            };
+            assert!(
+                matches!(result, Err(TodayError::InvalidRequest)),
+                "invalid context in operation{operation}"
+            );
+            assert!(
+                counts.take().is_empty(),
+                "rejected context must not touch storage"
+            );
+        }
+    }
+    runtime.shutdown().await.unwrap();
+    counts.take();
+    assert!(matches!(
+        runtime
+            .phase1_search(&invalid[0], "carrot", 20, NOW, "UTC")
+            .await,
+        Err(TodayError::Lifecycle(_))
+    ));
+    assert!(counts.take().is_empty());
+}
+
+#[tokio::test]
+async fn context_maximum_preserves_complete_scope_and_query_behavior() {
+    let (_root, runtime, counts) = counted_sqlite().await;
+    let mut selected = context(None, 1);
+    selected.followed_authors = (0..4096).map(|index| format!("{index:064x}")).collect();
+    let mut expected = Sha256::new();
+    expected.update(b"tera.today-query-scope.v1\0");
+    expected
+        .update(encode(&(&selected, runtime.store_public_key.map(|key| key.to_hex()))).unwrap());
+    let expected: [u8; 32] = expected.finalize().into();
+    assert_eq!(
+        paging_scope::query_scope(&selected, runtime.store_public_key).unwrap(),
+        expected
+    );
+    runtime
+        .phase1_refresh_today(&selected, NOW, TodayProjectionUpdate::Rebuild)
+        .await
+        .unwrap();
+    counts.take();
+    assert!(
+        runtime
+            .phase1_search(&selected, "carrot", 20, NOW, "UTC")
+            .await
+            .unwrap()
+            .is_empty()
+    );
+    assert!(
+        runtime
+            .phase1_me(&selected, &keys().public_key().to_string(), NOW, "UTC")
+            .await
+            .unwrap()
+            .cards
+            .is_empty()
+    );
+    assert!(
+        runtime
+            .phase1_today_page(&selected, TodayPageRequest::first(20, NOW, "UTC"))
+            .await
+            .unwrap()
+            .items
+            .is_empty()
+    );
+    assert!(
+        runtime
+            .phase1_today_reconcile(&selected, NOW, &[], None, "UTC")
+            .await
+            .unwrap()
+            .items
+            .is_empty()
+    );
+    assert!(
+        !counts.take().is_empty(),
+        "accepted context must reach real storage"
+    );
+    runtime.shutdown().await.unwrap();
+}
+
+#[tokio::test]
 async fn search_rejects_raw_and_normalized_boundaries_before_storage() {
     let (_root, runtime, counts) = counted_sqlite().await;
     let selected = context(None, 1);

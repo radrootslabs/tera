@@ -327,6 +327,9 @@ impl TeraRuntime {
         viewer_time_zone: &str,
     ) -> Result<Vec<SearchResult>, TodayError> {
         let _command = self.lifecycle.enter()?;
+        context
+            .validate_query_context()
+            .map_err(|_| TodayError::InvalidRequest)?;
         if limit == 0
             || limit > TODAY_SEARCH_LIMIT_MAX
             || as_of == 0
@@ -410,6 +413,9 @@ impl TeraRuntime {
         viewer_time_zone: &str,
     ) -> Result<MeSnapshot, TodayError> {
         let _command = self.lifecycle.enter()?;
+        context
+            .validate_query_context()
+            .map_err(|_| TodayError::InvalidRequest)?;
         let calendar = super::ViewerCalendarContext::new(as_of, viewer_time_zone)?;
         if !valid_public_key(public_key) || as_of == 0 {
             return Err(TodayError::InvalidRequest);

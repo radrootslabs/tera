@@ -8,9 +8,15 @@ use super::LocalNetworkId;
 
 const CONTEXT_TEXT_MAX_BYTES: usize = 256;
 const RELAY_URL_MAX_BYTES: usize = 2_048;
+const FOLLOWED_AUTHORS_MAX_ITEMS: usize = 4_096;
+const FOLLOWED_AUTHORS_MAX_BYTES: usize = 262_144;
+
+#[cfg(test)]
+#[path = "context_admission_tests.rs"]
+mod admission_tests;
 
 /// A validated local query/composer context. It has no Nostr event identity.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LocalNetwork {
     pub id: LocalNetworkId,
@@ -19,6 +25,17 @@ pub struct LocalNetwork {
     pub locality: Option<String>,
     pub followed_authors: Vec<String>,
     pub generation: u64,
+}
+
+impl std::fmt::Debug for LocalNetwork {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("LocalNetwork")
+            .field("relay_count", &self.relay_urls.len())
+            .field("followed_author_count", &self.followed_authors.len())
+            .field("generation", &self.generation)
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Debug, Error, Eq, PartialEq)]
@@ -77,58 +94,64 @@ impl LocalNetwork {
         generation: u64,
         relay_policy: LocalNetworkRelayPolicy,
     ) -> Result<Self, LocalNetworkError> {
-        let id = LocalNetworkId::new(id)?;
-        validate_text(&label, "label")?;
-        if let Some(locality) = locality.as_deref() {
-            validate_text(locality, "locality")?;
+        let mut network = Self {
+            id: LocalNetworkId::new(id)?,
+            label,
+            relay_urls,
+            locality,
+            followed_authors,
+            generation,
+        };
+        network.relay_urls = network.validate(Some(relay_policy))?;
+        Ok(network)
+    }
+
+    /// Revalidates public mutable/decoded query data without granting transport access.
+    pub(crate) fn validate_query_context(&self) -> Result<(), LocalNetworkError> {
+        self.validate(None).map(|_| ())
+    }
+
+    fn validate(
+        &self,
+        relay_policy: Option<LocalNetworkRelayPolicy>,
+    ) -> Result<Vec<String>, LocalNetworkError> {
+        // Check every aggregate/raw bound before parsing, deduplication or hashing.
+        if self.followed_authors.len() > FOLLOWED_AUTHORS_MAX_ITEMS
+            || self
+                .followed_authors
+                .iter()
+                .try_fold(0usize, |total, value| total.checked_add(value.len()))
+                .is_none_or(|total| total > FOLLOWED_AUTHORS_MAX_BYTES)
+        {
+            return Err(LocalNetworkError::InvalidAuthor);
         }
-        if relay_urls.is_empty() {
+        if self.relay_urls.is_empty() {
             return Err(LocalNetworkError::MissingRelay);
         }
-        if relay_urls.len() > radroots_transport::target::TARGET_SET_MAX_ITEMS {
+        if self.relay_urls.len() > radroots_transport::target::TARGET_SET_MAX_ITEMS
+            || self
+                .relay_urls
+                .iter()
+                .any(|relay| relay.is_empty() || relay.len() > RELAY_URL_MAX_BYTES)
+        {
             return Err(LocalNetworkError::InvalidRelay);
         }
+        validate_text(self.id.as_str(), "id")?;
+        validate_text(&self.label, "label")?;
+        if let Some(locality) = self.locality.as_deref() {
+            validate_text(locality, "locality")?;
+        }
+        validate_authors(&self.followed_authors)?;
         let mut relays = BTreeSet::new();
-        let mut canonical_relay_urls = Vec::with_capacity(relay_urls.len());
-        for relay in relay_urls {
-            if relay.is_empty() || relay.len() > RELAY_URL_MAX_BYTES {
-                return Err(LocalNetworkError::InvalidRelay);
-            }
-            let relay = RelayUrl::parse(
-                relay,
-                match relay_policy {
-                    LocalNetworkRelayPolicy::Public => RelayUrlPolicy::Public,
-                    LocalNetworkRelayPolicy::Simulator => RelayUrlPolicy::Local,
-                    LocalNetworkRelayPolicy::Device => RelayUrlPolicy::PrivateNetwork,
-                },
-            )
-            .map_err(|_| LocalNetworkError::InvalidRelay)?;
+        let mut canonical_relay_urls = Vec::with_capacity(self.relay_urls.len());
+        for relay in &self.relay_urls {
+            let relay = parse_relay(relay, relay_policy)?;
             if !relays.insert(relay.clone()) {
                 return Err(LocalNetworkError::DuplicateRelay);
             }
             canonical_relay_urls.push(relay.to_string());
         }
-        let mut authors = BTreeSet::new();
-        for author in &followed_authors {
-            if author.len() != 64
-                || !author
-                    .bytes()
-                    .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-            {
-                return Err(LocalNetworkError::InvalidAuthor);
-            }
-            if !authors.insert(author) {
-                return Err(LocalNetworkError::DuplicateAuthor);
-            }
-        }
-        Ok(Self {
-            id,
-            label,
-            relay_urls: canonical_relay_urls,
-            locality,
-            followed_authors,
-            generation,
-        })
+        Ok(canonical_relay_urls)
     }
 
     /// Applies the locked locality policy to the selected local context.
@@ -151,13 +174,52 @@ impl LocalNetwork {
 
 fn validate_text(value: &str, field: &'static str) -> Result<(), LocalNetworkError> {
     if value.is_empty()
-        || value.trim() != value
         || value.len() > CONTEXT_TEXT_MAX_BYTES
+        || value.trim() != value
         || value.chars().any(char::is_control)
     {
         return Err(LocalNetworkError::InvalidText { field });
     }
     Ok(())
+}
+
+fn validate_authors(authors: &[String]) -> Result<(), LocalNetworkError> {
+    let mut unique = BTreeSet::new();
+    for author in authors {
+        if author.len() != 64
+            || !author
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        {
+            return Err(LocalNetworkError::InvalidAuthor);
+        }
+        if !unique.insert(author) {
+            return Err(LocalNetworkError::DuplicateAuthor);
+        }
+    }
+    Ok(())
+}
+
+fn parse_relay(
+    relay: &str,
+    policy: Option<LocalNetworkRelayPolicy>,
+) -> Result<RelayUrl, LocalNetworkError> {
+    let policies: &[RelayUrlPolicy] = match policy {
+        Some(LocalNetworkRelayPolicy::Public) => &[RelayUrlPolicy::Public],
+        Some(LocalNetworkRelayPolicy::Simulator) => &[RelayUrlPolicy::Local],
+        Some(LocalNetworkRelayPolicy::Device) => &[RelayUrlPolicy::PrivateNetwork],
+        // Query contexts do not initiate connections. Retain all existing forms;
+        // exact constructor/FFI and transport destination policy remains separate.
+        None => &[
+            RelayUrlPolicy::Public,
+            RelayUrlPolicy::Local,
+            RelayUrlPolicy::PrivateNetwork,
+        ],
+    };
+    policies
+        .iter()
+        .find_map(|policy| RelayUrl::parse(relay, *policy).ok())
+        .ok_or(LocalNetworkError::InvalidRelay)
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]

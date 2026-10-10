@@ -25,6 +25,7 @@ impl TeraRuntime {
         if as_of == 0 || card_ids.len() > usize::from(TODAY_PAGE_LIMIT_MAX) {
             return Err(TodayError::InvalidRequest);
         }
+        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
         let calendar = super::super::ViewerCalendarContext::new(as_of, viewer_time_zone)?;
         let selected = card_ids
             .iter()
@@ -33,7 +34,6 @@ impl TeraRuntime {
         if selected.len() != card_ids.len() {
             return Err(TodayError::InvalidRequest);
         }
-        let query_scope = paging_scope::query_scope(context, self.store_public_key)?;
         let storage = self
             .client
             .storage()

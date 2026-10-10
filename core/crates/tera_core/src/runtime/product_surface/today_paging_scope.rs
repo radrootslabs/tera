@@ -14,6 +14,9 @@ pub(super) fn query_scope(
     context: &LocalNetwork,
     owner: Option<PublicKey>,
 ) -> Result<[u8; 32], TodayError> {
+    context
+        .validate_query_context()
+        .map_err(|_| TodayError::InvalidRequest)?;
     let mut digest = Sha256::new();
     digest.update(b"tera.today-query-scope.v1\0");
     // Serialize an unambiguous tuple of the full context and runtime identity.

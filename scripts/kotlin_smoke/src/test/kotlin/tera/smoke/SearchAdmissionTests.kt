@@ -17,6 +17,21 @@ class SearchAdmissionTests {
             val runtime = fixture.runtime()
             val context = FfiLocalNetworkRecord(1u, "nearby", "Nearby", listOf("wss://relay.example"), null, emptyList(), 1uL)
             try {
+                val authors = (0 until 4096).map { it.toString(16).padStart(64, '0') }
+                val maximum = context.copy(followedAuthors = authors)
+                assertEquals(authors, runtime.phase1LocalNetwork(maximum).followedAuthors)
+                for (invalidAuthors in listOf(
+                    authors + 4096.toString(16).padStart(64, '0'),
+                    listOf("a".repeat(64), "a".repeat(64)),
+                    listOf("A".repeat(64)), listOf("x".repeat(262_145)),
+                )) {
+                    val failure = assertFailsWith<TeraAppException.Failure> {
+                        runtime.phase1Search(context.copy(followedAuthors = invalidAuthors), "carrot", 20u, UNIX_S, "UTC")
+                    }
+                    assertEquals("invalid_local_network", failure.report.code)
+                    assertFalse(failure.report.retryable)
+                    assertEquals(listOf("correct_input"), failure.report.recoveryActions)
+                }
                 runtime.phase1RefreshToday(context, UNIX_S, FfiTodayProjectionUpdate.REBUILD)
                 for (query in listOf(
                     "x".repeat(257), "é".repeat(128) + "a",

@@ -154,6 +154,7 @@ let package = Package(
         "Runtime/TeraRuntimeClientDraftInventory.swift",
         "Runtime/TeraRuntimeTodayClient.swift",
         "Runtime/TeraRuntimeModels.swift",
+        "Runtime/TeraRuntimeContext.swift",
         "Runtime/TeraTodaySyncModels.swift",
         "Runtime/TeraTodayPageModels.swift",
         "Runtime/TeraRuntimeInvalidation.swift",
