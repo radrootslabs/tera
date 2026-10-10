@@ -20,7 +20,7 @@ default_features = true
 features = []
 
 [build]
-rust_version = "1.97.1"
+rust_version = "1.99.0"
 profile = "release"
 native_input_policy = "closed_apple_c_v1"
 ios_deployment_target = "18.0"

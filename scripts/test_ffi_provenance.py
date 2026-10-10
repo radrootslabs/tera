@@ -138,7 +138,7 @@ class ProducerSourceTests(unittest.TestCase):
             "foundation": {"revision": "b" * 40},
             "build": {
                 "target": "aarch64-apple-ios",
-                "rustc": "rustc 1.97.1",
+                "rustc": "rustc 1.99.0",
                 "features": [],
                 "package_rust_flags": [],
                 "feature_graph": ["tera_core|mobile-social"],

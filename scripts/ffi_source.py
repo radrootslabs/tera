@@ -167,7 +167,7 @@ def validate_build(value: Any) -> None:
         },
         "producer build fields",
     )
-    contract._exact(value["rust_version"], "1.97.1", "producer Rust version")
+    contract._exact(value["rust_version"], "1.99.0", "producer Rust version")
     contract._exact(value["profile"], "release", "producer build profile")
     contract._exact(
         value["native_input_policy"],

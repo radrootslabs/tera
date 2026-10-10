@@ -7,7 +7,7 @@ if [[ -z "${EXT_BUILD_RUN_ACTIVE:-}" || -z "${EXT_BUILD_PROJECT_DIR:-}" ]]; then
 fi
 
 readonly SOURCE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-readonly RUNNER_IMAGE="docker.io/library/rust:1.97.1-slim-trixie@sha256:fc0648ac2962539be80bd424729a20fd80f7b64bfba7e90bbd642aed6c697c5a"
+readonly RUNNER_IMAGE="docker.io/library/rust:1.99.0-slim-trixie@sha256:2752b332db73fdbb7dc576f06c82ed1f312005784ef913d7e04a28f5f55dc581"
 readonly RUNNER_ROOT="$EXT_BUILD_PROJECT_DIR/linux-x86_64"
 readonly RUNNER_CARGO_HOME="$RUNNER_ROOT/cargo-home"
 readonly RUNNER_TARGET="$RUNNER_ROOT/target"

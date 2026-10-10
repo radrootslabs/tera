@@ -56,7 +56,7 @@ extbuild output; this command does not install them into the native app.
 
 - macOS with Xcode and an iOS 18-or-newer simulator
 - XcodeGen
-- Rust `1.97.1-aarch64-apple-darwin` with `llvm-tools` and the iOS device and simulator targets
+- Rust `1.99.0-aarch64-apple-darwin` with `llvm-tools` and the iOS device and simulator targets
 - SwiftFormat and the locked Python verifier installed by bootstrap
 - JDK 21 on Apple silicon for the generated Kotlin binding smoke
 - `cargo-extbuild` configured for the checkout

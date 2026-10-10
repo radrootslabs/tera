@@ -468,7 +468,12 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
         return data, status
 
     def lifecycle(
-        self, operation: str, mode: str, forwarded: int | None = None
+        self,
+        operation: str,
+        mode: str,
+        forwarded: int | None = None,
+        *,
+        launch_timeout: float = 5,
     ) -> None:
         self.check_previous_cleanup()
         self.sequence += 1
@@ -550,7 +555,7 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
                     self.assertEqual(status, 128 + forwarded)
                     self.assertFalse(ready.exists())
                 elif mode in ("preflight", "missing", "not-executable"):
-                    status = process.wait(timeout=5)
+                    status = process.wait(timeout=launch_timeout)
                     data = json.loads(preflight.read_text())
                     expected = {"preflight": 1, "missing": 127, "not-executable": 126}[
                         mode
@@ -586,9 +591,10 @@ class PhysicalXcodeLifecycleTests(unittest.TestCase):
             self.restore_role(process, mode, xcode, previous_mode, prefix)
 
     def every_branch(self, mode: str, forwarded: int | None = None) -> None:
+        timeout = limit("native_helper") if mode in ("missing", "not-executable") else 5
         for operation in self.OPERATIONS:
             with self.subTest(operation=operation, mode=mode):
-                self.lifecycle(operation, mode, forwarded)
+                self.lifecycle(operation, mode, forwarded, launch_timeout=timeout)
 
     def test_each_physical_branch_success_keeps_then_cleans_owned_lock(self) -> None:
         self.every_branch("success")

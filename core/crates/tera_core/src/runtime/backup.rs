@@ -64,7 +64,9 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| BackupError::Unavailable)?;
-        let generation = EventStore::status(store)
+        // Backup binds canonical source identity. Derived visibility may still
+        // be rebuilding after migration and is not a snapshot prerequisite.
+        let generation = EventStore::source_token(store)
             .await
             .map_err(|_| BackupError::Unavailable)?
             .generation();

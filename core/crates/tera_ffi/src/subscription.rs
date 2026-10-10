@@ -43,7 +43,7 @@ impl SubscriptionHub {
     ) -> Result<Arc<FfiSubscriptionHandle>, TeraAppError> {
         let id = self
             .next_id
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |id| id.checked_add(1))
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |id| id.checked_add(1))
             .map_err(|_| subscription_error("subscription_limit_reached", false))?;
         {
             let mut subscriptions = self

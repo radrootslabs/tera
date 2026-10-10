@@ -10,6 +10,17 @@ async fn actual_legacy_backup_restore_keeps_hidden_media_and_requires_fresh_orig
     let runtime = fixture.open(true).await;
     fixture.assert_revisions(&runtime).await;
     fixture.assert_statuses(&runtime).await;
+    let store = runtime.client.storage().unwrap();
+    assert_eq!(
+        radroots_storage::EventStore::status(store)
+            .await
+            .unwrap_err(),
+        radroots_storage::Error::VisibilityRebuilding
+    );
+    let source = radroots_storage::EventStore::source_token(store)
+        .await
+        .unwrap();
+    assert_eq!(source.generation(), config.source_generation());
     let files = Files::new(&fixture);
     let now = phase1_operation_now_unix_ms().unwrap();
     let backup = BackupRequest::new(
@@ -24,6 +35,18 @@ async fn actual_legacy_backup_restore_keeps_hidden_media_and_requires_fresh_orig
         .capture_application_backup(backup.clone(), &files)
         .await
         .unwrap();
+    assert_eq!(
+        radroots_storage::EventStore::source_token(store)
+            .await
+            .unwrap(),
+        source
+    );
+    assert_eq!(
+        radroots_storage::EventStore::status(store)
+            .await
+            .unwrap_err(),
+        radroots_storage::Error::VisibilityRebuilding
+    );
     assert_eq!(manifest.media().len(), 1);
     assert_eq!(
         manifest.media()[0].sha256,
@@ -50,6 +73,12 @@ async fn actual_legacy_backup_restore_keeps_hidden_media_and_requires_fresh_orig
     let runtime = controlled_runtime(&fixture, guard.clone(), source.clone()).await;
     fixture.assert_revisions(&runtime).await;
     fixture.assert_statuses(&runtime).await;
+    assert_eq!(
+        radroots_storage::EventStore::status(runtime.client.storage().unwrap())
+            .await
+            .unwrap_err(),
+        radroots_storage::Error::VisibilityRebuilding
+    );
     assert_eq!(
         runtime.review_restored_work().await,
         Err(RestoreError::ReconciliationRequired)

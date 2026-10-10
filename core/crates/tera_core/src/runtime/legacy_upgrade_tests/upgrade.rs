@@ -68,11 +68,10 @@ async fn legacy_future_version_and_damaged_catalog_refuse_without_rewriting_ackn
         let result = crate::runtime::builder::RuntimeBuilder::new(config)
             .build()
             .await;
-        let expected_code = if name == "unsupported_version" {
-            "schema_too_new"
-        } else {
-            "storage_integrity_failed"
-        };
+        // This immutable version18 derivative was future input to its original
+        // reader. Under the current reader it has an incomplete catalog. Keep
+        // the historical bytes and qualify genuinely future input separately.
+        let expected_code = "storage_integrity_failed";
         match result {
             Err(crate::TeraAppError::Sdk { report }) => assert_eq!(report.code, expected_code),
             _ => {
@@ -89,4 +88,45 @@ async fn legacy_future_version_and_damaged_catalog_refuse_without_rewriting_ackn
         fixture.assert_statuses(&runtime).await;
         runtime.shutdown().await.unwrap();
     }
+}
+
+#[tokio::test]
+async fn current_future_schema_refuses_without_rewriting_either_acknowledged_owner() {
+    let fixture = Fixture::copy();
+    let config = fixture.config(false);
+    let runtime = fixture.open(false).await;
+    fixture.assert_revisions(&runtime).await;
+    fixture.assert_statuses(&runtime).await;
+    runtime.shutdown().await.unwrap();
+    drop(runtime);
+
+    let runtime_path = config.owner_directory().join("runtime.sqlite");
+    let private_path = config.owner_directory().join("private.sqlite");
+    let admitted = std::fs::read(&runtime_path).unwrap();
+    let private_before = std::fs::read(&private_path).unwrap();
+    assert_eq!(&admitted[..16], b"SQLite format 3\0");
+    // SQLite's documented user_version is four big-endian bytes at offset60:
+    // https://sqlite.org/fileformat2.html#user_version_number
+    let current = u32::from_be_bytes(admitted[60..64].try_into().unwrap());
+    assert!(current > 18);
+    let future = current.checked_add(1).unwrap();
+    assert!(future <= i32::MAX as u32);
+    let mut negative = admitted.clone();
+    negative[60..64].copy_from_slice(&future.to_be_bytes());
+    std::fs::write(&runtime_path, &negative).unwrap();
+    match crate::runtime::builder::RuntimeBuilder::new(config)
+        .build()
+        .await
+    {
+        Err(crate::TeraAppError::Sdk { report }) => assert_eq!(report.code, "schema_too_new"),
+        _ => panic!("A genuinely future schema must produce its typed refusal"),
+    }
+    assert_eq!(std::fs::read(&runtime_path).unwrap(), negative);
+    assert_eq!(std::fs::read(private_path).unwrap(), private_before);
+    // Restore only this disposable test copy to its admitted current bytes.
+    std::fs::write(runtime_path, admitted).unwrap();
+    let runtime = fixture.open(false).await;
+    fixture.assert_revisions(&runtime).await;
+    fixture.assert_statuses(&runtime).await;
+    runtime.shutdown().await.unwrap();
 }

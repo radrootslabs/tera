@@ -93,7 +93,8 @@ async fn install(
     host: &dyn RestoreHost,
 ) -> Result<(), E> {
     let store = client.storage().map_err(|_| E::Unavailable)?;
-    let generation = EventStore::status(store)
+    // Cold restore validates canonical identity before any derived rebuild.
+    let generation = EventStore::source_token(store)
         .await
         .map_err(|_| E::Unavailable)?
         .generation();
@@ -120,7 +121,7 @@ async fn setup(
     manifest: &ApplicationBackupManifest,
 ) -> Result<(), E> {
     let store = client.storage().map_err(|_| E::Unavailable)?;
-    let generation = EventStore::status(store)
+    let generation = EventStore::source_token(store)
         .await
         .map_err(|_| E::Unavailable)?
         .generation();
