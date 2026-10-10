@@ -9,6 +9,32 @@ final class TeraAccessibilityAudit {
     self.test = test
   }
 
+  static func assertNoFindings(_ findings: [String], file: StaticString = #filePath, line: UInt = #line) {
+    XCTAssertTrue(findings.isEmpty, "Unresolved accessibility findings:\n" + findings.joined(separator: "\n"),
+                  file: file, line: line)
+  }
+
+  static func retainFinding(_ description: String, elementLabel: String?, in findings: inout [String]) -> Bool {
+    findings.append("\(description): \(elementLabel ?? "unidentified")")
+    // Continuing a native scan does not waive the mandatory caller assertion.
+    return true
+  }
+
+  static func contrastDisposition(label: String?, isEnabled: Bool, cameraIsDisabled: Bool,
+                                  isRequestedTarget: Bool,
+                                  isPartlyOccluded: Bool) -> TeraAccessibilityContrastDisposition
+  {
+    guard let label else { return .retain }
+    if label == "Camera", !isEnabled, cameraIsDisabled {
+      return .disabledCamera
+    }
+    return !isRequestedTarget && isPartlyOccluded ? .recheck : .retain
+  }
+
+  static func failContrastRechecks(file: StaticString = #filePath, line: UInt = #line) {
+    XCTFail("Not all partially obscured contrast findings passed an unobscured recheck", file: file, line: line)
+  }
+
   func run(_ app: XCUIApplication, dynamicType: Bool = false, includeContrast: Bool = true) throws -> [String] {
     // Native scans can move focus and scroll position. Audit clipping before
     // those scans and retain every finding, including unidentified ones.
@@ -225,12 +251,17 @@ private extension TeraAccessibilityAudit {
         guard let element = issue.element else { return self.retainFinding(issue) }
         // SC 1.4.3 exempts inactive controls. Keep this bound to the actual
         // disabled camera control; no active text or clipping finding is exempt.
-        if element.label == "Camera", !element.isEnabled,
-           app.buttons["Camera"].exists, !app.buttons["Camera"].isEnabled {
-             return true
-           }
         let key = self.contrastKey(element)
-        guard key != targetKey, self.isPartlyOccluded(element, app: app) else { return self.retainFinding(issue) }
+        let camera = app.buttons["Camera"]
+        let disposition = Self.contrastDisposition(label: element.label, isEnabled: element.isEnabled,
+                                                   cameraIsDisabled: camera.exists && !camera.isEnabled,
+                                                   isRequestedTarget: key == targetKey,
+                                                   isPartlyOccluded: self.isPartlyOccluded(element, app: app))
+        switch disposition {
+        case .disabledCamera: return true
+        case .retain: return self.retainFinding(issue)
+        case .recheck: break
+        }
         if !verified.contains(key) {
           pending[key] = TeraAuditTarget(element, app: app)
         }
@@ -251,14 +282,11 @@ private extension TeraAccessibilityAudit {
       guard let next = pending.keys.sorted().first else { return }
       requested = pending.removeValue(forKey: next)
     }
-    XCTFail("Not all partially obscured contrast findings passed an unobscured recheck")
+    Self.failContrastRechecks()
   }
 
   func retainFinding(_ issue: XCUIAccessibilityAuditIssue) -> Bool {
-    findings.append("\(issue.compactDescription): \(issue.element?.label ?? "unidentified")")
-    // Return every finding to the calling test for a mandatory assertion.
-    // Continuing this scan does not waive the finding.
-    return true
+    Self.retainFinding(issue.compactDescription, elementLabel: issue.element?.label, in: &findings)
   }
 
   func contrastKey(_ element: XCUIElement) -> String {
@@ -273,6 +301,10 @@ private extension TeraAccessibilityAudit {
     return frame.minY < app.frame.maxY && frame.maxY > app.frame.minY
       && !TeraAccessibilityNavigation.contains(frame, top: top, bottom: bottom)
   }
+}
+
+enum TeraAccessibilityContrastDisposition: Equatable {
+  case retain, recheck, disabledCamera
 }
 
 private struct TeraAuditTarget {

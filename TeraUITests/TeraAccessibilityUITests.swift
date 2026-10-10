@@ -6,7 +6,7 @@ final class TeraAccessibilityUITests: XCTestCase {
 
   override func tearDown() async throws {
     continueAfterFailure = true
-    XCTAssertTrue(auditFindings.isEmpty, "Unresolved accessibility findings:\n" + auditFindings.joined(separator: "\n"))
+    TeraAccessibilityAudit.assertNoFindings(auditFindings)
     auditFindings.removeAll()
     try await super.tearDown()
   }

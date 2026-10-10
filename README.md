@@ -172,10 +172,12 @@ cargo extbuild run -- scripts/xcode.sh local-social-ui-test \
   accessibility
 ```
 
-Element-bound clipping findings remain fatal. The harness tolerates only
-Xcode's elementless clipping diagnostics and narrowly identified contrast
-false positives for disabled controls, system-chrome overlap, and the
-black-on-white Submit button.
+Clipping and unidentified findings remain fatal, as do active contrast
+findings. The sole contrast exception is the actual disabled Camera control.
+Partly obscured elements must be exposed and pass a new native contrast audit;
+system-chrome overlap does not waive a finding. Exhausting the bounded recheck
+attempts fails the test. Both audit callers assert that no findings remain,
+including findings returned while a native scan continues.
 
 Passing `persona` runs the strict five-persona, 15-attempt deterministic
 local-social matrix serially. Each persona receives a fresh run-scoped native

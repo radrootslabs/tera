@@ -197,6 +197,7 @@ targets:
       - path: TeraUITests/TeraRootShellUITests.swift
       - path: TeraUITests/TeraAccessibilityUITests.swift
       - path: TeraUITests/TeraAccessibilityAudit.swift
+      - path: TeraUITests/TeraAccessibilityAuditPolicyUITests.swift
       - path: TeraUITests/TeraEditingProtectionUITests.swift
       - path: TeraUITests/TeraRecoveryUITests.swift
       - path: TeraUITests/TeraPhotoQualificationInput.swift

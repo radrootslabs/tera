@@ -450,7 +450,7 @@ final class TeraRemoteQualificationUITests: XCTestCase {
     includeContrast: Bool = true
   ) throws {
     let findings = try TeraAccessibilityAudit(test: self).run(app, includeContrast: includeContrast)
-    XCTAssertTrue(findings.isEmpty, "Unresolved accessibility findings:\n" + findings.joined(separator: "\n"))
+    TeraAccessibilityAudit.assertNoFindings(findings)
   }
 
   @MainActor
