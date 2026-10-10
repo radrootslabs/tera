@@ -10,6 +10,9 @@ enum TeraSupportingLoadState: Sendable, Equatable {
 
 @MainActor
 final class TeraSearchStore: ObservableObject {
+    private static let rawQueryBytesMax = 256
+    private static let normalizedQueryBytesMax = 256
+
     @Published private(set) var query = ""
     @Published private(set) var results: [TeraSearchResult] = []
     @Published private(set) var state: TeraSupportingLoadState = .idle
@@ -38,7 +41,7 @@ final class TeraSearchStore: ObservableObject {
 
     func updateQuery(_ value: String) {
         generation = generation.invalidated()
-        query = String(value.prefix(256))
+        query = value
         results = []
         state = .idle
     }
@@ -48,11 +51,16 @@ final class TeraSearchStore: ObservableObject {
             state = .failed("Choose a local network before searching.")
             return
         }
+        guard query.utf8.count <= Self.rawQueryBytesMax,
+              !query.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+        else {
+            results = []
+            state = .idle
+            return
+        }
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !normalized.isEmpty,
-              normalized.utf8.count <= 256,
-              !normalized.contains(where: \.isNewline),
-              !normalized.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains)
+              normalized.lowercased().utf8.count <= Self.normalizedQueryBytesMax
         else {
             results = []
             state = .idle

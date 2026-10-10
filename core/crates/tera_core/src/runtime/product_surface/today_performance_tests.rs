@@ -12,6 +12,81 @@ const EVENT_COUNT: u64 = 10_000;
 const NOW: u64 = 2_000_000_000;
 
 #[tokio::test]
+async fn search_rejects_raw_and_normalized_boundaries_before_storage() {
+    let (_root, runtime, counts) = counted_sqlite().await;
+    let selected = context(None, 1);
+    for query in [
+        "x".repeat(257),
+        format!("{}a", "é".repeat(128)),
+        "é".repeat(129),
+        format!("{}carrots", " ".repeat(1_048_576)),
+        "x".repeat(1_048_576),
+        "   ".to_owned(),
+        "\ncarrots".to_owned(),
+        "carrots\0".to_owned(),
+        "İ".repeat(86),
+    ] {
+        counts.take();
+        let result = runtime
+            .phase1_search(&selected, &query, 20, NOW, "UTC")
+            .await;
+        let calls = counts.take();
+        assert!(
+            matches!(result, Err(TodayError::InvalidRequest)),
+            "Rejected query of {} raw bytes must retain typed invalid input",
+            query.len()
+        );
+        assert!(
+            calls.is_empty(),
+            "Rejected search must not touch storage: {calls:?}"
+        );
+    }
+    runtime.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn search_accepts_byte_boundaries_and_preserves_substring_behavior() {
+    let (_root, runtime, counts) = counted_sqlite().await;
+    let selected = context(None, 1);
+    let event = signed(1, vec![], "Fresh carrots", NOW - 1);
+    EventStore::admit(
+        runtime.client.storage().unwrap(),
+        visible_admission(event, NOW * 1_000),
+    )
+    .await
+    .unwrap();
+    runtime
+        .phase1_refresh_today(&selected, NOW, TodayProjectionUpdate::Rebuild)
+        .await
+        .unwrap();
+    for query in [
+        "x".repeat(256),
+        "é".repeat(128),
+        format!("{}a", "İ".repeat(85)),
+    ] {
+        counts.take();
+        assert!(
+            runtime
+                .phase1_search(&selected, &query, 20, NOW, "UTC")
+                .await
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            !counts.take().is_empty(),
+            "Valid search reaches the real projection"
+        );
+    }
+    let results = runtime
+        .phase1_search(&selected, "  CARROT  ", 20, NOW, "UTC")
+        .await
+        .unwrap();
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].result_type, SearchResultType::Card);
+    runtime.shutdown().await.unwrap();
+}
+
+#[tokio::test]
 async fn cached_sqlite_pages_do_not_decode_ten_thousand_source_events() {
     let (_root, runtime, counts) = counted_sqlite().await;
     let selected = context(None, 1);

@@ -51,6 +51,8 @@ const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 2;
 const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 4;
 const TODAY_PAGE_LIMIT_MAX: u16 = 100;
 const TODAY_SEARCH_LIMIT_MAX: u16 = 100;
+const TODAY_SEARCH_RAW_BYTES_MAX: usize = 256;
+const TODAY_SEARCH_NORMALIZED_BYTES_MAX: usize = 256;
 #[cfg(feature = "mobile-social")]
 const TODAY_SYNC_PAGE_LIMIT: u16 = 500;
 #[cfg(feature = "mobile-social")]
@@ -325,12 +327,19 @@ impl TeraRuntime {
         viewer_time_zone: &str,
     ) -> Result<Vec<SearchResult>, TodayError> {
         let _command = self.lifecycle.enter()?;
-        if limit == 0 || limit > TODAY_SEARCH_LIMIT_MAX || as_of == 0 {
+        if limit == 0
+            || limit > TODAY_SEARCH_LIMIT_MAX
+            || as_of == 0
+            || query.len() > TODAY_SEARCH_RAW_BYTES_MAX
+        {
             return Err(TodayError::InvalidRequest);
         }
         let calendar = super::ViewerCalendarContext::new(as_of, viewer_time_zone)?;
         let needle = query.trim().to_lowercase();
-        if needle.is_empty() || needle.len() > 256 || query.chars().any(char::is_control) {
+        if needle.is_empty()
+            || needle.len() > TODAY_SEARCH_NORMALIZED_BYTES_MAX
+            || query.chars().any(char::is_control)
+        {
             return Err(TodayError::InvalidRequest);
         }
         let storage = self

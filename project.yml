@@ -172,6 +172,7 @@ targets:
         buildPhase: resources
       - path: TeraTests/TeraClockTests.swift
       - path: TeraTests/TeraCalendarFFICompatibilityTests.swift
+      - path: TeraTests/TeraSearchFFICompatibilityTests.swift
       - path: TeraTests/TeraCalendarTimingTests.swift
       - path: TeraTests/TeraCalendarPresentationTests.swift
       - path: TeraTests/TeraCalendarEditingTests.swift

@@ -3,6 +3,49 @@ import XCTest
 
 final class TeraSupportingStoreTests: XCTestCase {
     @MainActor
+    func testSearchRejectsOversizedRawAndExpandedQueriesWithoutTruncationOrDispatch() async throws {
+        for query in [
+          String(repeating: "x", count: 257),
+          String(repeating: "é", count: 128) + "a",
+          String(repeating: " ", count: 1_048_576) + "carrots",
+          String(repeating: "x", count: 1_048_576),
+          "   ", "\ncarrots", "carrots\0", String(repeating: "İ", count: 86),
+        ] {
+            let backend = SupportingBackend()
+            let client = try await Self.startedClient(backend)
+            let store = TeraSearchStore(runtimeClient: client)
+            store.configure(context: Self.context(id: "farm"))
+            store.updateQuery(query)
+            XCTAssertEqual(store.query, query)
+            await store.search()
+            XCTAssertEqual(store.state, .idle)
+            XCTAssertTrue(store.results.isEmpty)
+            let request = await backend.lastSearchRequest()
+            XCTAssertNil(request)
+            _ = try await client.stop()
+        }
+    }
+
+    @MainActor
+    func testSearchAcceptsExactRawAndNormalizedByteBoundaries() async throws {
+        for query in [
+          String(repeating: "x", count: 256), String(repeating: "é", count: 128),
+          String(repeating: "İ", count: 85) + "a",
+        ] {
+            let backend = SupportingBackend()
+            let client = try await Self.startedClient(backend)
+            let store = TeraSearchStore(runtimeClient: client)
+            store.configure(context: Self.context(id: "farm"))
+            store.updateQuery(query)
+            await store.search()
+            let request = await backend.lastSearchRequest()
+            XCTAssertEqual(request?.query, query)
+            XCTAssertEqual(store.state, .loaded)
+            _ = try await client.stop()
+        }
+    }
+
+    @MainActor
     func testSearchUsesCurrentContextDeduplicatesAndClearsEmptyQueries() async throws {
         let backend = SupportingBackend()
         let client = try await Self.startedClient(backend)

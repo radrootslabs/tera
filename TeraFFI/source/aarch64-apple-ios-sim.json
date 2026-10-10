@@ -1872,10 +1872,10 @@
         "sha256": "1d105fa23b9914c466009402f60bf3de83be3cf302be39b818392d5ae11faa6c"
       },
       "core/crates/tera_core/src/runtime/product_surface/today.rs": {
-        "bytes": 129852,
-        "git_blob": "483f7941b32df0a5757dc8688398db914ad51713",
+        "bytes": 130103,
+        "git_blob": "4dfeba25d2cfafbf67d6f6ec345c8f67b5ce6dc3",
         "mode": "100644",
-        "sha256": "0c1f4b93e3f0bd38d2db86c16f38bb2015a750716ee6176952db653e71ace6bb"
+        "sha256": "ccd5b84abd0bd897438ea01fd014bf67a2d78d02f4a4be2481f177b0914db5c6"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_admission_tests.rs": {
         "bytes": 13548,
@@ -1992,10 +1992,10 @@
         "sha256": "e9ea1a0ee6c52031895184cd0a2b3c526318fd521ab2bd6b1b08ef53f3c9ff66"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_performance_tests.rs": {
-        "bytes": 7447,
-        "git_blob": "85fa8ca220fc7399b7bfc938590fc3e86a238df4",
+        "bytes": 9725,
+        "git_blob": "3e46dc627b8a0826fd26bfd2dd16e35590d75bfb",
         "mode": "100644",
-        "sha256": "61f1ede80fb3ebb7c288601b3530f0d3b51be65e32d3f1f9f362f36546074508"
+        "sha256": "0182c407fe4ff61c0a50d16a9c2d61a93a7ad79b177ac85ab0822c039fed341a"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_permissive_evidence_tests.rs": {
         "bytes": 1242,
@@ -2652,10 +2652,10 @@
         "sha256": "db41f36cd1d8f0dc9d1f6b065b0d4dbaaab7d11b01a185a05c5b478a5c7a5816"
       },
       "core/crates/tera_ffi/tests/runtime_delegation.rs": {
-        "bytes": 32771,
-        "git_blob": "87f18bfbabd578955c3bf0a0a9f79a193d77ca7c",
+        "bytes": 34760,
+        "git_blob": "5488322926e8abe4aaf395cccf58e0fe034754ce",
         "mode": "100644",
-        "sha256": "facba685b9148ca651a82c21acbd10c6b11b85ca067e23971739eb28e1b79a13"
+        "sha256": "56878042315d512ff14efc49a9c84affba55325ec3574308175b7283cfa3e451"
       },
       "core/crates/tera_ffi/tests/runtime_lifecycle.rs": {
         "bytes": 4293,
@@ -3006,10 +3006,10 @@
         "sha256": "26046966bece8c811a5b3edef191e2ea5b5c4be3187cf65a29f7edbe93cbb487"
       },
       "scripts/kotlin_smoke.py": {
-        "bytes": 11310,
-        "git_blob": "fd294e2b6e291624a52fc9276676ed471776f198",
+        "bytes": 11411,
+        "git_blob": "ecb9cd1e4830965e971968930dcc0fc38575898c",
         "mode": "100644",
-        "sha256": "c28be2b7d25dd5a19d8ca014f8e2f2e829fdf62f164a6436c0995427534e3e58"
+        "sha256": "e52e8963fba61482fe7abcf502d2ba2fdea4d67b48dd722a230fcf0b81c40e70"
       },
       "scripts/kotlin_smoke/build.gradle.kts": {
         "bytes": 1479,
@@ -3088,6 +3088,12 @@
         "git_blob": "797cac9ef8333394465d90cb26c3375fa4299208",
         "mode": "100644",
         "sha256": "01164253edfc8186d3ffb1aec19aef2f689b0ca448f9eac299aa1082f70c299e"
+      },
+      "scripts/kotlin_smoke/src/test/kotlin/tera/smoke/SearchAdmissionTests.kt": {
+        "bytes": 2134,
+        "git_blob": "3b39b5077bc6f702b9dccfd42490ede996c927e6",
+        "mode": "100644",
+        "sha256": "aca646aba37ff726958ced8b6f9cf25547b382774a18b7de0ea11f93cc189327"
       },
       "scripts/kotlin_smoke/src/test/kotlin/tera/smoke/SmokeFixture.kt": {
         "bytes": 4450,
@@ -3289,9 +3295,9 @@
       },
       "scripts/test_kotlin_smoke.py": {
         "bytes": 13269,
-        "git_blob": "eeb4ed3c56d16a0cea55c43645834a12c64c933e",
+        "git_blob": "0826fc620ed47d486be73aaeacc8e59ede2b4c06",
         "mode": "100644",
-        "sha256": "2906c6a93678def240cc43042845dcecfdc2c2e5efc4bdad7600c693c9bc72ba"
+        "sha256": "a0e7e96c3ddee9f1d547d09d0c569413047cd861db2ba212e4b09282db4648df"
       },
       "scripts/test_legacy_identifiers.py": {
         "bytes": 6406,
@@ -3409,6 +3415,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "ef097e38360e7b409184a4202de89991dedbb3c0"
+    "tree": "18b97c7c5e6b18469ec6b19ae25498d304efe4ce"
   }
 }

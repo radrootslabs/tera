@@ -20,6 +20,72 @@ mod retraction;
 mod support;
 
 #[tokio::test]
+async fn search_byte_admission_preserves_typed_native_failure() {
+    let (_root, runtime) = support::runtime().await;
+    let context = FfiLocalNetworkRecord {
+        schema_version: MOBILE_FFI_SCHEMA_VERSION,
+        id: "nearby".to_owned(),
+        label: "Nearby".to_owned(),
+        relay_urls: vec!["wss://relay.example".to_owned()],
+        locality: None,
+        followed_authors: vec![],
+        generation: 1,
+    };
+    runtime
+        .phase1_refresh_today(
+            context.clone(),
+            1_800_000_000,
+            FfiTodayProjectionUpdate::Rebuild,
+        )
+        .await
+        .unwrap();
+    for query in [
+        "x".repeat(257),
+        format!("{}a", "é".repeat(128)),
+        format!("{}carrots", " ".repeat(1_048_576)),
+        "x".repeat(1_048_576),
+        "   ".to_owned(),
+        "\ncarrots".to_owned(),
+        "carrots\0".to_owned(),
+        "İ".repeat(86),
+    ] {
+        let TeraAppError::Failure { report } = runtime
+            .phase1_search(context.clone(), query, 20, 1_800_000_000, "UTC".to_owned())
+            .await
+            .unwrap_err();
+        assert_eq!(report.code, "today_invalid_request");
+        assert!(!report.retryable);
+        assert_eq!(report.recovery_actions, ["correct_input"]);
+    }
+    for query in [
+        "x".repeat(256),
+        "é".repeat(128),
+        format!("{}a", "İ".repeat(85)),
+        "  CARROT  ".to_owned(),
+    ] {
+        assert!(
+            runtime
+                .phase1_search(context.clone(), query, 20, 1_800_000_000, "UTC".to_owned())
+                .await
+                .unwrap()
+                .is_empty()
+        );
+    }
+    runtime.shutdown().await.unwrap();
+    let TeraAppError::Failure { report } = runtime
+        .phase1_search(
+            context,
+            "x".repeat(257),
+            20,
+            1_800_000_000,
+            "UTC".to_owned(),
+        )
+        .await
+        .unwrap_err();
+    assert_eq!(report.code, "client_closed");
+}
+
+#[tokio::test]
 async fn native_boundary_delegates_the_complete_core_surface() {
     let (_root, runtime) = support::runtime().await;
     assert!(runtime.uptime_millis() >= 0);
