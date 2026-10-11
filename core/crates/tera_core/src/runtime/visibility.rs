@@ -116,23 +116,20 @@ impl AuthorVisibilityPolicy {
         }
         Ok(next)
     }
-
-    /// Keep original empty-policy projections readable. Once changed, even an
-    /// empty restored policy has a revision and invalidates earlier snapshots.
-    pub(crate) fn visibility_digest(&self, events: [u8; 32]) -> Result<[u8; 32], TodayError> {
-        if self.revision == 0 && self.entries.is_empty() {
-            return Ok(events);
-        }
-        let mut digest = Sha256::new();
-        digest.update(b"tera.author_visibility.digest.v1\0");
-        digest.update(events);
-        digest.update(serde_json::to_vec(self).map_err(|_| TodayError::Serialization)?);
-        Ok(digest.finalize().into())
-    }
 }
 
 fn valid_key(value: &str) -> bool {
     value.len() == 64 && PublicKey::from_hex(value).is_ok_and(|key| key.to_hex() == value)
+}
+
+pub(crate) fn source_visibility_digest(
+    source: radroots_storage::event::EventSourceToken,
+    policy: Option<[u8; 32]>,
+) -> Result<[u8; 32], TodayError> {
+    let mut digest = Sha256::new();
+    digest.update(b"tera.today.source-visibility.v1\0");
+    digest.update(serde_json::to_vec(&(source, policy)).map_err(|_| TodayError::Serialization)?);
+    Ok(digest.finalize().into())
 }
 
 fn identity() -> Result<(ProjectionId, ProjectionGeneration), TodayError> {
@@ -149,8 +146,8 @@ impl TeraRuntime {
             .client
             .storage()
             .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let events = radroots_storage::EventStore::rebuild_visibility(storage).await?;
-        policy.visibility_digest(*events.digest().as_bytes())
+        let source = radroots_storage::EventStore::source_token(storage).await?;
+        source_visibility_digest(source, policy.cache_digest()?)
     }
 
     pub async fn author_visibility(&self) -> Result<AuthorVisibilityPolicy, TodayError> {

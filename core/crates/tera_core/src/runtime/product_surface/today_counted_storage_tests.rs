@@ -7,19 +7,29 @@ use radroots_storage::{
 };
 use std::sync::{Arc, Mutex};
 
+#[path = "today_counted_fault_tests.rs"]
+mod faults;
 #[derive(Default)]
-pub(super) struct QueryCounts(Mutex<std::collections::BTreeMap<&'static str, u64>>);
+pub(crate) struct QueryCounts {
+    values: Mutex<std::collections::BTreeMap<&'static str, u64>>,
+    pub(crate) faults: faults::FaultController,
+}
 impl QueryCounts {
     fn add(&self, key: &'static str, amount: u64) {
-        *self.0.lock().unwrap().entry(key).or_default() += amount;
+        *self.values.lock().unwrap().entry(key).or_default() += amount;
     }
-    pub(super) fn take(&self) -> std::collections::BTreeMap<&'static str, u64> {
-        std::mem::take(&mut self.0.lock().unwrap())
+    fn maximum(&self, key: &'static str, amount: u64) {
+        let mut values = self.values.lock().unwrap();
+        let value = values.entry(key).or_default();
+        *value = (*value).max(amount);
+    }
+    pub(crate) fn take(&self) -> std::collections::BTreeMap<&'static str, u64> {
+        std::mem::take(&mut self.values.lock().unwrap())
     }
 }
-pub(super) struct CountedStorage {
-    pub(super) client: radroots_sdk::Client,
-    pub(super) counts: Arc<QueryCounts>,
+pub(crate) struct CountedStorage {
+    pub(crate) client: radroots_sdk::Client,
+    pub(crate) counts: Arc<QueryCounts>,
 }
 impl CountedStorage {
     fn storage(&self) -> &dyn radroots_storage::Storage {
@@ -28,6 +38,48 @@ impl CountedStorage {
 }
 
 impl EventStore for CountedStorage {
+    fn source_token(&self) -> BoxFuture<'_, Result<EventSourceToken, Error>> {
+        Box::pin(async move {
+            self.counts.add("event.source_token", 1);
+            EventStore::source_token(self.storage()).await
+        })
+    }
+    fn maintain_visibility(
+        &self,
+        bounds: VisibilityIndexBounds,
+    ) -> BoxFuture<'_, Result<VisibilityIndexProgress, Error>> {
+        Box::pin(async move {
+            self.counts.add("event.maintain_visibility", 1);
+            EventStore::maintain_visibility(self.storage(), bounds).await
+        })
+    }
+    fn query_visible_at(
+        &self,
+        query: EventQuery,
+        source: EventSourceToken,
+    ) -> BoxFuture<'_, Result<EventPage<StoredVisibleEvent>, Error>> {
+        Box::pin(async move {
+            self.counts.add("event.query_visible_at", 1);
+            let result = EventStore::query_visible_at(self.storage(), query, source).await;
+            if let Ok(page) = &result {
+                self.counts.add("event.rows", page.items().len() as u64);
+                self.counts
+                    .maximum("event.max_rows", page.items().len() as u64);
+                self.counts.maximum(
+                    "event.max_work_bytes",
+                    4096 + page
+                        .items()
+                        .iter()
+                        .map(|stored| {
+                            VisibilityIndexBounds::charge(stored.event().raw_json().len() as u64)
+                                .unwrap()
+                        })
+                        .sum::<u64>(),
+                );
+            }
+            result
+        })
+    }
     fn status(&self) -> BoxFuture<'_, Result<EventStoreStatus, Error>> {
         Box::pin(async move {
             self.counts.add("event.status", 1);
@@ -98,6 +150,77 @@ impl EventStore for CountedStorage {
 }
 
 impl ProjectionStore for CountedStorage {
+    fn configure_projection_cache(
+        &self,
+        id: ProjectionId,
+        limits: cache::ProjectionCacheLimits,
+    ) -> BoxFuture<'_, Result<cache::ProjectionCacheUsage, Error>> {
+        ProjectionStore::configure_projection_cache(self.storage(), id, limits)
+    }
+    fn retire_projection_generation(
+        &self,
+        scope: cache::ProjectionCacheScope,
+    ) -> BoxFuture<'_, Result<cache::ProjectionCacheUsage, Error>> {
+        ProjectionStore::retire_projection_generation(self.storage(), scope)
+    }
+    fn put_projection_batch(
+        &self,
+        batch: batch::ProjectionDocumentBatch,
+    ) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(async move {
+            self.counts.faults.boundary("batch", false).await?;
+            self.counts.add("projection.put_projection_batch", 1);
+            self.counts
+                .maximum("projection.max_batch_rows", batch.documents().len() as u64);
+            self.counts
+                .maximum("projection.max_batch_bytes", batch.logical_bytes() as u64);
+            let result = ProjectionStore::put_projection_batch(self.storage(), batch).await;
+            self.counts.faults.boundary("batch", true).await?;
+            result
+        })
+    }
+    fn promote_projection_batch(
+        &self,
+        batch: batch::ProjectionDocumentBatch,
+        checkpoint: ProjectionCheckpoint,
+    ) -> BoxFuture<'_, Result<ProjectionStatus, Error>> {
+        Box::pin(async move {
+            self.counts.faults.boundary("promotion", false).await?;
+            self.counts.add("projection.promote_projection_batch", 1);
+            let result =
+                ProjectionStore::promote_projection_batch(self.storage(), batch, checkpoint).await;
+            self.counts.faults.boundary("promotion", true).await?;
+            result
+        })
+    }
+    fn query_projection_documents_at(
+        &self,
+        query: document_query::ProjectionDocumentQuery,
+        source: EventSourceToken,
+        active: ProjectionGeneration,
+    ) -> BoxFuture<'_, Result<document_query::ProjectionDocumentPage, Error>> {
+        Box::pin(async move {
+            self.counts.add("projection.query_documents_at", 1);
+            let result = ProjectionStore::query_projection_documents_at(
+                self.storage(),
+                query,
+                source,
+                active,
+            )
+            .await;
+            if let Ok(page) = &result {
+                self.counts
+                    .add("projection.rows", page.records().len() as u64);
+            }
+            result
+        })
+    }
+    fn query_projection_documents(
+        &self,
+        query: document_query::ProjectionDocumentQuery,
+    ) -> BoxFuture<'_, Result<document_query::ProjectionDocumentPage, Error>> {
+        ProjectionStore::query_projection_documents(self.storage(), query)
+    }
     fn status(
         &self,
         projection_id: ProjectionId,

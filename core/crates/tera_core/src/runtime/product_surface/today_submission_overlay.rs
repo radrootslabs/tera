@@ -17,21 +17,6 @@ pub(super) fn sources(prior: Option<&TodayProjectionState>) -> BTreeMap<CardId, 
         .collect()
 }
 
-pub(super) fn retain_sources(state: &mut TodayProjectionState, sources: &BTreeMap<CardId, String>) {
-    let mut retained = BTreeMap::new();
-    for card in &state.cards {
-        let key = card.card.card_id.to_hex();
-        if sources.get(&card.card.card_id) == Some(&card.card.source_event_id)
-            && let Some(overlay) = state.overlays.remove(&key)
-        {
-            retained.insert(key, overlay);
-        }
-    }
-    // A stable addressable card ID does not make the prior event's operation
-    // receipt evidence for its replacement. Only derived overlays are removed.
-    state.overlays = retained;
-}
-
 #[cfg(feature = "mobile-social")]
 impl TeraRuntime {
     pub(in crate::runtime::product_surface) async fn apply_submission_overlay(

@@ -148,10 +148,11 @@ async fn verified_unsupported_winner_survives_reopen_before_projection_refresh()
     let storage = reopened.client.storage().unwrap();
     let canonical = EventStore::rebuild_visibility(storage).await.unwrap();
     assert_eq!(canonical.current_heads()[0].event_id, *newer.id());
-    let before = load_state(storage, &selected, generation)
-        .await
-        .unwrap()
-        .unwrap();
+    let before = load_state(storage, &selected, generation).await.unwrap();
+    assert!(
+        before.is_none(),
+        "changed canonical truth refuses the stale row generation"
+    );
     let presented = reopened
         .phase1_me(&selected, &keys().public_key().to_string(), NOW + 10, "UTC")
         .await
@@ -174,7 +175,8 @@ async fn verified_unsupported_winner_survives_reopen_before_projection_refresh()
             "scenario": "verified_unsupported_winner_after_admission",
             "durable_receipt_recovered": true,
             "canonical_selected_unsupported_winner": true,
-            "profiles_before_read": before.profiles.len(),
+            "profiles_before_read": before.as_ref().map_or(0, |state| state.profiles.len()),
+            "stale_rows_refused_before_read": before.is_none(),
             "profile_presented_before_refresh": presented.profile.is_some(),
             "profiles_after_explicit_refresh": after.profiles.len(),
             "product_correction_qualified": false

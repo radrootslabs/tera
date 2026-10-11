@@ -151,6 +151,9 @@ impl From<TodayError> for TeraAppError {
             TodayError::ProjectionMissing | TodayError::SnapshotMissing => {
                 ("today_refresh_required", true, &["refresh"][..])
             }
+            TodayError::ProjectionRebuilding => {
+                ("today_projection_rebuilding", true, &["refresh"][..])
+            }
             TodayError::CursorPositionMissing | TodayError::Cursor(_) => {
                 ("today_cursor_invalid", true, &["restart_pagination"][..])
             }

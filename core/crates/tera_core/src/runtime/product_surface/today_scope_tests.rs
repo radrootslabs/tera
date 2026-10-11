@@ -1,4 +1,4 @@
-use super::tests::{context, ingest, keys, signed};
+use super::tests::{context, ingest, keys, signed, visible_admission};
 use super::*;
 
 const NOW: u64 = 2_000_000_000;
@@ -379,7 +379,28 @@ async fn corrupt_snapshot_order_and_legacy_unbound_cache_fail_closed() {
 
     // Genuine pre-binding projection bytes still verify with their old hash.
     // Scope repair retains local author overlays instead of discarding the cache.
+    // Exercise a genuine pre-row store: no current sidecar can shadow these bytes.
+    let visible = query_all_visible(runtime.client.storage().unwrap())
+        .await
+        .unwrap();
+    runtime.shutdown().await.unwrap();
+    let runtime = TeraRuntime::test_memory().unwrap();
+    for stored in visible {
+        EventStore::admit(
+            runtime.client.storage().unwrap(),
+            visible_admission(stored.event().clone(), NOW * 1_000),
+        )
+        .await
+        .unwrap();
+    }
     let mut unbound = state.clone();
+    unbound.row_generation = None;
+    unbound.source_token = None;
+    unbound.store_generation = *EventStore::source_token(runtime.client.storage().unwrap())
+        .await
+        .unwrap()
+        .generation()
+        .as_bytes();
     unbound.query_scope = None;
     let overlay = LocalAuthorOverlay {
         source_draft_id: None,

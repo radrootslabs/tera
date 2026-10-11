@@ -65,38 +65,60 @@ async fn unreferenced(
     if remaining.is_empty() {
         return Ok(Some(remaining));
     }
-    let mut query = ProjectionDocumentQuery::new(
-        projection_id()?,
-        ProjectionDocumentGenerations::All,
-        PAGE_ROWS,
-    )?;
     let mut bytes = 0_usize;
-    for _ in 0..MAX_PAGES {
-        let page = match ProjectionStore::query_projection_documents(storage, query.clone()).await {
-            Ok(page) => page,
-            Err(_) => return Ok(None),
-        };
-        for record in page.records() {
-            let Some(document) = record.document() else {
-                return Ok(None);
-            };
-            bytes = bytes.saturating_add(document.value().len());
-            if bytes > MAX_DOCUMENT_BYTES || record.generation() != projection_generation()? {
+    let mut pages = 0_usize;
+    for (id, local) in [
+        (projection_id()?, false),
+        (ProjectionId::parse(sidecar::ID)?, true),
+    ] {
+        let mut query =
+            ProjectionDocumentQuery::new(id, ProjectionDocumentGenerations::All, PAGE_ROWS)?;
+        loop {
+            pages += 1;
+            if pages > MAX_PAGES {
                 return Ok(None);
             }
-            let Some(mut state) = current_ownership(document.value(), record.key()) else {
-                return Ok(None);
+            let page =
+                match ProjectionStore::query_projection_documents(storage, query.clone()).await {
+                    Ok(page) => page,
+                    Err(_) => return Ok(None),
+                };
+            for record in page.records() {
+                let Some(document) = record.document() else {
+                    return Ok(None);
+                };
+                bytes = bytes.saturating_add(document.value().len());
+                if bytes > MAX_DOCUMENT_BYTES || record.generation() != projection_generation()? {
+                    return Ok(None);
+                }
+                let cache = if local {
+                    let Ok(state) = serde_json::from_slice::<sidecar::LocalState>(document.value())
+                    else {
+                        return Ok(None);
+                    };
+                    if state.validate(record.key()).is_err()
+                        || encode(&state)?.as_slice() != document.value()
+                    {
+                        return Ok(None);
+                    }
+                    state.cache
+                } else {
+                    let Some(state) = current_ownership(document.value(), record.key()) else {
+                        return Ok(None);
+                    };
+                    state.media_cache
+                };
+                let mut cache = cache;
+                // Hidden entries retain ownership independently of visible rows.
+                remaining.retain(|artifact| !cache.invalidate_artifact(*artifact));
+            }
+            let Some(cursor) = page.next_cursor() else {
+                break;
             };
-            // Validation binds every verified card/profile receipt to this
-            // cache. Cache entries without a visible card still own bytes.
-            remaining.retain(|artifact| !state.media_cache.invalidate_artifact(*artifact));
+            query = query.with_cursor(cursor)?;
         }
-        let Some(cursor) = page.next_cursor() else {
-            return Ok(Some(remaining));
-        };
-        query = query.with_cursor(cursor)?;
     }
-    Ok(None)
+    Ok(Some(remaining))
 }
 
 fn current_ownership(bytes: &[u8], key: &str) -> Option<TodayProjectionState> {

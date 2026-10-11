@@ -16,9 +16,13 @@ pub(super) async fn current_state(
         .client
         .storage()
         .map_err(|_| TodayError::RuntimeUnavailable)?;
-    let state = load_state(storage, context, projection_generation()?)
-        .await?
-        .ok_or(TodayError::ProjectionMissing)?;
+    let state = match load_state(storage, context, projection_generation()?).await? {
+        Some(state) => state,
+        None if sidecar::load(storage, context).await?.is_some() => {
+            return Err(TodayError::InvalidRequest);
+        }
+        None => return Err(TodayError::ProjectionMissing),
+    };
     if state.query_scope != Some(scope) {
         return Err(TodayError::InvalidRequest);
     }

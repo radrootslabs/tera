@@ -22,6 +22,14 @@ impl Fixture {
     }
 
     async fn backend(sqlite: bool) -> Self {
+        Self::with_rows(sqlite, true).await
+    }
+
+    async fn legacy() -> Self {
+        Self::with_rows(false, false).await
+    }
+
+    async fn with_rows(sqlite: bool, rows: bool) -> Self {
         let root = tempfile::tempdir().unwrap();
         let mut runtime = if sqlite {
             use crate::runtime::{
@@ -43,18 +51,32 @@ impl Fixture {
         };
         runtime.inbound_media_directory = Some(root.path().join("inbound_media.v1"));
         let selected = context(None, 1);
-        runtime
-            .phase1_today_page(&selected, TodayPageRequest::first(20, 2_000_000_200, "UTC"))
+        let empty = if rows {
+            runtime
+                .phase1_today_page(&selected, TodayPageRequest::first(20, 2_000_000_200, "UTC"))
+                .await
+                .unwrap();
+            load_state(
+                runtime.client.storage().unwrap(),
+                &selected,
+                projection_generation().unwrap(),
+            )
             .await
-            .unwrap();
-        let empty = load_state(
-            runtime.client.storage().unwrap(),
-            &selected,
-            projection_generation().unwrap(),
-        )
-        .await
-        .unwrap()
-        .unwrap();
+            .unwrap()
+            .unwrap()
+        } else {
+            let status = EventStore::status(runtime.client.storage().unwrap())
+                .await
+                .unwrap();
+            project_state(
+                &selected,
+                status.generation().as_bytes(),
+                status.raw_events(),
+                Vec::new(),
+                BTreeMap::new(),
+            )
+            .unwrap()
+        };
         let bytes = b"cache ownership fixture".to_vec();
         let hash = BlobHash::digest(&bytes).to_hex();
         let url = format!("https://media.example/{hash}.png");

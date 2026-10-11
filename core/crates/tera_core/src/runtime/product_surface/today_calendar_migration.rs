@@ -24,7 +24,8 @@ pub(super) async fn ready(storage: &dyn radroots_storage::Storage) -> Result<boo
         return Ok(true);
     };
     if status.generation() == projection_generation()? {
-        return Ok(status.health() == ProjectionHealth::Ready);
+        return Ok(status.health() == ProjectionHealth::Ready
+            || coordination_retirement::retired(storage, &status).await?);
     }
     if status.generation() == legacy_generation()? {
         return Ok(false);
@@ -159,7 +160,10 @@ pub(super) async fn begin(
         return Ok(None);
     };
     let replacement = projection_generation()?;
-    if status.generation() == replacement && status.health() == ProjectionHealth::Ready {
+    if status.generation() == replacement
+        && (status.health() == ProjectionHealth::Ready
+            || coordination_retirement::retired(storage, &status).await?)
+    {
         return Ok(None);
     }
     if status.generation() != legacy_generation()? {

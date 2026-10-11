@@ -6,7 +6,7 @@ use crate::runtime::{
 };
 use std::{sync::Arc, time::Instant};
 #[path = "today_counted_storage_tests.rs"]
-mod counted_storage;
+pub(super) mod counted_storage;
 use counted_storage::{CountedStorage, QueryCounts};
 const EVENT_COUNT: u64 = 10_000;
 const NOW: u64 = 2_000_000_000;
@@ -246,10 +246,29 @@ async fn cached_sqlite_pages_do_not_decode_ten_thousand_source_events() {
     }
     counts.take();
     let refresh = Instant::now();
-    runtime
-        .phase1_refresh_today(&selected, NOW, TodayProjectionUpdate::Rebuild)
-        .await
-        .unwrap();
+    let mut attempts = Vec::new();
+    let mut complete = false;
+    for _ in 0..64 {
+        let started = Instant::now();
+        match runtime
+            .phase1_refresh_today(&selected, NOW, TodayProjectionUpdate::Rebuild)
+            .await
+        {
+            Ok(_) => {
+                attempts.push(started.elapsed().as_secs_f64() * 1_000.0);
+                complete = true;
+                break;
+            }
+            Err(TodayError::ProjectionRebuilding) => {
+                attempts.push(started.elapsed().as_secs_f64() * 1_000.0)
+            }
+            Err(error) => panic!("10k build refused: {error:?}"),
+        }
+    }
+    assert!(
+        complete,
+        "64 bounded continuations did not complete the fixed10k source"
+    );
     let rebuild_ms = refresh.elapsed().as_secs_f64() * 1_000.0;
     let rebuild_calls = counts.take();
     let samples = async {
@@ -287,7 +306,7 @@ async fn cached_sqlite_pages_do_not_decode_ten_thousand_source_events() {
             "scenario": "tera_10000_sqlite_cached_pages",
             "events": EVENT_COUNT, "page_size": 20, "rebuild_ms": rebuild_ms,
             "profile": if cfg!(debug_assertions) { "debug" } else { "release" },
-            "samples": samples, "rebuild_calls": rebuild_calls,
+            "samples": samples, "rebuild_calls": rebuild_calls, "build_attempt_ms": attempts,
             "count_boundary": "actual storage SPI calls and returned event rows; SQL logging remains disabled",
             "physical_device_qualification": false
         })

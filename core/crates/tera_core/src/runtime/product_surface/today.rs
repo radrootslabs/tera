@@ -71,6 +71,9 @@ mod calendar_wire_tests;
 #[path = "today_calendar_migration.rs"]
 mod calendar_migration;
 
+#[path = "today_coordination_retirement.rs"]
+mod coordination_retirement;
+
 #[cfg(test)]
 #[path = "today_permissive_evidence_tests.rs"]
 mod permissive_evidence;
@@ -79,12 +82,20 @@ mod permissive_evidence;
 #[path = "today_calendar_migration_tests.rs"]
 mod calendar_migration_tests;
 
+#[path = "today_build.rs"]
+mod build;
 #[path = "today_paging.rs"]
 mod paging;
 #[path = "today_paging_scope.rs"]
 mod paging_scope;
 #[path = "today_refresh.rs"]
 mod refresh;
+#[path = "today_row_state.rs"]
+mod row_state;
+#[path = "today_rows.rs"]
+mod rows;
+#[path = "today_sidecar.rs"]
+mod sidecar;
 pub use paging::TodayPageRequest;
 
 #[path = "today_reconciliation.rs"]
@@ -205,6 +216,8 @@ pub enum TodayError {
     InvalidRequest,
     #[error("today projection has not been refreshed")]
     ProjectionMissing,
+    #[error("today projection is rebuilding")]
+    ProjectionRebuilding,
     #[error("today frozen snapshot is unavailable")]
     SnapshotMissing,
     #[error("today cursor position is absent from its frozen snapshot")]
@@ -251,6 +264,10 @@ struct TodayProjectionState {
     store_generation: [u8; 32],
     source_events: u64,
     content_generation: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    row_generation: Option<ProjectionGeneration>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    source_token: Option<radroots_storage::event::EventSourceToken>,
     cards: Vec<ProjectedCard>,
     profiles: BTreeMap<String, ProfileSummary>,
     thread: Vec<ThreadEntry>,
@@ -811,22 +828,6 @@ fn ingest_receipt(
     }
 }
 
-fn refresh_receipt(
-    update: TodayProjectionUpdate,
-    state: &TodayProjectionState,
-    changed: bool,
-) -> TodayRefreshReceipt {
-    TodayRefreshReceipt {
-        update,
-        source_events: state.source_events,
-        visible_cards: state.cards.len().try_into().unwrap_or(u64::MAX),
-        profiles: state.profiles.len().try_into().unwrap_or(u64::MAX),
-        thread_entries: state.thread.len().try_into().unwrap_or(u64::MAX),
-        content_generation: state.content_generation,
-        changed,
-    }
-}
-
 fn local_media_evidence(
     state: &TodayProjectionState,
 ) -> BTreeMap<[u8; 32], Phase1InboundMediaState> {
@@ -978,6 +979,7 @@ async fn current_store_generation(storage: &dyn EventStore) -> Result<[u8; 32], 
     )
 }
 
+#[cfg(test)]
 async fn query_all_visible(
     storage: &dyn radroots_storage::Storage,
 ) -> Result<Vec<radroots_storage::event::StoredVisibleEvent>, TodayError> {
@@ -998,6 +1000,7 @@ async fn query_all_visible(
     Ok(items)
 }
 
+#[cfg(test)]
 fn project_state(
     context: &LocalNetwork,
     store_generation: &[u8; 32],
@@ -1010,39 +1013,21 @@ fn project_state(
     let mut profiles = BTreeMap::new();
     let mut thread = Vec::new();
     for stored in visible {
-        let admitted = verify_nip01_event(stored.event().envelope().clone())
-            .ok()
-            .and_then(|verified| admit_verified_event(verified).ok());
-        let Some(admitted) = admitted else {
-            quarantined_source_ids.push(stored.event().id().to_hex());
+        let Some(row) = rows::reduce(context, &stored)? else {
             continue;
         };
-        match &admitted {
-            RadrootsAdmittedEvent::Profile(profile) => {
-                profiles.insert(
-                    profile.event().author().to_hex(),
-                    profile_summary(&admitted)?,
-                );
+        match row {
+            rows::TodayRow::Profile { summary, .. } => {
+                profiles.insert(summary.author_pubkey.clone(), summary);
             }
-            RadrootsAdmittedEvent::Reply(_) => {
-                thread.push(reply_entry(&admitted)?);
+            rows::TodayRow::Thread(entry) => {
+                thread.push(entry);
             }
-            RadrootsAdmittedEvent::Comment(_) => {
-                if let Some(entry) = comment_entry(&admitted) {
-                    thread.push(entry);
-                }
+            rows::TodayRow::Card(card) => {
+                cards.push(card);
             }
-            _ => {
-                let locality = locality_tags(admitted.event().tags_as_vec());
-                let evidence = locality_evidence(context.locality.as_deref(), &locality);
-                if let ProductEventClassification::Card(card) =
-                    classify_admitted_event(&admitted, context.admit(evidence))
-                {
-                    cards.push(ProjectedCard {
-                        card: *card,
-                        locality,
-                    });
-                }
+            rows::TodayRow::Quarantined { event_id } => {
+                quarantined_source_ids.push(event_id);
             }
         }
     }
@@ -1058,6 +1043,8 @@ fn project_state(
         store_generation: *store_generation,
         source_events,
         content_generation: 0,
+        row_generation: None,
+        source_token: None,
         cards,
         profiles,
         thread,
@@ -1371,6 +1358,17 @@ async fn load_state(
     context: &LocalNetwork,
     generation: ProjectionGeneration,
 ) -> Result<Option<TodayProjectionState>, TodayError> {
+    if let Some(local) = sidecar::load(storage, context).await? {
+        return row_state::load(storage, context, local).await;
+    }
+    load_legacy_state(storage, context, generation).await
+}
+
+async fn load_legacy_state(
+    storage: &dyn radroots_storage::Storage,
+    context: &LocalNetwork,
+    generation: ProjectionGeneration,
+) -> Result<Option<TodayProjectionState>, TodayError> {
     if !calendar_migration::ready(storage).await? {
         return Ok(None);
     }
@@ -1409,6 +1407,9 @@ async fn store_state(
     generation: ProjectionGeneration,
     state: &TodayProjectionState,
 ) -> Result<(), TodayError> {
+    if state.row_generation.is_some() {
+        return sidecar::save(runtime, context, &sidecar::LocalState::from_state(state)?).await;
+    }
     let id = projection_id()?;
     let document = ProjectionDocument::new(projection_document_key(context), encode(state)?)?;
     let write = runtime.today_projection_lock.begin_write();
@@ -1465,6 +1466,8 @@ fn decode_state(value: &[u8]) -> Result<TodayProjectionState, TodayError> {
 fn decode_state_document(value: &[u8]) -> Result<(TodayProjectionState, bool), TodayError> {
     if let Ok(state) = serde_json::from_slice::<TodayProjectionState>(value)
         && state.schema_version == TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION
+        && state.row_generation.is_none()
+        && state.source_token.is_none()
         && state.content_generation != 0
         && content_generation(&state)? == state.content_generation
         && validate_media_state(&state).is_ok()
@@ -1706,6 +1709,10 @@ fn migrate_legacy_media_values(value: &mut serde_json::Value) -> Result<(), Toda
 }
 
 fn content_generation(state: &TodayProjectionState) -> Result<u64, TodayError> {
+    if let Some(generation) = state.row_generation {
+        let local = sidecar::LocalState::from_state(state)?.revision()?;
+        return row_state::content_generation(generation, local);
+    }
     let mut canonical = state.clone();
     canonical.content_generation = 0;
     let digest =
@@ -2119,6 +2126,8 @@ mod tests {
         let mut value = serde_json::to_value(state).expect("state value");
         let object = value.as_object_mut().expect("state object");
         object.remove("mediaCache").expect("new cache field");
+        object.remove("rowGeneration");
+        object.remove("sourceToken");
         object.insert("contentGeneration".to_owned(), serde_json::json!(0));
         downgrade_media_to_legacy(&mut value);
         let canonical = serde_json::to_vec(&value).expect("legacy canonical");
@@ -2815,7 +2824,7 @@ mod tests {
         .await
         .unwrap();
 
-        let migrated = load_state(storage, &context, generation)
+        let migrated = load_legacy_state(storage, &context, generation)
             .await
             .unwrap()
             .expect("migrated state");

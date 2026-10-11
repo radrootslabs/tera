@@ -1,5 +1,5 @@
 use super::sync_tests::runtime;
-use super::tests::{context, ingest, signed};
+use super::tests::{context, ingest, signed, visible_admission};
 use super::*;
 use radroots_event::{SignedEvent, admission::RawEvent};
 use radroots_event_codec::verify::Nip01SignatureVerifier;
@@ -281,19 +281,26 @@ async fn same_count_deletion_admission_removes_current_cached_content() {
 async fn missing_visibility_metadata_is_readable_and_rebuilt_from_current_truth() {
     let runtime = TeraRuntime::test_memory().unwrap();
     let selected = context(None, 1);
-    ingest(
-        &runtime,
-        &selected,
-        signed(1, vec![], "retained content", 2_000_000_000),
-        2_000_000_100,
-    )
-    .await;
     let storage = runtime.client.storage().unwrap();
+    EventStore::admit(
+        storage,
+        visible_admission(
+            signed(1, vec![], "retained content", 2_000_000_000),
+            2_000_000_100_000,
+        ),
+    )
+    .await
+    .unwrap();
     let generation = projection_generation().unwrap();
-    let mut old = load_state(storage, &selected, generation)
-        .await
-        .unwrap()
-        .unwrap();
+    let status = EventStore::status(storage).await.unwrap();
+    let mut old = project_state(
+        &selected,
+        status.generation().as_bytes(),
+        status.raw_events(),
+        query_all_visible(storage).await.unwrap(),
+        BTreeMap::new(),
+    )
+    .unwrap();
     old.visibility_digest = None;
     old.content_generation = content_generation(&old).unwrap();
     let bytes = encode(&old).unwrap();
@@ -326,12 +333,20 @@ async fn missing_visibility_metadata_is_readable_and_rebuilt_from_current_truth(
     assert_eq!(
         current.visibility_digest,
         Some(
-            *EventStore::rebuild_visibility(storage)
-                .await
-                .unwrap()
-                .digest()
-                .as_bytes()
+            crate::runtime::visibility::source_visibility_digest(
+                EventStore::source_token(storage).await.unwrap(),
+                None,
+            )
+            .unwrap()
         )
+    );
+    let canonical = EventStore::rebuild_visibility(storage).await.unwrap();
+    assert_eq!(canonical.visible_event_ids().len(), current.cards.len());
+    assert!(
+        canonical
+            .visible_event_ids()
+            .iter()
+            .any(|id| id.to_hex() == current.cards[0].card.source_event_id)
     );
 }
 

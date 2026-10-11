@@ -78,7 +78,7 @@ fn collection_cannot_dispatch_file_work_beyond_its_mutation_fence() {
 
 #[tokio::test]
 async fn payload_budget_retains_bytes_before_decoding_another_document() {
-    let f = Fixture::new().await;
+    let f = Fixture::legacy().await;
     let mut state = f.empty.clone();
     // These opaque source IDs remain bounded by the storage document limit.
     // Their contents are irrelevant to the cache ownership being inspected.

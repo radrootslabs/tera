@@ -15,7 +15,7 @@ fn fixture() -> serde_json::Value {
     serde_json::from_str(include_str!("calendar_v1_fixture.json")).unwrap()
 }
 
-async fn open(root: &Path) -> TeraRuntime {
+pub(super) async fn open(root: &Path) -> TeraRuntime {
     let config = MobileUserStoreConfig::from_encoded(
         root,
         &keys().public_key().to_string(),
@@ -28,7 +28,7 @@ async fn open(root: &Path) -> TeraRuntime {
     RuntimeBuilder::new(config).build().await.unwrap()
 }
 
-async fn seed_legacy(runtime: &TeraRuntime) {
+pub(super) async fn seed_legacy(runtime: &TeraRuntime) {
     let fixture = fixture();
     let raw = fixture["event"].as_str().unwrap();
     let event =
@@ -126,7 +126,21 @@ async fn assert_current(runtime: &TeraRuntime) {
             .unwrap()
             .unwrap();
     assert_eq!(status.generation(), projection_generation().unwrap());
-    assert_eq!(status.health(), ProjectionHealth::Ready);
+    assert_eq!(status.health(), ProjectionHealth::Invalidated);
+    assert!(
+        coordination_retirement::retired(runtime.client.storage().unwrap(), &status)
+            .await
+            .unwrap()
+    );
+    let rows = ProjectionStore::status(
+        runtime.client.storage().unwrap(),
+        ProjectionId::parse(build::progress::ID).unwrap(),
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(rows.health(), ProjectionHealth::Ready);
+    assert_eq!(rows.generation(), state.row_generation.unwrap());
 }
 
 #[cfg(feature = "mobile-social")]
@@ -664,5 +678,38 @@ async fn corrupt_legacy_bytes_and_source_changes_before_promotion_preserve_origi
         .unwrap();
     assert_eq!(page.items.len(), 2);
     assert_eq!(raw(&runtime).await, before);
+    runtime.shutdown().await.unwrap();
+}
+
+#[tokio::test]
+async fn migrated_calendar_accepts_a_subsequent_source_change_with_two_generation_limit() {
+    let root = tempfile::tempdir().unwrap();
+    let runtime = open(root.path()).await;
+    seed_legacy(&runtime).await;
+    let original = old_bytes(&runtime).await;
+    let selected = context(None, 1);
+    runtime
+        .phase1_refresh_today(&selected, NOW, TodayProjectionUpdate::Rebuild)
+        .await
+        .unwrap();
+    EventStore::admit(
+        runtime.client.storage().unwrap(),
+        visible_admission(
+            signed(1, vec![], "Synthetic post-migration update", NOW + 1),
+            (NOW + 1) * 1_000,
+        ),
+    )
+    .await
+    .unwrap();
+    runtime
+        .phase1_refresh_today(&selected, NOW + 2, TodayProjectionUpdate::Incremental)
+        .await
+        .unwrap();
+    let page = runtime
+        .phase1_today_page(&selected, TodayPageRequest::first(20, NOW + 2, "UTC"))
+        .await
+        .unwrap();
+    assert_eq!(page.items.len(), 2);
+    assert_eq!(old_bytes(&runtime).await, original);
     runtime.shutdown().await.unwrap();
 }
