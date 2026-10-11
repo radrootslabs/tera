@@ -99,26 +99,29 @@ impl TeraRuntime {
 
     pub(super) async fn calendar_state_for_read(
         &self,
-        storage: &dyn radroots_storage::Storage,
         context: &LocalNetwork,
         as_of: u64,
-    ) -> Result<Option<TodayProjectionState>, TodayError> {
-        let state = load_state(storage, context, projection_generation()?).await?;
-        let policy_digest = self.load_author_visibility().await?.cache_digest()?;
-        let needs_upgrade = state.as_ref().is_some_and(|value| {
-            !calendar_projection_ready(value) || value.author_visibility_digest != policy_digest
-        }) || (state.is_none()
-            && (sidecar::load(storage, context).await?.is_some()
-                || !calendar_migration::ready(storage).await?
-                || calendar_migration::legacy_state(storage, context)
-                    .await?
-                    .is_some()));
-        if needs_upgrade {
-            self.phase1_refresh_today(context, as_of, TodayProjectionUpdate::Rebuild)
-                .await?;
-            load_state(storage, context, projection_generation()?).await
+        require_matching_context: bool,
+    ) -> Result<(tokio::sync::MutexGuard<'_, ()>, TodayProjectionState), TodayError> {
+        let mut guard = self.today_projection_lock.lock().await;
+        let mut budget = page_budget::Budget::default();
+        let mut scope = if require_matching_context {
+            read_scope::Scope::load_matching_context(self, context, &mut budget).await?
         } else {
-            Ok(state)
+            read_scope::Scope::load(self, context, &mut budget).await?
+        };
+        if scope.is_none() {
+            drop(guard);
+            self.phase1_refresh_today(context, as_of, TodayProjectionUpdate::Rebuild)
+                .await
+                .map_err(read_scope::current_repair_error)?;
+            guard = self.today_projection_lock.lock().await;
+            scope = read_scope::Scope::load(self, context, &mut budget).await?;
         }
+        let scope = scope.ok_or(CursorError::Stale)?;
+        let mut finish = budget.reserve_scope()?;
+        let state = scope.load_state(self, context).await?;
+        scope.check_current(self, context, &mut finish).await?;
+        Ok((guard, state))
     }
 }

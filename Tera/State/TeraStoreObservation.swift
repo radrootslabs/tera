@@ -54,6 +54,11 @@ final class TeraStoreObservation {
     task != nil
   }
 
+  /// Join the existing reconciliation when it superseded an awaited initial read.
+  func waitForRefresh() async {
+    await refreshTask?.value
+  }
+
   deinit {
     task?.cancel()
     refreshTask?.cancel()
@@ -73,6 +78,7 @@ final class TeraStoreObservation {
     buffer: (capacity: Int, delay: @Sendable (UInt32) async throws -> Void),
     state: @escaping @MainActor (TeraRuntimeObservationState) -> Void,
     accepts: @escaping @MainActor (TeraRuntimeChange) -> Bool,
+    invalidate: @escaping @MainActor (TeraObservationBatch) -> Void = { _ in },
     refresh: @escaping @MainActor (TeraObservationBatch) async -> Void
   ) {
     guard task == nil, generation.isActive else { return }
@@ -88,11 +94,15 @@ final class TeraStoreObservation {
           let changes = try await client.changes(bufferCapacity: buffer.capacity)
           guard self?.isCurrent(requested) == true else { break }
           state(.active)
+          invalidate(.currentState)
           self?.requireCurrentState(requested, refresh: refresh)
           for await value in changes {
             guard self?.isCurrent(requested) == true else { break }
             attempt = 0
             if accepts(value) {
+              var changed = TeraObservationBatch()
+              changed.insert(value)
+              invalidate(changed)
               self?.pending.insert(value)
               self?.startRefresh(requested, refresh: refresh)
             }

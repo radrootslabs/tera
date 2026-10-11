@@ -1,4 +1,4 @@
-//! Temporary whole-view reader bridge. C200 replaces it with bounded selected joins.
+//! Whole-view supporting reader bridge, replaced by selected joins in C203.
 //! New builds never invoke this bridge and never persist a copied feed.
 use super::*;
 use radroots_storage::projection::document_query::{
@@ -26,9 +26,10 @@ pub(super) async fn load(
     let id = ProjectionId::parse(build::progress::ID)?;
     let status = ProjectionStore::status(storage, id.clone()).await?;
     if source != local.source
-        || status
-            .as_ref()
-            .is_none_or(|value| value.generation() != local.generation)
+        || status.as_ref().is_none_or(|value| {
+            value.generation() != local.generation
+                || value.health() != radroots_storage::projection::ProjectionHealth::Ready
+        })
     {
         return Ok(None);
     }

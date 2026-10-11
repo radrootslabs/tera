@@ -45,7 +45,10 @@ struct TeraSearchSheet: View {
         }
       }
     }
-    .task(id: context) { store.configure(context: context) }
+    .task(id: context) {
+      store.configure(context: context)
+      store.start()
+    }
     .accessibilityIdentifier("radroots.support.search.sheet")
   }
 
@@ -54,15 +57,10 @@ struct TeraSearchSheet: View {
       switch (result.card, result.profile) {
       case let (card?, _):
         NavigationLink {
-          TeraTodayDetailView(
-            card: card,
-            context: context,
-            mediaStore: mediaStore,
-            canRevise: card.authorPublicKey == snapshot.identity.publicKeyHex
-              && card.localOperationID != nil,
-            canRetract: card.authorPublicKey == snapshot.identity.publicKeyHex,
-            revise: revise,
-            retract: retract
+          TeraSearchCurrentDetail(
+            resultID: result.id, type: result.type, store: store,
+            context: context, mediaStore: mediaStore,
+            publicKey: snapshot.identity.publicKeyHex, revise: revise, retract: retract
           )
         } label: {
           TeraTodayCardView(card: card, context: context, mediaStore: mediaStore)
@@ -70,7 +68,11 @@ struct TeraSearchSheet: View {
         .accessibilityIdentifier("radroots.search.card.\(result.id)")
       case let (_, profile?):
         NavigationLink {
-          TeraProfileView(profile: profile, context: context, mediaStore: mediaStore)
+          TeraSearchCurrentDetail(
+            resultID: result.id, type: result.type, store: store,
+            context: context, mediaStore: mediaStore,
+            publicKey: snapshot.identity.publicKeyHex, revise: revise, retract: retract
+          )
         } label: {
           TeraProfileRow(profile: profile, context: context, mediaStore: mediaStore)
         }
@@ -148,7 +150,10 @@ struct TeraMeSheet: View {
       Section {
         if let profile = store.snapshot?.profile {
           NavigationLink {
-            TeraProfileView(profile: profile, context: context, mediaStore: mediaStore)
+            TeraMeCurrentDetail(
+              cardID: nil, store: store, context: context, mediaStore: mediaStore,
+              publicKey: runtimeSnapshot.identity.publicKeyHex, revise: revise, retract: retract
+            )
           } label: {
             TeraProfileRow(profile: profile, context: context, mediaStore: mediaStore)
           }
@@ -188,15 +193,9 @@ struct TeraMeSheet: View {
         }
         ForEach(store.snapshot?.cards ?? []) { card in
           NavigationLink {
-            TeraTodayDetailView(
-              card: card,
-              context: context,
-              mediaStore: mediaStore,
-              canRevise: card.localOperationID != nil,
-              canRetract: card.authorPublicKey
-                == (store.snapshot?.publicKey ?? runtimeSnapshot.identity.publicKeyHex),
-              revise: revise,
-              retract: retract
+            TeraMeCurrentDetail(
+              cardID: card.id, store: store, context: context, mediaStore: mediaStore,
+              publicKey: runtimeSnapshot.identity.publicKeyHex, revise: revise, retract: retract
             )
           } label: {
             TeraTodayCardView(card: card, context: context, mediaStore: mediaStore)

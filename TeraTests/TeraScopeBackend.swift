@@ -26,6 +26,8 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   private var media: TeraVerifiedMediaArtifact
   private var pages: [String: TeraTodayPage] = [:]
   private var meCards = [TeraScopeFixtures.card("old")]
+  private var meProfile: TeraProfileSummary?
+  private var searchResults: [TeraSearchResult]?
   private var revision: UInt64 = 0
   private var syncReceipt: TeraTodaySyncReceipt?
   var recoveryCompletion: (@Sendable (TeraRecoveryUploadReceipt, TeraPreparedMediaHandle) async throws -> TeraRecoveryCompletionReceipt)?
@@ -87,8 +89,16 @@ actor TeraScopeBackend: TeraRuntimeBackend {
     pages[cursor] = value
   }
 
+  func setMeProfile(_ value: TeraProfileSummary) {
+    meProfile = value
+  }
+
   func setMeCards(_ values: [TeraTodayCard]) {
     meCards = values
+  }
+
+  func setSearchResults(_ values: [TeraSearchResult]) {
+    searchResults = values
   }
 
   func setReconciliation(_ cards: [TeraTodayCard], generation: UInt64) {
@@ -224,13 +234,14 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   func search(
     context _: TeraLocalNetwork, query: String, limit _: UInt16, asOfUnixSeconds _: UInt64
   ) async throws -> [TeraSearchResult] {
+    let result = searchResults ?? [TeraSearchResult(type: .card, id: query, card: TeraScopeFixtures.card(query), profile: nil)]
     try await wait(.search)
-    return [TeraSearchResult(type: .card, id: query, card: TeraScopeFixtures.card(query), profile: nil)]
+    return result
   }
 
   func me(context: TeraLocalNetwork, asOfUnixSeconds _: UInt64) async throws -> TeraMeSnapshot {
     lastMeContext = context
-    let result = TeraMeSnapshot(publicKey: value.identity.publicKeyHex, profile: nil, cards: meCards)
+    let result = TeraMeSnapshot(publicKey: value.identity.publicKeyHex, profile: meProfile, cards: meCards)
     try await wait(.me)
     return result
   }

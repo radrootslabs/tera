@@ -181,6 +181,11 @@ impl From<TodayError> for TeraAppError {
             TodayError::Storage(radroots_storage::Error::SpaceInsufficient) => {
                 return Self::needs_space("today");
             }
+            TodayError::Storage(
+                radroots_storage::Error::SourceGenerationChanged
+                | radroots_storage::Error::SourceEpochChanged
+                | radroots_storage::Error::ProjectionRevisionConflict,
+            ) => ("today_cursor_invalid", true, &["restart_pagination"][..]),
             TodayError::Storage(_) => ("today_storage_failed", true, &["inspect_local_stores"][..]),
             TodayError::CorruptProjection | TodayError::Serialization => {
                 ("today_state_failed", true, &["rebuild", "retry"][..])
@@ -337,6 +342,45 @@ impl TeraAppError {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn current_storage_conflicts_refuse_scope_without_collapsing_offline_or_capacity_reports() {
+        for conflict in [
+            radroots_storage::Error::SourceGenerationChanged,
+            radroots_storage::Error::SourceEpochChanged,
+            radroots_storage::Error::ProjectionRevisionConflict,
+        ] {
+            let ffi = TeraAppError::from(TodayError::Storage(conflict));
+            assert_eq!(ffi.report().code, "today_cursor_invalid");
+            assert!(ffi.report().retryable);
+            assert_eq!(ffi.report().recovery_actions, ["restart_pagination"]);
+            let recovery = crate::recovery::classify_error_recovery(
+                ffi.report().schema_version,
+                ffi.report().code.clone(),
+            );
+            assert_eq!(
+                recovery.disposition,
+                crate::recovery::FfiRecoveryDisposition::StaleCursor
+            );
+        }
+        let offline = TeraAppError::from(TodayError::Storage(
+            radroots_storage::Error::BackendUnavailable,
+        ));
+        assert_eq!(offline.report().code, "today_storage_failed");
+        assert_eq!(offline.report().recovery_actions, ["inspect_local_stores"]);
+        let space = TeraAppError::from(TodayError::Storage(
+            radroots_storage::Error::SpaceInsufficient,
+        ));
+        assert_eq!(space.report().code, "storage_space_insufficient");
+        assert_eq!(
+            space.report().recovery_actions,
+            [
+                "free_reconstructable_cache",
+                "preserve_local_work",
+                "reconcile_original_operation",
+            ]
+        );
+    }
 
     #[test]
     fn mutation_admission_reports_the_existing_typed_recovery_contract() {

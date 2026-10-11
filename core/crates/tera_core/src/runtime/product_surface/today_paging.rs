@@ -58,7 +58,8 @@ impl TeraRuntime {
                 calendar.as_of(),
                 TodayProjectionUpdate::Incremental,
             )
-            .await?;
+            .await
+            .map_err(read_scope::current_repair_error)?;
             guard = self.today_projection_lock.lock().await;
             scope = page_scope::Scope::load(self, context, calendar, &mut budget).await?;
         }
@@ -200,7 +201,7 @@ impl TeraRuntime {
             item.thread_next_cursor = thread_cursors.remove(&item.card.card_id);
         }
         paging_scope::validate_order(&items)?;
-        check_current(self, context, &scope, &mut finish).await?;
+        scope.check_current(self, context, &mut finish).await?;
         drop(guard);
         Ok(TodayPage {
             projection_generation: scope.cursor.projection_generation,
@@ -255,7 +256,7 @@ impl TeraRuntime {
         state.thread = items;
         scope.local.apply(&mut state);
         validate_media_state(&state)?;
-        check_current(self, context, &scope, &mut finish).await?;
+        scope.check_current(self, context, &mut finish).await?;
         Ok(super::super::TodayThreadPage {
             card_id: card.card_id,
             items: state.thread,
@@ -337,21 +338,6 @@ async fn validate_position(
         .ok_or(TodayError::CursorPositionMissing)?;
     if page_index::Reference::from_document(&document)?.rank != rank {
         return Err(TodayError::CursorPositionMissing);
-    }
-    Ok(())
-}
-
-async fn check_current(
-    runtime: &TeraRuntime,
-    context: &LocalNetwork,
-    scope: &page_scope::Scope,
-    budget: &mut page_budget::Budget,
-) -> Result<(), TodayError> {
-    let current = page_scope::Scope::load(runtime, context, scope.cursor.calendar.clone(), budget)
-        .await?
-        .ok_or(CursorError::Stale)?;
-    if current.fingerprint != scope.fingerprint {
-        return Err(CursorError::Stale.into());
     }
     Ok(())
 }

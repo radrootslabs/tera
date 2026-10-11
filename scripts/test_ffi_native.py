@@ -6,6 +6,7 @@ import copy
 import json
 import itertools
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -20,6 +21,7 @@ if str(SCRIPTS) not in sys.path:
 import ffi_build as builder  # noqa: E402
 import ffi_native as native  # noqa: E402
 import ffi_source as source  # noqa: E402
+from fixture_alias_tool import compile_alias_dispatch  # noqa: E402
 
 
 # Literal cc 1.4.0 cargo_env_var_os inputs, independent of the production list.
@@ -230,6 +232,8 @@ class NativeInputTests(unittest.TestCase):
 
 class NativeBindingTests(unittest.TestCase):
     def setUp(self) -> None:
+        self.alias_compiler = shutil.which("cc")
+        self.alias_compiler_environment = dict(os.environ)
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.root = Path(temporary.name).resolve()
@@ -300,11 +304,14 @@ class NativeBindingTests(unittest.TestCase):
 
     def test_public_fixture_aliases_retain_actual_argv0_dispatch(self) -> None:
         # These existing synthetic tools use explicitly substituted fixture roots.
-        dispatch = (
-            f"#!{sys.executable}\nimport os,sys\nprint(os.path.basename(sys.argv[0]))\n"
+        binary, command = compile_alias_dispatch(
+            self.root, self.alias_compiler, self.alias_compiler_environment
         )
+        self.assertTrue(command["wait_reaped"])
+        self.assertTrue(command["group_absent"])
         for name in ("libtool", "swift-frontend"):
-            (self.tools / name).write_text(dispatch)
+            shutil.copyfile(binary, self.tools / name)
+            (self.tools / name).chmod(0o755)
         for name in ("ranlib", "swiftc", "swift-symbolgraph-extract"):
             with self.subTest(tool=name):
                 alias = self.tools / name
@@ -323,6 +330,12 @@ class NativeBindingTests(unittest.TestCase):
                     env=native.inspection_environment(),
                 )
                 self.assertEqual(result.stdout.strip(), name)
+
+    def test_native_alias_dispatch_does_not_depend_on_python_loader(self) -> None:
+        with patch.object(
+            sys, "executable", str(self.root / "unavailable-python-loader")
+        ):
+            self.test_public_fixture_aliases_retain_actual_argv0_dispatch()
 
     def test_literal_cargo_trim_capture_rejects_before_tool_queries(self) -> None:
         for overrides in CARGO_TRIM_OVERRIDES:

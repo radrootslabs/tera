@@ -61,8 +61,11 @@ impl CountedStorage {
 impl EventStore for CountedStorage {
     fn source_token(&self) -> BoxFuture<'_, Result<EventSourceToken, Error>> {
         Box::pin(async move {
+            self.counts.faults.boundary("read_source", false).await?;
             self.counts.add("event.source_token", 1);
-            EventStore::source_token(self.storage()).await
+            let result = EventStore::source_token(self.storage()).await;
+            self.counts.faults.boundary("read_source", true).await?;
+            result
         })
     }
     fn maintain_visibility(
@@ -80,8 +83,10 @@ impl EventStore for CountedStorage {
         source: EventSourceToken,
     ) -> BoxFuture<'_, Result<EventPage<StoredVisibleEvent>, Error>> {
         Box::pin(async move {
+            self.counts.faults.boundary("read_visible", false).await?;
             self.counts.add("event.query_visible_at", 1);
             let result = EventStore::query_visible_at(self.storage(), query, source).await;
+            self.counts.faults.boundary("read_visible", true).await?;
             if let Ok(page) = &result {
                 self.counts.add("event.rows", page.items().len() as u64);
                 self.counts
@@ -272,6 +277,11 @@ impl ProjectionStore for CountedStorage {
         active: ProjectionGeneration,
     ) -> BoxFuture<'_, Result<document_query::ProjectionDocumentPage, Error>> {
         Box::pin(async move {
+            self.counts.faults.boundary("read_query", false).await?;
+            if query.limit() == 64 {
+                self.counts.faults.boundary("read_payload", false).await?;
+                self.counts.add("projection.payload_queries", 1);
+            }
             self.counts.add("projection.query_documents_at", 1);
             let limit = query.limit();
             let result = ProjectionStore::query_projection_documents_at(
@@ -284,6 +294,10 @@ impl ProjectionStore for CountedStorage {
             if let Ok(page) = &result {
                 self.counts.selected(limit, page);
             }
+            if limit == 64 {
+                self.counts.faults.boundary("read_payload", true).await?;
+            }
+            self.counts.faults.boundary("read_query", true).await?;
             result
         })
     }
@@ -409,14 +423,17 @@ impl ProjectionStore for CountedStorage {
         document: ProjectionDocument,
     ) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
+            self.counts.faults.boundary("document_write", false).await?;
             self.counts.add("projection.put_projection_document", 1);
-            ProjectionStore::put_projection_document(
+            let result = ProjectionStore::put_projection_document(
                 self.storage(),
                 projection_id,
                 generation,
                 document,
             )
-            .await
+            .await;
+            self.counts.faults.boundary("document_write", true).await?;
+            result
         })
     }
     fn projection_document(

@@ -159,6 +159,7 @@ targets:
       - path: TeraTests/TeraBackgroundUploadFixtures.swift
       - path: TeraTests/TeraMutationAdmissionTests.swift
       - path: TeraTests/TeraSupportingStoreTests.swift
+      - path: TeraTests/TeraSupportingFreshnessTests.swift
       - path: TeraTests/TeraSupportingBackend.swift
       - path: TeraTests/TeraCapacityRecoveryTests.swift
       - path: TeraTests/TeraCapacitySettingsTests.swift

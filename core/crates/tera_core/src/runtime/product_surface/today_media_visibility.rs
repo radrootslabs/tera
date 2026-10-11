@@ -4,30 +4,49 @@ use super::*;
 #[path = "today_media_visibility_tests.rs"]
 mod tests;
 
-/// A cached reference is not authority after the selected query or visible
-/// event set changes. The owner re-evaluates replacement/deletion semantics;
-/// raw row counts and the store's identity generation cannot establish this.
+/// Media has no calendar selection. It shares the same complete source,
+/// policy, full context, owner, promoted generation and local-evidence scope.
 pub(super) async fn current_state(
     runtime: &TeraRuntime,
     context: &LocalNetwork,
 ) -> Result<TodayProjectionState, TodayError> {
-    let scope = paging_scope::query_scope(context, runtime.store_public_key)?;
+    let mut budget = page_budget::Budget::default();
+    let scope = current_scope(runtime, context, &mut budget).await?;
+    let mut finish = budget.reserve_scope()?;
+    let state = scope.load_state(runtime, context).await?;
+    scope.check_current(runtime, context, &mut finish).await?;
+    Ok(state)
+}
+
+/// After an acknowledged own receipt/LRU write, compare its resulting revision
+/// rather than accidentally rejecting the write's intentional local change.
+pub(super) async fn confirm_state(
+    runtime: &TeraRuntime,
+    context: &LocalNetwork,
+    state: &TodayProjectionState,
+) -> Result<(), TodayError> {
+    let mut budget = page_budget::Budget::default();
+    let scope = current_scope(runtime, context, &mut budget).await?;
+    scope.check_state(state)?;
+    let mut finish = budget.reserve_scope()?;
+    scope.check_current(runtime, context, &mut finish).await
+}
+
+async fn current_scope(
+    runtime: &TeraRuntime,
+    context: &LocalNetwork,
+    budget: &mut page_budget::Budget,
+) -> Result<read_scope::Scope, TodayError> {
+    if let Some(scope) = read_scope::Scope::load(runtime, context, budget).await? {
+        return Ok(scope);
+    }
     let storage = runtime
         .client
         .storage()
         .map_err(|_| TodayError::RuntimeUnavailable)?;
-    let state = match load_state(storage, context, projection_generation()?).await? {
-        Some(state) => state,
-        None if sidecar::load(storage, context).await?.is_some() => {
-            return Err(TodayError::InvalidRequest);
-        }
-        None => return Err(TodayError::ProjectionMissing),
-    };
-    if state.query_scope != Some(scope) {
-        return Err(TodayError::InvalidRequest);
+    if sidecar::load(storage, context).await?.is_some() {
+        Err(TodayError::InvalidRequest)
+    } else {
+        Err(TodayError::ProjectionMissing)
     }
-    if state.visibility_digest != Some(runtime.projection_visibility_digest().await?) {
-        return Err(TodayError::InvalidRequest);
-    }
-    Ok(state)
 }

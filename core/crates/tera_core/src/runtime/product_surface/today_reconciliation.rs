@@ -34,20 +34,10 @@ impl TeraRuntime {
         if selected.len() != card_ids.len() {
             return Err(TodayError::InvalidRequest);
         }
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let state = self
-            .calendar_state_for_read(storage, context, as_of)
-            .await?
-            .ok_or(TodayError::ProjectionMissing)?;
+        let (_projection, state) = self.calendar_state_for_read(context, as_of, true).await?;
         if state.query_scope != Some(query_scope)
             || state.visibility_digest.is_none()
-            || state.author_visibility_digest
-                != self.load_author_visibility().await?.cache_digest()?
             || expected_generation.is_some_and(|value| value != state.content_generation)
-            || state.store_generation != current_store_generation(storage).await?
         {
             return Err(CursorError::Stale.into());
         }

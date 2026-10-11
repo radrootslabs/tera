@@ -140,16 +140,6 @@ pub(crate) fn identity() -> Result<(ProjectionId, ProjectionGeneration), TodayEr
 }
 
 impl TeraRuntime {
-    pub(crate) async fn projection_visibility_digest(&self) -> Result<[u8; 32], TodayError> {
-        let policy = self.load_author_visibility().await?;
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let source = radroots_storage::EventStore::source_token(storage).await?;
-        source_visibility_digest(source, policy.cache_digest()?)
-    }
-
     pub async fn author_visibility(&self) -> Result<AuthorVisibilityPolicy, TodayError> {
         let _command = self.lifecycle.enter()?;
         self.load_author_visibility().await

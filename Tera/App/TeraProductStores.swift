@@ -25,14 +25,26 @@ final class TeraProductStores {
     visibility = TeraVisibilityStore(runtimeClient: runtimeClient)
     visibility.willChange = { [today] in today.invalidateVisibility() }
     visibility.didChange = { [today] in await today.reload(refreshProjection: false) }
-    today.mediaWillChange = { [media] previous, current, context in
-      media.reconcileVisibility(previous: previous, current: current, context: context)
+    today.mediaWillChange = { [weak search, weak me, media] previous, current, context in
+      let permitted = current + (search?.currentMedia(context: context) ?? [])
+        + (me?.currentMedia(context: context) ?? [])
+      media.reconcileVisibility(previous: previous, current: permitted, context: context)
+    }
+    search.mediaWillChange = { [weak today, weak me, media] previous, current, context in
+      let todayMedia = today?.selectedContext == context ? today?.cards.flatMap(\.media) ?? [] : []
+      let permitted = current + todayMedia + (me?.currentMedia(context: context) ?? [])
+      media.reconcileVisibility(previous: previous, current: permitted, context: context)
+    }
+    me.mediaWillChange = { [weak today, weak search, media] previous, current, context in
+      let todayMedia = today?.selectedContext == context ? today?.cards.flatMap(\.media) ?? [] : []
+      let permitted = current + todayMedia + (search?.currentMedia(context: context) ?? [])
+      media.reconcileVisibility(previous: previous, current: permitted, context: context)
     }
     today.scopeWillChange = { [search, me, media] context in
-      search.stop()
       search.configure(context: context)
-      me.stop()
+      search.invalidatePresentation()
       me.configure(context: context)
+      me.invalidatePresentation()
       media.reset()
     }
   }

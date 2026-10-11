@@ -29,9 +29,13 @@ impl TeraRuntime {
         match super::super::media::verified_artifact(directory, &receipt).await {
             Ok(artifact) => {
                 state = media_visibility::current_state(self, context).await?;
+                if verified_receipt(&state, artifact_id).as_ref() != Some(&receipt) {
+                    return Err(TodayError::InvalidRequest);
+                }
                 if state.media_cache.touch(artifact_id, observed_at_unix_ms)? {
                     persist_media_state(self, storage, context, generation, &mut state).await?;
                 }
+                media_visibility::confirm_state(self, context, &state).await?;
                 Ok(Some(artifact))
             }
             Err(error) => {
@@ -189,7 +193,7 @@ impl TeraRuntime {
                 context,
                 reference_fingerprint,
                 operation_id,
-                receipt,
+                receipt.clone(),
                 policy,
                 sdk_receipt.verified_at_unix_ms(),
             )
@@ -211,6 +215,12 @@ impl TeraRuntime {
         };
         let _projection = self.today_projection_lock.lock().await;
         media_collection::collect(self, directory, &evicted, &_guard, &_projection).await?;
+        let state = media_visibility::current_state(self, context).await?;
+        if verified_receipt(&state, artifact.artifact_id()).as_ref() != Some(&receipt)
+            || structural_reference(&state, reference_fingerprint)? != structural
+        {
+            return Err(TodayError::InvalidRequest);
+        }
         Ok(artifact)
     }
 }
@@ -221,7 +231,16 @@ async fn load_structural_reference(
     context: &LocalNetwork,
     reference_fingerprint: [u8; 32],
 ) -> Result<Phase1StructuralMediaReference, TodayError> {
+    let _projection = runtime.today_projection_lock.lock().await;
     let state = media_visibility::current_state(runtime, context).await?;
+    structural_reference(&state, reference_fingerprint)
+}
+
+#[cfg(feature = "mobile-social")]
+fn structural_reference(
+    state: &TodayProjectionState,
+    reference_fingerprint: [u8; 32],
+) -> Result<Phase1StructuralMediaReference, TodayError> {
     state
         .cards
         .iter()

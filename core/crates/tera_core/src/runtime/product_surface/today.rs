@@ -103,6 +103,8 @@ mod paging;
 mod paging_scope;
 #[path = "today_projection_collection.rs"]
 mod projection_collection;
+#[path = "today_read_scope.rs"]
+mod read_scope;
 #[path = "today_refresh.rs"]
 mod refresh;
 #[path = "today_row_state.rs"]
@@ -158,6 +160,10 @@ mod keyset_tests;
 #[cfg(test)]
 #[path = "today_scope_tests.rs"]
 mod scope_tests;
+
+#[cfg(test)]
+#[path = "today_read_scope_tests.rs"]
+mod read_scope_tests;
 
 #[cfg(all(test, feature = "mobile-social"))]
 #[path = "today_sync_tests.rs"]
@@ -381,14 +387,7 @@ impl TeraRuntime {
         {
             return Err(TodayError::InvalidRequest);
         }
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let state = self
-            .calendar_state_for_read(storage, context, as_of)
-            .await?
-            .ok_or(TodayError::ProjectionMissing)?;
+        let (_projection, state) = self.calendar_state_for_read(context, as_of, false).await?;
         let cards = ranked_cards(&state, context, &calendar)?;
         let mut results = Vec::new();
         for card in cards {
@@ -462,14 +461,7 @@ impl TeraRuntime {
         {
             return Err(TodayError::InvalidRequest);
         }
-        let storage = self
-            .client
-            .storage()
-            .map_err(|_| TodayError::RuntimeUnavailable)?;
-        let state = self
-            .calendar_state_for_read(storage, context, as_of)
-            .await?
-            .ok_or(TodayError::ProjectionMissing)?;
+        let (_projection, state) = self.calendar_state_for_read(context, as_of, false).await?;
         let cards = ranked_cards(&state, context, &calendar)?
             .into_iter()
             .filter(|card| card.card.author_pubkey == public_key)
@@ -511,6 +503,7 @@ impl TeraRuntime {
         if changed {
             state = trial;
             persist_media_state(self, storage, context, generation, &mut state).await?;
+            media_visibility::confirm_state(self, context, &state).await?;
         }
         Ok(changed)
     }
@@ -535,6 +528,7 @@ impl TeraRuntime {
         })?;
         if changed {
             persist_media_state(self, storage, context, generation, &mut state).await?;
+            media_visibility::confirm_state(self, context, &state).await?;
         }
         Ok(changed)
     }
@@ -573,6 +567,7 @@ impl TeraRuntime {
         }
         state = trial;
         persist_media_state(self, storage, context, generation, &mut state).await?;
+        media_visibility::confirm_state(self, context, &state).await?;
         Ok(evicted)
     }
 
@@ -987,17 +982,6 @@ fn refresh_thread_profiles(state: &mut TodayProjectionState) {
     }
 }
 
-// A bounded owner query authenticates the source generation without invoking
-// full visibility/status reduction. The backend may read one look-ahead row.
-async fn current_store_generation(storage: &dyn EventStore) -> Result<[u8; 32], TodayError> {
-    Ok(
-        *EventStore::query_raw(storage, EventQuery::all(EventQueryBounds::first(1)?))
-            .await?
-            .generation()
-            .as_bytes(),
-    )
-}
-
 #[cfg(test)]
 async fn query_all_visible(
     storage: &dyn radroots_storage::Storage,
@@ -1199,12 +1183,6 @@ fn locality_evidence(selected: Option<&str>, locality: &[LocalityTag]) -> Locali
     } else {
         LocalityEvidence::Nonmatch
     }
-}
-
-fn calendar_projection_ready(state: &TodayProjectionState) -> bool {
-    state.cards.iter().all(|entry| {
-        entry.card.card_type != TodayCardType::Event || entry.card.calendar_timing.is_some()
-    })
 }
 
 fn ranked_cards(

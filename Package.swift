@@ -216,6 +216,7 @@ let package = Package(
         "Views/TeraEditingProtectionUITestSurface.swift",
         "Views/TeraRecoveryUITestSurface.swift",
         "Views/TeraSupportingViews.swift",
+        "Views/TeraSupportingCurrentDetail.swift",
         "Views/TeraSettingsView.swift",
         "Views/TeraSupportSettingsSection.swift",
         "Views/TeraStorageSettingsSection.swift",
