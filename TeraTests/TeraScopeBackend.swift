@@ -28,6 +28,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
   private var meCards = [TeraScopeFixtures.card("old")]
   private var meProfile: TeraProfileSummary?
   private var searchResults: [TeraSearchResult]?
+  private var cacheCleanupResult = TeraMediaCacheCleanup(invalidatedEntries: 2, retainedCandidates: 1, remainingEntries: 3)
   private var revision: UInt64 = 0
   private var syncReceipt: TeraTodaySyncReceipt?
   var recoveryCompletion: (@Sendable (TeraRecoveryUploadReceipt, TeraPreparedMediaHandle) async throws -> TeraRecoveryCompletionReceipt)?
@@ -254,7 +255,7 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func cleanupMediaCache(context _: TeraLocalNetwork) async throws -> TeraMediaCacheCleanup {
     try await wait(.cacheCleanup)
-    return TeraMediaCacheCleanup(invalidatedEntries: 2, retainedCandidates: 1, remainingEntries: 3)
+    return cacheCleanupResult
   }
 
   func invalidateMediaArtifact(context _: TeraLocalNetwork, artifactID _: String) async throws -> Bool {
@@ -293,5 +294,11 @@ actor TeraScopeBackend: TeraRuntimeBackend {
 
   func shutdown() -> TeraRuntimeShutdownReceipt {
     TeraRuntimeShutdownReceipt(state: "closed", alreadyClosed: false)
+  }
+}
+
+extension TeraScopeBackend {
+  func setCacheCleanupResult(_ value: TeraMediaCacheCleanup) {
+    cacheCleanupResult = value
   }
 }

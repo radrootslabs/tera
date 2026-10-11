@@ -1,8 +1,8 @@
 {
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
-    "ffi_api_sha256": "2479b0d8c0b5091dff93eaaee79902c3e1b5ebe86d8e08662b0066699b61bb15",
-    "ffi_provenance_sha256": "bb39737e3b056fcdca01ac6a84a91752f27679f3b171836b37b571fe2b596ba9",
+    "ffi_api_sha256": "0f2ed40dd373866f25dccb3d8665eaf145660a08ba7b15ba169c8fc2b08e9c11",
+    "ffi_provenance_sha256": "778fa97a1b86a5c786c7bf8cf21c7f30c903801537beb2b12ec01d092680c23b",
     "info_plist_sha256": "b55010dd73b34bf5ad910a888be0ea1ae45f2a5c14329fa6a57059a317bdbd42",
     "privacy_manifest_sha256": "0f2103257ba596fbcaeb1d6a4dffe3ae021e84c010178852c6bf500a8cfb0f19",
     "sbom_sha256": "8552ae21cfc9dd3c1b92c76423e2741f3487fb35b81fb7f4ebbe33afe360b3ee",
@@ -332,10 +332,10 @@
           "sha256": "a6af6f5d52c21b3bba1b2e66260de25ebf022d8d6c61a7377023bdb48de6b279"
         },
         "Tera/Runtime/TeraGeneratedCacheCleanup.swift": {
-          "bytes": 499,
-          "git_blob": "829a761bd7c41b625c5fd3ba649ce079bf7ef51c",
+          "bytes": 583,
+          "git_blob": "5e98af385712e608359e417f451f36b953e33d6a",
           "mode": "100644",
-          "sha256": "8225aa1bbf768def6406739226e67f85aa55120efcd47148b5b74aed53861eb6"
+          "sha256": "a48d4c656acfd0e34a47d28f9981ef37c6365b153fc0abd3220506b64fd83600"
         },
         "Tera/Runtime/TeraGeneratedCalendarCards.swift": {
           "bytes": 1356,
@@ -500,10 +500,10 @@
           "sha256": "14e067a746cca15b73454e14c70abd8757a91e5f95a78367691b16b61d5575fa"
         },
         "Tera/Runtime/TeraMediaCacheCleanup.swift": {
-          "bytes": 589,
-          "git_blob": "7ddc2742c934a7b10a43e733b52e2f5065d1730a",
+          "bytes": 1036,
+          "git_blob": "45d469e4ead4039ada9b7bcef18a1bb8a19fcf42",
           "mode": "100644",
-          "sha256": "e17a0d55f3ed23ef9d1de68e585259e42930b6011e708f405d50acda7d6bf462"
+          "sha256": "927676d46f3893dc5dce963d19f689c9a9d215312203a8d1db643476fd9cb3e3"
         },
         "Tera/Runtime/TeraMediaCleanup.swift": {
           "bytes": 6033,
@@ -944,10 +944,10 @@
           "sha256": "b9451df2c4ae8848e04eb97cc2c705674305d52e0c78e426383ee89fdf0fc330"
         },
         "Tera/State/TeraSettingsStore.swift": {
-          "bytes": 11631,
-          "git_blob": "564b8b4ec59f4d1435c7e3943b313c2eac8b66cf",
+          "bytes": 11949,
+          "git_blob": "ba66f5fddbadc9d90bfc2d12c57bec29d3be7912",
           "mode": "100644",
-          "sha256": "b404a635c2de60ada80345b80ad6e5307e510db7304f9aacd5fa502cf941fbca"
+          "sha256": "111f8f9fb5850e6758a02d4529653bfafea7030b64add50817eaf735b48e5a0d"
         },
         "Tera/State/TeraStoreObservation.swift": {
           "bytes": 5421,
@@ -1263,14 +1263,14 @@
         }
       },
       "policy": "staged_inputs",
-      "tree": "2bd09aecfcc92b9c9605e2261ad0e7849e2730fb"
+      "tree": "d6084f55108790a34851de82afea2a4e4049d007"
     },
     "cargo_lock_sha256": "efb02ec8209f2a8de2065aed29a275e0b17adda4044a763a43a7a7f6a8a01181",
     "consumer_source_lock_sha256": "15151b7bb25a4f6bca910f61db6c122383fd333fa4266f06e60df50113bfb728",
     "lib_revision": "418acecb49437ce1200a6916822af9ef83eefec3",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "8aec408132602a249111a65903c985cca5898ec316a45916d88ba756f08ea40d",
-    "tera_ffi_source_tree": "0e803c4e3df6d4d4cbfaadf518a5fc96e5f9496d",
+    "tera_ffi_source_tree": "29564e400d70479aa566a05a816117ca1fa8ba64",
     "xcode_package_lock_sha256": "3656728f8251f3ea644aa150d154819766470ca7bd4f85b7c51fdf301d361d16"
   },
   "version": "0.1.0-alpha"

@@ -21,6 +21,9 @@ const NOW: u64 = 2_000_000_000;
 #[path = "today_media_read_scope_tests.rs"]
 mod read_scope;
 
+#[path = "today_media_custody_tests.rs"]
+mod custody;
+
 #[tokio::test]
 async fn author_block_prevents_hidden_fetch_and_late_network_admission() {
     use crate::runtime::visibility::AuthorVisibility;

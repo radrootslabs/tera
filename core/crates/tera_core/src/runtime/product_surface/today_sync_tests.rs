@@ -77,7 +77,7 @@ pub(super) fn runtime(source: Arc<dyn EventSource>) -> TeraRuntime {
         publication_configuration: Default::default(),
         identity_session: tokio::sync::RwLock::new(None),
         inbound_media_directory: None,
-        inbound_media_lock: tokio::sync::Mutex::new(()),
+        inbound_media_lock: Default::default(),
     }
 }
 

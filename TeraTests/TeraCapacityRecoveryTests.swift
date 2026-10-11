@@ -3,6 +3,24 @@ import RadrootsKit
 import XCTest
 
 final class TeraCapacityRecoveryTests: XCTestCase {
+  @MainActor
+  func testCacheCleanupReportsRecoveredFilesAndBoundedContinuationWithoutBytesClaim() async throws {
+    let backend = try TeraScopeBackend()
+    let client = try await TeraScopeFixtures.client(backend)
+    let store = TeraSettingsStore(runtimeClient: client)
+    let context = TeraLocalNetwork.defaultContext(snapshot: TeraScopeFixtures.snapshot())
+    await backend.setCacheCleanupResult(.init(invalidatedEntries: 0, retainedCandidates: 0, remainingEntries: 0, recoveredOrphanFiles: 7, scanPending: true))
+    await store.cleanupMediaCache(context: context)
+    XCTAssertTrue(store.message?.contains("Recovered 7 unreferenced cache files") == true)
+    XCTAssertTrue(store.message?.contains("run cleanup again") == true)
+    XCTAssertFalse(store.message?.contains("bytes freed") == true)
+    await backend.setCacheCleanupResult(.init(invalidatedEntries: 0, retainedCandidates: 0, remainingEntries: 0))
+    await store.cleanupMediaCache(context: context)
+    XCTAssertFalse(store.message?.contains("run cleanup again") == true)
+    XCTAssertFalse(store.message?.contains("Recovered 7") == true)
+    _ = try await client.stop()
+  }
+
   func testTypedNativeCapacityAndReceiptQuotaRemainDistinctAndNeverPromiseSavedEditing() {
     let capacity: [Error] = [RadrootsAppleFileError.spaceInsufficient, RadrootsCaptureIntakeError.spaceInsufficient, RadrootsBackgroundTransferError.spaceInsufficient]
     for error in capacity {

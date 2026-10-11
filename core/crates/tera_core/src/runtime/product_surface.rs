@@ -15,6 +15,8 @@ mod cursor;
 mod identity;
 mod local_network_id;
 mod media;
+#[cfg(feature = "mobile-social")]
+pub(crate) use media::InboundMediaFiles;
 mod media_capacity;
 #[cfg(feature = "mobile-social")]
 pub mod media_gc;

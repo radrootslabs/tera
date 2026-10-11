@@ -5,6 +5,8 @@ pub struct FfiMediaCacheCleanup {
     pub invalidated_entries: u32,
     pub retained_candidates: u32,
     pub remaining_entries: u32,
+    pub recovered_orphan_files: u32,
+    pub scan_pending: bool,
 }
 
 #[uniffi::export(async_runtime = "tokio")]
@@ -21,6 +23,8 @@ impl TeraRuntime {
             invalidated_entries: result.invalidated_entries,
             retained_candidates: result.retained_candidates,
             remaining_entries: result.remaining_entries,
+            recovered_orphan_files: result.recovered_orphan_files,
+            scan_pending: result.scan_pending,
         })
     }
 }

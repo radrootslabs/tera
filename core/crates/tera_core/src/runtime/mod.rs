@@ -54,7 +54,7 @@ pub struct TeraRuntime {
     #[cfg(feature = "mobile-social")]
     pub(crate) inbound_media_directory: Option<PathBuf>,
     #[cfg(feature = "mobile-social")]
-    pub(crate) inbound_media_lock: tokio::sync::Mutex<()>,
+    pub(crate) inbound_media_lock: tokio::sync::Mutex<product_surface::InboundMediaFiles>,
     #[cfg(feature = "mobile-social")]
     restore_guard: Option<restore::ApplicationRestoreGuard>,
 }
@@ -122,7 +122,7 @@ impl TeraRuntime {
             #[cfg(feature = "mobile-social")]
             inbound_media_directory,
             #[cfg(feature = "mobile-social")]
-            inbound_media_lock: tokio::sync::Mutex::new(()),
+            inbound_media_lock: Default::default(),
             #[cfg(feature = "mobile-social")]
             restore_guard: None,
         })

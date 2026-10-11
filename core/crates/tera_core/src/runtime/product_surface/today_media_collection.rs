@@ -22,7 +22,7 @@ pub(super) async fn collect(
     runtime: &TeraRuntime,
     directory: &Path,
     candidates: &[Phase1MediaArtifactId],
-    _files: &MutexGuard<'_, ()>,
+    _files: &MutexGuard<'_, super::super::media::InboundMediaFiles>,
     _projection: &MutexGuard<'_, ()>,
 ) -> Result<(), TodayError> {
     collect_report(runtime, directory, candidates, _files, _projection)
@@ -34,7 +34,7 @@ pub(super) async fn collect_report(
     runtime: &TeraRuntime,
     directory: &Path,
     candidates: &[Phase1MediaArtifactId],
-    _files: &MutexGuard<'_, ()>,
+    _files: &MutexGuard<'_, super::super::media::InboundMediaFiles>,
     _projection: &MutexGuard<'_, ()>,
 ) -> Result<u32, TodayError> {
     if !runtime.today_projection_lock.can_collect() {
@@ -55,6 +55,59 @@ pub(super) async fn collect_report(
         super::super::media::remove_artifact_files(directory, artifact)?;
     }
     Ok(collected)
+}
+
+pub(super) struct CleanupCollection {
+    pub(super) indexed_collected: u32,
+    pub(super) recovered_orphan_files: u32,
+    pub(super) scan_pending: bool,
+}
+
+/// One combined candidate/proof budget covers indexed eviction and filesystem
+/// recovery. An incomplete inventory or unsettled write never grants unlink.
+pub(super) async fn collect_cleanup(
+    runtime: &TeraRuntime,
+    directory: &Path,
+    indexed: &[Phase1MediaArtifactId],
+    files: &mut MutexGuard<'_, super::super::media::InboundMediaFiles>,
+    _projection: &MutexGuard<'_, ()>,
+) -> Result<CleanupCollection, TodayError> {
+    let mut report = CleanupCollection {
+        indexed_collected: 0,
+        recovered_orphan_files: 0,
+        scan_pending: true,
+    };
+    if !runtime.today_projection_lock.can_collect() {
+        return Ok(report);
+    }
+    let batch = files.inventory(directory, MAX_CANDIDATES.saturating_sub(indexed.len()))?;
+    let mut candidates = indexed.to_vec();
+    candidates.extend(batch.files.iter().map(|file| file.artifact_id));
+    let storage = runtime
+        .client
+        .storage()
+        .map_err(|_| TodayError::RuntimeUnavailable)?;
+    let Some(unreferenced) = unreferenced(storage, &candidates).await? else {
+        return Ok(report);
+    };
+    if !runtime.today_projection_lock.can_collect() {
+        return Ok(report);
+    }
+    batch.confirm_root(directory)?;
+    for artifact in indexed
+        .iter()
+        .filter(|artifact| unreferenced.contains(artifact))
+    {
+        super::super::media::remove_artifact_files(directory, *artifact)?;
+        report.indexed_collected += 1;
+    }
+    for file in &batch.files {
+        if unreferenced.contains(&file.artifact_id) && batch.remove(directory, file)? {
+            report.recovered_orphan_files += 1;
+        }
+    }
+    report.scan_pending = batch.scan_pending;
+    Ok(report)
 }
 
 async fn unreferenced(
@@ -98,6 +151,10 @@ async fn unreferenced(
                     };
                     if state.validate(record.key()).is_err()
                         || encode(&state)?.as_slice() != document.value()
+                        || state.media.iter().any(|(_, media)| {
+                            matches!(media, Phase1InboundMediaState::Verified(receipt)
+                                if !state.cache.contains(receipt))
+                        })
                     {
                         return Ok(None);
                     }

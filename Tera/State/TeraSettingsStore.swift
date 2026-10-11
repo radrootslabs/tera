@@ -287,6 +287,12 @@ extension TeraSettingsStore {
             let result = try await runtimeClient.cleanupMediaCache(context: context)
             guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }
             message = "Cleared \(result.invalidatedEntries) cache entries; \(result.remainingEntries) remain in this context. \(result.retainedCandidates) shared or unverified file candidates were retained. Cached photos can reload; pending work is preserved."
+            if result.recoveredOrphanFiles > 0 {
+              message = (message ?? "") + " Recovered \(result.recoveredOrphanFiles) unreferenced cache files."
+            }
+            if result.scanPending {
+              message = (message ?? "") + " More cache recovery remains; run cleanup again."
+            }
             failureCode = nil
         } catch {
             guard requestedGeneration == generation, generation.isActive, !Task.isCancelled else { return }

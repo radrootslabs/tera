@@ -8,6 +8,9 @@ use super::*;
 #[path = "today_media_collection_budget_tests.rs"]
 mod budgets;
 
+#[path = "today_orphan_recovery_tests.rs"]
+mod orphan_recovery;
+
 struct Fixture {
     root: tempfile::TempDir,
     runtime: Arc<TeraRuntime>,
