@@ -56,7 +56,11 @@ fn complete(result: BuildOutcome) -> BuildProgress {
 
 #[tokio::test]
 async fn every_batch_and_promotion_refusal_reopens_to_exact_complete_rows() {
-    for (operation, ordinal) in [("batch", 1), ("batch", 2), ("batch", 3), ("promotion", 1)] {
+    let batches = 130usize.div_ceil(usize::from(SOURCE_ROWS));
+    for (operation, ordinal) in (1..=batches)
+        .map(|ordinal| ("batch", ordinal))
+        .chain([("promotion", 1)])
+    {
         for after in [false, true] {
             let (root, runtime, counts) = fixture().await;
             counts.faults.failure(operation, ordinal, after);
@@ -82,7 +86,7 @@ async fn every_batch_and_promotion_refusal_reopens_to_exact_complete_rows() {
             let (reopened, _) = counted(&root).await;
             let built = complete(build(&reopened).await.unwrap());
             assert_eq!(built.cards, 130);
-            assert_eq!(built.document_rows().unwrap(), 132);
+            assert_eq!(built.document_rows().unwrap(), 262);
             let active = ProjectionStore::status(
                 reopened.client.storage().unwrap(),
                 ProjectionId::parse(progress::ID).unwrap(),
@@ -91,7 +95,7 @@ async fn every_batch_and_promotion_refusal_reopens_to_exact_complete_rows() {
             .unwrap()
             .unwrap();
             assert_eq!(active.generation(), built.generation);
-            assert_eq!(active.checkpoint().unwrap().projected_rows(), 132);
+            assert_eq!(active.checkpoint().unwrap().projected_rows(), 262);
             reopened.shutdown().await.unwrap();
         }
     }
@@ -110,6 +114,16 @@ async fn actual_cancelled_sqlite_batch_resumes_only_the_unscanned_rows_after_reo
         .await
         .unwrap()
         .unwrap();
+    let acknowledged = progress::load(
+        runtime.client.storage().unwrap(),
+        ProjectionId::parse(progress::ID).unwrap(),
+        before.generation,
+        progress::PROGRESS,
+    )
+    .await
+    .unwrap()
+    .unwrap();
+    assert_eq!(acknowledged.cards, 2 * u64::from(SOURCE_ROWS));
     pending.abort();
     assert!(matches!(pending.await, Err(error) if error.is_cancelled()));
     assert!(!runtime.today_projection_lock.can_collect());
@@ -129,8 +143,12 @@ async fn actual_cancelled_sqlite_batch_resumes_only_the_unscanned_rows_after_reo
     assert_eq!(built.generation, before.generation);
     assert_eq!(built.cards, 130);
     let observed = calls.take();
-    assert_eq!(observed.get("event.rows"), Some(&4));
-    assert_eq!(observed.get("projection.put_projection_batch"), Some(&1));
+    let remaining = 130 - acknowledged.cards;
+    assert_eq!(observed.get("event.rows"), Some(&remaining));
+    assert_eq!(
+        observed.get("projection.put_projection_batch"),
+        Some(&remaining.div_ceil(u64::from(SOURCE_ROWS)))
+    );
     assert!(observed["event.max_rows"] <= 63 && observed["event.max_work_bytes"] <= WORK_BYTES);
     assert!(
         observed["projection.max_batch_rows"] <= 64

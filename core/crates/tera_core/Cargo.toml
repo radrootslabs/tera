@@ -31,6 +31,7 @@ serde = { workspace = true, features = ["derive"] }
 
 # The non-default WASM wrapper exposes build metadata only.
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
+base64 = { workspace = true }
 radroots_blossom = { workspace = true, default-features = false, features = [
   "serde",
   "std",

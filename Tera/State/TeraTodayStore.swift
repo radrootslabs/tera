@@ -228,7 +228,7 @@ final class TeraTodayStore: ObservableObject {
             nextCursor = page.nextCursor
             projectionGeneration = page.projectionGeneration
             replaceCards(TeraTodayReconciler.unique(page.items))
-            presentation.acceptPage(count: cards.count, receipt: receipt)
+            presentation.acceptPage(count: cards.count, hasMore: hasMorePages, receipt: receipt)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             presentation.failRead(TeraTodayFailure(error))
@@ -267,7 +267,7 @@ final class TeraTodayStore: ObservableObject {
             viewerCalendar = page.calendar
             nextCursor = page.nextCursor
             replaceCards(TeraTodayReconciler.unique(cards + page.items))
-            presentation.acceptPage(count: cards.count)
+            presentation.acceptPage(count: cards.count, hasMore: hasMorePages)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             failPagination(TeraTodayFailure(error))
@@ -313,7 +313,7 @@ private extension TeraTodayStore {
                 nextCursor = nil
             }
             replaceCards(page.items)
-            presentation.acceptPage(count: cards.count)
+            presentation.acceptPage(count: cards.count, hasMore: hasMorePages)
         } catch {
             guard generation == requestGeneration, generation.isActive, !Task.isCancelled else { return }
             // Visibility could not be established. An old card or photo must
@@ -356,6 +356,10 @@ extension TeraTodayStore {
         nextCursor != nil && !isLoadingNextPage
     }
 
+    var hasMorePages: Bool {
+      nextCursor != nil
+    }
+
     func searchOlderPosts() async {
         guard !Task.isCancelled, let context = selectedContext,
               let cursor = discovery.continuation, discovery.canSearchOlder
@@ -381,7 +385,7 @@ extension TeraTodayStore {
             guard generation == discoveryGeneration, !Task.isCancelled else { return }
             presentation.refreshCompleted(receipt)
             if presentation.readFailure == nil {
-                presentation.acceptPage(count: cards.count, receipt: receipt.projection)
+                presentation.acceptPage(count: cards.count, hasMore: hasMorePages, receipt: receipt.projection)
             }
         } catch {
             guard generation == discoveryGeneration, !Task.isCancelled else { return }

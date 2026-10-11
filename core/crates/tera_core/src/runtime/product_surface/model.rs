@@ -195,6 +195,8 @@ pub struct TodayCard {
     pub card: ClassifiedCard,
     pub author_profile: Option<ProfileSummary>,
     pub thread: Vec<ThreadEntry>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub thread_next_cursor: Option<String>,
     pub local_overlay: Option<LocalAuthorOverlay>,
 }
 
@@ -206,6 +208,15 @@ pub struct TodayPage {
     pub projection_generation: u64,
     pub as_of: u64,
     pub items: Vec<TodayCard>,
+    pub next_cursor: Option<String>,
+}
+
+/// A bounded continuation of a selected card's canonical thread.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TodayThreadPage {
+    pub card_id: CardId,
+    pub items: Vec<ThreadEntry>,
     pub next_cursor: Option<String>,
 }
 

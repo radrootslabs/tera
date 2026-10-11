@@ -98,6 +98,10 @@ pub(super) async fn load(
             ) {
                 continue;
             }
+            if record.key().starts_with(page_index::FIRST) {
+                page_index::Reference::from_document(document)?;
+                continue;
+            }
             match rows::TodayRow::from_document(document)? {
                 rows::TodayRow::Card(value) => state.cards.push(value),
                 rows::TodayRow::Profile { summary, .. } => {

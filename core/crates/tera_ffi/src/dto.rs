@@ -700,6 +700,7 @@ pub struct FfiTodayCardRecord {
     pub rank_digest: Option<String>,
     pub author_profile: Option<FfiProfileRecord>,
     pub thread: Vec<FfiThreadEntryRecord>,
+    pub thread_next_cursor: Option<String>,
     pub local_source_draft_id: Option<String>,
     pub local_operation_id: Option<String>,
     pub local_operation_state: Option<String>,
@@ -737,6 +738,7 @@ impl From<TodayCard> for FfiTodayCardRecord {
             rank_digest: card.rank.map(|rank| rank.digest_hex()),
             author_profile: value.author_profile.map(Into::into),
             thread: value.thread.into_iter().map(Into::into).collect(),
+            thread_next_cursor: value.thread_next_cursor,
             local_source_draft_id: value
                 .local_overlay
                 .as_ref()
@@ -815,6 +817,23 @@ impl From<TodayPage> for FfiTodayPageRecord {
             schema_version: TODAY_PAGE_FFI_SCHEMA_VERSION,
             projection_generation: value.projection_generation,
             as_of_unix_s: value.as_of,
+            items: value.items.into_iter().map(Into::into).collect(),
+            next_cursor: value.next_cursor,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+pub struct FfiTodayThreadPageRecord {
+    pub card_id: String,
+    pub items: Vec<FfiThreadEntryRecord>,
+    pub next_cursor: Option<String>,
+}
+
+impl From<tera_core::runtime::product_surface::TodayThreadPage> for FfiTodayThreadPageRecord {
+    fn from(value: tera_core::runtime::product_surface::TodayThreadPage) -> Self {
+        Self {
+            card_id: value.card_id.to_hex(),
             items: value.items.into_iter().map(Into::into).collect(),
             next_cursor: value.next_cursor,
         }

@@ -274,6 +274,7 @@ extension SupportingBackend {
           rankDigest: nil,
           authorProfile: profile(),
           thread: [],
+          threadNextCursor: nil,
           localOperationID: nil,
           localOperationState: nil
         )

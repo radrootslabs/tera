@@ -139,19 +139,23 @@ async fn same_identity_and_generation_do_not_authorize_another_query() {
     assert_ne!(other.next_cursor.as_ref(), Some(&cursor));
     let scope = TodayCursor::scope(&cursor).unwrap();
     let position = TodayCursor::decode(&cursor, &scope).unwrap();
-    let retained = load_snapshot(
-        runtime.client.storage().unwrap(),
-        projection_id().unwrap(),
-        projection_generation().unwrap(),
-        &scope,
-    )
-    .await
-    .unwrap()
-    .unwrap();
-    assert_eq!(
-        page_from_snapshot(retained, scope, Some(position.rank), 1).unwrap(),
-        original
+    assert!(
+        load_snapshot(
+            runtime.client.storage().unwrap(),
+            projection_id().unwrap(),
+            projection_generation().unwrap(),
+            &scope
+        )
+        .await
+        .unwrap()
+        .is_none(),
+        "Keyset pages must not create copied-feed snapshots"
     );
+    assert_eq!(
+        position.rank.card_id,
+        page.items.last().unwrap().card.card_id
+    );
+    assert_eq!(original.items.len(), 1);
     assert!(matches!(
         runtime
             .phase1_today_page(&first, TodayPageRequest::after(1, cursor.clone()))

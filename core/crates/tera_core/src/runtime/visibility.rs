@@ -16,7 +16,7 @@ pub const AUTHOR_VISIBILITY_MAX_ENTRIES: usize =
 // 64 hex bytes, enum, JSON punctuation and envelope; validate before decoding.
 pub const AUTHOR_VISIBILITY_MAX_BYTES: usize = AUTHOR_VISIBILITY_MAX_ENTRIES * 128 + 128;
 const ID: &str = "tera.author_visibility.v1";
-const KEY: &str = "policy";
+pub(crate) const KEY: &str = "policy";
 
 #[cfg(test)]
 #[path = "visibility_tests.rs"]
@@ -132,7 +132,7 @@ pub(crate) fn source_visibility_digest(
     Ok(digest.finalize().into())
 }
 
-fn identity() -> Result<(ProjectionId, ProjectionGeneration), TodayError> {
+pub(crate) fn identity() -> Result<(ProjectionId, ProjectionGeneration), TodayError> {
     Ok((
         ProjectionId::parse(ID)?,
         ProjectionGeneration::new(Sha256::digest(ID).into())?,
@@ -201,20 +201,27 @@ impl TeraRuntime {
         let (id, generation) = identity()?;
         let document =
             ProjectionStore::projection_document(storage, id, generation, KEY.to_owned()).await?;
-        let policy = match document {
-            None => AuthorVisibilityPolicy::default(),
-            Some(document) => {
-                if document.value().len() > AUTHOR_VISIBILITY_MAX_BYTES {
-                    return Err(TodayError::CorruptProjection);
-                }
-                serde_json::from_slice::<AuthorVisibilityPolicy>(document.value())
-                    .map_err(|_| TodayError::CorruptProjection)?
-            }
-        };
-        policy.validate()?;
+        let policy = decode_policy(document.as_ref())?;
         if !self.author_visibility_fence.can_collect() {
             return Err(TodayError::RuntimeUnavailable);
         }
         Ok(policy)
     }
+}
+
+pub(crate) fn decode_policy(
+    document: Option<&ProjectionDocument>,
+) -> Result<AuthorVisibilityPolicy, TodayError> {
+    let policy = match document {
+        None => AuthorVisibilityPolicy::default(),
+        Some(document) => {
+            if document.value().len() > AUTHOR_VISIBILITY_MAX_BYTES {
+                return Err(TodayError::CorruptProjection);
+            }
+            serde_json::from_slice::<AuthorVisibilityPolicy>(document.value())
+                .map_err(|_| TodayError::CorruptProjection)?
+        }
+    };
+    policy.validate()?;
+    Ok(policy)
 }

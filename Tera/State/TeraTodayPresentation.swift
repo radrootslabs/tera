@@ -101,8 +101,8 @@ struct TeraTodayPresentation: Sendable, Equatable {
     isReading = false
   }
 
-  mutating func acceptPage(count: Int, receipt: TeraTodayRefreshReceipt? = nil) {
-    content = count == 0 ? .empty : .available
+  mutating func acceptPage(count: Int, hasMore: Bool = false, receipt: TeraTodayRefreshReceipt? = nil) {
+    content = count == 0 ? (hasMore ? .notLoaded : .empty) : .available
     readFailure = nil
     isReading = false
     if let receipt {

@@ -168,6 +168,10 @@ impl TodayCursor {
 }
 
 fn decode_unbound(value: &str) -> Result<(CursorScope, TodayCursorPosition), CursorError> {
+    if value.starts_with("rrtc4:") {
+        let decoded = super::today::page_cursor::decode(value)?;
+        return decode_unbound(&decoded.inner);
+    }
     // The v3 token is bounded before any content scan, hex allocation or hash.
     if value.len() > MAX_CURSOR_BYTES {
         return Err(CursorError::Malformed);

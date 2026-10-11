@@ -92,7 +92,7 @@ final class TeraCalendarTimingTests: XCTestCase {
       calendarTiming: timing, location: nil, priceAmount: nil, priceCurrency: nil, priceUnit: nil,
       quantity: nil, foodSummary: nil, foodPublishedAtUnixS: nil, foodStatus: nil, contextRank: 1,
       inclusionReason: "local", media: [], lifecycle: .active, rankDigest: nil, authorProfile: nil,
-      thread: [], localSourceDraftId: nil, localOperationId: nil, localOperationState: nil
+      thread: [], threadNextCursor: nil, localSourceDraftId: nil, localOperationId: nil, localOperationState: nil
     )
   }
 }

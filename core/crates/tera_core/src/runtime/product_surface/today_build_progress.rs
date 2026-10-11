@@ -12,6 +12,10 @@ const POINTER_ID: &str = "tera.today.build.v1";
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub(in super::super) struct BuildProgress {
+    #[serde(default)]
+    pub(in super::super) index_schema: u16,
+    #[serde(default)]
+    pub(in super::super) index_rows: u64,
     pub(in super::super) source: EventSourceToken,
     pub(in super::super) query_scope: [u8; 32],
     pub(in super::super) policy: Option<[u8; 32]>,
@@ -36,9 +40,12 @@ impl BuildProgress {
     ) -> Result<Self, TodayError> {
         let mut digest = Sha256::new();
         digest.update(b"tera.today.row-generation.v1\0");
+        digest.update(page_index::SCHEMA.to_be_bytes());
         digest.update(encode(&(source, query_scope, policy))?);
         digest.update(uuid::Uuid::new_v4().as_bytes());
         Ok(Self {
+            index_schema: page_index::SCHEMA,
+            index_rows: 0,
             source,
             query_scope,
             policy,
@@ -72,13 +79,19 @@ impl BuildProgress {
         Ok(())
     }
     pub(in super::super) fn document_rows(&self) -> Result<u64, TodayError> {
-        [self.cards, self.profiles, self.threads, self.quarantined]
-            .into_iter()
-            .try_fold(2u64, |total, value| {
-                total
-                    .checked_add(value)
-                    .ok_or(TodayError::CorruptProjection)
-            })
+        [
+            self.cards,
+            self.profiles,
+            self.threads,
+            self.quarantined,
+            self.index_rows,
+        ]
+        .into_iter()
+        .try_fold(2u64, |total, value| {
+            total
+                .checked_add(value)
+                .ok_or(TodayError::CorruptProjection)
+        })
     }
     pub(in super::super) fn receipt(
         &self,

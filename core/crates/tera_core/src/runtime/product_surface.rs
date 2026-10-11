@@ -88,6 +88,7 @@ pub use model::{
     CANONICAL_TODAY_CARD_TYPES, CardAddParity, CardLifecycleState, ClassifiedCard,
     LocalAuthorOverlay, MeSnapshot, ProfileSummary, SearchResult, SearchResultType,
     SupportingProfile, ThreadEntry, ThreadReference, TodayCard, TodayCardType, TodayPage,
+    TodayThreadPage,
 };
 #[cfg(feature = "mobile-social")]
 pub use outbox::{

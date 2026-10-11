@@ -13,7 +13,8 @@ use std::time::{Duration, Instant};
 pub(super) mod progress;
 pub(super) use progress::BuildProgress;
 
-const SOURCE_ROWS: u16 = 63;
+// One card and four rank references per event, plus progress, fit within64 rows.
+const SOURCE_ROWS: u16 = 12;
 const WORK_BYTES: u64 = 16 * 1024 * 1024;
 
 pub(super) enum BuildOutcome {
@@ -72,7 +73,8 @@ pub(super) async fn run(
         if !header.complete || header.generation != generation {
             return Err(TodayError::CorruptProjection);
         }
-        if header.source == source
+        if header.index_schema == page_index::SCHEMA
+            && header.source == source
             && header.query_scope == query_scope
             && header.policy == policy_digest
         {
@@ -128,7 +130,8 @@ pub(super) async fn run(
     let prior = progress::pointer(storage).await?;
     let requested = match prior {
         Some(value)
-            if value.source == source
+            if value.index_schema == page_index::SCHEMA
+                && value.source == source
                 && value.query_scope == query_scope
                 && value.policy == policy_digest
                 && value.expected_active == active
@@ -168,7 +171,8 @@ pub(super) async fn run(
     )
     .await?
     .unwrap_or(requested);
-    if build.source != source
+    if build.index_schema != page_index::SCHEMA
+        || build.source != source
         || build.query_scope != query_scope
         || build.policy != policy_digest
         || build.expected_active != active
@@ -204,6 +208,22 @@ pub(super) async fn run(
                 continue;
             }
             if let Some(row) = rows::reduce(context, stored)? {
+                if let rows::TodayRow::Card(card) = &row {
+                    // References contain only fixed rank/identity metadata. Reserve
+                    // their maximum envelope before encoding any extra documents.
+                    charge = charge
+                        .checked_add(4 * VisibilityIndexBounds::charge(1024)?)
+                        .ok_or(radroots_storage::Error::SpaceInsufficient)?;
+                    if charge > WORK_BYTES {
+                        return Err(radroots_storage::Error::SpaceInsufficient.into());
+                    }
+                    let references = page_index::documents(card)?;
+                    build.index_rows = build
+                        .index_rows
+                        .checked_add(references.len() as u64)
+                        .ok_or(TodayError::CorruptProjection)?;
+                    documents.extend(references);
+                }
                 build.count(&row)?;
                 documents.push(row.document()?);
             }

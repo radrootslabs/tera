@@ -357,6 +357,20 @@ impl TeraRuntime {
             .map_err(Into::into)
     }
 
+    pub async fn phase1_today_thread_page(
+        &self,
+        context: FfiLocalNetworkRecord,
+        limit: u16,
+        cursor: String,
+    ) -> Result<crate::FfiTodayThreadPageRecord, TeraAppError> {
+        let context = self.local_network(context)?;
+        self.inner
+            .phase1_today_thread_page(&context, limit, &cursor)
+            .await
+            .map(Into::into)
+            .map_err(Into::into)
+    }
+
     /// Reconcile displayed identities against current application visibility.
     pub async fn phase1_today_reconcile(
         &self,

@@ -33,6 +33,33 @@ final class TeraTodayStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testEmptyBoundedProgressRemainsLoadableUntilActualEmptyOrAvailableEOF() async throws {
+        for hasPost in [false, true] {
+            let context = makeContext(id: "one", label: "One")
+            let calendar = TeraScopeFixtures.viewerCalendar(asOf: 1_800_000_100)
+            let backend = TodayBackend(pages: [
+              "one:first": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: [], nextCursor: "progress1", calendar: calendar),
+              "one:progress1": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: [], nextCursor: "progress2", calendar: calendar),
+              "one:progress2": TeraTodayPage(asOfUnixSeconds: 1_800_000_100, items: hasPost ? [makeCard(id: "a", type: .update)] : [], nextCursor: nil, calendar: calendar),
+            ])
+            let client = try await startedClient(backend: backend)
+            let store = TeraTodayStore(runtimeClient: client, contexts: [context], clock: .fixed(unixSeconds: 1_800_000_100))
+            await store.reload(refreshProjection: false)
+            XCTAssertEqual(store.presentation.content, .notLoaded)
+            XCTAssertTrue(store.canLoadNextPage)
+            XCTAssertTrue(store.hasMorePages)
+            await store.loadNextPage()
+            XCTAssertEqual(store.presentation.content, .notLoaded)
+            XCTAssertTrue(store.canLoadNextPage)
+            await store.loadNextPage()
+            XCTAssertEqual(store.presentation.content, hasPost ? .available : .empty)
+            XCTAssertFalse(store.hasMorePages)
+            XCTAssertEqual(store.cards.count, hasPost ? 1 : 0)
+            _ = try await client.stop()
+        }
+    }
+
+    @MainActor
     func testContextSwitchRejectsLateCancelledContextResult() async throws {
         let firstContext = makeContext(id: "slow", label: "Slow")
         let secondContext = makeContext(id: "current", label: "Current")
@@ -273,6 +300,7 @@ private func makeCard(
       rankDigest: "rank-\(id)",
       authorProfile: profile,
       thread: thread,
+      threadNextCursor: nil,
       localOperationID: localState == nil ? nil : "operation-\(id)",
       localOperationState: localState
     )

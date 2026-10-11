@@ -55,7 +55,7 @@ enum TeraScopeFixtures {
       calendarTiming: timing, location: nil,
       priceAmount: nil, priceCurrency: nil, priceUnit: nil, quantity: nil, foodSummary: nil,
       foodPublishedAtUnixSeconds: nil, foodStatus: nil, contextRank: 1, inclusionReason: "local",
-      media: [], lifecycle: .active, rankDigest: nil, authorProfile: nil, thread: [],
+      media: [], lifecycle: .active, rankDigest: nil, authorProfile: nil, thread: [], threadNextCursor: nil,
       localOperationID: nil, localOperationState: nil
     )
   }

@@ -314,11 +314,24 @@ async fn cached_sqlite_pages_do_not_decode_ten_thousand_source_events() {
     runtime.shutdown().await.unwrap();
     assert!(samples.iter().all(|(_, _, calls)| {
         calls
-            .get("projection.projection_document")
+            .get("projection.query_documents_at")
             .copied()
             .unwrap_or(0)
             > 0
     }));
+    assert!(
+        samples.iter().all(|(_, _, calls)| {
+            calls["projection.rows"] <= 2048
+                && calls["projection.query_work_units"] <= 2048
+                && calls["projection.query_work_bytes"] <= 16 * 1024 * 1024
+                && calls
+                    .get("projection.put_projection_snapshot")
+                    .copied()
+                    .unwrap_or(0)
+                    == 0
+        }),
+        "Actual selected/decoded rows and logical query charges must stay bounded"
+    );
     assert!(
         samples.iter().all(
             |(_, _, calls)| calls.get("event.status").copied().unwrap_or(0) == 0

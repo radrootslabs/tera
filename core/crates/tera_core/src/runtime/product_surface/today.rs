@@ -4,16 +4,15 @@ use radroots_event_codec::{
     admission::{RadrootsAdmittedEvent, admit_verified_event},
     verify::verify_nip01_event,
 };
+#[cfg(test)]
+use radroots_storage::projection::ProjectionSnapshot;
 use radroots_storage::{
     EventStore, ProjectionStore,
     event::{
         AdmissionReceipt, EventAdmission, EventPosition, EventQuery, EventQueryBounds,
         EventSequence,
     },
-    projection::{
-        ProjectionCheckpoint, ProjectionDocument, ProjectionGeneration, ProjectionId,
-        ProjectionSnapshot,
-    },
+    projection::{ProjectionCheckpoint, ProjectionDocument, ProjectionGeneration, ProjectionId},
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -48,6 +47,7 @@ use crate::runtime::TeraRuntime;
 
 const TODAY_PROJECTION_ID: &str = "radroots.today.v1";
 const TODAY_PROJECTION_DOCUMENT_SCHEMA_VERSION: u16 = 2;
+#[cfg(test)]
 const TODAY_SNAPSHOT_SCHEMA_VERSION: u16 = 4;
 const TODAY_PAGE_LIMIT_MAX: u16 = 100;
 const TODAY_SEARCH_LIMIT_MAX: u16 = 100;
@@ -62,6 +62,7 @@ const TODAY_SYNC_KINDS: [u32; 7] = [0, 1, 5, 1111, 30_402, 31_922, 31_923];
 const PROJECTION_GENERATION_DOMAIN: &[u8] = b"radroots.today-projection.v2\0";
 const PROJECTION_CONTENT_DOMAIN: &[u8] = b"radroots.today-content-generation.v2\0";
 const PROJECTION_DOCUMENT_KEY_DOMAIN: &[u8] = b"radroots.today-document-key.v1\0";
+#[cfg(test)]
 const SNAPSHOT_ID_DOMAIN: &[u8] = b"tera.today-snapshot-id.v3\0";
 
 #[cfg(test)]
@@ -84,6 +85,18 @@ mod calendar_migration_tests;
 
 #[path = "today_build.rs"]
 mod build;
+#[path = "today_page_budget.rs"]
+mod page_budget;
+#[path = "today_page_cursor.rs"]
+pub(super) mod page_cursor;
+#[path = "today_page_hydration.rs"]
+mod page_hydration;
+#[path = "today_page_index.rs"]
+mod page_index;
+#[path = "today_page_scope.rs"]
+mod page_scope;
+#[path = "today_page_threads.rs"]
+mod page_threads;
 #[path = "today_paging.rs"]
 mod paging;
 #[path = "today_paging_scope.rs"]
@@ -137,6 +150,9 @@ mod calendar_tests;
 #[path = "today_viewer_calendar_tests.rs"]
 mod viewer_calendar_tests;
 
+#[cfg(test)]
+#[path = "today_keyset_tests.rs"]
+mod keyset_tests;
 #[cfg(test)]
 #[path = "today_scope_tests.rs"]
 mod scope_tests;
@@ -286,6 +302,7 @@ struct TodayProjectionState {
     quarantined_source_ids: Vec<String>,
 }
 
+#[cfg(test)]
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct FrozenTodaySnapshot {
@@ -1202,58 +1219,14 @@ fn selected_ranked_cards(
     calendar: &super::ViewerCalendarContext,
     selected: Option<&std::collections::BTreeSet<CardId>>,
 ) -> Result<Vec<TodayCard>, TodayError> {
-    let as_of = calendar.as_of();
     let mut cards = Vec::new();
     for projected in &state.cards {
         if selected.is_some_and(|ids| !ids.contains(&projected.card.card_id)) {
             continue;
         }
-        let evidence = locality_evidence(context.locality.as_deref(), &projected.locality);
-        let admission = match context.admit(evidence) {
-            super::LocalNetworkAdmission::Included(admission) => admission,
-            super::LocalNetworkAdmission::Excluded { .. } => continue,
+        let Some(card) = page_hydration::ranked_card(projected, context, calendar)? else {
+            continue;
         };
-        let mut card = projected.card.clone();
-        card.context_rank = admission.rank;
-        card.inclusion_reason = admission.reason.to_owned();
-        let time = match card.card_type {
-            TodayCardType::Update | TodayCardType::PhotoUpdate | TodayCardType::Ask => {
-                TimeRelevance::Published
-            }
-            TodayCardType::FoodAvailability => TimeRelevance::FoodAvailability {
-                active: card.lifecycle == CardLifecycleState::Active,
-            },
-            TodayCardType::Event => match card
-                .calendar_timing
-                .as_ref()
-                .ok_or(TodayError::CorruptProjection)?
-            {
-                CalendarTiming::TimeBased(timing) => TimeRelevance::TimeBased {
-                    start: timing.start(),
-                    end: timing.end_exclusive(),
-                },
-                CalendarTiming::DateBased(event) => {
-                    let as_of_date = calendar.civil_date().clone();
-                    TimeRelevance::DateBased {
-                        event: event.clone(),
-                        as_of_date,
-                    }
-                }
-            },
-        };
-        let rank = TodayRank::derive(TodayRankInput {
-            card_type: card.card_type,
-            context_rank: card.context_rank,
-            as_of,
-            effective_at: card.effective_at,
-            time,
-            card_id: card.card_id,
-        })
-        .map_err(|_| TodayError::CorruptProjection)?;
-        if card.card_type == TodayCardType::Event && rank.time_relevance_rank == 0 {
-            card.lifecycle = CardLifecycleState::Past;
-        }
-        card.rank = Some(rank);
         let roots = [
             card.source_event_id.as_str(),
             card.source_address.as_deref().unwrap_or(""),
@@ -1269,12 +1242,14 @@ fn selected_ranked_cards(
             local_overlay: state.overlays.get(&card.card_id.to_hex()).cloned(),
             card,
             thread: card_thread,
+            thread_next_cursor: None,
         });
     }
     cards.sort_by_key(|card| card.card.rank.expect("assigned rank"));
     Ok(cards)
 }
 
+#[cfg(test)]
 fn frozen_snapshot(
     state: &TodayProjectionState,
     context: &LocalNetwork,
@@ -1294,6 +1269,7 @@ fn frozen_snapshot(
     })
 }
 
+#[cfg(test)]
 fn page_from_snapshot(
     snapshot: FrozenTodaySnapshot,
     scope: CursorScope,
@@ -1335,6 +1311,7 @@ fn page_from_snapshot(
     })
 }
 
+#[cfg(test)]
 fn validate_snapshot(
     snapshot: &FrozenTodaySnapshot,
     scope: &CursorScope,
@@ -1418,29 +1395,7 @@ async fn store_state(
     Ok(())
 }
 
-async fn persist_snapshot(
-    storage: &dyn radroots_storage::Storage,
-    generation: ProjectionGeneration,
-    scope: &CursorScope,
-    snapshot: &FrozenTodaySnapshot,
-) -> Result<(), TodayError> {
-    ProjectionStore::put_projection_snapshot(
-        storage,
-        ProjectionSnapshot::new(
-            projection_id()?,
-            snapshot_id(scope),
-            generation,
-            scope
-                .as_of
-                .checked_mul(1_000)
-                .ok_or(TodayError::InvalidRequest)?,
-            encode(snapshot)?,
-        )?,
-    )
-    .await?;
-    Ok(())
-}
-
+#[cfg(test)]
 async fn load_snapshot(
     storage: &dyn radroots_storage::Storage,
     projection_id: ProjectionId,
@@ -1517,44 +1472,7 @@ fn validate_media_state(state: &TodayProjectionState) -> Result<(), Phase1Inboun
     Ok(())
 }
 
-fn sanitize_snapshot_media(snapshot: &mut FrozenTodaySnapshot, cache: &Phase1MediaCacheIndex) {
-    for item in &mut snapshot.items {
-        for media in &mut item.card.media {
-            if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
-                && !cache.contains(receipt)
-            {
-                media.invalidate();
-            }
-        }
-        if let Some(profile) = &mut item.author_profile {
-            for media in [&mut profile.picture, &mut profile.banner]
-                .into_iter()
-                .flatten()
-            {
-                if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
-                    && !cache.contains(receipt)
-                {
-                    media.invalidate();
-                }
-            }
-        }
-        for entry in &mut item.thread {
-            if let Some(profile) = &mut entry.author_profile {
-                for media in [&mut profile.picture, &mut profile.banner]
-                    .into_iter()
-                    .flatten()
-                {
-                    if let Phase1InboundMediaState::Verified(receipt) = media.retrieval()
-                        && !cache.contains(receipt)
-                    {
-                        media.invalidate();
-                    }
-                }
-            }
-        }
-    }
-}
-
+#[cfg(test)]
 fn decode_snapshot(value: &[u8]) -> Result<FrozenTodaySnapshot, TodayError> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -1738,6 +1656,7 @@ fn projection_document_key(context: &LocalNetwork) -> String {
     format!("context.{}", hex::encode(digest.finalize()))
 }
 
+#[cfg(test)]
 fn snapshot_id(scope: &CursorScope) -> [u8; 32] {
     let mut digest = Sha256::new();
     digest.update(SNAPSHOT_ID_DOMAIN);
@@ -3355,11 +3274,17 @@ mod tests {
         )
         .expect("scope");
 
+        let frozen = page_scope::Scope::load(
+            &runtime,
+            &context,
+            scope.calendar.clone(),
+            &mut page_budget::Budget::default(),
+        )
+        .await
+        .unwrap()
+        .unwrap();
         let cursor_for = |scope: CursorScope| {
-            TodayCursor::encode(&scope, TodayCursorPosition { rank })
-                .expect("cursor")
-                .as_str()
-                .to_owned()
+            page_cursor::encode(&scope, rank, frozen.fingerprint, None, 1).expect("cursor")
         };
         let mut wrong_context = scope.clone();
         wrong_context.context_id =

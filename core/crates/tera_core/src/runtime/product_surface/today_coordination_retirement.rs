@@ -89,6 +89,39 @@ pub(super) async fn retired(
     let Some(value) = load(storage).await? else {
         return Ok(false);
     };
+    retired_value(storage, status, value).await
+}
+
+pub(super) async fn retired_document(
+    storage: &dyn radroots_storage::Storage,
+    status: &ProjectionStatus,
+    document: Option<&ProjectionDocument>,
+) -> Result<bool, TodayError> {
+    let Some(document) = document else {
+        return Ok(false);
+    };
+    if document.value().len() > MAX_BYTES {
+        return Err(TodayError::CorruptProjection);
+    }
+    let value: Retirement = decode(document.value())?;
+    value.validate()?;
+    retired_value(storage, status, value).await
+}
+
+pub(super) fn document_identity() -> Result<(ProjectionId, ProjectionGeneration, String), TodayError>
+{
+    Ok((
+        ProjectionId::parse(ID)?,
+        projection_generation()?,
+        KEY.into(),
+    ))
+}
+
+async fn retired_value(
+    storage: &dyn radroots_storage::Storage,
+    status: &ProjectionStatus,
+    value: Retirement,
+) -> Result<bool, TodayError> {
     if !value.complete
         || status.generation() != projection_generation()?
         || status.health() != ProjectionHealth::Invalidated

@@ -83,7 +83,7 @@ final class TeraExactDecimalPresentationTests: XCTestCase {
       calendarTiming: nil, location: nil, priceAmount: "12345.67890123456789", priceCurrency: "ZZZ",
       priceUnit: "bag", quantity: "0.000000000000000000000000001", foodSummary: nil,
       foodPublishedAtUnixSeconds: nil, foodStatus: nil, contextRank: 1, inclusionReason: "local",
-      media: [], lifecycle: .active, rankDigest: nil, authorProfile: nil, thread: [],
+      media: [], lifecycle: .active, rankDigest: nil, authorProfile: nil, thread: [], threadNextCursor: nil,
       localOperationID: nil, localOperationState: nil
     )
   }

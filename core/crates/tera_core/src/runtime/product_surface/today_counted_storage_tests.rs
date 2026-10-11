@@ -23,6 +23,27 @@ impl QueryCounts {
         let value = values.entry(key).or_default();
         *value = (*value).max(amount);
     }
+    fn selected(&self, limit: u16, page: &document_query::ProjectionDocumentPage) {
+        let bytes = page
+            .records()
+            .iter()
+            .map(|record| {
+                record
+                    .document()
+                    .map_or(0, |document| document.value().len() as u64)
+            })
+            .sum::<u64>();
+        self.add("projection.rows", page.records().len() as u64);
+        self.add("projection.payload_bytes", bytes);
+        self.add(
+            "projection.query_work_units",
+            u64::from(limit) + 1 + page.records().len() as u64,
+        );
+        self.add(
+            "projection.query_work_bytes",
+            (u64::from(limit) + 1) * 1024 + bytes * 16 + page.records().len() as u64 * 4096,
+        );
+    }
     pub(crate) fn take(&self) -> std::collections::BTreeMap<&'static str, u64> {
         std::mem::take(&mut self.values.lock().unwrap())
     }
@@ -201,6 +222,7 @@ impl ProjectionStore for CountedStorage {
     ) -> BoxFuture<'_, Result<document_query::ProjectionDocumentPage, Error>> {
         Box::pin(async move {
             self.counts.add("projection.query_documents_at", 1);
+            let limit = query.limit();
             let result = ProjectionStore::query_projection_documents_at(
                 self.storage(),
                 query,
@@ -209,8 +231,7 @@ impl ProjectionStore for CountedStorage {
             )
             .await;
             if let Ok(page) = &result {
-                self.counts
-                    .add("projection.rows", page.records().len() as u64);
+                self.counts.selected(limit, page);
             }
             result
         })
@@ -219,7 +240,15 @@ impl ProjectionStore for CountedStorage {
         &self,
         query: document_query::ProjectionDocumentQuery,
     ) -> BoxFuture<'_, Result<document_query::ProjectionDocumentPage, Error>> {
-        ProjectionStore::query_projection_documents(self.storage(), query)
+        Box::pin(async move {
+            self.counts.add("projection.query_documents", 1);
+            let limit = query.limit();
+            let result = ProjectionStore::query_projection_documents(self.storage(), query).await;
+            if let Ok(page) = &result {
+                self.counts.selected(limit, page);
+            }
+            result
+        })
     }
     fn status(
         &self,

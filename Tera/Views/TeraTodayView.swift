@@ -59,13 +59,29 @@ struct TeraTodayView: View {
 
   @ViewBuilder
   private var initialContent: some View {
-    if let failure = store.presentation.readFailure {
+    if store.hasMorePages {
+      VStack(spacing: 16) {
+        TeraTodayStatusView(presentation: store.presentation)
+        Text("Continue loading saved posts.")
+        continuationButton
+      }
+      .padding()
+      .accessibilityIdentifier("tera.today.more_saved_posts")
+    } else if let failure = store.presentation.readFailure {
       unavailableView(failure)
         .accessibilityIdentifier("radroots.today.error")
     } else {
       TeraTodayStatusView(presentation: store.presentation)
         .accessibilityIdentifier("radroots.today.loading")
     }
+  }
+
+  private var continuationButton: some View {
+    Button("Continue loading") { Task { await store.loadNextPage() } }
+      .buttonStyle(.bordered)
+      .frame(minHeight: 44)
+      .disabled(store.isLoadingNextPage)
+      .accessibilityIdentifier("tera.today.continue_loading")
   }
 
   private var emptyView: some View {
@@ -120,6 +136,9 @@ struct TeraTodayView: View {
           Spacer()
         }
         .accessibilityIdentifier("radroots.today.loading_more")
+      }
+      if store.hasMorePages {
+        continuationButton
       }
       TeraTodayDiscoveryView(store: store)
     }

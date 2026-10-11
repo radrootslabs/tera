@@ -666,7 +666,7 @@ final class TeraAddStoreTests: XCTestCase {
       lifecycle: .active,
       rankDigest: nil,
       authorProfile: nil,
-      thread: [],
+      thread: [], threadNextCursor: nil,
       localOperationID: localOperationID,
       localOperationState: nil
     )
