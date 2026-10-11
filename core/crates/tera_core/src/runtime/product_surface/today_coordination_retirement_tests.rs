@@ -112,10 +112,28 @@ async fn promoted_rows_before_retirement_intent_recover_after_source_or_context_
                 build::progress::HEADER.into()
             )
             .await
-            .unwrap()
             .unwrap(),
-            row_header
+            if interrupted_retirement {
+                None
+            } else {
+                Some(row_header)
+            }
         );
+        let current = state
+            .row_generation
+            .expect("current complete row generation");
+        assert_ne!(current, prior.generation);
+        let header = build::progress::load(
+            storage,
+            ProjectionId::parse(build::progress::ID).unwrap(),
+            current,
+            build::progress::HEADER,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert!(header.complete);
+        assert_eq!(header.generation, current);
         assert_eq!(
             ProjectionStore::projection_document(
                 storage,

@@ -228,7 +228,18 @@ async fn advancing_as_of_and_duplicate_control_use_real_retained_snapshots() {
                 .unwrap(),
             None => tempfile::tempdir().unwrap(),
         };
-        let runtime = reopen_counted_sqlite(&root).await;
+        let mut runtime = reopen_counted_sqlite(&root).await;
+        let counts =
+            std::sync::Arc::new(super::performance_tests::counted_storage::QueryCounts::default());
+        runtime.client = radroots_sdk::ClientBuilder::new()
+            .storage(std::sync::Arc::new(
+                super::performance_tests::counted_storage::CountedStorage {
+                    client: runtime.client.clone(),
+                    counts: counts.clone(),
+                },
+            ))
+            .build()
+            .unwrap();
         let selected = context(None, 1);
         ingest(
             &runtime,
@@ -237,13 +248,46 @@ async fn advancing_as_of_and_duplicate_control_use_real_retained_snapshots() {
             NOW,
         )
         .await;
+        let storage = runtime.client.storage().unwrap();
+        let before = ProjectionStore::configure_projection_cache(
+            storage,
+            ProjectionId::parse(build::progress::ID).unwrap(),
+            projection_collection::limits().unwrap(),
+        )
+        .await
+        .unwrap();
+        counts.take();
         for offset in 0..count {
             let at = NOW + 10 + offset;
+            runtime
+                .phase1_refresh_today(&selected, at, TodayProjectionUpdate::Incremental)
+                .await
+                .unwrap();
             let first = page_ids(&runtime, &selected, at).await;
             let duplicate = page_ids(&runtime, &selected, at).await;
             assert_eq!(first, duplicate);
             assert_eq!(first.len(), 1);
         }
+        let after = ProjectionStore::configure_projection_cache(
+            storage,
+            ProjectionId::parse(build::progress::ID).unwrap(),
+            projection_collection::limits().unwrap(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(
+            before, after,
+            "Caller as-of movement must not grow durable cache state"
+        );
+        assert_eq!(after.legacy_snapshots, 0);
+        assert_eq!(
+            counts
+                .take()
+                .get("projection.put_projection_snapshot")
+                .copied()
+                .unwrap_or(0),
+            0
+        );
         runtime.shutdown().await.unwrap();
         if std::env::var_os("TERA_DIAGNOSTIC_STORE_ROOT").is_some() {
             let retained = root.keep();

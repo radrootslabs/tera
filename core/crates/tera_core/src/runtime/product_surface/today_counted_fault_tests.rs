@@ -13,20 +13,26 @@ struct Armed {
     ordinal: usize,
     seen: usize,
     after: bool,
-    refuse: bool,
+    refusal: Option<Error>,
     pause: Option<FaultPause>,
 }
 #[derive(Default)]
 pub(crate) struct FaultController(Mutex<Option<Armed>>);
 impl FaultController {
     pub(crate) fn failure(&self, operation: &'static str, ordinal: usize, after: bool) {
+        self.refusal(operation, ordinal, after, Error::BackendUnavailable);
+    }
+    pub(crate) fn disk_full(&self, operation: &'static str, ordinal: usize, after: bool) {
+        self.refusal(operation, ordinal, after, Error::SpaceInsufficient);
+    }
+    fn refusal(&self, operation: &'static str, ordinal: usize, after: bool, error: Error) {
         assert!(ordinal > 0);
         *self.0.lock().unwrap() = Some(Armed {
             operation,
             ordinal,
             seen: 0,
             after,
-            refuse: true,
+            refusal: Some(error),
             pause: None,
         });
     }
@@ -41,7 +47,7 @@ impl FaultController {
             ordinal,
             seen: 0,
             after,
-            refuse: false,
+            refusal: None,
             pause: Some(pause.clone()),
         });
         pause
@@ -68,8 +74,8 @@ impl FaultController {
                 pause.entered.notify_one();
                 pause.resume.notified().await;
             }
-            if action.refuse {
-                return Err(Error::BackendUnavailable);
+            if let Some(error) = action.refusal {
+                return Err(error);
             }
         }
         Ok(())

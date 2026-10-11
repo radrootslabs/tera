@@ -4,14 +4,15 @@ use radroots_storage::{
     event::VisibilityIndexBounds,
     projection::{
         InvalidationReason, ProjectionHealth, ProjectionInvalidation,
-        batch::ProjectionDocumentBatch,
-        cache::{ProjectionCacheLimits, ProjectionCacheScope},
+        batch::ProjectionDocumentBatch, cache::ProjectionCacheScope,
     },
 };
 use std::time::{Duration, Instant};
 #[path = "today_build_progress.rs"]
 pub(super) mod progress;
 pub(super) use progress::BuildProgress;
+#[cfg(test)]
+use radroots_storage::projection::cache::ProjectionCacheLimits;
 
 // One card and four rank references per event, plus progress, fit within64 rows.
 const SOURCE_ROWS: u16 = 12;
@@ -66,6 +67,13 @@ pub(super) async fn run(
     if EventStore::source_token(storage).await? != source {
         return Err(radroots_storage::Error::SourceEpochChanged.into());
     }
+    ProjectionStore::configure_projection_cache(
+        storage,
+        id.clone(),
+        projection_collection::limits()?,
+    )
+    .await?;
+    projection_collection::run(runtime, storage, source, active, deadline).await?;
     if let Some(generation) = active {
         let header = progress::load(storage, id.clone(), generation, progress::HEADER)
             .await?
@@ -121,12 +129,6 @@ pub(super) async fn run(
     if Instant::now() >= deadline {
         return Ok(BuildOutcome::Pending);
     }
-    ProjectionStore::configure_projection_cache(
-        storage,
-        id.clone(),
-        ProjectionCacheLimits::new(64 * 1024 * 1024, 2, 32, 1_800_000)?,
-    )
-    .await?;
     let prior = progress::pointer(storage).await?;
     let requested = match prior {
         Some(value)

@@ -101,6 +101,8 @@ mod page_threads;
 mod paging;
 #[path = "today_paging_scope.rs"]
 mod paging_scope;
+#[path = "today_projection_collection.rs"]
+mod projection_collection;
 #[path = "today_refresh.rs"]
 mod refresh;
 #[path = "today_row_state.rs"]

@@ -171,6 +171,57 @@ impl EventStore for CountedStorage {
 }
 
 impl ProjectionStore for CountedStorage {
+    fn collect_retired_projection_cache(
+        &self,
+        id: ProjectionId,
+        source: EventSourceToken,
+        active: Option<ProjectionGeneration>,
+    ) -> BoxFuture<'_, Result<cache::ProjectionCacheCollection, Error>> {
+        Box::pin(async move {
+            self.counts.faults.boundary("collection", false).await?;
+            self.counts.add("projection.collect_retired", 1);
+            let result = ProjectionStore::collect_retired_projection_cache(
+                self.storage(),
+                id,
+                source,
+                active,
+            )
+            .await;
+            if let Ok(value) = &result {
+                self.counts
+                    .add("projection.collected_rows", value.removed_rows);
+                self.counts
+                    .maximum("projection.max_collected_rows", value.removed_rows);
+            }
+            self.counts.faults.boundary("collection", true).await?;
+            result
+        })
+    }
+    fn collect_obsolete_projection_snapshots(
+        &self,
+        scope: cache::ProjectionCacheScope,
+    ) -> BoxFuture<'_, Result<cache::ProjectionCacheCollection, Error>> {
+        Box::pin(async move {
+            self.counts
+                .faults
+                .boundary("snapshot_collection", false)
+                .await?;
+            self.counts.add("projection.collect_snapshots", 1);
+            let result =
+                ProjectionStore::collect_obsolete_projection_snapshots(self.storage(), scope).await;
+            if let Ok(value) = &result {
+                self.counts
+                    .add("projection.collected_rows", value.removed_rows);
+                self.counts
+                    .maximum("projection.max_collected_rows", value.removed_rows);
+            }
+            self.counts
+                .faults
+                .boundary("snapshot_collection", true)
+                .await?;
+            result
+        })
+    }
     fn configure_projection_cache(
         &self,
         id: ProjectionId,
