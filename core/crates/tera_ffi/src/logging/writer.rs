@@ -5,6 +5,10 @@ use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+#[cfg(all(test, unix))]
+#[path = "writer_file_kind_tests.rs"]
+mod file_kind_tests;
+
 const DEFAULT_MAX_FILE_BYTES: u64 = 10 * 1024 * 1024;
 const DEFAULT_RETAINED_FILES: usize = 5;
 
@@ -202,7 +206,12 @@ fn open_append_at(directory: &File, name: &OsStr) -> io::Result<File> {
     let descriptor = openat(
         directory,
         name,
-        OFlags::WRONLY | OFlags::APPEND | OFlags::CREATE | OFlags::NOFOLLOW | OFlags::CLOEXEC,
+        OFlags::WRONLY
+            | OFlags::APPEND
+            | OFlags::CREATE
+            | OFlags::NOFOLLOW
+            | OFlags::NONBLOCK
+            | OFlags::CLOEXEC,
         Mode::RUSR | Mode::WUSR,
     )
     .map_err(errno_to_io)?;

@@ -231,11 +231,11 @@
       "rustix v1.1.4|alloc,default,fs,process,std",
       "rustix v1.1.4|alloc,default,fs,process,std (*)",
       "rustix v1.1.4|alloc,default,fs,std",
-      "rustls v0.23.43|ring,std,tls12",
-      "rustls v0.23.43|ring,std,tls12 (*)",
+      "rustls v0.23.45|ring,std,tls12",
+      "rustls v0.23.45|ring,std,tls12 (*)",
       "rustls-pki-types v1.15.1|alloc,default,std",
       "rustls-pki-types v1.15.1|alloc,default,std (*)",
-      "rustls-webpki v0.103.13|alloc,ring,std",
+      "rustls-webpki v0.103.15|alloc,ring,std",
       "ryu v1.0.23|",
       "scopeguard v1.2.0|",
       "sec1 v0.7.3|default,der,point,subtle,zeroize",
@@ -387,7 +387,7 @@
         "generator_profile_overrides": {
           "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
         },
-        "path_sha256": "45df2b82ce16a3bd287317d67144f1c31a1f9379491f0c1c212b01efecfb58b0"
+        "path_sha256": "33410984d9f13f1b1c2f58a6ebb9bd7df36c715feb05efdcba2c605c1e3d8a3f"
       },
       "inspection_limits": {
         "maximum_inspection_seconds": 120,
@@ -496,11 +496,11 @@
     },
     "target": "aarch64-apple-ios"
   },
-  "cargo_lock_sha256": "efb02ec8209f2a8de2065aed29a275e0b17adda4044a763a43a7a7f6a8a01181",
+  "cargo_lock_sha256": "df533fc89a3707be836d13715cb55cb036e3ac3158fece1e9f73328a295cff91",
   "disposition": "local_staged_source_only",
   "foundation": {
     "architecture": "radroots.crates.release.v2",
-    "lockfile_sha256": "efb02ec8209f2a8de2065aed29a275e0b17adda4044a763a43a7a7f6a8a01181",
+    "lockfile_sha256": "df533fc89a3707be836d13715cb55cb036e3ac3158fece1e9f73328a295cff91",
     "repository": "https://github.com/radrootslabs/lib",
     "revision": "418acecb49437ce1200a6916822af9ef83eefec3",
     "schema": "radroots.lib.source-lock.v1",
@@ -616,7 +616,7 @@
         "generator_profile_overrides": {
           "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
         },
-        "path_sha256": "45df2b82ce16a3bd287317d67144f1c31a1f9379491f0c1c212b01efecfb58b0"
+        "path_sha256": "33410984d9f13f1b1c2f58a6ebb9bd7df36c715feb05efdcba2c605c1e3d8a3f"
       },
       "inspection_limits": {
         "maximum_inspection_seconds": 120,
@@ -721,9 +721,9 @@
     "files": {
       "Cargo.lock": {
         "bytes": 94917,
-        "git_blob": "8e63370e0bddd68ef9d5f8090f43eefc1b08e0f9",
+        "git_blob": "ab3a2b934a35127dfd801d98bd5b75f6a9a88614",
         "mode": "100644",
-        "sha256": "efb02ec8209f2a8de2065aed29a275e0b17adda4044a763a43a7a7f6a8a01181"
+        "sha256": "df533fc89a3707be836d13715cb55cb036e3ac3158fece1e9f73328a295cff91"
       },
       "Cargo.toml": {
         "bytes": 4475,
@@ -2586,10 +2586,16 @@
         "sha256": "d699ff796db7e0c49f736a0a24915702d25725c9f19f4551b6771f6de8f8cced"
       },
       "core/crates/tera_ffi/src/logging/writer.rs": {
-        "bytes": 15077,
-        "git_blob": "3e9c7a34aba419f01ebf637b4cc63fdcad32e041",
+        "bytes": 15240,
+        "git_blob": "3c19466bc6bc241ec9e61f42e517b266ec375412",
         "mode": "100644",
-        "sha256": "2928947b57e21f1526f8c729f2e58c6347b061737d7fee19c2f90c32539b0dee"
+        "sha256": "bc841f9ef3dd2af9bf00e811fbda2c5de83a1101be0de3f1ea736e680799f319"
+      },
+      "core/crates/tera_ffi/src/logging/writer_file_kind_tests.rs": {
+        "bytes": 3011,
+        "git_blob": "d8556a7786b9ed69995b8e3022d97a87fd65068b",
+        "mode": "100644",
+        "sha256": "244021daa85584475f3e1ad4ac31a15cfcd0de9b22f2bd36bcd8cc8edde9b316"
       },
       "core/crates/tera_ffi/src/media_file.rs": {
         "bytes": 5267,
@@ -3085,9 +3091,9 @@
       },
       "radroots.lib.source-lock.v1.toml": {
         "bytes": 482,
-        "git_blob": "cd674eba4d2efd6a64ac2ba924331d3d23c9a46e",
+        "git_blob": "30386d20bd5ec0fb483d64f5870fa0e73976e71c",
         "mode": "100644",
-        "sha256": "15151b7bb25a4f6bca910f61db6c122383fd333fa4266f06e60df50113bfb728"
+        "sha256": "b8559850b5ad2bb1c489fb0acce1d6efacfd8412e7acf6d39e6db72abfbfb4f3"
       },
       "rust-toolchain.toml": {
         "bytes": 79,
@@ -3348,10 +3354,10 @@
         "sha256": "5f20839c4fa395e93fba536ac83f7e8f733bf773167d7babee3385f5f75fbe29"
       },
       "scripts/linux-shared-rust.sh": {
-        "bytes": 1489,
-        "git_blob": "cd052816ec1378e618192058804ff8f2a3da3e5a",
+        "bytes": 1581,
+        "git_blob": "d0bbf08abaaec099ee921e2b5ce4adf9257157a3",
         "mode": "100755",
-        "sha256": "90ab5f412a0fc1519033686d0f3f567ffbfb60353bc869d735e331af1c40de2a"
+        "sha256": "dab88fb17067c631788e7a37784e2729757a259ebb99cb07aba8c885c873df2c"
       },
       "scripts/local-social-fixture.py": {
         "bytes": 100786,
@@ -3625,6 +3631,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "29564e400d70479aa566a05a816117ca1fa8ba64"
+    "tree": "36670dc22376a94606ce1c2128034212bb455721"
   }
 }
