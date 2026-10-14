@@ -42,6 +42,8 @@ mod calendar;
 pub use calendar::{FfiCalendarTiming, FfiCivilDate, TODAY_CARD_FFI_SCHEMA_VERSION};
 
 mod local_network_debug;
+#[cfg(test)]
+mod native_upload_job_tests;
 mod today_sync;
 pub use today_sync::{
     FfiTodayDiscoveryRecord, FfiTodayRelaySyncState, FfiTodaySyncRecord, FfiTodaySyncTermination,
@@ -1156,7 +1158,8 @@ pub struct FfiBlossomUploadIntent {
 
 /// Secret-bearing native job. Hosts may use the authorization header for the
 /// immediate OS request but must not persist it in application metadata.
-#[derive(Clone, Debug, Eq, PartialEq, uniffi::Record)]
+/// Debug formatting omits every request field, including nested draft values.
+#[derive(Clone, Eq, PartialEq, uniffi::Record)]
 pub struct FfiNativeUploadJobRecord {
     pub schema_version: u16,
     pub operation_id: String,
@@ -1167,6 +1170,14 @@ pub struct FfiNativeUploadJobRecord {
     pub expected_sha256: String,
     pub media_type: String,
     pub byte_size: u64,
+}
+
+impl std::fmt::Debug for FfiNativeUploadJobRecord {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("FfiNativeUploadJobRecord")
+            .finish_non_exhaustive()
+    }
 }
 
 #[derive(Clone, Debug, uniffi::Record)]
