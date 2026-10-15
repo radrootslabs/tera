@@ -231,8 +231,8 @@
       "rustix v1.1.4|alloc,default,fs,process,std",
       "rustix v1.1.4|alloc,default,fs,process,std (*)",
       "rustix v1.1.4|alloc,default,fs,std",
-      "rustls v0.23.45|ring,std,tls12",
-      "rustls v0.23.45|ring,std,tls12 (*)",
+      "rustls v0.23.46|ring,std,tls12",
+      "rustls v0.23.46|ring,std,tls12 (*)",
       "rustls-pki-types v1.15.1|alloc,default,std",
       "rustls-pki-types v1.15.1|alloc,default,std (*)",
       "rustls-webpki v0.103.15|alloc,ring,std",
@@ -387,7 +387,7 @@
         "generator_profile_overrides": {
           "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
         },
-        "path_sha256": "d3b3c9948edc72d578b04b9aff7dd44a2204731196171d8a3c7ce6039caee571"
+        "path_sha256": "257baef0a2ecae6cb3e90453d826af8aa61134eb80e5e2cd74a938a5d503ed95"
       },
       "inspection_limits": {
         "maximum_inspection_seconds": 120,
@@ -496,11 +496,11 @@
     },
     "target": "aarch64-apple-ios"
   },
-  "cargo_lock_sha256": "df533fc89a3707be836d13715cb55cb036e3ac3158fece1e9f73328a295cff91",
+  "cargo_lock_sha256": "f401d0a0ecd20bb52d27f1aeec474dbca617daabea267e8d9d002b115423ac7e",
   "disposition": "local_staged_source_only",
   "foundation": {
     "architecture": "radroots.crates.release.v2",
-    "lockfile_sha256": "df533fc89a3707be836d13715cb55cb036e3ac3158fece1e9f73328a295cff91",
+    "lockfile_sha256": "f401d0a0ecd20bb52d27f1aeec474dbca617daabea267e8d9d002b115423ac7e",
     "repository": "https://github.com/radrootslabs/lib",
     "revision": "418acecb49437ce1200a6916822af9ef83eefec3",
     "schema": "radroots.lib.source-lock.v1",
@@ -616,7 +616,7 @@
         "generator_profile_overrides": {
           "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
         },
-        "path_sha256": "d3b3c9948edc72d578b04b9aff7dd44a2204731196171d8a3c7ce6039caee571"
+        "path_sha256": "257baef0a2ecae6cb3e90453d826af8aa61134eb80e5e2cd74a938a5d503ed95"
       },
       "inspection_limits": {
         "maximum_inspection_seconds": 120,
@@ -721,9 +721,9 @@
     "files": {
       "Cargo.lock": {
         "bytes": 94917,
-        "git_blob": "ab3a2b934a35127dfd801d98bd5b75f6a9a88614",
+        "git_blob": "744b3a78f3a90660a05452c6e3f3abfba4e3d9ef",
         "mode": "100644",
-        "sha256": "df533fc89a3707be836d13715cb55cb036e3ac3158fece1e9f73328a295cff91"
+        "sha256": "f401d0a0ecd20bb52d27f1aeec474dbca617daabea267e8d9d002b115423ac7e"
       },
       "Cargo.toml": {
         "bytes": 4475,
@@ -3097,9 +3097,9 @@
       },
       "radroots.lib.source-lock.v1.toml": {
         "bytes": 482,
-        "git_blob": "30386d20bd5ec0fb483d64f5870fa0e73976e71c",
+        "git_blob": "6bd437e3cf19b916818336dad89acf47a0580171",
         "mode": "100644",
-        "sha256": "b8559850b5ad2bb1c489fb0acce1d6efacfd8412e7acf6d39e6db72abfbfb4f3"
+        "sha256": "77da3e40db58736d4dd5ce0a62a499f3be6b00b374a4eb2c5e82944188f8cbbd"
       },
       "rust-toolchain.toml": {
         "bytes": 79,
@@ -3637,6 +3637,6 @@
       }
     },
     "policy": "staged_inputs",
-    "tree": "d1f8b0b3c775fa30525325b842375a0f64468cf6"
+    "tree": "97b9967a70575defa1f5d0a86b2c5a9ab8590252"
   }
 }
