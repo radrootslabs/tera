@@ -8,8 +8,10 @@ This file applies to the complete standalone iOS app repository. A closer
 - This capsule owns the public iOS application, its Swift package, generated
   Xcode project, Apple host lifecycle, app state and views, FFI installation
   boundary, privacy manifest, public API snapshot, and standalone validation.
-  It also owns application Rust policy, runtime transitions, durable authored
-  operation orchestration and application FFI. Keep one root Rust workspace;
+  It also owns application Rust presentation/lifecycle policy and application
+  FFI. The approved successor places reusable domain, command, durable signing,
+  outbox, history and recovery orchestration in the public Lib SDK. Keep one
+  root Rust workspace;
   application packages belong under `core/crates`. Native artifacts use the
   owned tera_ffi and tera_bindgen packages with exact shared foundation pins.
 - `radroots.lib.source-lock.v1.toml`, `Cargo.toml`, and
@@ -45,18 +47,27 @@ This file applies to the complete standalone iOS app repository. A closer
 
 - The product has exactly two bottom tabs, Today and Add, and retains its five
   current creation families. Cached Today and local Add must remain usable
-  independently of network readiness. Do not activate farm, CRDT, commerce,
-  additional transports or unrelated product surfaces through this refactor.
+  independently of network readiness. The approved successor is seller-only:
+  offerings, private inquiries/replies, incoming orders, stock and handover
+  consume shared SDK operations. Buyer jobs remain in shared SDK/CLI; do not
+  add shopping, payment, farm hierarchy, CRDT or unrelated transport surfaces.
+  Approval of this target does not claim those seller workflows are implemented
+  or qualified. Preserve their actual source, artifacts and proving inputs.
 - The Swift host owns Apple presentation, lifecycle callbacks,
   user-presence prompts, Keychain integration, foreground/background
   scheduling, and translation between generated SDK DTOs and view state.
-- Application validation, transitions, durable receipts and app-facing FFI
-  models belong to this application's Rust packages. Shared domain types,
-  signing protocols, transport and storage mechanics stay in their existing
-  public producer packages at exact pins. Swift translates and presents those
-  contracts; it must not fork canonical policy or own a second database.
-- Branding changes must preserve installed bundle/Keychain identities,
-  persisted schema and hash namespaces, and frozen signed operation identities.
+- Shared validation, business transitions, durable command/issuance receipts,
+  persistence and reusable recovery have one public Rust SDK owner. Reimplement
+  reusable app behavior independently in Lib with provenance, notices and
+  meaningful retained-test mappings; do not relabel app source licensing.
+  Application Rust and Swift own presentation, form editing, local consent,
+  media acquisition, custody and lifecycle adaptation at exact public pins.
+  They must not fork canonical domain policy or own a second authority ledger.
+  Swift must not own a parallel database.
+- Preserve installed bundle/Keychain identities and frozen signed operation
+  identities. The clean break uses explicit new persistence namespaces with
+  protected export/quarantine and verified nonpublishing recovery. Never
+  silently reset custody, drafts, evidence, obligations or Unknown issuance.
 - Keep identity secrets in the Apple credential boundary. Never log, snapshot,
   serialize, fixture, or expose secret material, raw private event content,
   credentials, tokens, private paths, or unsafe internal errors.
@@ -138,10 +149,11 @@ This file applies to the complete standalone iOS app repository. A closer
   README material aligned.
 - Use focused commit subjects in the repository's established imperative
   style.
-- Evidence that requires a normative product decision is recorded in the
-  parent-owned services-hardening authority, with the corresponding standalone
-  machine contract changed in the same ordered sequence. Do not create a local
-  human deviation ledger.
+- Normative product changes follow their approved task authority and matching
+  standalone machine contracts in the same ordered sequence. Historical
+  services-hardening evidence remains immutable and does not override the
+  approved shared SDK and seller-only target. Do not create a local human
+  deviation ledger.
 - Do not push, tag, publish packages, deploy, change signing identities,
   profiles, entitlements, registry ownership, or credentials without separate
   explicit authority.
