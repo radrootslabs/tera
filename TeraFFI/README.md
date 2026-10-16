@@ -5,7 +5,7 @@ single Tera Rust workspace. Shared foundation packages remain exact Git inputs
 in `radroots.lib.source-lock.v1.toml`; no separate Lib checkout is a build input.
 
 Run `make ffi-bootstrap` from the repository root to build, verify and install
-the owned candidate. Stage declared producer inputs first. Rust 1.97.1 and its
+the owned candidate. Stage declared producer inputs first. Rust 1.99.0 and its
 `llvm-tools` component, Xcode, SwiftFormat and the locked Python verifier are
 required. The producer contract declares device, simulator and host targets,
 features, release profile, deployment target and path-remapping flags.
