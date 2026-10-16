@@ -2687,6 +2687,10 @@
         {
           "path": "Tera/Runtime/TeraUserMessageClassifier.swift",
           "count": 2
+        },
+        {
+          "path": "TeraTests/TeraLifecycleTests.swift",
+          "count": 1
         }
       ]
     },
@@ -2718,7 +2722,7 @@
         },
         {
           "path": "TeraTests/TeraLifecycleTests.swift",
-          "count": 1
+          "count": 3
         }
       ]
     },

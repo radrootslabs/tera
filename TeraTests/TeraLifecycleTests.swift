@@ -6,20 +6,35 @@ import XCTest
 final class TeraLifecycleTests: XCTestCase {
   func testDiagnosticsRejectPreEpochAndSignedOverflowTimestamps() async throws {
     let buffer = TeraDiagnosticsBuffer()
-    for timestamp in [
-      TimeInterval(-1),
-      TimeInterval(Int64.max) / 1000 + 1,
-    ] {
-      try await buffer.record(
-        RadrootsTelemetryEvent(
-          name: "ios.lifecycle.invalid_clock",
-          occurredAt: Date(timeIntervalSince1970: timestamp)
-        )
+    let preEpoch = try RadrootsTelemetryEvent(
+      name: "ios.lifecycle.invalid_clock",
+      occurredAt: Date(timeIntervalSince1970: -1)
+    )
+    await buffer.record(preEpoch)
+
+    let overflow = Date(timeIntervalSince1970: TimeInterval(Int64.max) / 1000 + 1)
+    XCTAssertThrowsError(try TeraClock.signedUnixMilliseconds(from: overflow)) { error in
+      XCTAssertEqual(error as? TeraClockError, .overflow)
+    }
+    XCTAssertThrowsError(
+      try RadrootsTelemetryEvent(name: "ios.lifecycle.invalid_clock", occurredAt: overflow)
+    ) { error in
+      XCTAssertEqual(error as? RadrootsTelemetryError, .invalidRequest)
+    }
+
+    let rejected = await buffer.records()
+    XCTAssertTrue(rejected.isEmpty)
+
+    for timestamp in [TimeInterval(0), TimeInterval(1.25)] {
+      let event = try RadrootsTelemetryEvent(
+        name: "ios.lifecycle.active",
+        occurredAt: Date(timeIntervalSince1970: timestamp)
       )
+      await buffer.record(event)
     }
 
     let records = await buffer.records()
-    XCTAssertTrue(records.isEmpty)
+    XCTAssertEqual(records.map(\.occurredAtUnixMilliseconds), [0, 1250])
   }
 
   func testBackgroundEventsCompleteExactlyOnceBeforeAndAfterAttachment() async {
