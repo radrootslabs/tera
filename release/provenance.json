@@ -2,10 +2,10 @@
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
     "ffi_api_sha256": "0f2ed40dd373866f25dccb3d8665eaf145660a08ba7b15ba169c8fc2b08e9c11",
-    "ffi_provenance_sha256": "d1ac9614efdcdaaf95c4ffd250feebbff88bcd78f9877c582e3419557770b8be",
+    "ffi_provenance_sha256": "adbecc348e5696b4e969b65391473a93a2798b308e02a8398563ecd97780191f",
     "info_plist_sha256": "b55010dd73b34bf5ad910a888be0ea1ae45f2a5c14329fa6a57059a317bdbd42",
     "privacy_manifest_sha256": "0f2103257ba596fbcaeb1d6a4dffe3ae021e84c010178852c6bf500a8cfb0f19",
-    "sbom_sha256": "25407b912da7f2f8fd4d2fd5022157e86df618109f0c24114c456f40fb545ff9",
+    "sbom_sha256": "b32d0e234fc0ffbf26d758773c549d93a81b8b42d9dd1ad9dfc3f0a5eb7508b9",
     "xcode_project_sha256": "4de40dd3903bdfe62a6214022ca2e35817d922674cc05bea1133ff0760e130cb"
   },
   "disposition": "unsigned",
@@ -1265,12 +1265,12 @@
       "policy": "staged_inputs",
       "tree": "356ccc626c82d7b33ca13b663fc47a7930aa3ba8"
     },
-    "cargo_lock_sha256": "abbf5d6dc35b2b8f55f3740d54af8173d7cf566d55a23356bf60ced6b568029c",
-    "consumer_source_lock_sha256": "f905e6adf27c5059e7cf328fee997b4f7d57306ea0d372e0a419f235b9108a75",
-    "lib_revision": "12ebab67c3c5927bb19ca204706fe60fd9d97283",
+    "cargo_lock_sha256": "6c1579fec12d8fbc954896261ac843a058f2bcb30193688ef67457ad26f2c621",
+    "consumer_source_lock_sha256": "0db46534dc500cf7adbc8d5bafba4cfd1c5ca98f05cf868d5de50e62485dbc6e",
+    "lib_revision": "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "69acdbd4f1ff3a5a4dd5829cbf1cd13d24bddfa94b7715e7c383ef577da998a3",
-    "tera_ffi_source_tree": "4a092c50523581b24fc169dd47d10e111b3ab167",
+    "tera_ffi_source_tree": "aade611c6b01e70292fb021b99ec3baa07610a18",
     "xcode_package_lock_sha256": "cfdbe6483d1e93990ae13f52298135dfba29786686d736067618142853e84b9f"
   },
   "version": "0.1.0-alpha"
