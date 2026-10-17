@@ -40,9 +40,9 @@ libc = { workspace = true }
 rustix = { workspace = true }
 
 [dev-dependencies]
-nostr = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr" }
-nostr-relay-builder = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr-relay-builder" }
-nostr-sdk = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr-sdk" }
+nostr = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr", version = "=0.44.1" }
+nostr-relay-builder = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr-relay-builder", version = "=0.44.0" }
+nostr-sdk = { git = "https://github.com/rust-nostr/nostr.git", rev = "5bba5163eb77107f82c4a8262cf29d7f33a73219", package = "nostr-sdk", version = "=0.44.0" }
 secp256k1 = { workspace = true, features = ["rand-std"] }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = [

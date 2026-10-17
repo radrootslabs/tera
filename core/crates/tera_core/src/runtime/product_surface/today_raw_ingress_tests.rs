@@ -2,7 +2,14 @@ use super::*;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::io::AsyncWriteExt;
 
-async fn pressure_server(listener: TcpListener, oversized: bool, consumed: Arc<AtomicUsize>) {
+#[derive(Clone, Copy)]
+enum Pressure {
+    AggregateBudget,
+    MissingIdentifiers,
+    Oversized,
+}
+
+async fn pressure_server(listener: TcpListener, pressure: Pressure, consumed: Arc<AtomicUsize>) {
     let (stream, _) = listener.accept().await.unwrap();
     let mut socket = accept_async(stream).await.unwrap();
     while let Some(message) = socket.next().await {
@@ -13,7 +20,7 @@ async fn pressure_server(listener: TcpListener, oversized: bool, consumed: Arc<A
         if values[0] != "REQ" {
             continue;
         }
-        if oversized {
+        if matches!(pressure, Pressure::Oversized) {
             // Deliver the actual complete unmasked text-frame header with a
             // declared payload one byte above the existing 512 KiB ceiling.
             // The client must reject before requiring/allocating that payload.
@@ -26,12 +33,16 @@ async fn pressure_server(listener: TcpListener, oversized: bool, consumed: Arc<A
             let _ = socket.next().await;
             return;
         }
-        let malformed = serde_json::to_string(&(
-            "EVENT",
-            &values[1],
-            serde_json::json!({"invalid_event": "x".repeat(384 * 1024)}),
-        ))
-        .unwrap();
+        let mut event = serde_json::json!({"invalid_event": "x".repeat(384 * 1024)});
+        if matches!(pressure, Pressure::AggregateBudget) {
+            // Pass the connector's exact wire-identifier guard while retaining
+            // an undecodable event. Every discarded body must still consume
+            // the aggregate raw-byte allowance before application admission.
+            event["id"] = "00".repeat(32).into();
+            event["pubkey"] = "11".repeat(32).into();
+            event["sig"] = "22".repeat(64).into();
+        }
+        let malformed = serde_json::to_string(&("EVENT", &values[1], event)).unwrap();
         assert!(malformed.len() < 512 * 1024);
         // More than the existing aggregate 8 MiB wire inventory. Invalid
         // events consume work even though no application event is admitted.
@@ -75,10 +86,10 @@ async fn pressure_server(listener: TcpListener, oversized: bool, consumed: Arc<A
     }
 }
 
-async fn pressure_preserves_cached_projection(oversized: bool) {
+async fn pressure_preserves_cached_projection(pressure: Pressure) {
     let (listener, url) = listener().await;
     let consumed = Arc::new(AtomicUsize::new(0));
-    let server = tokio::spawn(pressure_server(listener, oversized, consumed.clone()));
+    let server = tokio::spawn(pressure_server(listener, pressure, consumed.clone()));
     let runtime = live_runtime(std::slice::from_ref(&url), 1);
     let selected = selected(vec![url]);
     ingest(
@@ -99,14 +110,26 @@ async fn pressure_preserves_cached_projection(oversized: bool) {
     assert_eq!(receipt.events_observed, 0);
     assert!(receipt.pages_fetched <= TODAY_SYNC_MAX_PAGES);
     assert_eq!(receipt.projection.visible_cards, 1);
-    if oversized {
-        assert_eq!(consumed.load(Ordering::SeqCst), 1);
-    } else {
-        assert!(consumed.load(Ordering::SeqCst) >= 21);
-        assert_eq!(
-            receipt.targets[0].final_state,
-            Some(TodayTargetSyncState::Partial)
-        );
+    match pressure {
+        Pressure::Oversized => assert_eq!(consumed.load(Ordering::SeqCst), 1),
+        Pressure::MissingIdentifiers => {
+            assert_eq!(consumed.load(Ordering::SeqCst), 0);
+            assert_eq!(
+                receipt.targets[0].final_state,
+                Some(TodayTargetSyncState::FailedRetryable)
+            );
+        }
+        Pressure::AggregateBudget => {
+            assert!(
+                consumed.load(Ordering::SeqCst) >= 21,
+                "malformed ingress consumed {} frames; receipt: {receipt:?}",
+                consumed.load(Ordering::SeqCst)
+            );
+            assert_eq!(
+                receipt.targets[0].final_state,
+                Some(TodayTargetSyncState::Partial)
+            );
+        }
     }
     let page = runtime
         .phase1_today_page(&selected, TodayPageRequest::first(10, 2_000_000_201, "UTC"))
@@ -125,10 +148,15 @@ async fn pressure_preserves_cached_projection(oversized: bool) {
 
 #[tokio::test]
 async fn malformed_raw_ingress_budget_cannot_turn_eose_into_complete_today() {
-    pressure_preserves_cached_projection(false).await;
+    pressure_preserves_cached_projection(Pressure::AggregateBudget).await;
 }
 
 #[tokio::test]
 async fn oversized_raw_frame_cannot_replace_or_poison_cached_today() {
-    pressure_preserves_cached_projection(true).await;
+    pressure_preserves_cached_projection(Pressure::Oversized).await;
+}
+
+#[tokio::test]
+async fn missing_wire_identifiers_stop_ingress_without_replacing_cached_today() {
+    pressure_preserves_cached_projection(Pressure::MissingIdentifiers).await;
 }

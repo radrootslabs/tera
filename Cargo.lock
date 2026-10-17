@@ -135,21 +135,52 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-utility"
+version = "0.3.2"
+source = "git+https://github.com/yukibtc/async-utility?rev=b323ae0c1c1424b78bf8bb8832b95e86771f1dee#b323ae0c1c1424b78bf8bb8832b95e86771f1dee"
+dependencies = [
+ "futures-util",
+ "gloo-timers",
+ "tokio",
+ "wasm-bindgen-futures",
+]
+
+[[package]]
 name = "async-wsocket"
 version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c92385c7c8b3eb2de1b78aeca225212e4c9a69a78b802832759b108681a5069"
 dependencies = [
- "async-utility",
+ "async-utility 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures",
  "futures-util",
  "js-sys",
  "tokio",
  "tokio-rustls",
  "tokio-socks",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.26.2",
  "url",
  "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
+name = "async-wsocket"
+version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c713e1f14c7b82e32ea159af1c6e2f070cfadbdf23fb2512acce9af0a26f1a2"
+dependencies = [
+ "futures",
+ "futures-util",
+ "js-sys",
+ "tokio",
+ "tokio-happy-eyeballs",
+ "tokio-rustls",
+ "tokio-socks",
+ "tokio-tungstenite 0.28.0",
+ "url",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
  "web-sys",
 ]
 
@@ -214,12 +245,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32637268377fc7b10a8c6d51de3e7fba1ce5dd371a96e342b34e6078db558e7f"
 
 [[package]]
+name = "bech32"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "efbd3e1070bbdf4cd88a75264e18e8a26f7cb5c6949eadf0ceb85fb159cf08f8"
+
+[[package]]
 name = "bip39"
 version = "2.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90dbd31c98227229239363921e60fcf5e558e43ec69094d46fc4996f08d1d5bc"
 dependencies = [
- "bitcoin_hashes",
+ "bitcoin_hashes 0.14.101",
  "serde",
  "unicode-normalization",
 ]
@@ -262,6 +299,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitcoin_hashes"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5304e53726dbe5f93141535e102ed97b5bf4714fbecefdda8f9fb98d7fdaff0e"
+dependencies = [
+ "bitcoin-consensus-encoding",
+ "bitcoin-internals",
+ "hex-conservative 1.2.0",
+ "serde",
+]
+
+[[package]]
 name = "bitflags"
 version = "1.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -296,6 +345,12 @@ name = "bumpalo"
 version = "3.20.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "72f5acc6cb2ba439de613abc23857ec3d78374d8ed5ac84e9d11336e87da8649"
+
+[[package]]
+name = "byteorder"
+version = "1.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fd0f2584146f6f2ef48085050886acf353beff7305ebd1ae69500e27c67f64b"
 
 [[package]]
 name = "bytes"
@@ -564,6 +619,15 @@ checksum = "4583a4551df46e2792f82ceeac45e850d2e2d5debba0b91f102385cda5b11f06"
 
 [[package]]
 name = "defmt"
+version = "0.3.101"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4deef977660e373c458df605a913d4ab121db0ccd18d1ad6976dff7d37cddb53"
+dependencies = [
+ "defmt 1.1.1",
+]
+
+[[package]]
+name = "defmt"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2953bfe4f93bbd20cc71198842756f77d161884c99ebbabc41d80231ded88d1"
@@ -687,6 +751,18 @@ checksum = "5a23add41df1562121a9393cb065eab5146a1242410f23a644851e90cfd669d2"
 dependencies = [
  "parking",
  "pin-project-lite",
+]
+
+[[package]]
+name = "faster-hex"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04839bdf9d8c10f66806fad16b852fc72aab80873aebc3cb69d85b4fa41543ed"
+dependencies = [
+ "autocfg",
+ "defmt 0.3.101",
+ "heapless",
+ "serde",
 ]
 
 [[package]]
@@ -946,6 +1022,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "hash32"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47d60b12902ba28e2730cd37e95b8c9223af2808df9e902d4df49588d1470606"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "hashbrown"
 version = "0.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -969,6 +1054,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "824e001ac4f3012dd16a264bec811403a67ca9deb6c102fc5049b32c4574b35f"
 dependencies = [
  "hashbrown 0.16.1",
+]
+
+[[package]]
+name = "heapless"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bfb9eb618601c89945a70e254898da93b13be0388091d42117462b265bb3fad"
+dependencies = [
+ "hash32",
+ "stable_deref_trait",
 ]
 
 [[package]]
@@ -1295,7 +1390,7 @@ version = "0.2.35"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "668b7183bd07af9a4885f5c35b0cc5c83c4607a913c16b7e17291832910d2dcc"
 dependencies = [
- "defmt",
+ "defmt 1.1.1",
  "jiff-core",
  "jiff-static",
  "log",
@@ -1310,7 +1405,7 @@ version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7feca88439efe53da3754500c1851dedf3cb36c524dd5cf8225cc0794de95d09"
 dependencies = [
- "defmt",
+ "defmt 1.1.1",
 ]
 
 [[package]]
@@ -1409,6 +1504,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7f66e8d5d03f609abc3a39e6f08e4164ebf1447a732906d39eb9b99b7919ef39"
 
 [[package]]
+name = "lru"
+version = "0.18.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ef9ac18847474e638e3702b76c65d4eb93428471a74778ef0f1be711717f89b5"
+
+[[package]]
 name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1465,9 +1566,9 @@ version = "0.44.1"
 source = "git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219#5bba5163eb77107f82c4a8262cf29d7f33a73219"
 dependencies = [
  "base64",
- "bech32",
+ "bech32 0.11.1",
  "bip39",
- "bitcoin_hashes",
+ "bitcoin_hashes 0.14.101",
  "cbc",
  "chacha20 0.9.1",
  "chacha20poly1305",
@@ -1475,7 +1576,7 @@ dependencies = [
  "hex",
  "instant",
  "scrypt",
- "secp256k1",
+ "secp256k1 0.29.1",
  "serde",
  "serde_json",
  "unicode-normalization",
@@ -1490,9 +1591,9 @@ checksum = "40ff7b77ef428b40aa2834a6acbae38a0e104c98b306208ca4b87a420d579a4b"
 dependencies = [
  "aes",
  "base64",
- "bech32",
+ "bech32 0.11.1",
  "bip39",
- "bitcoin_hashes",
+ "bitcoin_hashes 0.14.101",
  "cbc",
  "chacha20 0.9.1",
  "chacha20poly1305",
@@ -1500,7 +1601,7 @@ dependencies = [
  "hex",
  "instant",
  "scrypt",
- "secp256k1",
+ "secp256k1 0.29.1",
  "serde",
  "serde_json",
  "unicode-normalization",
@@ -1510,14 +1611,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "nostr-database"
-version = "0.44.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7462c9d8ae5ef6a28d66a192d399ad2530f1f2130b13186296dbb11bdef5b3d1"
+name = "nostr"
+version = "0.45.5"
+source = "git+https://github.com/nostrdevkit/nostr.git?rev=de3031aa99986eb29b3f34580355f9a099e4c927#de3031aa99986eb29b3f34580355f9a099e4c927"
 dependencies = [
- "lru",
- "nostr 0.44.8",
- "tokio",
+ "base64",
+ "bech32 0.12.0",
+ "bip39",
+ "bitcoin_hashes 1.2.0",
+ "cbc",
+ "chacha20 0.9.1",
+ "chacha20poly1305",
+ "faster-hex",
+ "opaquerr",
+ "rand 0.10.2",
+ "secp256k1 0.30.0",
+ "serde",
+ "serde_json",
+ "unicode-normalization",
+ "universal-time",
+ "url",
+ "zeroize",
 ]
 
 [[package]]
@@ -1525,18 +1639,18 @@ name = "nostr-database"
 version = "0.44.0"
 source = "git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219#5bba5163eb77107f82c4a8262cf29d7f33a73219"
 dependencies = [
- "lru",
+ "lru 0.16.4",
  "nostr 0.44.1",
  "tokio",
 ]
 
 [[package]]
-name = "nostr-gossip"
-version = "0.44.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ade30de16869618919c6b5efc8258f47b654a98b51541eb77f85e8ec5e3c83a6"
+name = "nostr-database"
+version = "0.45.2"
+source = "git+https://github.com/nostrdevkit/nostr.git?rev=de3031aa99986eb29b3f34580355f9a099e4c927#de3031aa99986eb29b3f34580355f9a099e4c927"
 dependencies = [
- "nostr 0.44.8",
+ "nostr 0.45.5",
+ "opaquerr",
 ]
 
 [[package]]
@@ -1545,6 +1659,15 @@ version = "0.44.0"
 source = "git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219#5bba5163eb77107f82c4a8262cf29d7f33a73219"
 dependencies = [
  "nostr 0.44.1",
+]
+
+[[package]]
+name = "nostr-gossip"
+version = "0.45.1"
+source = "git+https://github.com/nostrdevkit/nostr.git?rev=de3031aa99986eb29b3f34580355f9a099e4c927#de3031aa99986eb29b3f34580355f9a099e4c927"
+dependencies = [
+ "nostr 0.45.5",
+ "opaquerr",
 ]
 
 [[package]]
@@ -1552,13 +1675,13 @@ name = "nostr-relay-builder"
 version = "0.44.0"
 source = "git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219#5bba5163eb77107f82c4a8262cf29d7f33a73219"
 dependencies = [
- "async-utility",
- "async-wsocket",
+ "async-utility 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "async-wsocket 0.13.2",
  "atomic-destructor",
  "hex",
  "negentropy",
  "nostr 0.44.1",
- "nostr-database 0.44.0 (git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219)",
+ "nostr-database 0.44.0",
  "tokio",
  "tracing",
 ]
@@ -1568,32 +1691,14 @@ name = "nostr-relay-pool"
 version = "0.44.0"
 source = "git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219#5bba5163eb77107f82c4a8262cf29d7f33a73219"
 dependencies = [
- "async-utility",
- "async-wsocket",
+ "async-utility 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "async-wsocket 0.13.2",
  "atomic-destructor",
  "hex",
- "lru",
+ "lru 0.16.4",
  "negentropy",
  "nostr 0.44.1",
- "nostr-database 0.44.0 (git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219)",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "nostr-relay-pool"
-version = "0.44.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c85c54d6ca9aae4ae2bf19a7663ba9db5f45f783f1d24aff55f006386b8b99a1"
-dependencies = [
- "async-utility",
- "async-wsocket",
- "atomic-destructor",
- "hex",
- "lru",
- "negentropy",
- "nostr 0.44.8",
- "nostr-database 0.44.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nostr-database 0.44.0",
  "tokio",
  "tracing",
 ]
@@ -1603,28 +1708,35 @@ name = "nostr-sdk"
 version = "0.44.0"
 source = "git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219#5bba5163eb77107f82c4a8262cf29d7f33a73219"
 dependencies = [
- "async-utility",
+ "async-utility 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "nostr 0.44.1",
- "nostr-database 0.44.0 (git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219)",
- "nostr-gossip 0.44.0 (git+https://github.com/rust-nostr/nostr.git?rev=5bba5163eb77107f82c4a8262cf29d7f33a73219)",
- "nostr-relay-pool 0.44.0",
+ "nostr-database 0.44.0",
+ "nostr-gossip 0.44.0",
+ "nostr-relay-pool",
  "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "nostr-sdk"
-version = "0.44.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "471732576710e779b64f04c55e3f8b5292f865fea228436daf19694f0bf70393"
+version = "0.45.4"
+source = "git+https://github.com/nostrdevkit/nostr.git?rev=de3031aa99986eb29b3f34580355f9a099e4c927#de3031aa99986eb29b3f34580355f9a099e4c927"
 dependencies = [
- "async-utility",
- "nostr 0.44.8",
- "nostr-database 0.44.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "nostr-gossip 0.44.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "nostr-relay-pool 0.44.3",
+ "async-utility 0.3.2 (git+https://github.com/yukibtc/async-utility?rev=b323ae0c1c1424b78bf8bb8832b95e86771f1dee)",
+ "async-wsocket 0.17.0",
+ "faster-hex",
+ "futures",
+ "lru 0.18.5",
+ "negentropy",
+ "nostr 0.45.5",
+ "nostr-database 0.45.2",
+ "nostr-gossip 0.45.1",
+ "opaquerr",
+ "rand 0.10.2",
  "tokio",
+ "tokio-stream",
  "tracing",
+ "universal-time",
 ]
 
 [[package]]
@@ -1662,6 +1774,12 @@ name = "opaque-debug"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c08d65885ee38876c4f86fa503fb49d7b507c2b62552df7c70b2fce627e06381"
+
+[[package]]
+name = "opaquerr"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4f933a4265d5cdad61d19bbdfc972ea5726d56cd8d3d57b8f2d3c365dd42bee9"
 
 [[package]]
 name = "parking"
@@ -1876,7 +1994,7 @@ checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 [[package]]
 name = "radroots_blossom"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "mediatype",
  "serde",
@@ -1888,7 +2006,7 @@ dependencies = [
 [[package]]
 name = "radroots_core"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "rust_decimal",
  "serde",
@@ -1897,7 +2015,7 @@ dependencies = [
 [[package]]
 name = "radroots_event"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "hex",
  "jiff-tzdb",
@@ -1915,7 +2033,7 @@ dependencies = [
 [[package]]
 name = "radroots_event_codec"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "hex",
  "radroots_blossom",
@@ -1923,7 +2041,7 @@ dependencies = [
  "radroots_event",
  "radroots_identity",
  "radroots_protocol",
- "secp256k1",
+ "secp256k1 0.29.1",
  "serde",
  "serde_json",
  "sha2",
@@ -1932,7 +2050,7 @@ dependencies = [
 [[package]]
 name = "radroots_identity"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "k256",
  "serde",
@@ -1942,7 +2060,7 @@ dependencies = [
 [[package]]
 name = "radroots_nostr"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "base64",
  "nostr 0.44.8",
@@ -1959,7 +2077,7 @@ dependencies = [
 [[package]]
 name = "radroots_protocol"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "serde",
 ]
@@ -1967,7 +2085,7 @@ dependencies = [
 [[package]]
 name = "radroots_sdk"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "radroots_blossom",
  "radroots_core",
@@ -1992,7 +2110,7 @@ dependencies = [
 [[package]]
 name = "radroots_secrets"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "chacha20poly1305",
  "sha2",
@@ -2003,7 +2121,7 @@ dependencies = [
 [[package]]
 name = "radroots_signing"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "hex",
  "radroots_event",
@@ -2017,7 +2135,7 @@ dependencies = [
 [[package]]
 name = "radroots_storage"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "radroots_event",
  "radroots_event_codec",
@@ -2031,7 +2149,7 @@ dependencies = [
 [[package]]
 name = "radroots_storage_sqlite"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "fs2",
  "radroots_event",
@@ -2048,7 +2166,7 @@ dependencies = [
 [[package]]
 name = "radroots_sync"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "radroots_event",
  "radroots_event_codec",
@@ -2063,7 +2181,7 @@ dependencies = [
 [[package]]
 name = "radroots_trade"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "hex",
  "radroots_core",
@@ -2077,7 +2195,7 @@ dependencies = [
 [[package]]
 name = "radroots_transport"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
  "radroots_event",
  "radroots_identity",
@@ -2089,12 +2207,11 @@ dependencies = [
 [[package]]
 name = "radroots_transport_nostr"
 version = "0.1.0-alpha"
-source = "git+https://github.com/radrootslabs/lib?rev=386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a#386e2d7e8cca95bdd0f6ce3444b5e741ea61ef8a"
+source = "git+https://github.com/radrootslabs/lib?rev=3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f#3af7814ea4f76f2cca3d33d4c2bd8a854f3fb78f"
 dependencies = [
- "async-wsocket",
+ "async-wsocket 0.17.0",
  "futures",
- "nostr-relay-pool 0.44.3",
- "nostr-sdk 0.44.1",
+ "nostr-sdk 0.45.4",
  "radroots_event_codec",
  "radroots_nostr",
  "radroots_protocol",
@@ -2104,7 +2221,7 @@ dependencies = [
  "sha2",
  "tokio",
  "tokio-rustls",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.28.0",
  "url",
  "webpki-roots 0.26.11",
 ]
@@ -2405,6 +2522,17 @@ dependencies = [
  "rand 0.8.7",
  "secp256k1-sys",
  "serde",
+]
+
+[[package]]
+name = "secp256k1"
+version = "0.30.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b50c5943d326858130af85e049f2661ba3c78b26589b8ab98e65e80ae44a1252"
+dependencies = [
+ "bitcoin_hashes 0.14.101",
+ "rand 0.8.7",
+ "secp256k1-sys",
 ]
 
 [[package]]
@@ -2786,7 +2914,7 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "tokio-tungstenite",
+ "tokio-tungstenite 0.26.2",
  "url",
  "uuid",
 ]
@@ -2807,7 +2935,7 @@ dependencies = [
  "radroots_signing",
  "radroots_storage",
  "rustix",
- "secp256k1",
+ "secp256k1 0.29.1",
  "serde_json",
  "tempfile",
  "tera_core",
@@ -2957,6 +3085,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "tokio-happy-eyeballs"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8564c32dfb6f4257f8bc6edfc178a34af97520e0b7b9815500c55eb3d092f29f"
+dependencies = [
+ "tokio",
+]
+
+[[package]]
 name = "tokio-macros"
 version = "2.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2998,6 +3135,7 @@ dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]
@@ -3012,7 +3150,23 @@ dependencies = [
  "rustls-pki-types",
  "tokio",
  "tokio-rustls",
- "tungstenite",
+ "tungstenite 0.26.2",
+ "webpki-roots 0.26.11",
+]
+
+[[package]]
+name = "tokio-tungstenite"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d25a406cddcc431a75d3d9afc6a7c0f7428d4891dd973e4d54c56b46127bf857"
+dependencies = [
+ "futures-util",
+ "log",
+ "rustls",
+ "rustls-pki-types",
+ "tokio",
+ "tokio-rustls",
+ "tungstenite 0.28.0",
  "webpki-roots 0.26.11",
 ]
 
@@ -3165,6 +3319,25 @@ name = "tungstenite"
 version = "0.26.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4793cb5e56680ecbb1d843515b23b6de9a75eb04b66643e256a396d43be33c13"
+dependencies = [
+ "bytes",
+ "data-encoding",
+ "http",
+ "httparse",
+ "log",
+ "rand 0.9.5",
+ "rustls",
+ "rustls-pki-types",
+ "sha1",
+ "thiserror 2.0.19",
+ "utf-8",
+]
+
+[[package]]
+name = "tungstenite"
+version = "0.28.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8628dcc84e5a09eb3d8423d6cb682965dea9133204e8fb3efee74c2a0c259442"
 dependencies = [
  "bytes",
  "data-encoding",
@@ -3343,6 +3516,12 @@ dependencies = [
  "crypto-common",
  "subtle",
 ]
+
+[[package]]
+name = "universal-time"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47a939edecc3c5a7b83c02e5f6b3c31d2bc69eabcc9a87ab12c6d37ee6dbc856"
 
 [[package]]
 name = "untrusted"
