@@ -14,7 +14,7 @@ async fn coordinate_signer_suspension_fences_other_writer_and_rechecks_remote_wi
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay = format!("ws://{}", listener.local_addr().unwrap());
     let signer = effects::PausedSigner::new();
-    let runtime = effects::runtime(signer.clone(), &relay);
+    let runtime = effects::runtime(signer.clone(), &relay).await;
     let first = saved(&runtime, [141; 16], "signing:race").await;
     let second = saved(&runtime, [142; 16], "signing:race").await;
     let queued = queue(&runtime, &first).await.unwrap();
@@ -68,7 +68,7 @@ async fn coordinate_signer_suspension_fences_other_writer_and_rechecks_remote_wi
 async fn coordinate_scoped_capture_preserves_identity_and_cannot_bypass_legacy_ownership() {
     let signer = effects::PausedSigner::new();
     signer.pause.store(false, Ordering::SeqCst);
-    let runtime = effects::runtime(signer.clone(), "ws://127.0.0.1:19999");
+    let runtime = effects::runtime(signer.clone(), "ws://127.0.0.1:19999").await;
     let legacy = saved(&runtime, [151; 16], "shared:coordinate").await;
     let legacy = queue(&runtime, &legacy).await.unwrap();
     let request = effects::scoped(&runtime, 153, "shared:coordinate").await;
@@ -117,7 +117,7 @@ async fn coordinate_scoped_signing_rechecks_winner_and_local_reconciliation_cann
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let relay = format!("ws://{}", listener.local_addr().unwrap());
     let signer = effects::PausedSigner::new();
-    let runtime = effects::runtime(signer.clone(), &relay);
+    let runtime = effects::runtime(signer.clone(), &relay).await;
     let request = effects::scoped(&runtime, 161, "scoped:race").await;
     let initial = runtime.submission_operation_status(&request).await.unwrap();
     let owner = runtime.clone();

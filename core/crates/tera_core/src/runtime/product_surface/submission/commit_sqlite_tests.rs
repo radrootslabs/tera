@@ -108,6 +108,7 @@ async fn actual_sqlite_concurrent_prepare_replays_after_edits_settings_and_recon
                 )
                 .unwrap(),
             )
+            .await
             .unwrap();
         assert!(
             runtime

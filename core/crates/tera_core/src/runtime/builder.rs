@@ -116,6 +116,14 @@ impl RuntimeBuilder {
             .blossom_config
             .as_ref()
             .map(|config| config.fingerprint());
+        #[cfg(feature = "mobile-social")]
+        let nostr_slot = {
+            let slot = radroots_sdk::transport::NostrSlot::new();
+            slot.configure(self.relay_profile)
+                .await
+                .map_err(TeraAppError::from_sdk)?;
+            slot
+        };
         let runtime = TeraRuntime::from_client_builder(
             builder,
             Some(self.store.public_key()),
@@ -124,7 +132,7 @@ impl RuntimeBuilder {
             #[cfg(feature = "mobile-social")]
             self.signer,
             #[cfg(feature = "mobile-social")]
-            Some(self.relay_profile),
+            Some(nostr_slot),
             #[cfg(feature = "mobile-social")]
             self.blossom_config,
         )?;

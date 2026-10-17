@@ -55,7 +55,7 @@ impl Signer for PausedSigner {
     }
 }
 
-pub(super) fn runtime(signer: Arc<PausedSigner>, relay: &str) -> Arc<TeraRuntime> {
+pub(super) async fn runtime(signer: Arc<PausedSigner>, relay: &str) -> Arc<TeraRuntime> {
     use radroots_sdk::transport::{
         RelayAccess, RelayEndpoint, RelayProfile, RelayProfileKind, RelayUrlPolicy,
     };
@@ -64,13 +64,15 @@ pub(super) fn runtime(signer: Arc<PausedSigner>, relay: &str) -> Arc<TeraRuntime
         [RelayEndpoint::new(relay, RelayUrlPolicy::Local, RelayAccess::ReadWrite).unwrap()],
     )
     .unwrap();
+    let slot = radroots_sdk::transport::NostrSlot::new();
+    slot.configure(profile).await.unwrap();
     Arc::new(
         TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
             Some(signer),
-            Some(profile),
+            Some(slot),
             None,
         )
         .unwrap(),

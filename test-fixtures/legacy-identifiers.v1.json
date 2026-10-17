@@ -6398,7 +6398,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/builder.rs",
-          "count": 14
+          "count": 15
         },
         {
           "path": "core/crates/tera_core/src/runtime/info.rs",
@@ -6414,7 +6414,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/mod.rs",
-          "count": 8
+          "count": 7
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/composer/form.rs",
@@ -6430,7 +6430,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox.rs",
-          "count": 43
+          "count": 45
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/configuration.rs",
@@ -6454,7 +6454,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/coordinate_effect_support.rs",
-          "count": 1
+          "count": 2
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/outbox/tests/recovery_completion_tests.rs",
@@ -6546,7 +6546,7 @@
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/operation_test_support.rs",
-          "count": 3
+          "count": 4
         },
         {
           "path": "core/crates/tera_core/src/runtime/product_surface/submission/recovery_completion.rs",

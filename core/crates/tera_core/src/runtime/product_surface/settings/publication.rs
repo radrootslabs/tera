@@ -51,6 +51,7 @@ impl TeraRuntime {
         if let Some(relays) = relays {
             self.client
                 .configure_nostr(relays)
+                .await
                 .map_err(|_| SettingsError::Storage)?;
         }
         if let Some(media) = media {

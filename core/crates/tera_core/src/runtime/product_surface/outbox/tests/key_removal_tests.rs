@@ -152,7 +152,7 @@ async fn key_removal_missing_signer_keeps_request_and_rejects_success() {
 #[tokio::test]
 async fn key_removal_cancelled_signing_retains_queued_request_without_delivery() {
     let signer = effects::PausedSigner::new();
-    let runtime = effects::runtime(signer.clone(), "ws://127.0.0.1:9");
+    let runtime = effects::runtime(signer.clone(), "ws://127.0.0.1:9").await;
     let saved = saved(&runtime, [213; 16]).await;
     let owner = runtime.clone();
     let task = tokio::spawn(async move {

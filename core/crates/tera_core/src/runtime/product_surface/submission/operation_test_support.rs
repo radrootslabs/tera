@@ -130,12 +130,14 @@ pub(super) async fn runtime_with_blossom(
             .await
             .unwrap()
     } else {
+        let slot = radroots_sdk::transport::NostrSlot::new();
+        slot.configure(profile(relay)).await.unwrap();
         TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(scope(AUTHOR, "nearby").author()),
             None,
             Some(signer),
-            Some(profile(relay)),
+            Some(slot),
             Some(blossom),
         )
         .unwrap()

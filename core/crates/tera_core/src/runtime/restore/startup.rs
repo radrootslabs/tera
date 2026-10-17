@@ -25,6 +25,7 @@ impl TeraRuntime {
         // and later explicit review/resume retain publication authority.
         self.client
             .configure_nostr(relays)
+            .await
             .map_err(TeraAppError::from_sdk)?;
         self.client
             .configure_blossom(BlossomConfig::from_profile(blossom))

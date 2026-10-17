@@ -67,23 +67,15 @@ impl TeraRuntime {
         #[cfg(feature = "mobile-social")] signer: Option<
             std::sync::Arc<dyn radroots_signing::Signer>,
         >,
-        #[cfg(feature = "mobile-social")] relay_profile: Option<
-            radroots_sdk::transport::RelayProfile,
-        >,
+        #[cfg(feature = "mobile-social")] nostr_slot: Option<radroots_sdk::transport::NostrSlot>,
         #[cfg(feature = "mobile-social")] blossom_config: Option<
             radroots_sdk::transport::BlossomConfig,
         >,
     ) -> Result<Self, TeraAppError> {
         #[cfg(feature = "mobile-social")]
         let builder = {
-            let nostr_slot = radroots_sdk::transport::NostrSlot::new();
-            if let Some(profile) = relay_profile {
-                nostr_slot
-                    .configure(profile)
-                    .map_err(TeraAppError::from_sdk)?;
-            }
             let builder = builder
-                .nostr(nostr_slot)
+                .nostr(nostr_slot.unwrap_or_default())
                 .blossom({
                     let slot = radroots_sdk::transport::BlossomSlot::new();
                     if let Some(config) = blossom_config {

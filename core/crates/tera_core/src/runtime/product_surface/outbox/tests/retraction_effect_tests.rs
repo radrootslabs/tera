@@ -40,7 +40,7 @@ async fn retained_unproven_retractions_cannot_sign_admit_suppress_or_deliver() {
         let relay = format!("ws://{}", listener.local_addr().unwrap());
         let signer = effects::PausedSigner::new();
         signer.pause.store(false, Ordering::SeqCst);
-        let runtime = effects::runtime(signer.clone(), &relay);
+        let runtime = effects::runtime(signer.clone(), &relay).await;
         let target = original_target(&Phase1AddCommand::CreateUpdate(
             CreateUpdate::new("Original harvest").unwrap(),
         ));

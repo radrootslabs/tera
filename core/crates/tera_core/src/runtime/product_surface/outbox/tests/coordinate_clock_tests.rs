@@ -12,7 +12,7 @@ async fn coordinate_clock_changes_at_effect_boundaries_preserve_one_preimage_and
         let relay = format!("ws://{}", listener.local_addr().unwrap());
         let signer = effects::PausedSigner::new();
         signer.pause.store(false, Ordering::SeqCst);
-        let runtime = effects::runtime(signer.clone(), &relay);
+        let runtime = effects::runtime(signer.clone(), &relay).await;
         let saved = saved(&runtime, [211; 16], "clock:effects").await;
         let policy = Phase1QueuePolicy::new(
             vec![relay],

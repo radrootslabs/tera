@@ -3182,13 +3182,15 @@ mod tests {
         .unwrap()
     }
 
-    fn profiled_runtime(profile: radroots_sdk::transport::RelayProfile) -> TeraRuntime {
+    async fn profiled_runtime(profile: radroots_sdk::transport::RelayProfile) -> TeraRuntime {
+        let slot = radroots_sdk::transport::NostrSlot::new();
+        slot.configure(profile).await.unwrap();
         TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
             None,
-            Some(profile),
+            Some(slot),
             None,
         )
         .unwrap()
@@ -3287,7 +3289,7 @@ mod tests {
             ],
         )
         .unwrap();
-        let runtime = profiled_runtime(profile);
+        let runtime = profiled_runtime(profile).await;
         let saved = runtime
             .phase1_save_add_intent(
                 Phase1AddIntent::new(
@@ -3339,7 +3341,7 @@ mod tests {
             .unwrap()],
         )
         .unwrap();
-        let runtime = profiled_runtime(profile);
+        let runtime = profiled_runtime(profile).await;
         let saved = runtime
             .phase1_save_profile_metadata(
                 ProfileMetadataCommand::new(
@@ -3397,7 +3399,7 @@ mod tests {
             .unwrap()],
         )
         .unwrap();
-        let runtime = profiled_runtime(profile);
+        let runtime = profiled_runtime(profile).await;
         let saved = runtime
             .phase1_save_add_intent(
                 Phase1AddIntent::new(
@@ -3609,12 +3611,14 @@ mod tests {
             radroots_nostr::key::SecretKey::parse(SECRET).unwrap(),
         )
         .unwrap();
+        let slot = radroots_sdk::transport::NostrSlot::new();
+        slot.configure(profile).await.unwrap();
         let runtime = TeraRuntime::from_client_builder(
             ClientBuilder::memory_default(),
             Some(PublicKey::from_hex(AUTHOR).unwrap()),
             None,
             Some(std::sync::Arc::new(signer)),
-            Some(profile),
+            Some(slot),
             None,
         )
         .unwrap();

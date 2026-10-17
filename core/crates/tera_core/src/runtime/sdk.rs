@@ -197,6 +197,7 @@ impl TeraRuntime {
             .map_err(|_| TeraAppError::runtime("publication_configuration_unconfirmed"))?;
         self.client
             .configure_nostr(profile)
+            .await
             .map_err(TeraAppError::from_sdk)
     }
 
