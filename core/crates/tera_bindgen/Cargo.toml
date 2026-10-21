@@ -20,4 +20,4 @@ path = "src/main.rs"
 unexpected_cfgs = { level = "warn", check-cfg = ['cfg(coverage_nightly)'] }
 
 [dependencies]
-uniffi = { workspace = true, features = ["cli"] }
+uniffi = { workspace = true, features = ["cli", "cargo-metadata"] }

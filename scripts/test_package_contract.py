@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 SCRIPTS = Path(__file__).resolve().parent
 if str(SCRIPTS) not in sys.path:
@@ -17,6 +18,31 @@ import package_contract as contract  # noqa: E402
 
 
 class PackageContractTests(unittest.TestCase):
+    def test_cargo_metadata_has_separate_bounded_inspection(self) -> None:
+        root = SCRIPTS.parent
+
+        def emit(payload: bytes):
+            def run(*args, **kwargs):
+                del args
+                kwargs["stdout"].write(payload)
+                return contract.subprocess.CompletedProcess([], 0)
+
+            return run
+
+        accepted = b'{"workspace_members":[]}' + b" " * contract.MAX_CONTRACT_BYTES
+        with patch.object(contract.subprocess, "run", side_effect=emit(accepted)):
+            self.assertEqual(
+                contract._cargo_workspace(root, resolved=True),
+                {"workspace_members": []},
+            )
+        for payload in (b"invalid", b" " * (contract.MAX_CARGO_METADATA_BYTES + 1)):
+            with (
+                self.subTest(size=len(payload)),
+                patch.object(contract.subprocess, "run", side_effect=emit(payload)),
+                self.assertRaises(contract.PackageContractError),
+            ):
+                contract._cargo_workspace(root, resolved=True)
+
     def workspace(self, root: Path, member: str = "core/crates/tera_core") -> dict:
         return {
             "workspace_root": str(root),

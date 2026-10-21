@@ -40,7 +40,7 @@ async fn all_five_scoped_families_repair_local_visibility_without_republication(
 
     // Reconstruct with no host signer. Local recovery cannot obtain another
     // signature, and the original operation facts remain the sole authority.
-    let runtime = TeraRuntime::new(
+    let runtime = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

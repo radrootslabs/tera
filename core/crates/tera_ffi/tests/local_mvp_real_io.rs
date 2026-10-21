@@ -274,7 +274,7 @@ async fn public_runtime_completes_the_local_mvp_against_real_protocol_services()
     }
     let reader_root = tempfile::tempdir().expect("fresh reader root");
     support::prepare(reader_root.path());
-    let reader = TeraRuntime::new(
+    let reader = TeraRuntime::open(
         reader_root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.to_owned(),
         support::GENERATION.to_owned(),

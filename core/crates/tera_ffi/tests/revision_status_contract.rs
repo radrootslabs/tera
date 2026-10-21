@@ -8,7 +8,7 @@ async fn revision_status_maps_original_relation_actions_and_stopped_facts_across
     let (root, runtime) = support::runtime().await;
     runtime.shutdown().await.unwrap();
     let (card_id, source_event_id) = retraction::seed(root.path(), input()).await;
-    let runtime = TeraRuntime::new(
+    let runtime = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),
@@ -46,7 +46,7 @@ async fn revision_status_maps_original_relation_actions_and_stopped_facts_across
     assert!(stopped.replacement_progress.stopped && !stopped.can_resume && !stopped.can_cancel);
     assert_eq!(stopped.original, saved.original);
     runtime.shutdown().await.unwrap();
-    let runtime = TeraRuntime::new(
+    let runtime = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

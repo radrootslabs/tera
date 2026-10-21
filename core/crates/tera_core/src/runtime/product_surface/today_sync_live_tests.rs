@@ -3,8 +3,7 @@ use super::tests::{context, ingest, signed};
 use super::*;
 use futures_util::{SinkExt, StreamExt};
 use radroots_transport_nostr::{
-    Config, NostrTransport, RelayAccess, RelayEndpoint, RelayProfile, RelayProfileKind,
-    RelayUrlPolicy,
+    Config, RelayAccess, RelayEndpoint, RelayProfile, RelayProfileKind, RelayUrlPolicy,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -29,7 +28,9 @@ fn live_runtime(urls: &[String], connections: usize) -> TeraRuntime {
         .unwrap()
         .with_max_connections(connections)
         .unwrap();
-    runtime(Arc::new(NostrTransport::new(config)))
+    runtime(Arc::new(radroots_transport_nostr_native::create_transport(
+        config,
+    )))
 }
 
 fn selected(urls: Vec<String>) -> LocalNetwork {

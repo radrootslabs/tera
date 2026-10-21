@@ -53,7 +53,7 @@ async fn legacy_inventory_is_versioned_paged_and_separate_from_partial_composers
         );
     }
     runtime.shutdown().await.unwrap();
-    let runtime = TeraRuntime::new(
+    let runtime = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),
@@ -200,7 +200,7 @@ async fn typed_composer_preserves_partial_fields_exact_receipts_and_restart_with
     assert!(page.next_cursor.is_none());
     assert!(runtime.phase1_draft_heads(100).await.unwrap().is_empty());
     runtime.shutdown().await.unwrap();
-    let reopened = TeraRuntime::new(
+    let reopened = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

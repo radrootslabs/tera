@@ -93,6 +93,27 @@ class AppDependencyGraphTests(unittest.TestCase):
         with self.assertRaisesRegex(graph.GraphError, "resolved dependency graph"):
             graph.validate(changed, self.foundation)
 
+    def test_generator_repair_rejects_substitution_and_archived_parser(self) -> None:
+        for field, value in (
+            ("source", graph.ASKAMA_SOURCE.replace(graph.ASKAMA_REPAIR, "0" * 40)),
+            ("source", None),
+            ("version", "0.16.0"),
+        ):
+            with self.subTest(field=field, value=value):
+                changed = copy.deepcopy(self.metadata)
+                package = next(
+                    p for p in changed["packages"] if p["name"] == "askama_derive"
+                )
+                package[field] = value
+                with self.assertRaises(graph.GraphError):
+                    graph.validate(changed, self.foundation)
+        changed = copy.deepcopy(self.metadata)
+        changed["packages"].append(
+            {"id": "archived", "name": "basic-toml", "source": "registry+fixture"}
+        )
+        with self.assertRaisesRegex(graph.GraphError, "archived generator parser"):
+            graph.validate(changed, self.foundation)
+
 
 if __name__ == "__main__":
     unittest.main()

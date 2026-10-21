@@ -116,7 +116,7 @@ async fn today_hints_retain_the_exact_query_context_and_domain_revision() {
     handle.unsubscribe();
     let settings = runtime.phase1_settings().await.unwrap();
     runtime.shutdown().await.unwrap();
-    let reopened = tera_ffi::TeraRuntime::new(
+    let reopened = tera_ffi::TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

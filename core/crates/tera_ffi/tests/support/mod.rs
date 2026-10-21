@@ -11,7 +11,7 @@ pub fn prepare(root: &std::path::Path) {
 pub async fn runtime() -> (tempfile::TempDir, TeraRuntime) {
     let root = tempfile::tempdir().expect("tempdir");
     prepare(root.path());
-    let runtime = TeraRuntime::new(
+    let runtime = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         PUBLIC_KEY.to_owned(),
         GENERATION.to_owned(),

@@ -598,7 +598,7 @@ async fn native_boundary_delegates_the_complete_core_surface() {
 
     runtime.shutdown().await.unwrap();
     let (source_card, source_event) = retraction::seed(_root.path(), add).await;
-    let runtime = tera_ffi::TeraRuntime::new(
+    let runtime = tera_ffi::TeraRuntime::open(
         _root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

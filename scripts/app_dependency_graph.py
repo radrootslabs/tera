@@ -13,6 +13,10 @@ RETIRED = {
     "radroots_mobile_bindgen",
     "radroots_mobile_wasm",
 }
+ASKAMA_REPAIR = "d47daf8767805c0c4dfb456145fc857bfd9c1d2c"
+ASKAMA_SOURCE = (
+    f"git+https://github.com/askama-rs/askama?rev={ASKAMA_REPAIR}#{ASKAMA_REPAIR}"
+)
 
 
 class GraphError(ValueError):
@@ -110,10 +114,29 @@ def mobile_profile(owned: dict[str, Any], nodes: dict[str, Any]) -> None:
     )
 
 
+def generator_sources(packages: dict[str, Any]) -> None:
+    repaired = set()
+    for package in packages.values():
+        name = package.get("name")
+        require(name != "basic-toml", "archived generator parser is present")
+        if name in {"askama_derive", "askama_parser"}:
+            require(
+                package.get("source") == ASKAMA_SOURCE
+                and package.get("version") == "0.16.1",
+                "generator repair source differs",
+            )
+            repaired.add(name)
+    require(
+        repaired == {"askama_derive", "askama_parser"},
+        "generator repair inventory differs",
+    )
+
+
 def validate(document: dict[str, Any], foundation: dict[str, Any]) -> None:
     packages = indexed(document.get("packages"), "resolved package")
     owned = owned_packages(document, packages)
     foundation_sources(packages, foundation)
+    generator_sources(packages)
     resolution = document.get("resolve")
     require(isinstance(resolution, dict), "resolved dependency graph is absent")
     nodes = indexed(resolution.get("nodes"), "resolved node")

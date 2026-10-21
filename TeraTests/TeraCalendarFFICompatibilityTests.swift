@@ -59,7 +59,7 @@ final class TeraCalendarFFICompatibilityTests: XCTestCase {
   }
 
   private func runtime(_ root: URL) async throws -> TeraRuntime {
-    try await TeraRuntime(
+    try await TeraRuntime.open(
       applicationSupportDirectory: root.path,
       publicKeyHex: publicKey,
       sourceGenerationHex: String(repeating: "04", count: 32),

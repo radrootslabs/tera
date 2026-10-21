@@ -178,7 +178,7 @@ async fn run_case(completion_unavailable: bool) {
     drop(runtime);
 
     // Reopen with no signer at all. Durable evidence permits admission and delivery.
-    let recovered = TeraRuntime::new(
+    let recovered = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

@@ -70,6 +70,7 @@ final class TeraProductStartupTests: XCTestCase {
   func testConcurrentStartsAndResumesKeepOneObserverPerStore() async throws {
     let fixture = try await StartupFixture()
     let refresh = await fixture.backend.pause(.refresh)
+    let drafts = await fixture.backend.pause(.drafts)
     fixture.stores.start()
     fixture.stores.start()
     let first = Task { await fixture.stores.resume() }
@@ -79,11 +80,13 @@ final class TeraProductStartupTests: XCTestCase {
     for observer in fixture.observers {
       await observer.entered.wait()
     }
+    await drafts.entered.wait()
     let counts = await fixture.backend.counts
     XCTAssertEqual(counts[.subscribe], 2)
     XCTAssertEqual(counts[.refresh], 1)
     XCTAssertEqual(counts[.drafts], 1)
     await fixture.releaseObservers()
+    await drafts.resume.open()
     await refresh.resume.open()
     await first.value
     await second.value

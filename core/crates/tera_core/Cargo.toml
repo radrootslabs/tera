@@ -77,6 +77,7 @@ uuid = { workspace = true, features = ["v4"] }
 url = { workspace = true }
 
 [dev-dependencies]
+radroots_transport_nostr_native = { workspace = true }
 futures-util = { workspace = true }
 nostr = { workspace = true, features = ["std"] }
 radroots_nostr = { workspace = true, features = ["blossom", "signing"] }

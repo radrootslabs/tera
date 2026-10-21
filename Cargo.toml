@@ -32,18 +32,19 @@ jiff_tzdb = { package = "jiff-tzdb", version = "=0.1.8", default-features = fals
 futures-util = { version = "0.3", default-features = false, features = ["sink", "std"] }
 hex = { version = "0.4" }
 nostr = { version = "0.44.7", default-features = false }
-radroots_blossom = { package = "radroots_blossom", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_event = { package = "radroots_event", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_event_codec = { package = "radroots_event_codec", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_identity = { package = "radroots_identity", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_nostr = { package = "radroots_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_protocol = { package = "radroots_protocol", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_sdk = { version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_signing = { package = "radroots_signing", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_storage = { package = "radroots_storage", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_sync = { package = "radroots_sync", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_transport = { package = "radroots_transport", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
-radroots_transport_nostr = { package = "radroots_transport_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4" }
+radroots_blossom = { package = "radroots_blossom", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_event = { package = "radroots_event", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_event_codec = { package = "radroots_event_codec", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_identity = { package = "radroots_identity", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_nostr = { package = "radroots_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_protocol = { package = "radroots_protocol", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_sdk = { version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_signing = { package = "radroots_signing", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_storage = { package = "radroots_storage", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_sync = { package = "radroots_sync", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_transport = { package = "radroots_transport", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_transport_nostr = { package = "radroots_transport_nostr", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
+radroots_transport_nostr_native = { package = "radroots_transport_nostr_native", version = "=0.1.0-alpha", default-features = false, git = "https://github.com/radrootslabs/lib", rev = "a903133cdcd78b6a25687bd23c793d17d17b90c8" }
 serde = { version = "1", default-features = false, features = ["derive", "alloc"] }
 serde_json = { version = "1", default-features = false, features = ["alloc"] }
 sha2 = { version = "0.10", default-features = false }
@@ -61,5 +62,9 @@ tera_core = { path = "core/crates/tera_core", version = "=0.1.0-alpha", default-
 tracing = { version = "0.1", default-features = false }
 tracing-appender = { version = "0.2" }
 tracing-subscriber = { version = "0.3" }
-uniffi = { version = "0.29.4" }
+uniffi = { version = "=0.32.2", default-features = false }
 wasm-bindgen = { version = "0.2" }
+
+[patch.crates-io]
+# Official Askama repair removes archived basic-toml (RUSTSEC-2026-0374).
+askama_derive = { git = "https://github.com/askama-rs/askama", rev = "d47daf8767805c0c4dfb456145fc857bfd9c1d2c", version = "=0.16.1" }

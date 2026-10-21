@@ -22,6 +22,8 @@ import legacy_identifiers
 import package_privacy
 
 MAX_CONTRACT_BYTES = 2 * 1024 * 1024
+# The resolved generator graph exceeds the per-file contract bound.
+MAX_CARGO_METADATA_BYTES = 4 * 1024 * 1024
 GIT_REVISION = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 APPLE_KIT_REMOTE = "https://github.com/radrootslabs/apple_kit.git"
@@ -356,8 +358,8 @@ def _cargo_workspace(root: Path, *, resolved: bool = False) -> dict[str, Any]:
         except (OSError, subprocess.TimeoutExpired) as error:
             raise PackageContractError("Cargo workspace cannot be evaluated") from error
         stdout.seek(0)
-        output = stdout.read(MAX_CONTRACT_BYTES + 1)
-    if result.returncode != 0 or len(output) > MAX_CONTRACT_BYTES:
+        output = stdout.read(MAX_CARGO_METADATA_BYTES + 1)
+    if result.returncode != 0 or len(output) > MAX_CARGO_METADATA_BYTES:
         raise PackageContractError("Cargo workspace evaluation failed")
     try:
         value = json.loads(output)

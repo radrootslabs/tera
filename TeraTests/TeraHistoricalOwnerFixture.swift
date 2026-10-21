@@ -83,8 +83,8 @@ struct TeraHistoricalOwnerFixture {
   }
 
   func runtime() async throws -> TeraRuntime {
-    try await TeraRuntime(applicationSupportDirectory: roots().dataRoot.path, publicKeyHex: publicKey,
-                          sourceGenerationHex: generation, sourceGenerationCreatedAtUnixMs: number(host, "generation_created_at_unix_ms"), protectedData: .available)
+    try await TeraRuntime.open(applicationSupportDirectory: roots().dataRoot.path, publicKeyHex: publicKey,
+                               sourceGenerationHex: generation, sourceGenerationCreatedAtUnixMs: number(host, "generation_created_at_unix_ms"), protectedData: .available)
   }
 
   func assertStatuses(_ runtime: TeraRuntime) async throws {

@@ -52,7 +52,7 @@ async fn typed_reservation_replays_exact_historical_input_and_keeps_intentional_
     let latest = runtime.composer_save(saved.clone()).await.unwrap();
     runtime.shutdown().await.unwrap();
     drop(runtime);
-    let runtime = TeraRuntime::new(
+    let runtime = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

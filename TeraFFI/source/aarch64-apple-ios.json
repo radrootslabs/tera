@@ -38,14 +38,12 @@
       "byteorder v1.5.0|",
       "bytes v1.12.1|default,std",
       "camino v1.2.5|",
-      "camino v1.2.5|serde1",
-      "cargo-platform v0.1.9|",
-      "cargo_metadata v0.19.2|default",
       "cbc v0.1.2|alloc,block-padding,default,std",
       "cc v1.4.0|",
       "cc v1.4.0| (*)",
       "cfg-if v1.0.4|",
-      "chacha20 v0.9.1|zeroize",
+      "chacha20 v0.9.1|std,zeroize",
+      "chacha20 v0.9.1|std,zeroize (*)",
       "chacha20poly1305 v0.10.1|alloc",
       "chrono v0.4.45|alloc,clock,default,iana-time-zone,js-sys,now,oldtime,std,wasm-bindgen,wasmbind,winapi,windows-link",
       "cipher v0.4.4|alloc,block-padding,std,zeroize",
@@ -84,7 +82,7 @@
       "foldhash v0.2.0|",
       "form_urlencoded v1.2.2|alloc,default,std",
       "form_urlencoded v1.2.2|alloc,default,std (*)",
-      "fs-err v2.11.0|",
+      "fs-err v3.3.2|",
       "fs2 v0.4.3|",
       "futures v0.3.33|alloc,async-await,default,executor,futures-executor,std",
       "futures v0.3.33|alloc,async-await,default,executor,futures-executor,std (*)",
@@ -106,9 +104,9 @@
       "getrandom v0.2.17|std",
       "getrandom v0.2.17|std (*)",
       "getrandom v0.3.4|std",
-      "getrandom v0.4.3|",
-      "getrandom v0.4.3|std,sys_rng",
-      "getrandom v0.4.3|std,sys_rng (*)",
+      "getrandom v0.4.2|",
+      "getrandom v0.4.2|std,sys_rng",
+      "getrandom v0.4.2|std,sys_rng (*)",
       "group v0.13.0|",
       "hash32 v0.3.1|",
       "hashbrown v0.16.1|allocator-api2,default,default-hasher,equivalent,inline-more,raw-entry",
@@ -167,7 +165,8 @@
       "memchr v2.8.3|alloc,default,std",
       "mio v1.2.2|net,os-ext,os-poll",
       "negentropy v0.5.2|std",
-      "nostr v0.44.8|alloc,nip04,std",
+      "nostr v0.44.8|alloc,nip04,nip44,std",
+      "nostr v0.44.8|alloc,nip04,nip44,std (*)",
       "nostr v0.45.5 (https://github.com/nostrdevkit/nostr.git?rev=de3031aa99986eb29b3f34580355f9a099e4c927#de3031aa)|alloc,os-rng,rand,std",
       "nostr v0.45.5 (https://github.com/nostrdevkit/nostr.git?rev=de3031aa99986eb29b3f34580355f9a099e4c927#de3031aa)|alloc,os-rng,rand,std (*)",
       "nostr-database v0.45.2 (https://github.com/nostrdevkit/nostr.git?rev=de3031aa99986eb29b3f34580355f9a099e4c927#de3031aa)|",
@@ -195,36 +194,39 @@
       "proc-macro2 v1.0.107|default,proc-macro (*)",
       "quote v1.0.47|default,proc-macro",
       "quote v1.0.47|default,proc-macro (*)",
-      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std",
-      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std (*)",
-      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std",
-      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std (*)",
-      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std",
-      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std (*)",
-      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|json,serde,std",
-      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|json,serde,std (*)",
-      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std",
-      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std (*)",
-      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|blossom,events,std",
-      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|blossom,events,std (*)",
-      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std",
-      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std (*)",
-      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|blossom,nostr,sqlite,sync",
-      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|blossom,nostr,sqlite,sync (*)",
-      "radroots_secrets v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|",
-      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std",
-      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std (*)",
-      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde",
-      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde (*)",
-      "radroots_storage_sqlite v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|",
-      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|",
-      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)| (*)",
-      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|json,serde,std",
-      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|json,serde,std (*)",
-      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std",
-      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|serde,std (*)",
-      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)|",
-      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4#b6f927c4)| (*)",
+      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std",
+      "radroots_blossom v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std (*)",
+      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std",
+      "radroots_core v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std (*)",
+      "radroots_domain v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std",
+      "radroots_domain v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std (*)",
+      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std",
+      "radroots_event v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std (*)",
+      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|json,serde,std",
+      "radroots_event_codec v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|json,serde,std (*)",
+      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std",
+      "radroots_identity v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std (*)",
+      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|blossom,events,std",
+      "radroots_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|blossom,events,std (*)",
+      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|chat,commands,intent,listing,nip01,serde,std",
+      "radroots_protocol v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|chat,commands,intent,listing,nip01,serde,std (*)",
+      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|blossom,nostr,sqlite,sync",
+      "radroots_sdk v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|blossom,nostr,sqlite,sync (*)",
+      "radroots_secrets v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|",
+      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std",
+      "radroots_signing v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std (*)",
+      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|command_journal,protected_outbox,serde",
+      "radroots_storage v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|command_journal,protected_outbox,serde (*)",
+      "radroots_storage_sqlite v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|",
+      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|",
+      "radroots_sync v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)| (*)",
+      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|json,serde,std",
+      "radroots_trade v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|json,serde,std (*)",
+      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std",
+      "radroots_transport v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|serde,std (*)",
+      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|",
+      "radroots_transport_nostr v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)| (*)",
+      "radroots_transport_nostr_native v0.1.0-alpha (https://github.com/radrootslabs/lib?rev=a903133cdcd78b6a25687bd23c793d17d17b90c8#a903133c)|",
       "rand v0.10.2|alloc,std,sys_rng",
       "rand v0.10.2|alloc,std,sys_rng (*)",
       "rand v0.8.7|alloc,getrandom,libc,rand_chacha,std,std_rng",
@@ -247,7 +249,7 @@
       "rustls v0.23.46|ring,std,tls12 (*)",
       "rustls-pki-types v1.15.1|alloc,default,std",
       "rustls-pki-types v1.15.1|alloc,default,std (*)",
-      "rustls-webpki v0.103.15|alloc,ring,std",
+      "rustls-webpki v0.103.16|alloc,ring,std",
       "ryu v1.0.23|",
       "scopeguard v1.2.0|",
       "sec1 v0.7.3|default,der,point,subtle,zeroize",
@@ -256,24 +258,22 @@
       "secp256k1 v0.30.0|alloc,std",
       "secp256k1-sys v0.10.1|alloc,std",
       "secp256k1-sys v0.10.1|alloc,std (*)",
-      "semver v1.0.28|default,serde,std",
       "serde v1.0.229|alloc,default,derive,serde_derive,std",
       "serde v1.0.229|alloc,default,derive,serde_derive,std (*)",
       "serde v1.0.229|default,derive,serde_derive,std",
-      "serde v1.0.229|default,derive,serde_derive,std (*)",
-      "serde_core v1.0.229|alloc,default,result,std",
-      "serde_core v1.0.229|result,std",
+      "serde_core v1.0.229|alloc,result,std",
       "serde_derive v1.0.229 (proc-macro)|default",
       "serde_derive v1.0.229 (proc-macro)|default (*)",
-      "serde_json v1.0.151|alloc,default,raw_value,std,unbounded_depth",
-      "serde_json v1.0.151|alloc,default,raw_value,std,unbounded_depth (*)",
+      "serde_json v1.0.151|alloc,default,raw_value,std",
+      "serde_json v1.0.151|alloc,default,raw_value,std (*)",
+      "serde_spanned v1.1.2|alloc,serde,std",
       "serde_urlencoded v0.7.1|",
       "sha1 v0.10.7|default,std",
       "sha2 v0.10.9|std",
       "sha2 v0.10.9|std (*)",
       "sharded-slab v0.1.7|",
       "shlex v2.0.1|default,std",
-      "siphasher v0.3.11|default,std",
+      "siphasher v1.0.4|default,std",
       "slab v0.4.12|std",
       "smallvec v1.15.2|const_generics,const_new",
       "socket2 v0.6.5|all",
@@ -323,7 +323,10 @@
       "tokio-tungstenite v0.28.0|__rustls-tls,connect,handshake,rustls,rustls-pki-types,rustls-tls-webpki-roots,stream,tokio-rustls,webpki-roots (*)",
       "tokio-util v0.7.19|default,io",
       "tokio-util v0.7.19|default,io (*)",
-      "toml v0.5.11|default",
+      "toml v1.1.8+spec-1.1.0|default,display,parse,serde,std",
+      "toml_datetime v1.1.2+spec-1.1.0|alloc,serde,std",
+      "toml_parser v1.1.5+spec-1.1.0|alloc,std",
+      "toml_writer v1.1.3+spec-1.1.0|alloc,std",
       "tower v0.5.3|futures-core,futures-util,pin-project-lite,retry,sync_wrapper,timeout,tokio,util",
       "tower v0.5.3|futures-core,futures-util,pin-project-lite,retry,sync_wrapper,timeout,tokio,util (*)",
       "tower-http v0.6.11|follow-redirect,futures-util,tower",
@@ -345,13 +348,13 @@
       "unicode-general-category v1.1.0|",
       "unicode-ident v1.0.24|",
       "unicode-normalization v0.1.25|",
-      "uniffi v0.29.5|cargo-metadata,default,tokio",
-      "uniffi_core v0.29.5|default,tokio",
-      "uniffi_internal_macros v0.29.5 (proc-macro)|default",
-      "uniffi_internal_macros v0.29.5 (proc-macro)|default (*)",
-      "uniffi_macros v0.29.5 (proc-macro)|default",
-      "uniffi_meta v0.29.5|",
-      "uniffi_pipeline v0.29.5|",
+      "uniffi v0.32.2|tokio",
+      "uniffi_core v0.32.2|default,tokio",
+      "uniffi_internal_macros v0.32.2 (proc-macro)|default",
+      "uniffi_internal_macros v0.32.2 (proc-macro)|default (*)",
+      "uniffi_macros v0.32.2 (proc-macro)|default",
+      "uniffi_meta v0.32.2|",
+      "uniffi_pipeline v0.32.2|",
       "universal-hash v0.5.1|",
       "universal-time v0.3.1|std",
       "untrusted v0.9.0|",
@@ -367,8 +370,9 @@
       "want v0.3.1|",
       "webpki-roots v0.26.11|",
       "webpki-roots v0.26.11| (*)",
-      "webpki-roots v1.0.9|",
-      "webpki-roots v1.0.9| (*)",
+      "webpki-roots v1.0.10|",
+      "webpki-roots v1.0.10| (*)",
+      "winnow v1.0.4|",
       "writeable v0.6.3|",
       "yoke v0.8.3|derive,zerofrom",
       "yoke v0.8.3|derive,zerofrom (*)",
@@ -405,7 +409,7 @@
         "generator_profile_overrides": {
           "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
         },
-        "path_sha256": "a7c94a65424ecd1a4080f1e82131aed582e0ed01c7f16cf4e4001d24bab35efd"
+        "path_sha256": "6a31bdf925c6eebf70de7a7e61fcd24218639402dd35224670b27d86d3257c82"
       },
       "inspection_limits": {
         "maximum_inspection_seconds": 120,
@@ -514,36 +518,36 @@
     },
     "target": "aarch64-apple-ios"
   },
-  "cargo_lock_sha256": "6c1579fec12d8fbc954896261ac843a058f2bcb30193688ef67457ad26f2c621",
+  "cargo_lock_sha256": "29bb14a49f7b7979a778d48ca041a24780190a6c070d04a144749c2c2b456606",
   "disposition": "local_staged_source_only",
   "foundation": {
     "architecture": "radroots.crates.release.v2",
-    "lockfile_sha256": "6c1579fec12d8fbc954896261ac843a058f2bcb30193688ef67457ad26f2c621",
+    "lockfile_sha256": "29bb14a49f7b7979a778d48ca041a24780190a6c070d04a144749c2c2b456606",
     "repository": "https://github.com/radrootslabs/lib",
-    "revision": "b6f927c4d484ed2f8afcf171a83f2c8f967fb4d4",
+    "revision": "a903133cdcd78b6a25687bd23c793d17d17b90c8",
     "schema": "radroots.lib.source-lock.v1",
-    "source_archive_sha256": "3b27bbb1cacd5329b9c7f2f7f7bf8c826e6f06625ad8f6520f6e5e8e4278b54a",
+    "source_archive_sha256": "091ea149cdb024c0eddae00cc8124232c2a56d8254d95dadaaaad5d0fa9af850",
     "version": "0.1.0-alpha",
-    "workspace_catalog_sha256": "1e679431ad70a024affc52e6c71151459aca41707429dd8015d014d27e5f40b6"
+    "workspace_catalog_sha256": "424909855b2af1ffc8fa6bbfd5aa0e6d17642662c18212fef4660e71700fbfc8"
   },
   "generator": {
     "default_features": true,
     "feature_graph": [
       "anstyle v1.0.14|default,std",
       "anyhow v1.0.104|default,std",
-      "askama v0.13.1|alloc,askama_derive,config,derive",
-      "askama_derive v0.13.1 (proc-macro)|alloc,config",
-      "askama_parser v0.13.0|config",
+      "askama v0.16.1|alloc,config,derive",
+      "askama_derive v0.16.1 (https://github.com/askama-rs/askama?rev=d47daf8767805c0c4dfb456145fc857bfd9c1d2c#d47daf87)|alloc,config,external-sources,proc-macro",
+      "askama_macros v0.16.1 (proc-macro)|alloc,config",
+      "askama_parser v0.16.1 (https://github.com/askama-rs/askama?rev=d47daf8767805c0c4dfb456145fc857bfd9c1d2c#d47daf87)|config",
       "autocfg v1.5.1|",
-      "basic-toml v0.1.10|",
       "bitflags v2.13.1|std",
       "bytes v1.12.1|default,std",
       "camino v1.2.5|",
       "camino v1.2.5|serde1",
       "camino v1.2.5|serde1 (*)",
-      "cargo-platform v0.1.9|",
-      "cargo_metadata v0.19.2|default",
-      "cargo_metadata v0.19.2|default (*)",
+      "cargo-platform v0.3.3|",
+      "cargo_metadata v0.23.1|default",
+      "cargo_metadata v0.23.1|default (*)",
       "cfg-if v1.0.4|",
       "clap v4.6.6|cargo,derive,error-context,help,std,suggestions,usage",
       "clap_builder v4.6.6|cargo,error-context,help,std,suggestions,usage",
@@ -552,12 +556,14 @@
       "equivalent v1.0.2|",
       "errno v0.3.14|std",
       "fastrand v2.5.0|alloc,default,std",
-      "fs-err v2.11.0|",
-      "getrandom v0.4.3|",
+      "fs-err v3.3.2|",
+      "getrandom v0.4.2|",
       "glob v0.3.4|",
       "goblin v0.8.2|alloc,archive,default,elf32,elf64,endian_fd,log,mach32,mach64,pe32,pe64,std",
       "hashbrown v0.17.1|",
       "heck v0.5.0|",
+      "indexmap v2.14.0|default,serde,std",
+      "indexmap v2.14.0|default,serde,std (*)",
       "indexmap v2.14.0|default,std",
       "indexmap v2.14.0|default,std (*)",
       "itoa v1.0.18|",
@@ -580,12 +586,13 @@
       "semver v1.0.28|default,serde,std",
       "serde v1.0.229|default,derive,serde_derive,std",
       "serde v1.0.229|default,derive,serde_derive,std (*)",
-      "serde_core v1.0.229|default,result,std",
-      "serde_core v1.0.229|result,std",
+      "serde_core v1.0.229|alloc,default,result,std",
+      "serde_core v1.0.229|alloc,result,std",
       "serde_derive v1.0.229 (proc-macro)|default",
       "serde_derive v1.0.229 (proc-macro)|default (*)",
       "serde_json v1.0.151|default,std,unbounded_depth",
-      "siphasher v0.3.11|default,std",
+      "serde_spanned v1.1.2|alloc,serde,std",
+      "siphasher v1.0.4|default,std",
       "smawk v0.3.3|",
       "static_assertions v1.1.0|",
       "strsim v0.11.1|",
@@ -600,21 +607,27 @@
       "textwrap v0.16.2|smawk (*)",
       "thiserror v2.0.19|default,std",
       "thiserror-impl v2.0.19 (proc-macro)|",
-      "toml v0.5.11|default",
+      "toml v1.1.8+spec-1.1.0|default,display,parse,serde,std",
+      "toml v1.1.8+spec-1.1.0|default,display,parse,serde,std (*)",
+      "toml_datetime v1.1.2+spec-1.1.0|alloc,serde,std",
+      "toml_parser v1.1.5+spec-1.1.0|alloc,std",
+      "toml_writer v1.1.3+spec-1.1.0|alloc,std",
       "unicode-ident v1.0.24|",
-      "uniffi v0.29.5|bindgen,cargo-metadata,cli,default",
-      "uniffi_bindgen v0.29.5|cargo-metadata,default",
-      "uniffi_core v0.29.5|default",
-      "uniffi_internal_macros v0.29.5 (proc-macro)|default",
-      "uniffi_internal_macros v0.29.5 (proc-macro)|default (*)",
-      "uniffi_macros v0.29.5 (proc-macro)|default",
-      "uniffi_meta v0.29.5|",
-      "uniffi_meta v0.29.5| (*)",
-      "uniffi_pipeline v0.29.5|",
-      "uniffi_pipeline v0.29.5| (*)",
-      "uniffi_udl v0.29.5|",
+      "uniffi v0.32.2|bindgen,cargo-metadata,cli",
+      "uniffi_bindgen v0.32.2|cargo-metadata",
+      "uniffi_core v0.32.2|default",
+      "uniffi_internal_macros v0.32.2 (proc-macro)|default",
+      "uniffi_internal_macros v0.32.2 (proc-macro)|default (*)",
+      "uniffi_macros v0.32.2 (proc-macro)|default",
+      "uniffi_meta v0.32.2|",
+      "uniffi_meta v0.32.2| (*)",
+      "uniffi_pipeline v0.32.2|",
+      "uniffi_pipeline v0.32.2| (*)",
+      "uniffi_udl v0.32.2|",
       "weedle2 v5.0.0|",
-      "winnow v0.7.15|alloc,default,std",
+      "winnow v1.0.4|",
+      "winnow v1.0.4|alloc,ascii,binary,default,parser,simd,std",
+      "winnow v1.0.4|alloc,ascii,binary,default,parser,simd,std (*)",
       "zmij v1.0.23|"
     ],
     "features": [],
@@ -634,7 +647,7 @@
         "generator_profile_overrides": {
           "CARGO_PROFILE_DEV_DEBUG": "line-tables-only"
         },
-        "path_sha256": "a7c94a65424ecd1a4080f1e82131aed582e0ed01c7f16cf4e4001d24bab35efd"
+        "path_sha256": "6a31bdf925c6eebf70de7a7e61fcd24218639402dd35224670b27d86d3257c82"
       },
       "inspection_limits": {
         "maximum_inspection_seconds": 120,
@@ -738,16 +751,16 @@
   "source": {
     "files": {
       "Cargo.lock": {
-        "bytes": 99229,
-        "git_blob": "8382417df0ed5bc1384bd26b0ca6d9198a350242",
+        "bytes": 105685,
+        "git_blob": "70ccb146aee6249da8fd2e5e324e176e59f4b7a6",
         "mode": "100644",
-        "sha256": "6c1579fec12d8fbc954896261ac843a058f2bcb30193688ef67457ad26f2c621"
+        "sha256": "29bb14a49f7b7979a778d48ca041a24780190a6c070d04a144749c2c2b456606"
       },
       "Cargo.toml": {
-        "bytes": 4475,
-        "git_blob": "dc73930faa323e599efddc3b621a2a628d754d63",
+        "bytes": 4959,
+        "git_blob": "891b9009a6e77156435b37ad6d4f2057bcc5f991",
         "mode": "100644",
-        "sha256": "535b3ab681e085d7096c13768eaaab522bf4b1c29f68e7a0c0eaffc2f2548eb4"
+        "sha256": "1eaaca0e745a386201be34f3cf4ab0e28792477edec8d0f246a9cd5e914eeb0f"
       },
       "Makefile": {
         "bytes": 4182,
@@ -774,10 +787,10 @@
         "sha256": "ee65b164cc1dd55c0f0cd7cfb8248e1ff78ce91ec10b09c0ffb6b5d768c12d87"
       },
       "core/crates/tera_bindgen/Cargo.toml": {
-        "bytes": 579,
-        "git_blob": "d846edb247f1730e7f62a1f179009dc13bcd99d1",
+        "bytes": 597,
+        "git_blob": "9e66dde6c6e21ed41cb838381834caeb5e17ba08",
         "mode": "100644",
-        "sha256": "7c5811ded71d930bdca16ffed80177a5c9e6b488ca35432d7b37f88214e46945"
+        "sha256": "474922966a9739a7e07b5088427d4ebd2e0b4cec2da7d9b8f93ec6a76b44dc15"
       },
       "core/crates/tera_bindgen/src/main.rs": {
         "bytes": 304,
@@ -786,10 +799,10 @@
         "sha256": "e001263dc1954463105b8668eb3cfb7b8142f2dd3d78430d96de40e0c1c1e0bc"
       },
       "core/crates/tera_core/Cargo.toml": {
-        "bytes": 2507,
-        "git_blob": "e644389cc1a92cade3699539a87d79e41ec9ca6e",
+        "bytes": 2562,
+        "git_blob": "1c7173b2fb5b8463ea725d6fd421a1c647fb8a59",
         "mode": "100644",
-        "sha256": "51eff0350621794eff8f7f1d78f2c2715305466c358b90a62e7eb9609e120577"
+        "sha256": "b0676699d96f4ed0b00a383db6d9016e8dea3f9db6f92b3ad96f4c76c43ebcd5"
       },
       "core/crates/tera_core/build.rs": {
         "bytes": 2056,
@@ -2262,10 +2275,10 @@
         "sha256": "493023c67f10a27fd4506c28028d961ac1ac163a9569857d8b0222ae4610f87d"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_sync_live_tests.rs": {
-        "bytes": 8324,
-        "git_blob": "2878901a5814d094488a43537aa7c96e7f6bb9b3",
+        "bytes": 8349,
+        "git_blob": "7f6a6f2f71b88d459c4992f61b061fa232b4992b",
         "mode": "100644",
-        "sha256": "1b0484f7caa6ed45e4f4f7b39958cbf42fc44153d3442943a3ad8ca9386d9bde"
+        "sha256": "2f592161f2078a77267df67b83831252263f4e92ac489c527211a14dd1b34372"
       },
       "core/crates/tera_core/src/runtime/product_surface/today_sync_tests.rs": {
         "bytes": 9583,
@@ -2718,10 +2731,10 @@
         "sha256": "8b7ca2a1478e64f475dd46074319330d8ca5b1e6861d7aa3983d4676c368402e"
       },
       "core/crates/tera_ffi/src/runtime.rs": {
-        "bytes": 46214,
-        "git_blob": "243eadf7b2dec87aabae0560bace60e6c4a46e88",
+        "bytes": 46215,
+        "git_blob": "58dd1c574b4956da1a4577ad5a9641cfaf216c9a",
         "mode": "100644",
-        "sha256": "e825adfdf66edd8f99306a6da6b89f6b3bcb1a90b61ff439d71698fc6400e932"
+        "sha256": "0bd5edf9478999e5b8b08368b71b23048430db682357f1589759f2a0d5db1d83"
       },
       "core/crates/tera_ffi/src/signer.rs": {
         "bytes": 15963,
@@ -2814,16 +2827,16 @@
         "sha256": "69eeb43e7d2d3c0c22aba1f16c51a747ed831eef8245ac5e542610ff8d0cdf26"
       },
       "core/crates/tera_ffi/tests/compatibility.rs": {
-        "bytes": 7548,
-        "git_blob": "0802e9f46437cedd2d51c5b42f11aaa4accf4f37",
+        "bytes": 7549,
+        "git_blob": "d893292cfc680badd218a6a9191688bd284a7505",
         "mode": "100644",
-        "sha256": "92f6d3622741f6619a409cc064f88559c5f1391eb4c8253d13420bce653ad397"
+        "sha256": "87571e5e26bac5161fa71fe42190b91737f985022628f5c29cf7f42654a03ea3"
       },
       "core/crates/tera_ffi/tests/composer_contract.rs": {
-        "bytes": 11466,
-        "git_blob": "4ca8bde2436ecdebcff0b5d92accb6980dc10b7b",
+        "bytes": 11468,
+        "git_blob": "a1e330299cbf159cf65c3b234b4240e9013a05ba",
         "mode": "100644",
-        "sha256": "47c8206a656ca624d1bb0d1e2e0ba7667e176e824013e14b53d83970a1111d4b"
+        "sha256": "5bb51d9acfc7ce83fc45215897817840ef1a1e3b5ab3d32259d1dfd964e33b67"
       },
       "core/crates/tera_ffi/tests/identity_contract.rs": {
         "bytes": 2317,
@@ -2838,16 +2851,16 @@
         "sha256": "8a7983eb158e519a9c08aae19bfb6e0f3ebd5370482b0a480fd729f68ee56d1a"
       },
       "core/crates/tera_ffi/tests/local_mvp/submission_local.rs": {
-        "bytes": 9320,
-        "git_blob": "92514e865a8bcac29b5167cb4b418c6be53afd97",
+        "bytes": 9321,
+        "git_blob": "c032728b6e6908230d7d059a1677e36bd0bb414a",
         "mode": "100644",
-        "sha256": "c333b50f7b300510188aa2bd6198400791297b614b19f5e0114c3eb5aa8bf21e"
+        "sha256": "89a56512416afaeec8c38a02d442e2efa0790ae3cf75f045f2a1a51771c437e7"
       },
       "core/crates/tera_ffi/tests/local_mvp_real_io.rs": {
-        "bytes": 36144,
-        "git_blob": "6c762472686de3fdfcbde76c779b69755f0c09f9",
+        "bytes": 36145,
+        "git_blob": "e665f02839b234db344284c2b78d082847ee9810",
         "mode": "100644",
-        "sha256": "d22bb892a0bf93130d97a12124efa649a0c38e4fd8ba87e3fa0ac322aae15848"
+        "sha256": "34031fb8669fefdc48d41322edace18a33472a4ea0e92bd67a8411ed8de15538"
       },
       "core/crates/tera_ffi/tests/logging_error.rs": {
         "bytes": 357,
@@ -2874,16 +2887,16 @@
         "sha256": "1d2e6015400b2ba03819ed01bae674817a18a2c8e626ba3dfeca24dc2fb8763c"
       },
       "core/crates/tera_ffi/tests/revision_status_contract.rs": {
-        "bytes": 3263,
-        "git_blob": "4645d038adf64ec8e254ac3a822c93629b76b626",
+        "bytes": 3265,
+        "git_blob": "e49bcbbbf752dfcd197aa5e9b95e3ea1ac30ed81",
         "mode": "100644",
-        "sha256": "db41f36cd1d8f0dc9d1f6b065b0d4dbaaab7d11b01a185a05c5b478a5c7a5816"
+        "sha256": "b31815e41ad8118860d75260e591e0aaeca3c065fd87adf458b96c99de5be3dc"
       },
       "core/crates/tera_ffi/tests/runtime_delegation.rs": {
-        "bytes": 36873,
-        "git_blob": "6d66be47bfca37633ae4dc72f9d33f04d042c35f",
+        "bytes": 36874,
+        "git_blob": "e34df39759ade96ff4ed21bc3daeef819a954e2f",
         "mode": "100644",
-        "sha256": "d2a7666d3e3d83f7acd313ed99fbf109148aa031e747288e04e3e681c46bf888"
+        "sha256": "c8187ce078be0eeef434c706feeb200dc9ad9b180260ef15d9207e5e7ce65fb0"
       },
       "core/crates/tera_ffi/tests/runtime_lifecycle.rs": {
         "bytes": 4293,
@@ -2892,40 +2905,40 @@
         "sha256": "613426aec508436234134b2ebb14c1d5f6339c93b108f4f92674e61810937738"
       },
       "core/crates/tera_ffi/tests/submission_contract.rs": {
-        "bytes": 6218,
-        "git_blob": "7c38f3d08ed961355999595b006c4b0f19739fb5",
+        "bytes": 6219,
+        "git_blob": "2bb692233a1124701f596b0c3b661d092f5ec0a7",
         "mode": "100644",
-        "sha256": "e346ffef5eeb4c5aaf4de88db6cec7760a919da67a6deec1afe7e55ee48b5e6b"
+        "sha256": "da5170799681fe6a827b6f95238ce36b6e716359deb1b01e446e931477b3c2e9"
       },
       "core/crates/tera_ffi/tests/submission_late_signing.rs": {
-        "bytes": 8028,
-        "git_blob": "666c75d17f9feae90b706bc54aa118c209870612",
+        "bytes": 8029,
+        "git_blob": "8f1a932a5c1eb520c967031d365fbd768090bf75",
         "mode": "100644",
-        "sha256": "b4b8e4bddca42f549c9a9e26e2c67254ecda8ef71dd4a55e89b7f63dba8cf284"
+        "sha256": "99197f1bcd88bb862f9d58399664f05d68e56467bc213ab091a96b16a5bf8638"
       },
       "core/crates/tera_ffi/tests/submission_operation_contract.rs": {
-        "bytes": 9215,
-        "git_blob": "7aa23724f9262b12a88bcc4ab4131579655cdb78",
+        "bytes": 9216,
+        "git_blob": "7c63488e036db1ee6b8156f895f176a2bddf1b50",
         "mode": "100644",
-        "sha256": "6e2e9f1290d3a0a356769f2d842f34bf29d0f9711405e201aa3b53aad35eebfc"
+        "sha256": "0c9c8560cbc0f67711bd9cf3d006f4985fc2513e28c524fc1989a0653fcd6823"
       },
       "core/crates/tera_ffi/tests/submission_signing_contract.rs": {
-        "bytes": 6826,
-        "git_blob": "d66821b6e91095dc4d572535bc70826bf303a2f0",
+        "bytes": 6827,
+        "git_blob": "a225d436efe1942af3b0672e2089519ef3122fe4",
         "mode": "100644",
-        "sha256": "5bedb6466b80ba2f149b4dcb719a394cb63a64c91254768b3855e5d3edc04ae4"
+        "sha256": "d9f10c958dd1007b93293298c1e1e73970009143f0b5b76d5948b37bf9eabab9"
       },
       "core/crates/tera_ffi/tests/subscription_contract.rs": {
-        "bytes": 7665,
-        "git_blob": "8168bf4a73efbae43240c469b437ba2cff30ede8",
+        "bytes": 7666,
+        "git_blob": "febd3506ee336951d3a1135ef0896571de3dcae7",
         "mode": "100644",
-        "sha256": "8c506e57fd308851fae62d8cec486efb3fc09ad23a419b59dcecb491ce0bbf8a"
+        "sha256": "1cee380cfff91fe12e956a197387fb5b05207d9eea3ed65914937dbc86c8a57e"
       },
       "core/crates/tera_ffi/tests/support/mod.rs": {
-        "bytes": 841,
-        "git_blob": "9f028429836ca32136c1c2764e93f19383aae511",
+        "bytes": 842,
+        "git_blob": "25ca52f17845644aac6a49b75b36f987d1a16b4e",
         "mode": "100644",
-        "sha256": "135ed57af77bdf67979e423cd6ef3c0a1cef051ea88d109ad3f2937393e688c8"
+        "sha256": "518ae2a2d5a5df35c339baf76f207afd15ce86f9e48b6857916ac9bca5319d76"
       },
       "core/crates/tera_ffi/tests/support/retraction.rs": {
         "bytes": 3703,
@@ -2940,10 +2953,10 @@
         "sha256": "301d0ce3e99df5d682e554cb4bddc9e7006801f1b509d036371dd78fb9c9a3c3"
       },
       "core/crates/tera_ffi/tests/uniffi_contract.rs": {
-        "bytes": 9505,
-        "git_blob": "2a7559a97fe0f43af1cf76332bc4da0c914ea005",
+        "bytes": 9506,
+        "git_blob": "d6e35cf184c610b7e643b25d4190bd29f2589c4b",
         "mode": "100644",
-        "sha256": "fe3fdbea5ad47cd5de192f9b761b5f8cbc274c61035a6e650396351b4af3511b"
+        "sha256": "e3133286ca7e37c0e0f8a39f610328e9e5634540961251fa369bc687535d2ae9"
       },
       "core/crates/tera_ffi/uniffi.toml": {
         "bytes": 77,
@@ -3115,9 +3128,9 @@
       },
       "radroots.lib.source-lock.v1.toml": {
         "bytes": 482,
-        "git_blob": "f13c47d5f291fe9f21db02656921bc49269e1c68",
+        "git_blob": "75ef0d1eb33af81822995b6b235adb131a33f29c",
         "mode": "100644",
-        "sha256": "0db46534dc500cf7adbc8d5bafba4cfd1c5ca98f05cf868d5de50e62485dbc6e"
+        "sha256": "0c2a46f3eceeec8a7ce52f18127b90b7df83002787f58d910bc5e7315949f45f"
       },
       "rust-toolchain.toml": {
         "bytes": 79,
@@ -3132,10 +3145,10 @@
         "sha256": "77c04fc15b741eb7db11294517b9fa509b11df39190b32a1fb0147434b0e48e1"
       },
       "scripts/app_dependency_graph.py": {
-        "bytes": 4524,
-        "git_blob": "dfae24f744b85ad68bf84c6ba982e7786c93bb62",
+        "bytes": 5353,
+        "git_blob": "9cd7bbcea6fe40e5f925e8355fdd3b0d77064440",
         "mode": "100644",
-        "sha256": "307d03f30d75c9a88b323328926c92624ae02b699cd1df10674aa183bac0ee81"
+        "sha256": "681daf05e246b87436c52d272d3fd1e099bc1f7012e5da093b93046e3127f043"
       },
       "scripts/app_source.py": {
         "bytes": 11587,
@@ -3168,10 +3181,10 @@
         "sha256": "568ee230a99a907cc9063c203fbecc80e6ba4aca3db6c1e3af93abdbc904b7d5"
       },
       "scripts/ffi_build.py": {
-        "bytes": 14912,
-        "git_blob": "3c56911a3d761ae12be76c8511903e4196b3755e",
+        "bytes": 14803,
+        "git_blob": "1fe771d2af25d3841c713676dbbbe9a814d1267e",
         "mode": "100644",
-        "sha256": "76ec2f8c38883c63709bfb2cce79dc5851533e981f41e7bd065c29ea69f7f4cf"
+        "sha256": "3ef7ba9cd32a2af81de0f94bc1bfe82f8618deb29eba85485c32cf0f2cb8ba8c"
       },
       "scripts/ffi_installed.py": {
         "bytes": 8207,
@@ -3240,10 +3253,10 @@
         "sha256": "26046966bece8c811a5b3edef191e2ea5b5c4be3187cf65a29f7edbe93cbb487"
       },
       "scripts/kotlin_smoke.py": {
-        "bytes": 11411,
-        "git_blob": "ecb9cd1e4830965e971968930dcc0fc38575898c",
+        "bytes": 11326,
+        "git_blob": "1f418dab99c335c4c4c73b238bc93316f019ead0",
         "mode": "100644",
-        "sha256": "e52e8963fba61482fe7abcf502d2ba2fdea4d67b48dd722a230fcf0b81c40e70"
+        "sha256": "b4b8cbffac7d051cf22bcaef3f4bacbb09e386e5433c18155a46425904bd581c"
       },
       "scripts/kotlin_smoke/build.gradle.kts": {
         "bytes": 1479,
@@ -3402,10 +3415,10 @@
         "sha256": "6c5a18e20e815272231004e8125d96d92a615ad147cba141fe23a86edb447298"
       },
       "scripts/package_contract.py": {
-        "bytes": 26077,
-        "git_blob": "da49a8a84213d884c7a030dd162105df151241e6",
+        "bytes": 26200,
+        "git_blob": "8902f99b5aae524366f4cf5185bc6f9d0831bc26",
         "mode": "100755",
-        "sha256": "93d5011daa590d5d9fd77b0e317cc89bb758f3755349da0ccb3beb99cf28e105"
+        "sha256": "420ea0dd8cfde8cdc239bdc89d6029374c337c616576b231d57ab36a6eb85a47"
       },
       "scripts/package_privacy.py": {
         "bytes": 2718,
@@ -3462,10 +3475,10 @@
         "sha256": "05f756e7be225f4befc22b5c518d93872269b0aaf39dbc4cfe65b464d263eb91"
       },
       "scripts/test_app_dependency_graph.py": {
-        "bytes": 4007,
-        "git_blob": "615b4054a6b968bdde3c2107e349b352dfb0fa34",
+        "bytes": 5000,
+        "git_blob": "e77a6752d8a9d551ff1dd0c809f0429bd48d64fc",
         "mode": "100644",
-        "sha256": "d336abd6368ad3b0d0171b32aaa4a44d9c1a8551899d39a1445eca05b67d8b30"
+        "sha256": "e69e3b46b8446d3bc8ec352d62d403bfb30a35a9090ab822d5f0fb328ed3d4af"
       },
       "scripts/test_app_source.py": {
         "bytes": 15101,
@@ -3564,10 +3577,10 @@
         "sha256": "b1b9b0ca99ff58f4229807e81b86446089763d0cdea15ba96128d6bad020e366"
       },
       "scripts/test_package_contract.py": {
-        "bytes": 11243,
-        "git_blob": "f482dbb020a37091805280c7e29139674ac95cd4",
+        "bytes": 12319,
+        "git_blob": "2ca785adb2d5b104dc71cddb2e0900c8a48acb10",
         "mode": "100644",
-        "sha256": "8c6c00a77fc5020bb6a543e5dec0f13f5d8250f13574e8aef8ee6b79f12ab882"
+        "sha256": "6463dc25bbdc0530510e7dbdaf0fa7f0b1937a63ac18eaf89bd579a9ddf1dbbd"
       },
       "scripts/test_package_privacy.py": {
         "bytes": 4467,
@@ -3648,13 +3661,13 @@
         "sha256": "0164f2b369fdcf734f73bd1df2a2f5b2e05b7bbd94c2d3ae75869fff6d876140"
       },
       "test-fixtures/legacy-identifiers.v1.json": {
-        "bytes": 203373,
-        "git_blob": "48c58a59b8c1d4a9fc475349ed2bf4b8845acd97",
+        "bytes": 203822,
+        "git_blob": "dbe65a93dde5b97ded03c380d791998af9f1389d",
         "mode": "100644",
-        "sha256": "6491b3c3c7dc9dd0d9d2107590ecc096af81c65dcf0874ceaf1565f55a3109bc"
+        "sha256": "97fbe69ddb5fa7d41c5495e3fe56bf3336ed40cd42138b18294c4bc2764afad1"
       }
     },
     "policy": "staged_inputs",
-    "tree": "aade611c6b01e70292fb021b99ec3baa07610a18"
+    "tree": "213e776ac6fbafa7f5ccd1e537cdad1e17d6f4a2"
   }
 }

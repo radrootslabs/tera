@@ -153,15 +153,12 @@ def generate(root: Path, output: Path, library: Path) -> Path:
         "--",
         "generate",
         str(library),
-        "--library",
         "--language",
         "kotlin",
         "--metadata-no-deps",
         "--no-format",
         "--out-dir",
         str(destination),
-        "--config",
-        "core/crates/tera_ffi/uniffi.toml",
     ]
     subprocess.run(argv, cwd=root, check=True, timeout=600)
     generated = destination / "uniffi/tera_core/tera_core.kt"

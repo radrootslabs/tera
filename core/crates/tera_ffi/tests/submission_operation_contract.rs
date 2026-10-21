@@ -90,7 +90,7 @@ async fn native_operation_bridge_preserves_one_capture_across_duplicates_edits_a
     assert_eq!(queued.revision, 2);
     runtime.shutdown().await.unwrap();
     drop(runtime);
-    let runtime = TeraRuntime::new(
+    let runtime = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.into(),
         support::GENERATION.into(),

@@ -64,7 +64,7 @@ async fn runtime(root: &Path, public_key: &str, signer: Option<Keypair>) -> Tera
         .await
         .expect("runtime with ephemeral fixture signer")
     } else {
-        TeraRuntime::new(
+        TeraRuntime::open(
             root.to_string_lossy().into_owned(),
             public_key.to_owned(),
             generation,

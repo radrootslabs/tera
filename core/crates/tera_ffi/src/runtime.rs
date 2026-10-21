@@ -91,7 +91,7 @@ pub struct TeraRuntime {
 #[cfg_attr(not(coverage_nightly), uniffi::export(async_runtime = "tokio"))]
 impl TeraRuntime {
     #[cfg_attr(not(coverage_nightly), uniffi::constructor)]
-    pub async fn new(
+    pub async fn open(
         application_support_directory: String,
         public_key_hex: String,
         source_generation_hex: String,

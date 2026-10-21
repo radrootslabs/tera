@@ -115,7 +115,7 @@ fn media_cancellation_handle_owns_one_stable_opaque_operation_identity() {
 async fn protected_data_failure_is_typed_and_opens_no_store() {
     let root = tempfile::tempdir().expect("tempdir");
     support::prepare(root.path());
-    let result = TeraRuntime::new(
+    let result = TeraRuntime::open(
         root.path().to_string_lossy().into_owned(),
         support::PUBLIC_KEY.to_owned(),
         support::GENERATION.to_owned(),

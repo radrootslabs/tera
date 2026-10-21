@@ -173,7 +173,7 @@ async fn untrusted_native_signatures_never_reach_delivery_or_survive_as_signed()
         );
         runtime.shutdown().await.unwrap();
         drop(runtime);
-        let reopened = TeraRuntime::new(
+        let reopened = TeraRuntime::open(
             root.path().to_string_lossy().into_owned(),
             support::PUBLIC_KEY.into(),
             support::GENERATION.into(),
