@@ -468,7 +468,7 @@ def _verify_owned_source_lock(root: Path, foundation: dict[str, Any]) -> None:
         },
         "installed source fields",
     )
-    _exact(lock["schema"], "tera.installed-source.v1", "installed source schema")
+    _exact(lock["schema"], "tera.installed-source.v2", "installed source schema")
     _exact(
         lock["repository"], "https://github.com/radrootslabs/tera", "installed producer"
     )

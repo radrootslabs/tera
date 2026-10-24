@@ -1,5 +1,8 @@
 use super::super::{
-    performance_tests::counted_storage::{CountedStorage, QueryCounts},
+    performance_tests::{
+        counted_storage::{CountedStorage, QueryCounts},
+        resume_bounded_work,
+    },
     tests::{context, keys, signed, visible_admission},
 };
 use super::*;
@@ -45,7 +48,11 @@ async fn build(runtime: &TeraRuntime) -> Result<BuildOutcome, TodayError> {
     let selected = context(None, 1);
     let scope = paging_scope::query_scope(&selected, runtime.store_public_key).unwrap();
     let _guard = runtime.today_projection_lock.lock().await;
-    run(runtime, &selected, scope, NOW * 1_000).await
+    resume_bounded_work(
+        || run(runtime, &selected, scope, NOW * 1_000),
+        |result| matches!(result, Ok(BuildOutcome::Pending)),
+    )
+    .await
 }
 fn complete(result: BuildOutcome) -> BuildProgress {
     let BuildOutcome::Complete(value) = result else {

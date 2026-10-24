@@ -19,6 +19,7 @@ import ffi_artifacts as artifacts
 import ffi_installed as installed
 import ffi_native as native
 import ffi_provenance as provenance
+import ffi_notices as notices
 import ffi_source as source
 import package_contract as contract
 
@@ -408,6 +409,12 @@ def build(
             host,
         )
         record_abi(root, bundle, logs, environment, records)
+        notices.install(
+            root,
+            bundle,
+            records[native.HOST]["redistribution"],
+            records[native.HOST]["foundation"],
+        )
         if capture_sources(root) != records:
             raise source.ProvenanceError(
                 "producer changed during native artifact build"

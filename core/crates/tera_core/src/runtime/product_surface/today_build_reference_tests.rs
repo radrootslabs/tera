@@ -1,3 +1,4 @@
+use super::super::performance_tests::resume_bounded_work;
 use super::super::tests::{context, signed, visible_admission};
 use super::*;
 const NOW: u64 = 2_000_000_000;
@@ -95,10 +96,18 @@ async fn row_generations_equal_canonical_reference_for_five_families_dense_threa
         let canonical = EventStore::rebuild_visibility(storage).await.unwrap();
         for locality in [None, Some("Victoria"), Some("Toronto")] {
             let selected = context(locality, 1);
-            runtime
-                .phase1_refresh_today(&selected, NOW + 100, TodayProjectionUpdate::Rebuild)
-                .await
-                .unwrap();
+            resume_bounded_work(
+                || {
+                    runtime.phase1_refresh_today(
+                        &selected,
+                        NOW + 100,
+                        TodayProjectionUpdate::Rebuild,
+                    )
+                },
+                |result| matches!(result, Err(TodayError::ProjectionRebuilding)),
+            )
+            .await
+            .unwrap();
             let state = load_state(storage, &selected, projection_generation().unwrap())
                 .await
                 .unwrap()

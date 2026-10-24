@@ -249,7 +249,7 @@ class ProducerEpochTests(unittest.TestCase):
         )
         (self.root / "TeraFFI/producer.toml").write_text("[build]\n" + field)
         values = {
-            "schema": "tera.installed-source.v1",
+            "schema": "tera.installed-source.v2",
             "repository": contract._read_toml(SCRIPTS.parent / "TeraFFI/producer.toml")[
                 "repository"
             ],

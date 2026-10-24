@@ -2,11 +2,11 @@
   "artifacts": {
     "app_api_sha256": "020924097c0d7efc33128cb8fd3d3b2026d95f57c44da71880e585aff80f070b",
     "ffi_api_sha256": "d242d54364f2582b30c78af0a9bc107d3a69429bab5b6b7170370480d27acda1",
-    "ffi_provenance_sha256": "a03cd87f24376e20a1347479895ce106b1dfd37f11a0d1be6dae28970c2560a3",
+    "ffi_provenance_sha256": "917d1f99365f70495827ded0b14e63ee2a186b292f10950cb8be309390153a5b",
     "info_plist_sha256": "b55010dd73b34bf5ad910a888be0ea1ae45f2a5c14329fa6a57059a317bdbd42",
     "privacy_manifest_sha256": "0f2103257ba596fbcaeb1d6a4dffe3ae021e84c010178852c6bf500a8cfb0f19",
-    "sbom_sha256": "9603d8de033bf9465223fba2236ec6fbc7ee1c9c8721c204e8893873d0242d5d",
-    "xcode_project_sha256": "4de40dd3903bdfe62a6214022ca2e35817d922674cc05bea1133ff0760e130cb"
+    "sbom_sha256": "ac64222a7ca5d2aae227141fc9951cd7e19707d9880bcd1565fe7dceeed0b1ae",
+    "xcode_project_sha256": "44ec146209a600cf4f2de73870b789cea78435825512a6b4bbdb5b6256739e45"
   },
   "disposition": "unsigned",
   "platforms": [
@@ -20,10 +20,10 @@
     "authored_app": {
       "files": {
         "Package.swift": {
-          "bytes": 10212,
-          "git_blob": "e6ffc89ac88d281fd432ca76240368c30c5fc745",
+          "bytes": 10261,
+          "git_blob": "fbcddb8c42e5e69ba3e87576f06a44f0bfbe26ed",
           "mode": "100644",
-          "sha256": "0cfa6c398a55b973d6af68d0a053d25c7bfa5dccc96f49aa480ba78f518081af"
+          "sha256": "3a43dd374869a4ac2e880ff1a398cace0ce28664e369f884f7d1da300d9a84b1"
         },
         "Tera/App/App.swift": {
           "bytes": 233,
@@ -174,6 +174,12 @@
           "git_blob": "07173730103cf106793f778134779d9e093f6e72",
           "mode": "100644",
           "sha256": "0f2103257ba596fbcaeb1d6a4dffe3ae021e84c010178852c6bf500a8cfb0f19"
+        },
+        "Tera/Resources/SharedDataNOTICE.txt": {
+          "bytes": 17084,
+          "git_blob": "5b23cdc0f2890f975c642d1a6f7e853cd297a76e",
+          "mode": "100644",
+          "sha256": "4376b5764456a4fa5f74fd712390adeb897d1ccdd62d5f818b2bcd767003760a"
         },
         "Tera/Resources/en.lproj/Localizable.strings": {
           "bytes": 3082,
@@ -1256,21 +1262,21 @@
           "sha256": "0e28b784839be43bf9dd818f1f1bd494cbafd6d9fd021764e09a12b493545d16"
         },
         "project.yml": {
-          "bytes": 10324,
-          "git_blob": "3b65958b03a328152c512d8ee5ffc4cf00a11a0f",
+          "bytes": 10374,
+          "git_blob": "ee872f644ed11424e008a76aa79270a98d3d5e05",
           "mode": "100644",
-          "sha256": "4f1b0cf92ef3cdbeb218e5b338fd90a2c575bb513c9d495943bbba8d6db95c35"
+          "sha256": "6d2ec7255302918b9d9b48f491ed8b563b3fffa0c607f7e045840a44b09f293c"
         }
       },
       "policy": "staged_inputs",
-      "tree": "356ccc626c82d7b33ca13b663fc47a7930aa3ba8"
+      "tree": "3bef37daca44cbb1906b7854d4ca42fa827042ca"
     },
-    "cargo_lock_sha256": "4472d51924286305e11e2234bfaaaae3f16ce17cf39803bf4d72fa38bb21cdf4",
-    "consumer_source_lock_sha256": "c1e7a9b4cae034c630245285b136dff788252f7d1d7bf39f7f9b10b5426c54e5",
-    "lib_revision": "4b4aa8a7feaab08492c3f596df9182070ee8d814",
+    "cargo_lock_sha256": "6a43dd69eed4c6c67c85f64872c587d4420c078499cf6fdf2884bd48aebf4a72",
+    "consumer_source_lock_sha256": "31fe812c176f0a9fbf1622e2b44257a7ebdff8a0892d66028df22e16147b18e7",
+    "lib_revision": "27c3118d435cb57f69464cbbdad25dec0c69369a",
     "source_date_epoch": 1787871027,
     "swift_package_lock_sha256": "69acdbd4f1ff3a5a4dd5829cbf1cd13d24bddfa94b7715e7c383ef577da998a3",
-    "tera_ffi_source_tree": "90d2ebf5586dafbc7766453fe29636b3b488c829",
+    "tera_ffi_source_tree": "ddf74591a89629c65d2529865cd4fd515fe5ace3",
     "xcode_package_lock_sha256": "cfdbe6483d1e93990ae13f52298135dfba29786686d736067618142853e84b9f"
   },
   "version": "0.1.0-alpha"

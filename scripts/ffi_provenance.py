@@ -13,6 +13,7 @@ from typing import Any
 
 import ffi_source as source
 import ffi_native as native
+import ffi_notices as notices
 import package_contract as contract
 
 
@@ -37,10 +38,13 @@ def capture(root: Path, target: str) -> dict[str, Any]:
     if f"host: {build['host']}\n" not in rustc + "\n":
         raise source.ProvenanceError("active Rust host differs from producer contract")
     result = {
-        "schema": "tera.producer-source.v1",
+        "schema": "tera.producer-source.v2",
         "repository": config["repository"],
         "source": snapshot,
         "foundation": contract._read_toml(root / config["foundation_lock"]),
+        "redistribution": notices.capture(
+            root, contract._read_toml(root / config["foundation_lock"])
+        ),
         "cargo_lock_sha256": hashlib.sha256(
             source.read_source(root, "Cargo.lock")
         ).hexdigest(),

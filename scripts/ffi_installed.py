@@ -14,6 +14,7 @@ from typing import Any
 import ffi_artifacts as artifacts
 import ffi_provenance as provenance
 import ffi_source as source
+import ffi_notices as notices
 import package_contract as contract
 
 MANIFEST = "TeraFFI/provenance.json"
@@ -23,7 +24,9 @@ LOCK = "TeraFFI/source.lock"
 def installed_paths() -> dict[str, str]:
     result = {}
     for relative in sorted(artifacts.expected_paths()):
-        if relative.startswith(artifacts.FRAMEWORK + "/"):
+        if relative == notices.ARTIFACT_PATH:
+            result[relative] = notices.INSTALLED_PATH
+        elif relative.startswith(artifacts.FRAMEWORK + "/"):
             result[relative] = "Tera/Frameworks/" + relative
         elif relative == "generated/TeraKitBindings.swift":
             result[relative] = "Tera/Generated/TeraKitBindings.swift"
@@ -40,7 +43,7 @@ def installed_manifest(candidate: dict[str, Any]) -> dict[str, Any]:
         if item["path"] in paths
     ]
     return {
-        "schema": "tera.installed-native-artifacts.v1",
+        "schema": "tera.installed-native-artifacts.v2",
         "candidate": candidate,
         "files": sorted(files, key=lambda item: item["path"]),
         "disposition": "local_installed_not_release_qualified",
@@ -52,7 +55,7 @@ def encoded_lock(
 ) -> bytes:
     producer = manifest["candidate"]["source"]
     values = {
-        "schema": "tera.installed-source.v1",
+        "schema": "tera.installed-source.v2",
         "repository": producer["repository"],
         "source_tree": producer["tree"],
         "manifest_sha256": hashlib.sha256(provenance.encoded(manifest)).hexdigest(),
@@ -71,6 +74,14 @@ def verify_files(root: Path, manifest: dict[str, Any]) -> None:
     expected = installed_manifest(manifest["candidate"])
     if manifest != expected:
         raise source.ProvenanceError("installed artifact manifest differs")
+    notices.verify_material(
+        root / notices.INSTALLED_PATH, manifest["candidate"]["redistribution"]
+    )
+    notices.verify_inventory(
+        manifest["files"],
+        manifest["candidate"]["redistribution"],
+        notices.INSTALLED_PATH,
+    )
     paths = set(installed_paths().values())
     if {item["path"] for item in manifest["files"]} != paths:
         raise source.ProvenanceError("installed artifact inventory differs")
@@ -106,6 +117,9 @@ def check(root: Path) -> dict[str, Any]:
     snapshot = source.source_snapshot(root, config["source_inputs"])
     foundation = contract._read_toml(root / config["foundation_lock"])
     candidate = manifest["candidate"]
+    notices.verify_expected(
+        candidate["redistribution"], foundation, config["redistribution"]
+    )
     if candidate["source"] != {
         "repository": config["repository"],
         "tree": snapshot["tree"],
@@ -117,6 +131,7 @@ def check(root: Path) -> dict[str, Any]:
             record["source"] != snapshot
             or record["foundation"] != foundation
             or record["build"]["target"] != target
+            or record["redistribution"] != candidate["redistribution"]
         ):
             raise source.ProvenanceError("installed producer tuple differs")
     if contract._read_regular(root / LOCK) != encoded_lock(
@@ -173,6 +188,7 @@ def replace_installation(root: Path, staging: Path, previous: Path) -> None:
         "TeraFFI/api",
         "TeraFFI/source",
         "TeraFFI/abi_symbols.json",
+        notices.INSTALLED_PATH,
         LOCK,
         MANIFEST,
     )

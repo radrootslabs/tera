@@ -235,6 +235,7 @@ let package = Package(
         "Views/RuntimeStatusView.swift",
       ],
       resources: [
+        .copy("Resources/SharedDataNOTICE.txt"),
         .process("Resources/PrivacyInfo.xcprivacy"),
         .process("Resources/en.lproj/Localizable.strings"),
       ]

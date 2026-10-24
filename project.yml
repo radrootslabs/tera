@@ -24,6 +24,7 @@ targets:
       - path: Tera/App/App.swift
       - path: Tera/Resources/Assets.xcassets
       - path: Tera/Resources/PrivacyInfo.xcprivacy
+      - path: Tera/Resources/SharedDataNOTICE.txt
       - path: Tera/Resources/en.lproj/Localizable.strings
     settings:
       base:

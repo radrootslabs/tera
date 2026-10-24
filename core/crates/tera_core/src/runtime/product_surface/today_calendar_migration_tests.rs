@@ -1,3 +1,4 @@
+use super::performance_tests::resume_bounded_work;
 use super::tests::{context, keys, signed, visible_admission};
 use super::*;
 use crate::runtime::{
@@ -384,15 +385,21 @@ async fn changed_source_is_never_promoted_and_retries_from_current_history() {
             .await
             .unwrap();
         let signed_before = raw(&runtime).await;
-        let rejected = runtime
-            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
-            .await;
-        assert!(matches!(
-            rejected,
-            Err(TodayError::Storage(
-                radroots_storage::Error::SourceGenerationChanged
-            ))
-        ));
+        let selected = context(None, 1);
+        let rejected = resume_bounded_work(
+            || runtime.phase1_today_page(&selected, TodayPageRequest::first(20, NOW, "UTC")),
+            |result| matches!(result, Err(TodayError::ProjectionRebuilding)),
+        )
+        .await;
+        assert!(
+            matches!(
+                &rejected,
+                Err(TodayError::Storage(
+                    radroots_storage::Error::SourceGenerationChanged
+                ))
+            ),
+            "changed source must be rejected: {rejected:?}"
+        );
         let failed = ProjectionStore::rebuild(storage, ticket.ticket_id())
             .await
             .unwrap()
@@ -406,10 +413,12 @@ async fn changed_source_is_never_promoted_and_retries_from_current_history() {
                 .generation(),
             calendar_migration::legacy_generation().unwrap()
         );
-        let page = runtime
-            .phase1_today_page(&context(None, 1), TodayPageRequest::first(20, NOW, "UTC"))
-            .await
-            .unwrap();
+        let page = resume_bounded_work(
+            || runtime.phase1_today_page(&selected, TodayPageRequest::first(20, NOW, "UTC")),
+            |result| matches!(result, Err(TodayError::ProjectionRebuilding)),
+        )
+        .await
+        .unwrap();
         assert_eq!(page.items.len(), 2);
         assert_eq!(raw(&runtime).await, signed_before);
         assert_eq!(

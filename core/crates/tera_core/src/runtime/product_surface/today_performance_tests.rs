@@ -11,6 +11,30 @@ use counted_storage::{CountedStorage, QueryCounts};
 const EVENT_COUNT: u64 = 10_000;
 const NOW: u64 = 2_000_000_000;
 
+// Production work has a per-call budget. Resume only the caller's explicit
+// pending outcome; terminal errors must reach the original test assertion.
+pub(super) async fn resume_bounded_work<T, F, Fut>(
+    mut next: F,
+    is_pending: impl Fn(&T) -> bool,
+) -> T
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = T>,
+{
+    tokio::time::timeout(std::time::Duration::from_secs(60), async {
+        for _ in 0..64 {
+            let result = next().await;
+            if !is_pending(&result) {
+                return result;
+            }
+            tokio::task::yield_now().await;
+        }
+        panic!("bounded test work exhausted its pending passes");
+    })
+    .await
+    .expect("bounded test work exceeded its watchdog")
+}
+
 #[tokio::test]
 async fn context_rejection_precedes_all_scoped_storage_work() {
     let (_root, runtime, counts) = counted_sqlite().await;

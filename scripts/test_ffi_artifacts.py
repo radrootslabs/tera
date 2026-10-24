@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import os
 import plistlib
 import sys
@@ -17,6 +18,7 @@ import ffi_artifacts as artifacts  # noqa: E402
 import ffi_build as builder  # noqa: E402
 import ffi_provenance as provenance  # noqa: E402
 import ffi_source as source  # noqa: E402
+import ffi_notices as notices  # noqa: E402
 import package_contract as contract  # noqa: E402
 
 
@@ -29,10 +31,25 @@ class NativeArtifactTests(unittest.TestCase):
             path = self.root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(b"synthetic verifier fixture; not an executable library\n")
+        material = b"synthetic complete redistribution verifier fixture\n"
+        (self.root / notices.ARTIFACT_PATH).write_bytes(material)
+        self.notice_binding = {
+            "schema": "tera.redistribution.v1",
+            "package": "radroots_domain",
+            "version": "0.1.0-alpha",
+            "repository": contract.LIB_REMOTE,
+            "revision": "b" * 40,
+            "bytes": len(material),
+            "sha256": hashlib.sha256(material).hexdigest(),
+            "artifact_path": notices.ARTIFACT_PATH,
+            "installed_path": notices.INSTALLED_PATH,
+        }
         self.records = {
             target: {
                 "repository": "https://github.com/radrootslabs/tera",
                 "source": {"tree": "a" * 40},
+                "foundation": {"repository": contract.LIB_REMOTE, "revision": "b" * 40},
+                "redistribution": copy.deepcopy(self.notice_binding),
                 "build": {"target": target},
             }
             for target in artifacts.TARGETS
@@ -117,6 +134,26 @@ class NativeArtifactTests(unittest.TestCase):
         path.unlink()
         with self.assertRaisesRegex(source.ProvenanceError, "missing"):
             artifacts.check(self.root, self.records)
+
+    def test_complete_notice_is_required_and_source_bound(self) -> None:
+        path = self.root / notices.ARTIFACT_PATH
+        original = path.read_bytes()
+        path.write_bytes(original[:-1])
+        with self.assertRaisesRegex(source.ProvenanceError, "material differs"):
+            artifacts.check(self.root, self.records)
+        path.unlink()
+        with self.assertRaisesRegex(source.ProvenanceError, "unavailable"):
+            artifacts.check(self.root, self.records)
+
+    def test_notice_cannot_be_rebound_to_another_target_or_provider(self) -> None:
+        changed = copy.deepcopy(self.records)
+        changed[artifacts.TARGETS[1]]["redistribution"]["revision"] = "c" * 40
+        with self.assertRaisesRegex(source.ProvenanceError, "redistribution tuples"):
+            artifacts.check(self.root, changed)
+        changed = copy.deepcopy(self.records)
+        changed[artifacts.TARGETS[0]]["foundation"]["revision"] = "c" * 40
+        with self.assertRaisesRegex(contract.PackageContractError, "producer identity"):
+            artifacts.check(self.root, changed)
 
     def test_mismatched_generated_and_packaged_headers_are_rejected(self) -> None:
         (self.root / "headers/TeraFFI.h").write_text("void other(void);\n")

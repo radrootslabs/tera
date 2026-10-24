@@ -1,4 +1,4 @@
-schema = "tera.native-producer.v1"
+schema = "tera.native-producer.v2"
 repository = "https://github.com/radrootslabs/tera"
 foundation_lock = "radroots.lib.source-lock.v1.toml"
 source_inputs = [
@@ -18,6 +18,15 @@ config = "core/crates/tera_ffi/uniffi.toml"
 package = "tera_bindgen"
 default_features = true
 features = []
+
+[redistribution]
+package = "radroots_domain"
+version = "0.1.0-alpha"
+source_file = "NOTICE"
+sha256 = "4376b5764456a4fa5f74fd712390adeb897d1ccdd62d5f818b2bcd767003760a"
+maximum_bytes = 65536
+artifact_path = "redistribution/shared_data_NOTICE.txt"
+installed_path = "Tera/Resources/SharedDataNOTICE.txt"
 
 [build]
 rust_version = "1.99.0"

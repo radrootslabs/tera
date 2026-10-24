@@ -86,9 +86,10 @@ def producer_contract(root: Path) -> dict[str, Any]:
         "generator",
         "build",
         "native",
+        "redistribution",
     }
     contract._exact(set(value), expected, "producer contract fields")
-    contract._exact(value["schema"], "tera.native-producer.v1", "producer schema")
+    contract._exact(value["schema"], "tera.native-producer.v2", "producer schema")
     contract._exact(
         value["repository"],
         "https://github.com/radrootslabs/tera",
@@ -121,6 +122,9 @@ def producer_contract(root: Path) -> dict[str, Any]:
     )
     validate_build(value["build"])
     import ffi_native
+    import ffi_notices
+
+    ffi_notices.validate_contract(value["redistribution"])
 
     contract._exact(
         value["native"], ffi_native.INSPECTION_LIMITS, "native inspection limits"

@@ -10,6 +10,7 @@ from typing import Any
 
 import ffi_provenance as provenance
 import ffi_source as source
+import ffi_notices as notices
 import package_contract as contract
 
 TARGETS = ("aarch64-apple-ios", "aarch64-apple-ios-sim", "aarch64-apple-darwin")
@@ -29,6 +30,7 @@ def expected_paths() -> set[str]:
         f"{FRAMEWORK}/Info.plist",
         "api/TeraKitBindings.symbols.json",
         "abi_symbols.json",
+        notices.ARTIFACT_PATH,
     }
     for target in TARGETS:
         extension = "dylib" if target == TARGETS[-1] else "a"
@@ -164,12 +166,23 @@ def manifest(root: Path, records: dict[str, dict[str, Any]]) -> dict[str, Any]:
     if set(records) != set(TARGETS):
         raise source.ProvenanceError("producer source target inventory differs")
     source_tree = records[TARGETS[0]]["source"]["tree"]
+    redistribution = records[TARGETS[0]]["redistribution"]
+    notices.verify_material(root / notices.ARTIFACT_PATH, redistribution)
     for target, record in records.items():
         if (
             record["source"]["tree"] != source_tree
             or record["build"]["target"] != target
         ):
             raise source.ProvenanceError("producer source tuples disagree")
+        notices.validate_binding(record["redistribution"])
+        if record["redistribution"] != redistribution:
+            raise source.ProvenanceError("producer redistribution tuples disagree")
+        for key in ("repository", "revision"):
+            contract._exact(
+                redistribution[key],
+                record["foundation"][key],
+                "redistribution producer identity",
+            )
         provenance.verify_record(
             contract._read_regular(root / "source" / f"{target}.json"), record
         )
@@ -177,8 +190,10 @@ def manifest(root: Path, records: dict[str, dict[str, Any]]) -> dict[str, Any]:
     validate_framework(root)
     validate_abi(root)
     validate_api(root)
+    files = inventory(root)
+    notices.verify_inventory(files, redistribution, notices.ARTIFACT_PATH)
     return {
-        "schema": "radroots.artifact-manifest.v2",
+        "schema": "radroots.artifact-manifest.v3",
         "product": "tera",
         "target": "ios",
         "language": "swift",
@@ -188,7 +203,8 @@ def manifest(root: Path, records: dict[str, dict[str, Any]]) -> dict[str, Any]:
             "tree": source_tree,
         },
         "source_records": {target: f"source/{target}.json" for target in TARGETS},
-        "files": inventory(root),
+        "redistribution": redistribution,
+        "files": files,
         "disposition": "local_candidate_not_installed",
     }
 

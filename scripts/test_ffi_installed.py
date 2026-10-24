@@ -18,6 +18,7 @@ import ffi_artifacts as artifacts  # noqa: E402
 import ffi_installed as installed  # noqa: E402
 import ffi_provenance as provenance  # noqa: E402
 import ffi_source as source  # noqa: E402
+import ffi_notices as notices  # noqa: E402
 import package_contract as contract  # noqa: E402
 import test_ffi_artifacts as fixtures  # noqa: E402
 
@@ -43,6 +44,11 @@ class InstalledArtifactTests(unittest.TestCase):
         """Substitute native-source admission only; verify real fixture lock bytes."""
         config = source.producer_contract(SCRIPTS.parent)
         foundation = contract._read_toml(SCRIPTS.parent / config["foundation_lock"])
+        binding = {
+            **self.manifest["candidate"]["redistribution"],
+            "repository": foundation["repository"],
+            "revision": foundation["revision"],
+        }
         snapshot = {"tree": self.manifest["candidate"]["source"]["tree"]}
         (self.root / "TeraFFI/producer.toml").write_text(
             f"[build]\nsource_date_epoch = {epoch}\n"
@@ -54,12 +60,14 @@ class InstalledArtifactTests(unittest.TestCase):
             record = {
                 "source": snapshot,
                 "foundation": foundation,
+                "redistribution": binding,
                 "build": {"target": target, "source_date_epoch": epoch},
             }
             (self.root / "TeraFFI/source" / f"{target}.json").write_bytes(
                 provenance.encoded(record)
             )
         candidate = copy.deepcopy(self.manifest["candidate"])
+        candidate["redistribution"] = binding
         paths = installed.installed_paths()
         for index, item in enumerate(candidate["files"]):
             if item["path"].startswith("source/"):
@@ -75,7 +83,14 @@ class InstalledArtifactTests(unittest.TestCase):
 
         def admitted_producer(root: Path) -> dict:
             value = contract.producer_source_epoch(root)
-            return {**config, "build": {**config["build"], "source_date_epoch": value}}
+            return {
+                **config,
+                "build": {**config["build"], "source_date_epoch": value},
+                "redistribution": {
+                    **config["redistribution"],
+                    "sha256": binding["sha256"],
+                },
+            }
 
         stack = ExitStack()
         stack.enter_context(
@@ -114,7 +129,10 @@ class InstalledArtifactTests(unittest.TestCase):
 
     def test_installed_inventory_retains_exact_candidate_file_identities(self) -> None:
         installed.verify_files(self.root, self.manifest)
-        self.assertEqual(len(self.manifest["files"]), 13)
+        self.assertEqual(len(self.manifest["files"]), 14)
+        self.assertIn(
+            notices.INSTALLED_PATH, {item["path"] for item in self.manifest["files"]}
+        )
         self.assertEqual(
             self.manifest["disposition"], "local_installed_not_release_qualified"
         )
@@ -128,6 +146,15 @@ class InstalledArtifactTests(unittest.TestCase):
             installed.verify_files(self.root, self.manifest)
         library.unlink()
         with self.assertRaisesRegex(source.ProvenanceError, "missing"):
+            installed.verify_files(self.root, self.manifest)
+
+    def test_missing_or_truncated_notice_is_rejected(self) -> None:
+        path = self.root / notices.INSTALLED_PATH
+        path.write_bytes(path.read_bytes()[:-1])
+        with self.assertRaisesRegex(source.ProvenanceError, "material differs"):
+            installed.verify_files(self.root, self.manifest)
+        path.unlink()
+        with self.assertRaisesRegex(source.ProvenanceError, "unavailable"):
             installed.verify_files(self.root, self.manifest)
 
     def test_extra_generated_source_cannot_survive_an_install(self) -> None:
@@ -167,6 +194,8 @@ class InstalledArtifactTests(unittest.TestCase):
             )
 
     def test_failed_final_source_check_restores_the_prior_installation(self) -> None:
+        retained_resource = self.root / "Tera/Resources/retained.txt"
+        retained_resource.write_bytes(b"unrelated application resource")
         staging = self.root / "stage"
         previous = self.root / "previous"
         before = {

@@ -3961,7 +3961,7 @@
       ]
     },
     {
-      "identifier": "radroots.artifact-manifest.v2",
+      "identifier": "radroots.artifact-manifest.v3",
       "category": "shared_foundation_api",
       "occurrences": [
         {
@@ -5667,6 +5667,28 @@
         {
           "path": "TeraTests/TeraStateMigrationTests.swift",
           "count": 4
+        }
+      ]
+    },
+    {
+      "identifier": "radroots_domain",
+      "category": "shared_foundation_api",
+      "occurrences": [
+        {
+          "path": "TeraFFI/producer.toml",
+          "count": 1
+        },
+        {
+          "path": "scripts/ffi_notices.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_artifacts.py",
+          "count": 1
+        },
+        {
+          "path": "scripts/test_ffi_notices.py",
+          "count": 1
         }
       ]
     },
